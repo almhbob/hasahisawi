@@ -359,7 +359,7 @@ export default function ConversationScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 14,
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
 
   // فاصل اليوم
   daySep: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
     marginVertical: 12,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   },
 
   // فقاعة
-  bubbleWrap: { marginVertical: 2, flexDirection: "row", alignItems: "flex-end" },
+  bubbleWrap: { marginVertical: 2, flexDirection: "row-reverse", alignItems: "flex-end" },
   bubbleWrapMe: { justifyContent: "flex-end" },
   bubbleWrapOther: { justifyContent: "flex-start" },
   bubbleAvatarCol: { marginLeft: 0, marginRight: 6, alignSelf: "flex-end", marginBottom: 2 },
@@ -424,14 +424,14 @@ const styles = StyleSheet.create({
   msgText: { fontFamily: "Cairo_400Regular", fontSize: 15, lineHeight: 23 },
   msgTextMe: { color: "#fff" },
   msgTextOther: { color: Colors.textPrimary },
-  msgMeta: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 3, marginTop: 2 },
+  msgMeta: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "flex-end", gap: 3, marginTop: 2 },
   msgTime: { fontFamily: "Cairo_400Regular", fontSize: 10 },
   msgTimeMe: { color: "rgba(255,255,255,0.65)" },
   msgTimeOther: { color: Colors.textMuted },
 
   // شريط الكتابة
   inputBar: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "flex-end",
     gap: 8,
     paddingHorizontal: 12,

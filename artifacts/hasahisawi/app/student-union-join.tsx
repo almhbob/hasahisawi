@@ -572,7 +572,7 @@ export default function StudentUnionJoinScreen() {
 // ── الأنماط ──────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   header: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row-reverse", alignItems: "center",
     paddingHorizontal: 16, paddingBottom: 16, gap: 8,
   },
   backBtn: {

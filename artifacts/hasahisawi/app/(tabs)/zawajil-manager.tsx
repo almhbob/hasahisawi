@@ -15,6 +15,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 const PINK = "#EC4899";
 const PINK2 = "#F472B6";
 const BG = "#070D0A";
@@ -448,7 +449,7 @@ function OrdersTab({ token }: { token: string }) {
   return (
     <View style={s.flex}>
       {/* فلاتر الحالة */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
         {filters.map(([k, lbl]) => (
           <TouchableOpacity
             key={k}
@@ -458,7 +459,7 @@ function OrdersTab({ token }: { token: string }) {
             <Text style={[s.filterChipText, filter === k && { color: PINK }]}>{lbl}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </HScroll>
 
       {loading ? (
         <ActivityIndicator color={PINK} size="large" style={{ marginTop: 60 }} />

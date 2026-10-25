@@ -23,6 +23,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type CulturalCenter = {
@@ -356,7 +357,7 @@ export default function CultureScreen() {
       </ModernHeader>
 
       {/* Filter Bar */}
-      <ScrollView
+      <HScroll
         horizontal showsHorizontalScrollIndicator={false}
         style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
@@ -380,7 +381,7 @@ export default function CultureScreen() {
             ]}>{f.label}</Text>
           </AnimatedPress>
         ))}
-      </ScrollView>
+      </HScroll>
 
       {/* Centers Tab */}
       {activeTab === "centers" && (

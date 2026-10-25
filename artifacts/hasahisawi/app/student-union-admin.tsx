@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 
+import HScroll from "@/components/HScroll";
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
 
@@ -250,7 +251,7 @@ export default function StudentUnionAdminScreen() {
           </Animated.View>
 
           {/* فلاتر */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}
             contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
             {(["all", "pending", "approved", "rejected"] as const).map(f => (
               <TouchableOpacity key={f} onPress={() => setFilter(f)}
@@ -260,7 +261,7 @@ export default function StudentUnionAdminScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </HScroll>
 
           {/* القائمة */}
           {loading ? (
@@ -501,7 +502,7 @@ export default function StudentUnionAdminScreen() {
 
 const s = StyleSheet.create({
   header: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row-reverse", alignItems: "center",
     paddingHorizontal: 16, paddingBottom: 16, gap: 8,
   },
   iconBtn: {

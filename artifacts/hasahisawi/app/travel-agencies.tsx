@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { getApiUrl } from "@/lib/query-client";
 
+import HScroll from "@/components/HScroll";
 // ─── أنواع ──────────────────────────────────────────────────────────────────
 type AgencyType = "local" | "international" | "hajj_umrah" | "tourism" | "corporate";
 
@@ -169,7 +170,7 @@ export default function TravelAgenciesScreen() {
         {/* ── مقاصد شهيرة ── */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>🌍 مقاصد شهيرة</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 16, paddingVertical: 6 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 16, paddingVertical: 6 }}>
             {POPULAR_DEST.map((d, i) => (
               <Animated.View key={d.name} entering={FadeInRight.delay(i * 50)}>
                 <View style={[s.destChip, { borderColor: d.color + "50", backgroundColor: d.color + "12" }]}>
@@ -178,13 +179,13 @@ export default function TravelAgenciesScreen() {
                 </View>
               </Animated.View>
             ))}
-          </ScrollView>
+          </HScroll>
         </View>
 
         {/* ── مساحة حجوزات احترافية ── */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>🎫 مساحة حجوزات الوكالات</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 6 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 6 }}>
             {BOOKING_PRODUCTS.map((p, i) => (
               <Animated.View key={p.key} entering={FadeInRight.delay(i * 70)}>
                 <LinearGradient colors={[p.color + "22", "#0F172A"]} style={[s.bookingProductCard, { borderColor: p.color + "44" }]}>
@@ -196,7 +197,7 @@ export default function TravelAgenciesScreen() {
                 </LinearGradient>
               </Animated.View>
             ))}
-          </ScrollView>
+          </HScroll>
         </View>
 
         {/* ── لوحة إعدادات الوكالة ── */}
@@ -265,20 +266,20 @@ export default function TravelAgenciesScreen() {
               <View style={s.featuredDot} />
               <Text style={s.sectionTitle}>⭐ وكالات مميزة</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 6 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 6 }}>
               {featured.map((a, i) => (
                 <Animated.View key={a.id} entering={FadeInRight.delay(i * 80)}>
                   <FeaturedCard agency={a} onWA={openWhatsApp} />
                 </Animated.View>
               ))}
-            </ScrollView>
+            </HScroll>
           </View>
         )}
 
         {/* ── فلاتر النوع ── */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>📋 جميع الوكالات</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 4 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 4 }}>
             <TouchableOpacity
               style={[s.filterChip, filter === "all" && { backgroundColor: "#3B82F6", borderColor: "#3B82F6" }]}
               onPress={() => setFilter("all")}
@@ -299,7 +300,7 @@ export default function TravelAgenciesScreen() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </HScroll>
         </View>
 
         {/* ── قائمة الوكالات ── */}
@@ -680,12 +681,12 @@ function JoinFormModal({
                 })}
               </View>
 
-              <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                 <View style={{ flex: 1 }}><Field label="المدينة" value={city} onChangeText={setCity} placeholder="الحصاحيصا" /></View>
                 <View style={{ flex: 1 }}><Field label="الدولة" value={country} onChangeText={setCountry} placeholder="السودان" /></View>
               </View>
               <Field label="رقم الترخيص" value={licenseNum} onChangeText={setLicenseNum} placeholder="اختياري" />
-              <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                 <View style={{ flex: 1 }}><Field label="سنة التأسيس" value={foundedYear} onChangeText={setFoundedYear} placeholder="مثال: 2010" keyboardType="numeric" /></View>
                 <View style={{ flex: 1 }}><Field label="الموقع الإلكتروني" value={website} onChangeText={setWebsite} placeholder="example.com" autoCapitalize="none" /></View>
               </View>

@@ -31,6 +31,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type FamilyItem = {
@@ -1704,7 +1705,8 @@ export default function MarketScreen() {
       />
 
       {/* Tab Switch */}
-      <View style={[styles.tabSwitch, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+      {/* Five sectors do not fit a phone width: scroll instead of clipping. */}
+      <HScroll showsHorizontalScrollIndicator={false} style={styles.tabSwitchBar} contentContainerStyle={styles.tabSwitch}>
         <AnimatedPress
           style={[styles.switchTab, tab === "carpentry" && styles.switchTabActive, tab === "carpentry" && { borderColor: CARPENTRY_ACCENT }, { flexDirection: isRTL ? "row-reverse" : "row" }]}
           onPress={() => setTab("carpentry")}
@@ -1745,10 +1747,10 @@ export default function MarketScreen() {
           <MaterialCommunityIcons name="cellphone-marker" size={15} color={tab === "phones" ? "#1F5C8A" : Colors.textMuted} />
           <Text style={[styles.switchTabText, tab === "phones" && { color: "#1F5C8A" }]}>محلات الهواتف</Text>
         </AnimatedPress>
-      </View>
+      </HScroll>
 
       {/* Category Filter */}
-      <ScrollView
+      <HScroll
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.filterBar}
@@ -1772,7 +1774,7 @@ export default function MarketScreen() {
             </AnimatedPress>
           );
         })}
-      </ScrollView>
+      </HScroll>
 
       {/* List */}
       {tab === "family" ? (
@@ -1905,7 +1907,7 @@ export default function MarketScreen() {
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:20 }}>
                       {/* Emoji Picker */}
                       <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>اختر أيقونة المحل</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
+                      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
                         {["🏪","🛒","🍽️","💊","👗","📱","🔧","🎨","📦","🧁","🌿","🏗️"].map(em=>(
                           <TouchableOpacity key={em} onPress={()=>setMerchantForm(f=>({...f,logo_emoji:em}))}
                             style={{ width:44,height:44,borderRadius:12,alignItems:"center",justifyContent:"center",
@@ -1914,7 +1916,7 @@ export default function MarketScreen() {
                             <Text style={{ fontSize:22 }}>{em}</Text>
                           </TouchableOpacity>
                         ))}
-                      </ScrollView>
+                      </HScroll>
 
                       {/* Fields */}
                       {([
@@ -1938,7 +1940,7 @@ export default function MarketScreen() {
 
                       {/* Category */}
                       <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>نوع النشاط *</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
+                      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
                         {MERCHANT_CATS.filter(c=>c.key!=="all").map(cat=>(
                           <TouchableOpacity key={cat.key} onPress={()=>setMerchantForm(f=>({...f,category:cat.key as MerchantCat}))}
                             style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:12,
@@ -1948,7 +1950,7 @@ export default function MarketScreen() {
                             <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: merchantForm.category===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
                           </TouchableOpacity>
                         ))}
-                      </ScrollView>
+                      </HScroll>
 
                       {/* Tags */}
                       <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>مميزات المحل</Text>
@@ -2008,7 +2010,7 @@ export default function MarketScreen() {
                 <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>سجّل</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", paddingHorizontal:16, paddingBottom:10 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", paddingHorizontal:16, paddingBottom:10 }}>
               {MERCHANT_CATS.map(cat=>(
                 <TouchableOpacity key={cat.key} onPress={()=>setMerchantCat(cat.key)}
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
@@ -2018,7 +2020,7 @@ export default function MarketScreen() {
                   <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: merchantCat===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
           </View>
 
           {/* Merchant list */}
@@ -2179,7 +2181,7 @@ export default function MarketScreen() {
                       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:16 }}>
                         {/* Emoji */}
                         <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>أيقونة المتجر</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
+                        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
                           {["📱","🍎","🌟","🔵","⚡","🌸","🔴","🔧","🏪"].map(em=>(
                             <TouchableOpacity key={em} onPress={()=>setPhoneRegForm(f=>({...f,logo_emoji:em}))}
                               style={{ width:46,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",
@@ -2188,7 +2190,7 @@ export default function MarketScreen() {
                               <Text style={{ fontSize:22 }}>{em}</Text>
                             </TouchableOpacity>
                           ))}
-                        </ScrollView>
+                        </HScroll>
                         {/* Fields */}
                         {([
                           { label:"اسم المتجر *",       key:"shop_name",     ph:"مثال: متجر العقيد للهواتف" },
@@ -2376,7 +2378,7 @@ export default function MarketScreen() {
                   <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:20, paddingBottom:30 }}>
                     {/* Emoji */}
                     <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>أيقونة المنتج</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:14 }}>
                       {PRODUCT_EMOJIS.map(em=>(
                         <TouchableOpacity key={em} onPress={()=>setProdForm(f=>({...f,emoji:em}))}
                           style={{ width:46,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",
@@ -2384,7 +2386,7 @@ export default function MarketScreen() {
                           <Text style={{ fontSize:22 }}>{em}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </HScroll>
                     {/* Condition */}
                     <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>الحالة *</Text>
                     <View style={{ flexDirection:"row-reverse", gap:8, marginBottom:14 }}>
@@ -2429,7 +2431,7 @@ export default function MarketScreen() {
                     <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, textAlign:"right", marginBottom:12, marginTop:4 }}>المواصفات التقنية</Text>
                     {/* Color */}
                     <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 }}>اللون</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
                       {PHONE_COLORS_LIST.map(cl=>(
                         <TouchableOpacity key={cl} onPress={()=>setProdForm(f=>({...f,color:f.color===cl?"":cl}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
@@ -2437,10 +2439,10 @@ export default function MarketScreen() {
                           <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: prodForm.color===cl?"#1F5C8A":Colors.textMuted }}>{cl}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </HScroll>
                     {/* Storage */}
                     <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 }}>التخزين</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
                       {STORAGE_OPTIONS.map(s=>(
                         <TouchableOpacity key={s} onPress={()=>setProdForm(f=>({...f,storage:f.storage===s?"":s}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
@@ -2448,10 +2450,10 @@ export default function MarketScreen() {
                           <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color: prodForm.storage===s?"#10B981":Colors.textMuted }}>{s}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </HScroll>
                     {/* RAM */}
                     <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6 }}>الذاكرة RAM</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginBottom:12 }}>
                       {RAM_OPTIONS.map(r=>(
                         <TouchableOpacity key={r} onPress={()=>setProdForm(f=>({...f,ram:f.ram===r?"":r}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
@@ -2459,7 +2461,7 @@ export default function MarketScreen() {
                           <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color: prodForm.ram===r?"#3B82F6":Colors.textMuted }}>{r}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </HScroll>
                     {/* Other specs */}
                     {([
                       { label:"البطارية",     key:"battery",     ph:"مثال: 5000mAh" },
@@ -2556,7 +2558,7 @@ export default function MarketScreen() {
                           )}
                         </View>
                         {/* Condition filter */}
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginTop:12 }}>
+                        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", marginTop:12 }}>
                           {PHONE_CONDITIONS.map(c=>(
                             <TouchableOpacity key={c.key} onPress={()=>{ setProductsCond(c.key); loadShopProducts(selectedShop.id, c.key); }}
                               style={{ paddingHorizontal:14, paddingVertical:7, borderRadius:20,
@@ -2565,7 +2567,7 @@ export default function MarketScreen() {
                               <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: productsCond===c.key?c.color:Colors.textMuted }}>{c.label}</Text>
                             </TouchableOpacity>
                           ))}
-                        </ScrollView>
+                        </HScroll>
                       </View>
                       {/* Products grid */}
                       <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:40 }}>
@@ -2665,7 +2667,7 @@ export default function MarketScreen() {
               ) : null}
             </View>
             {/* Brand filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", paddingHorizontal:16, paddingBottom:10 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", paddingHorizontal:16, paddingBottom:10 }}>
               {PHONE_BRANDS.map(brand=>(
                 <TouchableOpacity key={brand.key} onPress={()=>setPhoneBrand(brand.key)}
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
@@ -2675,7 +2677,7 @@ export default function MarketScreen() {
                   <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: phoneBrand===brand.key?"#1F5C8A":Colors.textMuted }}>{brand.label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
           </View>
 
           {/* ── قائمة المتاجر ── */}
@@ -2816,14 +2818,16 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
   },
   addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#fff" },
-  tabSwitch: {
-    flexDirection: "row-reverse",
+  tabSwitchBar: {
+    flexGrow: 0,
     backgroundColor: Colors.cardBg,
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
+  tabSwitch: {
     paddingHorizontal: 16, gap: 8, paddingBottom: 0,
   },
   switchTab: {
-    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    flexGrow: 1, flexShrink: 0, paddingHorizontal: 8, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 6, paddingVertical: 12, borderBottomWidth: 2.5, borderBottomColor: "transparent",
   },
   switchTabActive: { borderBottomColor: Colors.primary },
@@ -2877,7 +2881,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center",
     justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10,
   },
-  footerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  footerLeft: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   priceWrap: {
     backgroundColor: Colors.primary + "14", borderRadius: Colors.radius.sm,
     paddingHorizontal: 12, paddingVertical: 5,

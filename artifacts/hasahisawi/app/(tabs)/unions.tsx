@@ -20,6 +20,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 const { width: W } = Dimensions.get("window");
 
 const UC  = "#1F5C8A";
@@ -606,8 +607,8 @@ export default function UnionsScreen() {
         <ScrollView contentContainerStyle={styles.formContainer}>
           {/* اختيار النقابة */}
           <Text style={styles.formSectionTitle}>🏛️ اختر النقابة</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-            <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 2 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 10, paddingHorizontal: 2 }}>
               {unions.map(u => (
                 <Pressable
                   key={u.id}
@@ -623,7 +624,7 @@ export default function UnionsScreen() {
                 <Text style={{ color: "#7A8E86", fontFamily: "Cairo_400Regular" }}>لا توجد نقابات بعد</Text>
               )}
             </View>
-          </ScrollView>
+          </HScroll>
           {sel && <Text style={styles.selectedUnion}>النقابة المختارة: {sel.name}</Text>}
 
           {/* Step indicator */}
@@ -649,7 +650,7 @@ export default function UnionsScreen() {
               {/* الجنس */}
               <View style={styles.fGroup}>
                 <Text style={styles.fLabel}>الجنس</Text>
-                <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                   {([{ k: "male", l: "ذكر" }, { k: "female", l: "أنثى" }] as const).map(g => (
                     <Pressable key={g.k} style={[styles.genderBtn, form.gender === g.k && styles.genderBtnActive]}
                       onPress={() => setForm(p => ({ ...p, gender: g.k }))}>
@@ -687,7 +688,7 @@ export default function UnionsScreen() {
               {/* الدرجة */}
               <View style={styles.fGroup}>
                 <Text style={styles.fLabel}>الدرجة العلمية</Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
                   {DEGREES.map(d => (
                     <Pressable key={d} style={[styles.degreeChip, form.degree === d && styles.degreeChipActive]}
                       onPress={() => setForm(p => ({ ...p, degree: d }))}>
@@ -748,7 +749,7 @@ export default function UnionsScreen() {
               {/* نوع العضوية */}
               <View style={[styles.fGroup, { marginTop: 16 }]}>
                 <Text style={styles.fLabel}>نوع العضوية المطلوبة</Text>
-                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
                   {MEMBERSHIP_TYPES.map(mt => (
                     <Pressable key={mt.key} style={[styles.degreeChip, form.membership_type === mt.key && styles.degreeChipActive]}
                       onPress={() => setForm(p => ({ ...p, membership_type: mt.key as any }))}>
@@ -877,7 +878,7 @@ export default function UnionsScreen() {
         gradient={Colors.gradients.brand}
       >
         {/* Tabs — scrollable row */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44 }} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44 }} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
           {[
             { key: "unions",   label: "النقابات",     icon: "business-outline",      activeColor: UC  },
             { key: "student",  label: "الاتحاد",      icon: "school-outline",        activeColor: SU  },
@@ -894,7 +895,7 @@ export default function UnionsScreen() {
               <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </HScroll>
       </ModernHeader>
 
       {/* Content */}
@@ -930,8 +931,8 @@ export default function UnionsScreen() {
           <ScrollView contentContainerStyle={{ padding: 14, gap: 12 }}
             refreshControl={<RefreshControl refreshing={false} onRefresh={loadPrograms} tintColor={UC} />}>
             {/* فلتر النوع */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 {[
                   { k: "all", l: "الكل" }, { k: "training", l: "تدريب" },
                   { k: "event", l: "فعالية" }, { k: "workshop", l: "ورشة" }, { k: "course", l: "دورة" },
@@ -943,10 +944,10 @@ export default function UnionsScreen() {
                   </Pressable>
                 ))}
               </View>
-            </ScrollView>
+            </HScroll>
             {/* فلتر النقابة */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <Pressable style={[styles.degreeChip, !programUnionFilter && styles.degreeChipActive]}
                   onPress={() => setProgramUnionFilter(null)}>
                   <Text style={[styles.degreeText, !programUnionFilter && styles.degreeTextActive]}>كل النقابات</Text>
@@ -958,7 +959,7 @@ export default function UnionsScreen() {
                   </Pressable>
                 ))}
               </View>
-            </ScrollView>
+            </HScroll>
             {programs.map((p, i) => {
               const TYPE_ICONS: Record<string, string> = { training: "🎓", event: "🎉", workshop: "🔧", course: "📚" };
               const icon = TYPE_ICONS[p.type] || "📌";
@@ -966,8 +967,8 @@ export default function UnionsScreen() {
               return (
                 <Animated.View key={p.id} entering={FadeInDown.delay(i * 60).springify()}>
                   <View style={[styles.annCard, { borderLeftWidth: 3, borderLeftColor: UC }]}>
-                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                         <Text style={{ fontSize: 16 }}>{icon}</Text>
                         <View style={[styles.statusBadge, { borderColor: UC + "44", backgroundColor: UC + "18" }]}>
                           <Text style={[styles.statusText, { color: UC, fontSize: 11 }]}>{TYPE_LABELS[p.type] || p.type}</Text>
@@ -977,7 +978,7 @@ export default function UnionsScreen() {
                     </View>
                     <Text style={styles.annTitle}>{p.title}</Text>
                     {p.description && <Text style={styles.annBody}>{p.description}</Text>}
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                       {p.start_date && <View style={styles.statChip}><Ionicons name="calendar-outline" size={11} color={UC3} /><Text style={styles.statChipText}>{p.start_date}</Text></View>}
                       {p.end_date && p.end_date !== p.start_date && <View style={styles.statChip}><Ionicons name="calendar-outline" size={11} color="#F59E0B" /><Text style={[styles.statChipText, { color: "#F59E0B" }]}>حتى {p.end_date}</Text></View>}
                       {p.location && <View style={styles.statChip}><Ionicons name="location-outline" size={11} color={UC3} /><Text style={styles.statChipText}>{p.location}</Text></View>}
@@ -985,14 +986,14 @@ export default function UnionsScreen() {
                       {p.max_participants && <View style={styles.statChip}><Ionicons name="people-outline" size={11} color={UC3} /><Text style={styles.statChipText}>حتى {p.max_participants}</Text></View>}
                     </View>
                     {p.contact && (
-                      <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}
+                      <Pressable style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 }}
                         onPress={() => Linking.openURL(`tel:${p.contact}`)}>
                         <Ionicons name="call-outline" size={13} color={Colors.primary} />
                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>{p.contact}</Text>
                       </Pressable>
                     )}
                     {p.link && (
-                      <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
+                      <Pressable style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 }}
                         onPress={() => Linking.openURL(p.link!)}>
                         <Ionicons name="link-outline" size={13} color="#0EA5E9" />
                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#0EA5E9" }}>رابط التسجيل</Text>
@@ -1018,8 +1019,8 @@ export default function UnionsScreen() {
           <ScrollView contentContainerStyle={{ padding: 14, gap: 10 }}
             refreshControl={<RefreshControl refreshing={false} onRefresh={loadLaws} tintColor={UC} />}>
             {/* فلتر التصنيف */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 {[
                   { k: "all", l: "الكل" }, { k: "bylaw", l: "لائحة" },
                   { k: "regulation", l: "نظام" }, { k: "policy", l: "سياسة" }, { k: "decision", l: "قرار" },
@@ -1031,10 +1032,10 @@ export default function UnionsScreen() {
                   </Pressable>
                 ))}
               </View>
-            </ScrollView>
+            </HScroll>
             {/* فلتر النقابة */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <Pressable style={[styles.degreeChip, !lawUnionFilter && styles.degreeChipActive]}
                   onPress={() => setLawUnionFilter(null)}>
                   <Text style={[styles.degreeText, !lawUnionFilter && styles.degreeTextActive]}>كل النقابات</Text>
@@ -1046,7 +1047,7 @@ export default function UnionsScreen() {
                   </Pressable>
                 ))}
               </View>
-            </ScrollView>
+            </HScroll>
             {laws.map((l, i) => {
               const CAT_LABELS: Record<string, string> = { bylaw: "لائحة", regulation: "نظام داخلي", policy: "سياسة", decision: "قرار" };
               const CAT_COLORS: Record<string, string> = { bylaw: "#1F5C8A", regulation: "#0EA5E9", policy: "#22C55E", decision: "#F59E0B" };
@@ -1056,9 +1057,9 @@ export default function UnionsScreen() {
                 <Animated.View key={l.id} entering={FadeInDown.delay(i * 50).springify()}>
                   <Pressable onPress={() => setExpandedLaw(expanded ? null : l.id)}
                     style={[styles.annCard, { borderLeftWidth: 3, borderLeftColor: cc }]}>
-                    <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                       <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6 }}>
                           <View style={[styles.statusBadge, { borderColor: cc + "44", backgroundColor: cc + "18" }]}>
                             <Text style={[styles.statusText, { color: cc, fontSize: 11 }]}>{CAT_LABELS[l.category] || l.category}</Text>
                           </View>
@@ -1076,7 +1077,7 @@ export default function UnionsScreen() {
                       <Animated.View entering={FadeInDown.springify()} style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#E1EAE6" }}>
                         <Text style={[styles.annBody, { lineHeight: 24 }]}>{l.body}</Text>
                         {l.document_url && (
-                          <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}
+                          <Pressable style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10 }}
                             onPress={() => Linking.openURL(l.document_url!)}>
                             <Ionicons name="document-outline" size={16} color="#F59E0B" />
                             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F59E0B" }}>تحميل الوثيقة الكاملة</Text>
@@ -1162,7 +1163,7 @@ function AddPrevUnion({ onAdd }: { onAdd: (pu: PrevUnion) => void }) {
       {[{ label: "اسم النقابة/الجمعية", val: name, set: setName }, { label: "الدور/المنصب", val: role, set: setRole }, { label: "من (سنة)", val: from, set: setFrom }, { label: "حتى (سنة)", val: to, set: setTo }].map(f => (
         <TextInput key={f.label} style={styles.addInput} placeholder={f.label} placeholderTextColor="#7A8E86" value={f.val} onChangeText={f.set} textAlign="right" />
       ))}
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
         <Pressable style={styles.addConfirm} onPress={() => { if (name) { onAdd({ name, role, from, to }); setName(""); setRole(""); setFrom(""); setTo(""); setShow(false); } }}>
           <Text style={styles.addConfirmText}>إضافة</Text>
         </Pressable>
@@ -1185,7 +1186,7 @@ function AddListItems({ label, items, onAdd, onRemove }: { label: string; items:
           <Pressable onPress={() => onRemove(i)}><Ionicons name="close-circle" size={16} color="#EF4444" /></Pressable>
         </View>
       ))}
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
         <TextInput style={[styles.fInput, { flex: 1 }]} placeholder="أضف عنصراً..." placeholderTextColor="#7A8E86" value={val} onChangeText={setVal} textAlign="right" />
         <Pressable style={styles.smallAddBtn} onPress={() => { if (val.trim()) { onAdd(val.trim()); setVal(""); } }}>
           <Ionicons name="add" size={18} color="#fff" />
@@ -1209,7 +1210,7 @@ function AddReference({ onAdd }: { onAdd: (r: Reference) => void }) {
       {[{ label: "الاسم", val: name, set: setName }, { label: "رقم الهاتف", val: phone, set: setPhone }, { label: "صلة القرابة / صفة", val: relation, set: setRelation }].map(f => (
         <TextInput key={f.label} style={styles.addInput} placeholder={f.label} placeholderTextColor="#7A8E86" value={f.val} onChangeText={f.set} textAlign="right" />
       ))}
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
         <Pressable style={styles.addConfirm} onPress={() => { if (name && phone) { onAdd({ name, phone, relation }); setName(""); setPhone(""); setRelation(""); setShow(false); } }}>
           <Text style={styles.addConfirmText}>إضافة</Text>
         </Pressable>
@@ -1225,13 +1226,13 @@ function AddReference({ onAdd }: { onAdd: (r: Reference) => void }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   headerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: UC + "20", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "40" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#1A2C25" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62" },
 
-  tabRow: { flexDirection: "row", gap: 6, paddingHorizontal: 14, marginBottom: 12 },
-  tabBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+  tabRow: { flexDirection: "row-reverse", gap: 6, paddingHorizontal: 14, marginBottom: 12 },
+  tabBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
   tabBtnActive: { backgroundColor: "rgba(255,255,255,0.28)", borderColor: "rgba(255,255,255,0.55)" },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.82)" },
   tabLabelActive: { color: "#fff" },
@@ -1239,23 +1240,23 @@ const styles = StyleSheet.create({
   // Union card
   unionCard: { borderRadius: Colors.radius.lg, overflow: "hidden", ...Colors.shadow.card },
   unionCardGrad: { padding: 16 },
-  unionCardRow: { flexDirection: "row", gap: 12, marginBottom: 10 },
+  unionCardRow: { flexDirection: "row-reverse", gap: 12, marginBottom: 10 },
   unionInitial: { width: 48, height: 48, borderRadius: Colors.radius.pill, backgroundColor: UC + "30", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "50", flexShrink: 0 },
   unionInitialText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: UC },
   unionName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1A2C25" },
   unionField: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC3 },
   unionDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62", lineHeight: 18 },
-  unionStats: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
-  statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: UC + "15" },
+  unionStats: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 12 },
+  statChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: UC + "15" },
   statChipText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: UC3 },
-  unionActions: { flexDirection: "row", gap: 8 },
-  uBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
+  unionActions: { flexDirection: "row-reverse", gap: 8 },
+  uBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
   uBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   // Announcement
   annCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: "#E1EAE6", ...Colors.shadow.card },
   annCardPinned: { borderColor: GOLD + "50", backgroundColor: GOLD + "08" },
-  pinnedBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 },
+  pinnedBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginBottom: 6 },
   pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GOLD },
   annTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1A2C25", marginBottom: 4 },
   annUnion: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC, marginBottom: 4 },
@@ -1271,7 +1272,7 @@ const styles = StyleSheet.create({
 
   // Modal
   modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: UC + "30" },
+  modalHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: UC + "30" },
   modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#1A2C25", flex: 1, textAlign: "center" },
   closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#EEF3F0", alignItems: "center", justifyContent: "center" },
   modalContent: { padding: 20, gap: 10, paddingBottom: 60 },
@@ -1280,14 +1281,14 @@ const styles = StyleSheet.create({
   modalField: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC, textAlign: "center" },
   modalDesc: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#5E7A6E", textAlign: "center", lineHeight: 22 },
   modalInfoGrid: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, gap: 10, ...Colors.shadow.card },
-  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   infoLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#4E6F62" },
   infoVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#1A2C25", flex: 1 },
   annInModal: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: UC },
   annInModalTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1A2C25", marginBottom: 4 },
   annInModalBody: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62" },
-  modalBtns: { flexDirection: "row", gap: 10, marginTop: 16 },
-  modalJoinBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: UC, paddingVertical: 13, borderRadius: Colors.radius.md },
+  modalBtns: { flexDirection: "row-reverse", gap: 10, marginTop: 16 },
+  modalJoinBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: UC, paddingVertical: 13, borderRadius: Colors.radius.md },
   modalJoinText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   modalCallBtn: { width: 48, height: 48, borderRadius: Colors.radius.md, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E1EAE6" },
 
@@ -1312,7 +1313,7 @@ const styles = StyleSheet.create({
   selectedUnion: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary, marginBottom: 14 },
 
   // Steps
-  steps: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 6 },
+  steps: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", marginBottom: 6 },
   stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#E1EAE6", alignItems: "center", justifyContent: "center" },
   stepActive: { borderColor: UC, backgroundColor: UC + "25" },
   stepDone: { borderColor: Colors.primary, backgroundColor: Colors.primary },
@@ -1322,9 +1323,9 @@ const styles = StyleSheet.create({
   stepNumActive: { color: UC },
   stepLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC, textAlign: "center", marginBottom: 18 },
 
-  prevUnionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 10, marginBottom: 6 },
+  prevUnionRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 10, marginBottom: 6 },
   prevUnionLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5E7A6E", flex: 1 },
-  addBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, marginBottom: 12 },
+  addBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 8, marginBottom: 12 },
   addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC },
   addBox: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 14, gap: 8, marginBottom: 12, borderWidth: 1, borderColor: UC + "30" },
   addInput: { backgroundColor: "#F4F8F6", borderWidth: 1, borderColor: "#E1EAE6", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 8, color: "#1A2C25", fontFamily: "Cairo_400Regular", fontSize: 13 },
@@ -1332,22 +1333,22 @@ const styles = StyleSheet.create({
   addConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   addCancel: { flex: 1, backgroundColor: "#E1EAE6", paddingVertical: 8, borderRadius: Colors.radius.sm, alignItems: "center" },
   addCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#4E6F62" },
-  listItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
+  listItem: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
   listItemText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5E7A6E", flex: 1 },
   smallAddBtn: { backgroundColor: UC, width: 40, borderRadius: Colors.radius.sm, alignItems: "center", justifyContent: "center" },
 
   summaryBox: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 16, marginTop: 16, borderWidth: 1, borderColor: UC + "40", ...Colors.shadow.card },
   summaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: UC, marginBottom: 10 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5, borderBottomWidth: 1, borderColor: "#E1EAE6" },
+  summaryRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 5, borderBottomWidth: 1, borderColor: "#E1EAE6" },
   summaryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#4E6F62" },
   summaryVal: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#1A2C25", flex: 1, textAlign: "right" },
 
-  formNavBtns: { flexDirection: "row", gap: 12, marginTop: 24 },
-  prevBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: UC + "50", backgroundColor: UC + "10" },
+  formNavBtns: { flexDirection: "row-reverse", gap: 12, marginTop: 24 },
+  prevBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: UC + "50", backgroundColor: UC + "10" },
   prevBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: UC },
-  nextBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13, borderRadius: Colors.radius.md, backgroundColor: UC },
+  nextBtn: { flex: 2, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13, borderRadius: Colors.radius.md, backgroundColor: UC },
   nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-  submitBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: Colors.radius.md, backgroundColor: Colors.primary },
+  submitBtn: { flex: 2, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: Colors.radius.md, backgroundColor: Colors.primary },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   successBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
@@ -1360,15 +1361,15 @@ const styles = StyleSheet.create({
 
   // My memberships
   myCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, borderColor: "#E1EAE6", ...Colors.shadow.card },
-  myCardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 },
+  myCardHeader: { flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 },
   myCardUnion: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1A2C25" },
   myCardDate: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8E86", marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, borderWidth: 1 },
   statusText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
-  membershipNoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, padding: 8, backgroundColor: Colors.primary + "15", borderRadius: Colors.radius.sm },
+  membershipNoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8, padding: 8, backgroundColor: Colors.primary + "15", borderRadius: Colors.radius.sm },
   membershipNoText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
   rejectionReason: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", marginBottom: 8 },
-  myCardInfo: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  myCardInfo: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   miniInfo: { backgroundColor: "#F4F8F6", paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#E1EAE6" },
   miniLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#7A8E86" },
   miniVal: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5E7A6E" },
@@ -1406,7 +1407,7 @@ const stuStyles = StyleSheet.create({
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#4ADE80" },
   activeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
   statsRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.15)",
     paddingTop: 14, marginTop: 4,
   },
@@ -1423,7 +1424,7 @@ const stuStyles = StyleSheet.create({
     textAlign: "right", marginBottom: 12,
   },
 
-  featuresGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
+  featuresGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
   featureCard: {
     backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, gap: 10,
     borderWidth: 1, borderColor: "#E1EAE6", alignItems: "flex-end", ...Colors.shadow.card,
@@ -1449,7 +1450,7 @@ const stuStyles = StyleSheet.create({
   joinBtnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   joinBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 2 },
 
-  committeesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  committeesGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   committeeChip: {
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
     backgroundColor: SU + "15", borderRadius: 20, borderWidth: 1, borderColor: SU + "35",

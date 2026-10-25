@@ -34,6 +34,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 export type LostItem = {
   id: string;
   item_name: string;
@@ -301,7 +302,7 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
               <TextInput style={addModal.input} value={itemName} onChangeText={setItemName} placeholder="مثال: هاتف سامسونج" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
               <Text style={addModal.label}>التصنيف</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                 {CATEGORIES.map(cat => (
                   <TouchableOpacity
                     key={cat}
@@ -312,7 +313,7 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
                     <Text style={[addModal.catChipText, category === cat && { color: CATEGORY_COLORS[cat] || Colors.primary }]}>{CATEGORY_LABELS[cat]}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
 
               <Text style={addModal.label}>وصف الغرض</Text>
               <TextInput
@@ -629,7 +630,7 @@ const styles = StyleSheet.create({
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
   cardActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   actionsRight: { flexDirection: "row-reverse", gap: 8 },
-  actionsLeft: { flexDirection: "row", gap: 12, alignItems: "center" },
+  actionsLeft: { flexDirection: "row-reverse", gap: 12, alignItems: "center" },
   foundBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.success + "15", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5 },
   foundBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.success },
   shareBtn: { width: 30, height: 30, justifyContent: "center", alignItems: "center" },
@@ -643,9 +644,9 @@ const addModal = StyleSheet.create({
   title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 16 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
   input: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 12 },
-  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
+  catChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
-  actions: { flexDirection: "row", gap: 12, marginTop: 12 },
+  actions: { flexDirection: "row-reverse", gap: 12, marginTop: 12 },
   cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
   saveBtn: { flex: 1, paddingVertical: 13, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },

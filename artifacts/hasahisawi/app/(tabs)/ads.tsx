@@ -21,6 +21,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Constants ───────────────────────────────────────────────────
 
 const ACCENT   = Colors.accent ?? "#F59E0B";
@@ -282,7 +283,7 @@ function SpacesTab({
 
       {/* Packages */}
       <Text style={s.sectionTitle}>باقات الإعلان</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pkgsRow}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pkgsRow}>
         {PACKAGES.map(pkg => (
           <View key={pkg.days} style={s.pkgStaticWrapper}>
             <View style={[s.pkgCard, pkg.badgeColor && { borderColor: pkg.badgeColor + "55" }]}>
@@ -307,7 +308,7 @@ function SpacesTab({
             </View>
           </View>
         ))}
-      </ScrollView>
+      </HScroll>
 
       {/* CTA Button */}
       <TouchableOpacity style={s.bigCTA} onPress={onBook} activeOpacity={0.88}>
@@ -676,7 +677,7 @@ function AdRequestModal({
 
                   {/* نوع الإعلان */}
                   <Text style={s.formLabel}>نوع الإعلان</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                     <View style={s.typeRow}>
                       {(Object.entries(AD_TYPES) as [AdType, typeof AD_TYPES[AdType]][]).map(([key, meta]) => (
                         <TouchableOpacity
@@ -689,7 +690,7 @@ function AdRequestModal({
                         </TouchableOpacity>
                       ))}
                     </View>
-                  </ScrollView>
+                  </HScroll>
 
                   {/* عنوان */}
                   <View style={s.formField}>
@@ -721,7 +722,7 @@ function AdRequestModal({
 
                   {/* الباقات */}
                   <Text style={s.formLabel}>اختر الباقة</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                     <View style={s.pkgsSelectRow}>
                       {PACKAGES.map(pkg => (
                         <PackageCard
@@ -733,7 +734,7 @@ function AdRequestModal({
                         />
                       ))}
                     </View>
-                  </ScrollView>
+                  </HScroll>
 
                   {/* Cost summary */}
                   <View style={s.costCard}>
@@ -1045,7 +1046,7 @@ const s = StyleSheet.create({
   },
   sponsoredText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: ACCENT },
   linkChip: {
-    flexDirection: "row", alignItems: "center", gap: 3,
+    flexDirection: "row-reverse", alignItems: "center", gap: 3,
     backgroundColor: EMERALD + "15", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
   },
   linkChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: EMERALD },
@@ -1111,7 +1112,7 @@ const s = StyleSheet.create({
   },
 
   pkgsRow: { paddingHorizontal: 14, gap: 10 },
-  pkgsSelectRow: { flexDirection: "row", gap: 10 },
+  pkgsSelectRow: { flexDirection: "row-reverse", gap: 10 },
   pkgStaticWrapper: {},
   pkgCard: {
     width: 168, borderRadius: Colors.radius.lg, borderWidth: 1.5, borderColor: DIVIDER,
@@ -1130,7 +1131,7 @@ const s = StyleSheet.create({
   pkgFeatureRow:{ flexDirection: "row-reverse", alignItems: "center", gap: 5, alignSelf: "flex-start" },
   pkgFeature:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: SUB, textAlign: "right" },
   pkgSelectedBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 4, marginTop: 8,
   },
   pkgSelectedText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
@@ -1163,15 +1164,15 @@ const s = StyleSheet.create({
   },
   contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: TEXT },
   contactSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED },
-  contactBtns:  { flexDirection: "row", gap: 10, marginTop: 8 },
+  contactBtns:  { flexDirection: "row-reverse", gap: 10, marginTop: 8 },
   waBtn: {
-    flexDirection: "row", alignItems: "center", gap: 7,
+    flexDirection: "row-reverse", alignItems: "center", gap: 7,
     backgroundColor: "#25D366", borderRadius: Colors.radius.md,
     paddingHorizontal: 18, paddingVertical: 11,
   },
   waBtnText:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   callBtn: {
-    flexDirection: "row", alignItems: "center", gap: 7,
+    flexDirection: "row-reverse", alignItems: "center", gap: 7,
     backgroundColor: EMERALD + "18", borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: EMERALD + "40",
     paddingHorizontal: 18, paddingVertical: 11,
   },
@@ -1185,7 +1186,7 @@ const s = StyleSheet.create({
   },
   phoneSearchTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: TEXT },
   phoneSearchSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "center" },
-  phoneRow: { flexDirection: "row", gap: 8, width: "100%", marginTop: 6 },
+  phoneRow: { flexDirection: "row-reverse", gap: 8, width: "100%", marginTop: 6 },
   phoneInput: {
     flex: 1, backgroundColor: BG, borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: DIVIDER,
@@ -1264,9 +1265,9 @@ const s = StyleSheet.create({
   },
   imgPickerText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: MUTED },
   imgPickerHint: { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED },
-  imgBtnsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  imgBtnsRow: { flexDirection: "row-reverse", gap: 10, marginBottom: 14 },
   imgPickBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     backgroundColor: EMERALD + "18", borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: EMERALD + "40",
     paddingVertical: 13,
   },
@@ -1290,9 +1291,9 @@ const s = StyleSheet.create({
   formTextArea: { height: 90, textAlignVertical: "top" },
 
   // Type selector
-  typeRow: { flexDirection: "row", gap: 8 },
+  typeRow: { flexDirection: "row-reverse", gap: 8 },
   typeChip: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     borderRadius: Colors.radius.sm, borderWidth: 1.5, borderColor: DIVIDER,
     paddingHorizontal: 12, paddingVertical: 8,
   },
@@ -1332,7 +1333,7 @@ const s = StyleSheet.create({
   skipBtn:  { alignItems: "center", paddingVertical: 8 },
   skipBtnText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED },
   backBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: BG, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: DIVIDER,
     paddingHorizontal: 16, paddingVertical: 14,
   },

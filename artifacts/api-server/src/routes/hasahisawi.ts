@@ -8,6 +8,8 @@ import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
 import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
+import { sessionUser } from "../lib/shared-db";
+import { ownedOccasionShop } from "../lib/ownership";
 import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider, ensureFirebaseUserForEmail } from "../lib/firebase-admin";
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
@@ -7250,9 +7252,9 @@ router.post("/occasions/items", async (req: Request, res: Response) => {
     const { shop_phone, name, category, price_hint, icon, quantity, sort_order } = req.body;
     if (!shop_phone || !name || !category)
       return res.status(400).json({ error: "بيانات ناقصة" });
-    const shopR = await query(`SELECT id FROM occasion_shops WHERE phone=$1 AND status='approved'`, [shop_phone]);
-    if (!shopR.rows.length) return res.status(403).json({ error: "المحل غير موجود أو لم يُعتمد بعد" });
-    const shop_id = shopR.rows[0].id;
+    const shop = await ownedOccasionShop(await sessionUser(req), shop_phone);
+    if (!shop || shop.status !== "approved") return res.status(403).json({ error: "المحل غير موجود أو لم يُعتمد بعد أو لا يتبع حسابك" });
+    const shop_id = shop.id;
     const r = await query(
       `INSERT INTO occasion_items (shop_id,name,category,price_hint,icon,quantity,sort_order,is_available)
        VALUES ($1,$2,$3,$4,$5,$6,$7,true) RETURNING id`,
@@ -7271,9 +7273,9 @@ router.patch("/occasions/items/:id/toggle", async (req: Request, res: Response) 
     const { shop_phone } = req.body;
     const { id } = req.params;
     if (!shop_phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
-    const shopR = await query(`SELECT id FROM occasion_shops WHERE phone=$1`, [shop_phone]);
-    if (!shopR.rows.length) return res.status(403).json({ error: "غير مصرح" });
-    const shop_id = shopR.rows[0].id;
+    const shop = await ownedOccasionShop(await sessionUser(req), shop_phone);
+    if (!shop) return res.status(403).json({ error: "غير مصرح" });
+    const shop_id = shop.id;
     const r = await query(
       `UPDATE occasion_items SET is_available = NOT is_available WHERE id=$1 AND shop_id=$2 RETURNING is_available`,
       [id, shop_id]
@@ -7292,9 +7294,9 @@ router.delete("/occasions/items/:id", async (req: Request, res: Response) => {
     const { shop_phone } = req.body;
     const { id } = req.params;
     if (!shop_phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
-    const shopR = await query(`SELECT id FROM occasion_shops WHERE phone=$1`, [shop_phone]);
-    if (!shopR.rows.length) return res.status(403).json({ error: "غير مصرح" });
-    await query(`DELETE FROM occasion_items WHERE id=$1 AND shop_id=$2`, [id, shopR.rows[0].id]);
+    const shop = await ownedOccasionShop(await sessionUser(req), shop_phone);
+    if (!shop) return res.status(403).json({ error: "غير مصرح" });
+    await query(`DELETE FROM occasion_items WHERE id=$1 AND shop_id=$2`, [id, shop.id]);
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
@@ -8031,32 +8033,6 @@ router.post("/transport/trips", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/transport/trips/:id — تحديث حالة الرحلة
-router.patch("/transport/trips/:id", async (req: Request, res: Response) => {
-  try {
-    const { status, driver_id, driver_name, rating, rating_note } = req.body;
-    await query(
-      `UPDATE transport_trips SET
-        status=COALESCE($1,status),
-        driver_id=COALESCE($2,driver_id),
-        driver_name=COALESCE($3,driver_name),
-        rating=COALESCE($4,rating),
-        rating_note=COALESCE($5,rating_note)
-       WHERE id=$6`,
-      [status, driver_id, driver_name, rating, rating_note, req.params.id]
-    );
-    if (status === "completed" && driver_id) {
-      await query(`UPDATE transport_drivers SET total_trips=total_trips+1 WHERE id=$1`, [driver_id]);
-    }
-    if (rating && driver_id) {
-      await query(
-        `UPDATE transport_drivers SET rating=ROUND((rating*total_trips+$1)/(total_trips+1),2) WHERE id=$2`,
-        [rating, driver_id]
-      );
-    }
-    return res.json({ success: true });
-  } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
 // GET /api/transport/my-trips — رحلاتي
 router.get("/transport/my-trips", async (req: Request, res: Response) => {
   try {
@@ -8089,15 +8065,6 @@ router.post("/transport/trips/:id/cancel", async (req: Request, res: Response) =
     await query(`UPDATE transport_trips SET status='cancelled' WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
-});
-
-// PATCH /api/transport/drivers/:id/online — تبديل حالة الإتاحة للسائق
-router.patch("/transport/drivers/:id/online", async (req: Request, res: Response) => {
-  try {
-    const { is_online } = req.body;
-    await query(`UPDATE transport_drivers SET is_online=$1 WHERE id=$2`, [!!is_online, req.params.id]);
-    return res.json({ success: true });
-  } catch(e:any) { return res.status(500).json({ error: e?.message||"Server error" }); }
 });
 
 // ── Admin Transport Routes ──
@@ -18526,11 +18493,12 @@ router.post("/admin/seed-union-manager", async (req: Request, res: Response) => 
   try {
     await ensureUnionMgrTables();
     const username = "union_admin";
-    const password = "Union@2025#";
     const existing = await query(`SELECT id FROM union_managers WHERE username=$1`, [username]);
     if (existing.rows.length > 0) {
-      return res.json({ message: "الحساب موجود مسبقاً", username, password });
+      return res.json({ message: "الحساب موجود مسبقاً", username });
     }
+    // Random one-time password, shown only in this response (never stored in source).
+    const password = randomBytes(9).toString("base64url");
     const hash = await bcrypt.hash(password, 10);
     await query(
       `INSERT INTO union_managers (full_name,title,username,password_hash) VALUES ($1,$2,$3,$4)`,

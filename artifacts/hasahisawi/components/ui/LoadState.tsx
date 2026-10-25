@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   hint: { fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 21, color: Colors.textSecondary, textAlign: "center", marginTop: 4 },
   retryBtn: {
     marginTop: 18, minHeight: 44, paddingHorizontal: 22, borderRadius: 22,
-    backgroundColor: Colors.primaryDeep, flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: Colors.primaryDeep, flexDirection: "row-reverse", alignItems: "center", gap: 8,
   },
   retryText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 });

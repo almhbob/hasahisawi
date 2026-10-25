@@ -21,6 +21,7 @@ import BrandPattern from "@/components/BrandPattern";
 import { IMPORTANT_APP_SERVICE_LINKS } from "@/constants/service-links";
 import { alertForNewPendingAdminItems, countPendingAdminItems } from "@/lib/attention-alerts";
 
+import HScroll from "@/components/HScroll";
 // ─── Types ──────────────────────────────────────────────────────────────────
 type AdminUser = {
   id: number;
@@ -713,7 +714,7 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
         </TouchableOpacity>
         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>الإجازات المرضية</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
         <View style={{ flexDirection: "row-reverse", gap: 8 }}>
           {TYPES.map(([k, lbl]) => (
             <TouchableOpacity key={k} onPress={() => setFilter(k)}
@@ -722,7 +723,7 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
             </TouchableOpacity>
           ))}
         </View>
-      </ScrollView>
+      </HScroll>
       {loading ? <ActivityIndicator color="#10B981" style={{ marginTop: 40 }} /> : leaves.length === 0 ? (
         <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد إجازات</Text>
       ) : leaves.map(sl => (
@@ -927,7 +928,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
 
       {subTab === "orders" && (
         <View style={{ flex: 1 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle }}>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}>
               {ORD_FILTERS.map(([k, lbl]) => (
                 <TouchableOpacity key={k} onPress={() => setOrdFilter(k)}
@@ -939,7 +940,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
                 <Ionicons name="refresh" size={15} color={Colors.textMuted} />
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </HScroll>
           <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {loading ? <ActivityIndicator color={PINK} style={{ marginTop: 40 }} /> : orders.length === 0 ? (
               <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
@@ -1495,7 +1496,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
           </View>
 
           {/* Filter status */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
             <View style={{ flexDirection: "row-reverse", gap: 6 }}>
               {[["pending","معلق"], ["approved","مقبول"], ["rejected","مرفوض"], ["all","الكل"]].map(([k, lbl]) => (
                 <TouchableOpacity key={k} onPress={() => setMemberFilter(k)}
@@ -1504,10 +1505,10 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
+          </HScroll>
 
           {/* Filter by union */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: "row-reverse", gap: 6 }}>
               <TouchableOpacity onPress={() => setUnionFilter("all")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: unionFilter === "all" ? UC + "40" : "#FFFFFF0A" }}>
                 <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>كل النقابات</Text>
@@ -1518,7 +1519,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
+          </HScroll>
 
           {loading ? <ActivityIndicator color={UC} style={{ marginTop: 40 }} /> : filteredMembers.length === 0 ? (
             <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد طلبات</Text>
@@ -2068,7 +2069,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
         </TouchableOpacity>
         <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" }}>{items.length} سجل</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+      <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
         contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
         {SUB_TABS.map(t => (
           <TouchableOpacity key={t.key} onPress={() => setSub(t.key)}
@@ -2079,7 +2080,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
               color: sub === t.key ? "#fff" : "#9CA3AF" }}>{t.label}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </HScroll>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} /> :
          items.length === 0 ? (
@@ -2195,7 +2196,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                 <View style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: "#3B82F630", padding: 16, marginBottom: 16, gap: 10 }}>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 4 }}>✉️ بيانات الدعوة</Text>
 
-                  <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم الوكالة *</Text>
                       <TextInput value={invAgencyName} onChangeText={setInvAgencyName} placeholder="وكالة عاشق طيبة" placeholderTextColor={Colors.textMuted}
@@ -2208,7 +2209,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                     </View>
                   </View>
 
-                  <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الهاتف</Text>
                       <TextInput value={invPhone} onChangeText={setInvPhone} placeholder="+249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
@@ -2221,7 +2222,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                     </View>
                   </View>
 
-                  <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>البريد الإلكتروني</Text>
                       <TextInput value={invEmail} onChangeText={setInvEmail} placeholder="info@agency.com" placeholderTextColor={Colors.textMuted} keyboardType="email-address" autoCapitalize="none"
@@ -2236,7 +2237,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
                   <View>
                     <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>نوع الوكالة</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, flexDirection: "row-reverse" }}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, flexDirection: "row-reverse" }}>
                       {(["local","international","hajj_umrah","tourism","corporate"] as const).map(t => {
                         const EMOJI: Record<string,string> = { local:"🇸🇩", international:"✈️", hajj_umrah:"🕋", tourism:"🌍", corporate:"💼" };
                         const LABEL: Record<string,string> = { local:"محلية", international:"دولية", hajj_umrah:"حج وعمرة", tourism:"سياحة", corporate:"شركات" };
@@ -2251,7 +2252,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                           </TouchableOpacity>
                         );
                       })}
-                    </ScrollView>
+                    </HScroll>
                   </View>
 
                   <View>
@@ -2709,7 +2710,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             {order.customer_address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>📍 {order.customer_address}</Text> : null}
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3B78A6", textAlign: "right" }}>الإجمالي: {Number(order.total).toLocaleString("en-US")} ج</Text>
             {order.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>📝 {order.notes}</Text> : null}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {["pending","confirmed","preparing","delivered","cancelled"].map(s => (
                 <TouchableOpacity
                   key={s}
@@ -2720,7 +2721,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: order.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
           </View>
         ))}
 
@@ -4475,7 +4476,7 @@ export default function AdminDashboard() {
 
       {/* Tab bar */}
       <View style={s.tabsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
           {TABS.map(t => {
             const active = tab === t.key;
             return (
@@ -4503,7 +4504,7 @@ export default function AdminDashboard() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </HScroll>
       </View>
 
       {/* ── Content area ── */}
@@ -4860,7 +4861,7 @@ export default function AdminDashboard() {
                   </View>
                 )}
                 <TouchableOpacity
-                  style={{ backgroundColor: migrating || !migrateUrl.trim() ? Colors.divider : Colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+                  style={{ backgroundColor: migrating || !migrateUrl.trim() ? Colors.divider : Colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}
                   onPress={() => migrateFromDb(migrateUrl)}
                   disabled={migrating || !migrateUrl.trim()}
                 >
@@ -4900,7 +4901,7 @@ export default function AdminDashboard() {
                   أو إذا سجّل المستخدمون عبر Google / Firebase:
                 </Text>
                 <TouchableOpacity
-                  style={{ borderWidth: 1, borderColor: Colors.primary + "80", borderRadius: 10, paddingVertical: 10, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+                  style={{ borderWidth: 1, borderColor: Colors.primary + "80", borderRadius: 10, paddingVertical: 10, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8 }}
                   onPress={() => syncFirebaseNow()}
                   disabled={fbSyncing}
                 >
@@ -5331,7 +5332,7 @@ export default function AdminDashboard() {
             <Text style={s.pageHeaderTitle}>
               الإعلانات ({adsList.length}){pendingAdsCount > 0 ? ` · ${pendingAdsCount} معلق` : ""}
             </Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
               {isAdmin && (
                 <TouchableOpacity style={[s.addBtn, { backgroundColor: Colors.primary + "15", borderWidth: 1, borderColor: Colors.primary }]} onPress={() => setShowAdsSettingsModal(true)}>
                   <Ionicons name="settings-outline" size={14} color={Colors.primary} />
@@ -5345,7 +5346,7 @@ export default function AdminDashboard() {
             </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
             {(["all", "pending", "active", "rejected", "expired"] as const).map(f => {
               const meta = f === "all" ? { label: "الكل", color: Colors.cyber } : { label: AD_STATUS_META[f]?.label, color: AD_STATUS_META[f]?.color };
               return (
@@ -5360,7 +5361,7 @@ export default function AdminDashboard() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </HScroll>
 
           {loadingAds ? (
             <ActivityIndicator color="#F0A500" style={{ marginTop: 60 }} />
@@ -5738,7 +5739,7 @@ export default function AdminDashboard() {
           </View>
 
           {/* ── Filters ── */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow} style={{ flexGrow: 0 }}>
             {(["pending", "all", "active", "suspended", "rejected"] as const).map(f => {
               const meta = f === "all"       ? { label: "الكل",       color: Colors.cyber    }
                          : f === "pending"   ? { label: "قيد المراجعة", color: "#F0A500"    }
@@ -5757,7 +5758,7 @@ export default function AdminDashboard() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </HScroll>
 
           {/* ── List ── */}
           {loadingCommunities ? (
@@ -6019,7 +6020,7 @@ export default function AdminDashboard() {
                     />
 
                     <Text style={s.fieldLabel}>التصنيف</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4, flexDirection: "row-reverse" }}>
+                    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4, flexDirection: "row-reverse" }}>
                       {[
                         { key: "institution", label: "مؤسسة" },
                         { key: "health",      label: "صحية" },
@@ -6037,7 +6038,7 @@ export default function AdminDashboard() {
                           <Text style={[s.filterChipTxt, communityForm.category === cat.key && { color: Colors.primary, fontFamily: "Cairo_700Bold" }]}>{cat.label}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </HScroll>
 
                     {/* ── بيانات ممثل الجهة ── */}
                     <View style={{ backgroundColor: Colors.primary + "10", borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: Colors.primary + "25" }}>
@@ -6183,7 +6184,7 @@ export default function AdminDashboard() {
                 {neighborhoods.length} عنصر — {neighborhoods.filter(n => n.type === "neighborhood").length} حي، {neighborhoods.filter(n => n.type === "village").length} قرية
               </Text>
             </View>
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            <View style={{ flexDirection: "row-reverse", gap: 8, alignItems: "center" }}>
               <TouchableOpacity
                 style={[s.iconBtn, { backgroundColor: "#E0556715", borderColor: "#E0556730", width: 36, height: 36 }]}
                 onPress={restoreDefaultNeighborhoods}
@@ -6223,7 +6224,7 @@ export default function AdminDashboard() {
           </View>
 
           {/* Filter chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.filterRow, { paddingTop: 8 }]} style={{ flexGrow: 0 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.filterRow, { paddingTop: 8 }]} style={{ flexGrow: 0 }}>
             {(["all", "neighborhood", "village"] as const).map(f => (
               <TouchableOpacity
                 key={f}
@@ -6240,7 +6241,7 @@ export default function AdminDashboard() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </HScroll>
 
           {/* List */}
           {loadingNbr || seedingNbr ? (
@@ -6277,14 +6278,14 @@ export default function AdminDashboard() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.nbrName}>{item.label}</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 2 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }} />
                         <Text style={[s.nbrType, { color: item.type === "neighborhood" ? "#3498DB" : "#9B59B6" }]}>
                           {item.type === "neighborhood" ? "حي" : "قرية"}
                         </Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
+                    <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                       <TouchableOpacity
                         style={[s.iconBtn, { backgroundColor: "#3498DB15", borderColor: "#3498DB30" }]}
                         onPress={() => { setEditingNbr(item); setNbrForm({ label: item.label, type: item.type }); setShowAddNbr(true); }}
@@ -7027,7 +7028,7 @@ export default function AdminDashboard() {
       {tab === "reports_admin" && isAdmin && (
         <View style={{ flex: 1 }}>
           {/* فلتر الحالة */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
             contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
             {(["all","pending","inProgress","resolved"] as const).map(f => {
               const FL: Record<string,string> = { all:"الكل", pending:"معلق", inProgress:"قيد المعالجة", resolved:"محلول" };
@@ -7040,7 +7041,7 @@ export default function AdminDashboard() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </HScroll>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {loadingReports ? <ActivityIndicator color="#EF4444" style={{ marginTop: 40 }} /> :
              (() => {
@@ -7171,7 +7172,7 @@ export default function AdminDashboard() {
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 12 }}>
               {editingNumber ? "✏️ تعديل الرقم" : "➕ إضافة رقم جديد"}
             </Text>
-            <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الاسم *</Text>
                 <TextInput value={numForm.name} onChangeText={v => setNumForm(f=>({...f, name:v}))} placeholder="مثال: الإطفاء" placeholderTextColor={Colors.textMuted}
@@ -7183,7 +7184,7 @@ export default function AdminDashboard() {
                   style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
               </View>
             </View>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>التصنيف</Text>
                 <TextInput value={numForm.category} onChangeText={v => setNumForm(f=>({...f, category:v}))} placeholder="عام / طوارئ / صحة..." placeholderTextColor={Colors.textMuted}
@@ -7349,7 +7350,7 @@ export default function AdminDashboard() {
       {/* ══ السوق الزراعي ══ */}
       {tab === "farmers_admin" && isAdmin && (
         <View style={{ flex: 1 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
             contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
             {(["crops","lands","tools","workers"] as const).map(f => {
               const FL: Record<string,string> = { crops:"🌾 محاصيل", lands:"🟫 أراضي", tools:"⚙️ معدات", workers:"👷 عمال" };
@@ -7363,7 +7364,7 @@ export default function AdminDashboard() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </HScroll>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {loadingFarmers ? <ActivityIndicator color="#16A34A" style={{ marginTop: 40 }} /> : (() => {
               const items = adminFarmers[farmersSub];
@@ -7514,7 +7515,7 @@ export default function AdminDashboard() {
       {/* ══ الوظائف ══ */}
       {tab === "jobs_admin" && isAdmin && (
         <View style={{ flex: 1 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
             contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
             {(["all","active","inactive"] as const).map(f => {
               const FL: Record<string,string> = { all:"الكل", active:"نشطة", inactive:"معطّلة" };
@@ -7531,7 +7532,7 @@ export default function AdminDashboard() {
               <Ionicons name="refresh" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{adminJobs.length} وظيفة</Text>
-          </ScrollView>
+          </HScroll>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {loadingJobs ? <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} /> : (() => {
               const filtered = jobsFilter === "all" ? adminJobs
@@ -7773,7 +7774,7 @@ export default function AdminDashboard() {
                       <Text style={[ps.memberLetter, { fontSize: 26 }]}>{statsUser.name.charAt(0)}</Text>
                     </View>
                     <Text style={[ps.memberName, { fontSize: 18 }]}>{statsUser.name}</Text>
-                    <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
+                    <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 6, alignItems: "center" }}>
                       <RoleBadge role={statsUser.role} />
                       {statsUser.neighborhood ? (
                         <View style={ps.nbrChip}>
@@ -7821,7 +7822,7 @@ export default function AdminDashboard() {
                   <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
                     {/* شبكة الإحصائيات */}
                     <Text style={[ps.permBlockTitle, { marginBottom: 10 }]}>نشاط المستخدم</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
                       {statItems.map(item => (
                         <View key={item.label} style={{
                           width: "30%", flex: 1, minWidth: "28%",
@@ -8105,9 +8106,9 @@ const s = StyleSheet.create({
 
   /* Tabs */
   tabsContainer: { borderBottomWidth: 1, borderColor: Colors.divider },
-  tabsRow: { flexDirection: "row", gap: 6, paddingHorizontal: 14, paddingVertical: 10 },
+  tabsRow: { flexDirection: "row-reverse", gap: 6, paddingHorizontal: 14, paddingVertical: 10 },
   tabBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,
   },
@@ -8719,7 +8720,7 @@ const hs = StyleSheet.create({
     marginTop: 2,
   },
   visChip: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 8,

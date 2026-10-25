@@ -26,6 +26,7 @@ import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
+import HScroll from "@/components/HScroll";
 export type NumberEntry = {
   id: string;
   name: string;
@@ -119,7 +120,7 @@ function NumberCard({ entry, index, isAdmin, onDelete, onEdit }: {
             {entry.note ? <Text style={styles.cardNote}>{entry.note}</Text> : null}
           </View>
           {isAdmin ? (
-            <View style={{ flexDirection: "row", gap: 6 }}>
+            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
               {onEdit && (
                 <TouchableOpacity onPress={() => onEdit(entry)} hitSlop={10} style={styles.editBtn}>
                   <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
@@ -234,7 +235,7 @@ function AddNumberModal({ visible, onClose, onSave, saving }: {
             <TextInput style={modal.input} value={note} onChangeText={setNote} placeholder="مثال: 7ص – 5م" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
             <Text style={modal.label}>التصنيف</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {categoryKeys.map((id) => {
                 const meta = CATEGORY_META[id] ?? CATEGORY_META.other;
                 return (
@@ -248,23 +249,23 @@ function AddNumberModal({ visible, onClose, onSave, saving }: {
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </HScroll>
 
             <Text style={modal.label}>اللون</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {COLOR_OPTIONS.map(c => (
                 <TouchableOpacity key={c} onPress={() => setColor(c)} style={[modal.colorDot, { backgroundColor: c }, color === c && modal.colorDotActive]} />
               ))}
-            </ScrollView>
+            </HScroll>
 
             <Text style={modal.label}>الأيقونة</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
               {ICON_OPTIONS.map(ic => (
                 <TouchableOpacity key={ic} onPress={() => setIcon(ic)} style={[modal.iconBtn, icon === ic && { backgroundColor: color + "30", borderColor: color }]}>
                   <Ionicons name={ic as any} size={18} color={icon === ic ? color : Colors.textSecondary} />
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
 
             <View style={modal.actions}>
               <TouchableOpacity style={modal.cancelBtn} onPress={() => { reset(); onClose(); }}>
@@ -327,7 +328,7 @@ function EditNumberModal({ visible, onClose, onSave, saving, initial }: {
             <TextInput style={modal.input} value={note} onChangeText={setNote} placeholder="مثال: 7ص – 5م" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
             <Text style={modal.label}>التصنيف</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {categoryKeys.map((id) => {
                 const meta = CATEGORY_META[id] ?? CATEGORY_META.other;
                 return (
@@ -341,23 +342,23 @@ function EditNumberModal({ visible, onClose, onSave, saving, initial }: {
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </HScroll>
 
             <Text style={modal.label}>اللون</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {COLOR_OPTIONS.map(c => (
                 <TouchableOpacity key={c} onPress={() => setColor(c)} style={[modal.colorDot, { backgroundColor: c }, color === c && modal.colorDotActive]} />
               ))}
-            </ScrollView>
+            </HScroll>
 
             <Text style={modal.label}>الأيقونة</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
               {ICON_OPTIONS.map(ic => (
                 <TouchableOpacity key={ic} onPress={() => setIcon(ic)} style={[modal.iconBtn, icon === ic && { backgroundColor: color + "30", borderColor: color }]}>
                   <Ionicons name={ic as any} size={18} color={icon === ic ? color : Colors.textSecondary} />
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
 
             <View style={modal.actions}>
               <TouchableOpacity style={modal.cancelBtn} onPress={onClose}>
@@ -670,30 +671,30 @@ export default function NumbersScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl },
-  headerContent: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 14 },
+  headerContent: { flexDirection: "row-reverse", alignItems: "center", gap: 14, marginBottom: 14 },
   headerIconWrap: { width: 52, height: 52, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", justifyContent: "center", alignItems: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#fff" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.82)", marginTop: 2 },
   addBtn: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: Colors.radius.sm, padding: 10 },
   adminBtn: { backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.sm, padding: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
 
-  emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", gap: 8, flexWrap: "wrap" },
+  emergencyStrip: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", gap: 8, flexWrap: "wrap" },
   emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
+  emergencyChip: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#fff", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
   emergencyChipText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   scroll: { flex: 1 },
   section: { marginBottom: 16, borderRadius: Colors.radius.lg, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, backgroundColor: "#fff", ...Colors.shadow.card },
-  sectionHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
+  sectionHeader: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
   sectionIconWrap: { width: 36, height: 36, borderRadius: Colors.radius.sm, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, flex: 1 },
-  pinBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: Colors.radius.sm, paddingHorizontal: 6, paddingVertical: 3, borderWidth: 1 },
+  pinBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 3, borderRadius: Colors.radius.sm, paddingHorizontal: 6, paddingVertical: 3, borderWidth: 1 },
   pinText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   sectionBadge: { backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: Colors.divider },
   sectionBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   sectionBody: { backgroundColor: Colors.cardBg, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
 
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 12, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 12 },
+  card: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 12, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 12 },
   cardIcon: { width: 44, height: 44, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   cardInfo: { flex: 1 },
   cardName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
@@ -708,7 +709,7 @@ const styles = StyleSheet.create({
   emptyHintTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textSecondary, textAlign: "center" },
   emptyHintSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
 
-  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary + "40", borderStyle: "dashed", marginBottom: 16 },
+  addRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.primary + "40", borderStyle: "dashed", marginBottom: 16 },
   addRowText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.primary },
 });
 
@@ -718,12 +719,12 @@ const modal = StyleSheet.create({
   title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 12 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
   input: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 10 },
-  catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
+  catChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
   catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   colorDot: { width: 28, height: 28, borderRadius: Colors.radius.pill, marginRight: 8, borderWidth: 2, borderColor: "transparent" },
   colorDotActive: { borderColor: Colors.textPrimary, transform: [{ scale: 1.2 }] },
   iconBtn: { width: 38, height: 38, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, justifyContent: "center", alignItems: "center", marginRight: 8, backgroundColor: Colors.bg },
-  actions: { flexDirection: "row", gap: 12, marginTop: 8 },
+  actions: { flexDirection: "row-reverse", gap: 12, marginTop: 8 },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
   saveBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center" },

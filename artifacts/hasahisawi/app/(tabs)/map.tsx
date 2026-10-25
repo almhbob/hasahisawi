@@ -15,6 +15,7 @@ import { LEAFLET_JS, LEAFLET_CSS } from "@/lib/leaflet-bundle";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
+import HScroll from "@/components/HScroll";
 async function safeCall(number: string) {
   const url = `tel:${number.replace(/\s+/g, "")}`;
   try {
@@ -270,7 +271,7 @@ export default function MapScreen() {
 
       {/* Filter chips */}
       <View style={s.filterWrap}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        <HScroll horizontal showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.filterScroll}>
           {CATEGORIES.map(cat => (
             <TouchableOpacity
@@ -283,7 +284,7 @@ export default function MapScreen() {
               <Text style={[s.chipTxt, activeCat === cat.id && { color: cat.color }]}>{cat.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </HScroll>
       </View>
 
       {/* Map */}
@@ -321,7 +322,7 @@ export default function MapScreen() {
       {/* Legend bottom bar */}
       <Animated.View entering={FadeInDown.delay(300).duration(500)} style={[s.legend, { paddingBottom: insets.bottom + 8 }]}>
         <Text style={s.legendTitle}>دليل الألوان</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.legendScroll}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.legendScroll}>
           {CATEGORIES.filter(c => c.id !== "all").map(cat => (
             <View key={cat.id} style={s.legendItem}>
               <View style={[s.legendDot, { backgroundColor: cat.color }]} />
@@ -329,7 +330,7 @@ export default function MapScreen() {
             </View>
           ))}
                 <OrgInviteCard />
-</ScrollView>
+</HScroll>
       </Animated.View>
     </View>
   );
@@ -338,13 +339,13 @@ export default function MapScreen() {
 // ── الأنماط ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root:         { flex: 1, backgroundColor: BG },
-  headerRight:  { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerRight:  { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   placeCount:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
   locBtn:       { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)",
                   alignItems: "center", justifyContent: "center" },
   filterWrap:   { borderBottomWidth: 1, borderBottomColor: BORDER },
   filterScroll: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  chip:         { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12,
+  chip:         { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12,
                   paddingVertical: 6, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: BORDER,
                   backgroundColor: CARD },
   chipTxt:      { fontFamily: "Cairo_500Medium", fontSize: 13, color: MUTED },
@@ -357,7 +358,7 @@ const s = StyleSheet.create({
   legendTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: MUTED,
                   paddingHorizontal: 16, marginBottom: 6 },
   legendScroll: { paddingHorizontal: 12, gap: 10 },
-  legendItem:   { flexDirection: "row", alignItems: "center", gap: 5 },
+  legendItem:   { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
   legendDot:    { width: 10, height: 10, borderRadius: 5 },
   legendTxt:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED },
 });

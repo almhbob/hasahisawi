@@ -771,7 +771,7 @@ const ds = StyleSheet.create({
   },
   typeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
 
-  statsRow: { flexDirection: "row", backgroundColor: Colors.cardBg, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider },
+  statsRow: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider },
   statCell: { flex: 1, alignItems: "center", paddingVertical: 12 },
   statVal:  { fontFamily: "Cairo_700Bold", fontSize: 20 },
   statLabel:{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
@@ -798,7 +798,7 @@ const ds = StyleSheet.create({
     backgroundColor: Colors.cardBg, borderRadius: 18, padding: 16,
     borderWidth: 1, borderColor: Colors.divider, gap: 12,
   },
-  servicesHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  servicesHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   servicesHeaderRight: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   servicesHeaderLeft: {},
   servicesTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },

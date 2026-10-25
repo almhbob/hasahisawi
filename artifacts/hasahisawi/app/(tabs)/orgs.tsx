@@ -17,6 +17,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
 import ModernHeader from "@/components/ui/ModernHeader";
 
+import HScroll from "@/components/HScroll";
 // ══════════════════════════════════════════════════════
 // TYPES
 // ══════════════════════════════════════════════════════
@@ -109,7 +110,7 @@ const TYPE_CONFIG: Record<OrgType, { label: string; icon: string; color: string 
 
 function SectionHeader({ title, sub, color }: { title: string; sub?: string; color: string }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 }}>
+    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 14 }}>
       <LinearGradient colors={[color, color + "60"]} style={{ width: 4, height: 28, borderRadius: 2 }} />
       <View>
         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary }}>{title}</Text>
@@ -233,13 +234,13 @@ export default function OrgsScreen() {
                 textAlign="right"
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
               {([["all", "الكل"], ["charity", "جمعيات خيرية"], ["initiative", "مبادرات"], ["volunteer", "تطوع"], ["cooperative", "تعاونيات"]] as [OrgType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: Colors.primary, borderColor: Colors.primary }]} onPress={() => setFilter(k)}>
                   <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -490,76 +491,76 @@ export default function OrgsScreen() {
 // ══════════════════════════════════════════════════════
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 14, gap: 8 },
+  statsRow: { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 14, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
 
-  subTabRow: { flexDirection: "row", gap: 8 },
-  subTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", overflow: "hidden" },
+  subTabRow: { flexDirection: "row-reverse", gap: 8 },
+  subTab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", overflow: "hidden" },
   subTabActive: { borderColor: "rgba(255,255,255,0.5)" },
   subTabActiveFill: { backgroundColor: "rgba(255,255,255,0.22)" },
   subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },
+  searchRow: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary, paddingVertical: 11 },
   filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
 
   card: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  cardHeader: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
   iconCircle: { width: 54, height: 54, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1, flexShrink: 0 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, flexWrap: "wrap" },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", flex: 1 },
-  cardMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" },
+  cardMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   memberCount: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   ratingText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
 
   expandedSection: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 14, gap: 0 },
   goalsSection: {},
   goalsSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, textAlign: "right", marginBottom: 8 },
-  goalRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 3 },
+  goalRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 3 },
   goalDot: { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
   goalText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   foundedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 10 },
 
-  expandBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 4 },
+  expandBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 4 },
   expandBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
 
-  cardActions: { flexDirection: "row", gap: 10 },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.md, paddingVertical: 12 },
+  cardActions: { flexDirection: "row-reverse", gap: 10 },
+  actionBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.md, paddingVertical: 12 },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   // Events
   eventCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
-  eventHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  eventHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   eventDateBox: { width: 46, height: 46, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1 },
   eventTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   eventOrg: { fontFamily: "Cairo_500Medium", fontSize: 12 },
   eventInfo: { gap: 6 },
-  eventInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  eventInfoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   eventInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   eventDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
-  eventBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 11, borderWidth: 1 },
+  eventBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 11, borderWidth: 1 },
   eventBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
 
   // Campaigns
-  donateNote: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
+  donateNote: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
   donateNoteText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
   campCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 12, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
-  campHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  campHeader: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
   campIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   campTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   campOrg: { fontFamily: "Cairo_500Medium", fontSize: 12 },
   campTarget: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, alignSelf: "flex-end" },
   campTargetText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   campDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
-  campBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
+  campBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
   campBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
   // Modal
@@ -576,6 +577,6 @@ const s = StyleSheet.create({
   fieldBlock: { gap: 6 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   fieldInput: { borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md, backgroundColor: Colors.bg, paddingHorizontal: 14, paddingVertical: 13, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary },
-  modalSubmit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.md, paddingVertical: 15 },
+  modalSubmit: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.md, paddingVertical: 15 },
   modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
 });

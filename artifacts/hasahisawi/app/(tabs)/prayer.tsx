@@ -19,6 +19,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
 const PRAYER_CACHE_KEY  = "prayer_cache_v1";
 
@@ -601,7 +602,7 @@ export default function PrayerScreen() {
       </Animated.View>
 
       {/* Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabRowContent}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabRowContent}>
         {([
           { key: "prayer",  label: "مواقيت الآذان", icon: "time-outline",            color: "#5B8DB8" },
           { key: "adhkar",  label: "الأذكار",        icon: "leaf-outline",            color: "#22C55E" },
@@ -617,7 +618,7 @@ export default function PrayerScreen() {
             <Text style={[s.tabBtnText, tab === t.key && { color: t.color }]}>{t.label}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </HScroll>
 
       {loading ? (
         <View style={s.loadingWrap}>
@@ -908,7 +909,7 @@ export default function PrayerScreen() {
             <View style={s.tasbihContainer}>
 
               {/* اختيار نوع التسبيح */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tasbihPresetRow}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tasbihPresetRow}>
                 {TASBIH_PRESETS.map((preset, idx) => (
                   <Pressable
                     key={idx}
@@ -918,7 +919,7 @@ export default function PrayerScreen() {
                     <Text style={[s.tasbihPresetLabel, tasbihIdx === idx && { color: preset.color }]}>{preset.label}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </HScroll>
 
               {/* نص التسبيح */}
               <Animated.View key={tasbihIdx} entering={FadeIn.duration(300)} style={[s.tasbihTextCard, { borderColor: tasbihPreset.color + "30" }]}>
@@ -1098,9 +1099,9 @@ const s = StyleSheet.create({
   // ── شريط التبويبات القابل للتمرير ──
   tabScrollRow: { flexGrow: 0 },
   tabRowContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  tabRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  tabRow: { flexDirection: "row-reverse", paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   tabBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: Colors.radius.md,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
   },
@@ -1109,7 +1110,7 @@ const s = StyleSheet.create({
 
   // ── الأذكار ──
   adhkarCatRow: {
-    flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 4, marginTop: 4,
+    flexDirection: "row-reverse", paddingHorizontal: 16, gap: 8, marginBottom: 4, marginTop: 4,
   },
   adhkarCatBtn: {
     flex: 1, paddingVertical: 8, paddingHorizontal: 6,
@@ -1124,7 +1125,7 @@ const s = StyleSheet.create({
     ...Colors.shadow.card,
   },
   dhikrCardDone: { backgroundColor: "#22C55E0A", borderColor: "#22C55E22" },
-  dhikrHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dhikrHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   dhikrCountBadge: {
     minWidth: 42, height: 26, borderRadius: 8,
     backgroundColor: Colors.primary + "15",
@@ -1142,7 +1143,7 @@ const s = StyleSheet.create({
     lineHeight: 28,
   },
   dhikrRefRow: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center",
   },
   dhikrRef: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   dhikrHint: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
@@ -1151,7 +1152,7 @@ const s = StyleSheet.create({
   },
   dhikrProgressFill: { height: 4, borderRadius: 2 },
   resetAllBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 6, marginHorizontal: 16, marginTop: 12, marginBottom: 4,
     paddingVertical: 10, borderRadius: Colors.radius.md,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
@@ -1192,7 +1193,7 @@ const s = StyleSheet.create({
   },
   tasbihBarFill: { height: 6, borderRadius: 3 },
   tasbihDoneBadge: {
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14,
     borderWidth: 1,
   },
@@ -1217,7 +1218,7 @@ const s = StyleSheet.create({
   retryBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
 
   cacheWarning: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     backgroundColor: "#F59E0B18", borderRadius: Colors.radius.sm,
     marginHorizontal: 16, marginTop: 8, marginBottom: 2,
     paddingHorizontal: 12, paddingVertical: 8,
@@ -1229,7 +1230,7 @@ const s = StyleSheet.create({
   },
 
   dateBar: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     marginHorizontal: 16, marginTop: 10, marginBottom: 4,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     paddingHorizontal: 16, paddingVertical: 12,
@@ -1266,7 +1267,7 @@ const s = StyleSheet.create({
   nextBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   nextName: { fontFamily: "Cairo_700Bold", fontSize: 34 },
   nextTime: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary },
-  countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  countdownRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 2 },
   countdownText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 
   // ── التحكم بالأذان ──
@@ -1274,7 +1275,7 @@ const s = StyleSheet.create({
     marginTop: 14, width: "100%",
   },
   toggleWrap: {
-    flexDirection: "row", alignItems: "center", gap: 10,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
     paddingHorizontal: 14, paddingVertical: 12, borderRadius: Colors.radius.lg,
     backgroundColor: Colors.cardBg,
     borderWidth: 1.5, borderColor: Colors.divider,
@@ -1287,7 +1288,7 @@ const s = StyleSheet.create({
   // ── قائمة الصلوات ──
   prayerList: { marginHorizontal: 16, marginTop: 8, gap: 6 },
   prayerRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14,
     borderWidth: 1, borderColor: Colors.divider, borderRightWidth: 4,
   },
@@ -1308,7 +1309,7 @@ const s = StyleSheet.create({
 
   // ── هجري ──
   monthNav: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 24, paddingVertical: 12,
   },
   navBtn: {
@@ -1329,11 +1330,11 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.accent + "25", gap: 8,
   },
   specialTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.accent, textAlign: "right" },
-  specialItem:  { flexDirection: "row", alignItems: "center", gap: 8 },
+  specialItem:  { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   specialDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent },
   specialText:  { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   hijriInfoCard: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
     marginHorizontal: 16, marginTop: 10, padding: 12,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: Colors.divider,
@@ -1347,7 +1348,7 @@ const s = StyleSheet.create({
 const CELL_SIZE = (Platform.OS === "web" ? 400 : 360) / 7;
 
 const hc = StyleSheet.create({
-  weekRow:       { flexDirection: "row" },
+  weekRow:       { flexDirection: "row-reverse" },
   weekHeader:    { width: CELL_SIZE, alignItems: "center", paddingBottom: 6 },
   weekHeaderText:{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
   cell:          { width: CELL_SIZE, height: CELL_SIZE, alignItems: "center", justifyContent: "center", borderRadius: Colors.radius.sm },
@@ -1371,7 +1372,7 @@ const ms = StyleSheet.create({
     alignSelf: "center", marginTop: 12, marginBottom: 4,
   },
   sheetHeader: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 14, marginBottom: 4,
   },
   sheetTitle:  { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
@@ -1384,7 +1385,7 @@ const ms = StyleSheet.create({
     marginTop: -4, marginBottom: 6, textAlign: "right",
   },
   optionRow: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm,
     marginBottom: 4, backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: Colors.divider,
@@ -1395,20 +1396,20 @@ const ms = StyleSheet.create({
   radioDot:   { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
   optionText: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   offsetRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 10, paddingHorizontal: 14, borderRadius: Colors.radius.sm,
     marginBottom: 6, backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: Colors.divider,
   },
   offsetLabel:   { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  offsetControls:{ flexDirection: "row", alignItems: "center", gap: 12 },
+  offsetControls:{ flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   offsetBtn: {
     width: 32, height: 32, borderRadius: Colors.radius.sm, backgroundColor: Colors.primary + "18",
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: Colors.primary + "35",
   },
   offsetVal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, minWidth: 30, textAlign: "center" },
-  btnRow:    { flexDirection: "row", gap: 12, marginTop: 20 },
+  btnRow:    { flexDirection: "row-reverse", gap: 12, marginTop: 20 },
   resetBtn:  { flex: 1, paddingVertical: 13, borderRadius: Colors.radius.md, alignItems: "center", backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
   resetBtnText:{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted },
   saveBtn:   { flex: 2, paddingVertical: 13, borderRadius: Colors.radius.md, alignItems: "center", backgroundColor: Colors.primary },

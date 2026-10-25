@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import { uploadFile } from "@/lib/firebase/storage";
 
+import HScroll from "@/components/HScroll";
 // ══════════════════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════════════════
@@ -741,7 +742,7 @@ export default function OrgJoinScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 10, backgroundColor: "#6B728012", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#6B728025" }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, marginTop: 10, backgroundColor: "#6B728012", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#6B728025" }}>
                 <Ionicons name="information-circle-outline" size={16} color="#6B7280" style={{ marginTop: 2 }} />
                 <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", flex: 1, lineHeight: 20 }}>
                   حصاحيصاوي منصة مجتمعية أهلية مستقلة، وغير تابعة لأي جهة حكومية. انضمام الجهات الحكومية لأغراض التواصل المجتمعي فقط.
@@ -752,7 +753,7 @@ export default function OrgJoinScreen() {
             {/* تصنيف المؤسسة */}
             <View style={fi.block}>
               <Text style={fi.label}>التصنيف الوظيفي <Text style={{ color: Colors.danger }}>*</Text></Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {INST_CATEGORIES.map(cat => (
                   <TouchableOpacity
                     key={cat}
@@ -762,7 +763,7 @@ export default function OrgJoinScreen() {
                     <Text style={[s.catChipText, instCategory === cat && { color: Colors.primary }]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </HScroll>
             </View>
 
             <Field label="وصف المؤسسة" value={instDesc} onChange={setInstDesc}
@@ -827,7 +828,7 @@ export default function OrgJoinScreen() {
             )}
 
             {/* فلتر الفئات */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {SERVICE_CATS.map(cat => (
                 <TouchableOpacity
                   key={cat}
@@ -837,7 +838,7 @@ export default function OrgJoinScreen() {
                   <Text style={[s.catChipText, serviceCatFilter === cat && { color: Colors.accent }]}>{cat}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
 
             {/* قائمة الخدمات */}
             <View style={{ gap: 8 }}>
@@ -934,7 +935,7 @@ export default function OrgJoinScreen() {
                   <View style={s.photoPreviewRow}>
                     <Image source={{ uri: repPhotoUri }} style={s.photoPreview} />
                     <View style={{ flex: 1, gap: 4 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                         {repPhotoUploading ? (
                           <ActivityIndicator size="small" color={Colors.primary} />
                         ) : repPhotoUploadFailed ? (
@@ -953,7 +954,7 @@ export default function OrgJoinScreen() {
                       {repPhotoUploadFailed && !repPhotoUploading && (
                         <View style={{ marginTop: 2, gap: 4 }}>
                           <TouchableOpacity
-                            style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}
                             onPress={(e) => { e.stopPropagation?.(); doUploadRepPhoto(repPhotoUri!); }}
                           >
                             <Ionicons name="refresh" size={14} color={Colors.primary} />
@@ -1160,7 +1161,7 @@ export default function OrgJoinScreen() {
               }}
               activeOpacity={0.8}
               style={{
-                flexDirection: "row", alignItems: "center", gap: 14,
+                flexDirection: "row-reverse", alignItems: "center", gap: 14,
                 backgroundColor: contractAgreed ? Colors.primary + "15" : Colors.cardBg,
                 borderRadius: 14, borderWidth: 1.5,
                 borderColor: contractAgreed ? Colors.primary + "60" : Colors.divider,
@@ -1248,7 +1249,7 @@ export default function OrgJoinScreen() {
 
               {/* تأكيد القراءة اليدوي — يظهر دائماً كبديل لمشكلة iOS */}
               <TouchableOpacity
-                style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 4, marginTop: 8 }}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 4, marginTop: 8 }}
                 onPress={() => setCommitmentScrolled(true)}
                 activeOpacity={0.7}
               >
@@ -1512,13 +1513,13 @@ export default function OrgJoinScreen() {
 // ══════════════════════════════════════════════════════
 const s = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingBottom: 12 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 14 },
   backBtn: { width: 38, height: 38, borderRadius: 11, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
   headerIcon: { width: 44, height: 44, borderRadius: 13, justifyContent: "center", alignItems: "center" },
 
-  progressRow: { flexDirection: "row", alignItems: "flex-start", gap: 0, marginBottom: 4 },
+  progressRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 0, marginBottom: 4 },
   progressItem: { alignItems: "center", gap: 4, flex: 0 },
   progressDot: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.cardBg,
@@ -1530,12 +1531,12 @@ const s = StyleSheet.create({
   progressLabel: { fontFamily: "Cairo_500Medium", fontSize: 10, color: Colors.textMuted, textAlign: "center", maxWidth: 50 },
   progressLine: { flex: 1, height: 2, backgroundColor: Colors.divider, marginTop: 13, marginHorizontal: 4 },
 
-  stepHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  stepHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   stepIcon: { width: 50, height: 50, borderRadius: 15, justifyContent: "center", alignItems: "center" },
   stepTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
   stepSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
 
-  typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  typeGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   typeCard: {
     width: "48%", alignItems: "center", justifyContent: "center", gap: 6,
     padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
@@ -1549,18 +1550,18 @@ const s = StyleSheet.create({
   },
   catChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
 
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   divider: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
 
   selectedCount: {
-    flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 8, borderRadius: 14,
     padding: 12, justifyContent: "center",
   },
   selectedCountText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary },
 
   serviceCard: {
-    flexDirection: "row", alignItems: "center", gap: 12, padding: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14,
     borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,
   },
   serviceIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: Colors.cardBg + "80", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider },
@@ -1569,7 +1570,7 @@ const s = StyleSheet.create({
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.divider, justifyContent: "center", alignItems: "center" },
   checkboxSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
 
-  repNote: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#9B59B6" + "30" },
+  repNote: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#9B59B6" + "30" },
   repNoteText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
 
   summaryBox: {
@@ -1577,12 +1578,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider, gap: 4,
   },
   summaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary, textAlign: "right", marginBottom: 8 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 },
+  summaryRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 },
   summaryKey: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
   summaryVal: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right", marginRight: 12 },
   summaryDivider: { height: 1, backgroundColor: Colors.divider },
 
-  readNote: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.danger + "35" },
+  readNote: { flexDirection: "row-reverse", alignItems: "center", gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.danger + "35" },
   readNoteText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.danger, flex: 1, textAlign: "right" },
 
   documentCard: {
@@ -1609,7 +1610,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.primary + "40", gap: 4,
   },
   signatureTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary, textAlign: "right", marginBottom: 6 },
-  sigRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  sigRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   sigKey: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, minWidth: 90 },
   sigVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   signLine: { marginTop: 12, alignItems: "center", gap: 4 },
@@ -1617,7 +1618,7 @@ const s = StyleSheet.create({
   signLineVal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.primary },
 
   warningBox: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
     backgroundColor: Colors.accent + "15", borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: Colors.accent + "35",
   },
@@ -1628,21 +1629,21 @@ const s = StyleSheet.create({
   successSub: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.accent },
   successDesc: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 24, paddingHorizontal: 20 },
 
-  doneBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 16, paddingVertical: 16 },
+  doneBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 16, paddingVertical: 16 },
   doneBtnText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff" },
 
   navBar: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     paddingHorizontal: 16, paddingTop: 12,
     backgroundColor: Colors.bg, borderTopWidth: 1, borderTopColor: Colors.divider,
   },
   navBackBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
     borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,
   },
   navBackText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  navNextBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, paddingVertical: 15 },
+  navNextBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, paddingVertical: 15 },
   navNextText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   // صورة هوية الممثل
@@ -1652,14 +1653,14 @@ const s = StyleSheet.create({
   },
   photoPickerDone: { borderColor: Colors.primary, borderStyle: "solid" },
   photoPickerFailed: { borderColor: Colors.danger, borderStyle: "solid" },
-  photoPickerEmpty: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16 },
+  photoPickerEmpty: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16 },
   photoPickerIcon: {
     width: 52, height: 52, borderRadius: 12, backgroundColor: Colors.bg,
     justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider,
   },
   photoPickerTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   photoPickerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
+  photoPreviewRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12 },
   photoPreview: { width: 72, height: 48, borderRadius: 10, backgroundColor: Colors.divider },
   photoPickerDoneText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
   photoPickerChange: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
@@ -1669,15 +1670,15 @@ const s = StyleSheet.create({
   contractSection: { width: "100%", gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   contractSectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   contractBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
-  contractParties: { flexDirection: "row", gap: 0 },
+  contractParties: { flexDirection: "row-reverse", gap: 0 },
   contractParty: { flex: 1, gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg },
   contractPartyDivider: { width: 1, backgroundColor: Colors.divider, marginVertical: 4 },
   contractPartyTitle: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary, textAlign: "center", marginBottom: 4 },
   contractPartyText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
-  contractBullet: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  contractBullet: { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" },
   contractBulletDot: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, marginTop: 2 },
   contractBulletText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
-  contractPenalties: { flexDirection: "row", gap: 8 },
+  contractPenalties: { flexDirection: "row-reverse", gap: 8 },
   penaltyItem: { flex: 1, alignItems: "center", gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   penaltyIcon: { fontSize: 18 },
   penaltyTitle: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.textPrimary, textAlign: "center" },
@@ -1692,18 +1693,18 @@ const s = StyleSheet.create({
     backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16, gap: 12,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  statusCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  statusCardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   statusCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
   refreshBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primary + "18", justifyContent: "center", alignItems: "center" },
-  statusBadgeRow: { flexDirection: "row" },
-  statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  statusBadgeRow: { flexDirection: "row-reverse" },
+  statusBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   statusBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   statusHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
 
   // أزرار إجراءات العقد
   contractActionsTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
   contractActionBtn: {
-    flexDirection: "row", alignItems: "center", gap: 12, padding: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14,
     borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg,
   },
   contractActionBtnDisabled: { opacity: 0.55 },
@@ -1716,7 +1717,7 @@ const fi = StyleSheet.create({
   block: { gap: 6 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   row: {
-    flexDirection: "row", alignItems: "center", backgroundColor: Colors.cardBg,
+    flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.cardBg,
     borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden",
   },
   rowMulti: { alignItems: "flex-start" },

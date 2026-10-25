@@ -168,6 +168,12 @@ export const translations = {
       today: "اليوم",
       national: "وطنية",
       islamic: "إسلامية",
+      local: "محلية",
+      // Indexed by Date#getDay() (0 = Sunday) and Date#getMonth() (0 = January).
+      // Single letters fit the seven narrow columns; ج/س mark the weekend (Friday/Saturday).
+      days: ["ح", "ن", "ث", "ر", "خ", "ج", "س"],
+      holidayDisclaimer: "مواعيد المناسبات الإسلامية تقريبية وقد تختلف يوماً حسب رؤية الهلال",
+      months: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
       events: "مناسبات",
       noEvents: "لا توجد مناسبات",
       addEvent: "إضافة مناسبة",

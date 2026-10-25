@@ -102,7 +102,8 @@ function DayCell({
 
   const holidays = getHolidaysForDay(day, month, year);
   const isToday = day === today.d && month === today.m && year === today.y;
-  const isWeekend = [0, 6].includes(new Date(year, month - 1, day).getDay());
+  // Weekend in Sudan: Friday and Saturday (matches the highlighted header letters).
+  const isWeekend = [5, 6].includes(new Date(year, month - 1, day).getDay());
   const firstHoliday = holidays[0];
 
   return (
@@ -332,20 +333,19 @@ export default function CalendarScreen() {
 }
 
 // ─── Calendar Styles ──────────────────────────────────────────────────────────
-const CELL_SIZE = (Platform.OS === "web" ? Math.min(480, 400) : 360) / 7;
-
 const cal = StyleSheet.create({
   weekRow: {
     borderBottomWidth: 0,
   },
+  // Seven equal columns that always fit the card (fixed widths overflowed on phones).
   weekHeader: {
-    width: CELL_SIZE, alignItems: "center", paddingBottom: 8,
+    flex: 1, alignItems: "center", paddingBottom: 8,
   },
   weekHeaderText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary,
   },
   dayCell: {
-    width: CELL_SIZE, height: CELL_SIZE,
+    flex: 1, aspectRatio: 1,
     alignItems: "center", justifyContent: "center",
     borderRadius: Colors.radius.sm, gap: 2,
   },
@@ -358,7 +358,7 @@ const cal = StyleSheet.create({
   dayNumToday: {
     color: "#fff", fontFamily: "Cairo_700Bold",
   },
-  dotsRow: { flexDirection: "row", gap: 2, justifyContent: "center" },
+  dotsRow: { flexDirection: "row-reverse", gap: 2, justifyContent: "center" },
   dot: { width: 4, height: 4, borderRadius: 2 },
 });
 

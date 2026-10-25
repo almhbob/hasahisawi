@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   sectionChips: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     flexWrap: "wrap",
     gap: 8,
     justifyContent: "center",

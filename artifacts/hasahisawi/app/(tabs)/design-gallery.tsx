@@ -15,6 +15,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
+import HScroll from "@/components/HScroll";
 const { width } = Dimensions.get("window");
 const BASE = getApiUrl() ?? "";
 
@@ -463,7 +464,7 @@ export default function DesignGalleryScreen() {
       {activeTab === "gallery" && (
         <View style={{ flex: 1 }}>
           {/* فلتر الفئات */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          <HScroll horizontal showsHorizontalScrollIndicator={false}
             style={styles.catsScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
             {CATEGORIES.map(cat => (
               <Pressable key={cat.key} style={[styles.catBtn, selCat === cat.key && { backgroundColor: cat.color, borderColor: cat.color }]}
@@ -473,7 +474,7 @@ export default function DesignGalleryScreen() {
                 <Text style={[styles.catBtnText, selCat === cat.key && { color: "#fff" }]}>{cat.label}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </HScroll>
 
           {loading ? (
             <View style={styles.loadingWrap}>
@@ -556,14 +557,14 @@ export default function DesignGalleryScreen() {
 
           {/* الباقات */}
           <Text style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>اختر باقتك</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          <HScroll horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 14, paddingHorizontal: 16, paddingBottom: 8 }}>
             {packages.map(pkg => (
               <PackageCard key={pkg.id} pkg={pkg}
                 selected={selPkg?.id === pkg.id}
                 onSelect={() => setSelPkg(pkg)} />
             ))}
-          </ScrollView>
+          </HScroll>
 
           {/* نموذج الاشتراك */}
           {selPkg && !subDone && (
@@ -780,7 +781,7 @@ const styles = StyleSheet.create({
     textAlign: "center", lineHeight: 20, marginBottom: 16,
   },
   heroStats: {
-    flexDirection: "row", justifyContent: "center", alignItems: "center",
+    flexDirection: "row-reverse", justifyContent: "center", alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.xl,
     paddingVertical: 12, paddingHorizontal: 20, gap: 0,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
@@ -792,7 +793,7 @@ const styles = StyleSheet.create({
 
   /* ── تبويبات ── */
   tabBar: {
-    flexDirection: "row", backgroundColor: "rgba(255,255,255,0.04)",
+    flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.04)",
     borderBottomWidth: 0.5, borderBottomColor: "rgba(255,255,255,0.08)",
   },
   tabItem: {
@@ -806,7 +807,7 @@ const styles = StyleSheet.create({
   /* ── فئات ── */
   catsScroll: { flexGrow: 0 },
   catBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
@@ -832,32 +833,32 @@ const styles = StyleSheet.create({
   customBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
   productInfo: { padding: 10, gap: 6 },
   productTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, lineHeight: 18 },
-  productMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  productMeta: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   catChip: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 0.5,
   },
   catChipText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
-  deliveryInfo: { flexDirection: "row", alignItems: "center", gap: 3 },
+  deliveryInfo: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
   deliveryText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
-  designerRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  designerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   designerAvatar: {
     width: 20, height: 20, borderRadius: 7, backgroundColor: "#3B78A630",
     alignItems: "center", justifyContent: "center",
   },
   designerAvatarText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#3B78A6" },
   designerName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, flex: 1 },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  ratingRow: { flexDirection: "row-reverse", alignItems: "center", gap: 2 },
   ratingText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#F59E0B" },
-  productFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
+  productFooter: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
   priceText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
   orderBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
   },
   orderBtnText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
 
   /* ── بطاقة مصمم ── */
-  designersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  designersGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 12 },
   designerCard: {
     width: (width - 44) / 2, borderRadius: Colors.radius.xl,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
@@ -878,9 +879,9 @@ const styles = StyleSheet.create({
   designerCardName: {
     fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "center",
   },
-  designerRatingRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  designerRatingRow: { flexDirection: "row-reverse", alignItems: "center", gap: 2 },
   designerRatingCount: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginLeft: 2 },
-  designerStats: { flexDirection: "row", alignItems: "center", gap: 12 },
+  designerStats: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   designerStat: { alignItems: "center" },
   designerStatNum: { fontFamily: "Cairo_700Bold", fontSize: 16 },
   designerStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
@@ -890,7 +891,7 @@ const styles = StyleSheet.create({
   },
   pkgBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
   contactBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 5,
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, borderWidth: 1,
     backgroundColor: "rgba(255,255,255,0.04)", width: "100%", justifyContent: "center",
   },
@@ -913,11 +914,11 @@ const styles = StyleSheet.create({
   pkgDesc: {
     fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center",
   },
-  pkgPriceRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center" },
+  pkgPriceRow: { flexDirection: "row-reverse", alignItems: "baseline", justifyContent: "center" },
   pkgPrice: { fontFamily: "Cairo_700Bold", fontSize: 28 },
   pkgPriceSuffix: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   pkgDivider: { height: 0.5, backgroundColor: "rgba(255,255,255,0.10)", marginVertical: 4 },
-  pkgFeatureRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  pkgFeatureRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   pkgFeatureText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1 },
   pkgSelectBtn: {
     paddingVertical: 10, borderRadius: 12, alignItems: "center",
@@ -939,7 +940,7 @@ const styles = StyleSheet.create({
     marginBottom: 12, marginTop: 8,
   },
   howStep: {
-    flexDirection: "row", alignItems: "center", gap: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 14,
     backgroundColor: "rgba(255,255,255,0.04)", borderRadius: Colors.radius.lg,
     padding: 14, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
   },
@@ -961,7 +962,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8 },
   submitBtnGrad: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
@@ -991,7 +992,7 @@ const styles = StyleSheet.create({
     textAlign: "center", marginBottom: 16,
   },
   orderProductInfo: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     backgroundColor: "rgba(255,255,255,0.06)", borderRadius: Colors.radius.lg,
     padding: 12, marginBottom: 16,
     borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
@@ -1000,7 +1001,7 @@ const styles = StyleSheet.create({
   orderProductName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
   orderProductDesigner: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   contactOptionBtn: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     padding: 16, borderRadius: Colors.radius.lg, borderWidth: 1,
   },
   contactOptionText: { fontFamily: "Cairo_700Bold", fontSize: 16 },

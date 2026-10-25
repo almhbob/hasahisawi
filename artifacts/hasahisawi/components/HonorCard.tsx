@@ -251,7 +251,7 @@ const s = StyleSheet.create({
     alignSelf: "center",
   },
   badgeGrad: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 12,
@@ -277,7 +277,7 @@ const s = StyleSheet.create({
     lineHeight: 32,
   },
   titleRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
     marginTop: 2,
@@ -347,12 +347,12 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   footerLeft: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
   },
   daysChip: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 10,

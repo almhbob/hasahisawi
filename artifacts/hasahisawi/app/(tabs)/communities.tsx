@@ -18,6 +18,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Types ─────────────────────────────────────────────────────
 
 type CatKey = "wafid" | "foreign" | "displaced" | "expat";
@@ -756,7 +757,7 @@ export default function CommunitiesScreen() {
       </ModernHeader>
 
       {/* Filter Pills */}
-      <ScrollView
+      <HScroll
         horizontal showsHorizontalScrollIndicator={false}
         style={styles.filtersScroll}
         contentContainerStyle={[styles.filtersRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
@@ -775,7 +776,7 @@ export default function CommunitiesScreen() {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </HScroll>
 
       {/* Stats Bar */}
       {communities.length > 0 && <StatsBar communities={communities} />}

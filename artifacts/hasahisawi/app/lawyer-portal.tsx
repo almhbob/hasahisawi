@@ -22,6 +22,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { uploadFile } from "@/lib/firebase/storage";
 
+import HScroll from "@/components/HScroll";
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Profile = {
   id: number; full_name: string; title: string; bio: string; phone: string;
@@ -111,7 +112,7 @@ async function apiFetch(path: string, opts?: any, token?: string) {
 
 // ─── Component helpers ─────────────────────────────────────────────────────
 function Row({ children, style }: any) {
-  return <View style={[{ flexDirection: "row", alignItems: "center" }, style]}>{children}</View>;
+  return <View style={[{ flexDirection: "row-reverse", alignItems: "center" }, style]}>{children}</View>;
 }
 function SectionTitle({ text }: { text: string }) {
   return <Text style={{ color: "#9CA3AF", fontSize: 11, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10, marginTop: 20 }}>{text}</Text>;
@@ -214,7 +215,7 @@ function LegalFormsTab({ token }: { token: string }) {
   return (
     <View style={{ flex: 1 }}>
       {/* inner tab bar */}
-      <View style={{ flexDirection: "row", backgroundColor: "#0B1724", borderBottomWidth: 1, borderBottomColor: "#1E1E3A" }}>
+      <View style={{ flexDirection: "row-reverse", backgroundColor: "#0B1724", borderBottomWidth: 1, borderBottomColor: "#1E1E3A" }}>
         {[["browse","استمارات الاقتراح"], ["mine","اقتراحاتي"]].map(([k, lbl]) => (
           <TouchableOpacity key={k} onPress={() => setInnerTab(k as any)}
             style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: innerTab === k ? PURPLE : "transparent" }}>
@@ -572,7 +573,7 @@ export default function LawyerPortal() {
       </LinearGradient>
 
       {/* Tabs */}
-      <View style={{ flexDirection: "row", backgroundColor: "#0B1724", borderBottomWidth: 1, borderBottomColor: BORDER }}>
+      <View style={{ flexDirection: "row-reverse", backgroundColor: "#0B1724", borderBottomWidth: 1, borderBottomColor: BORDER }}>
         {([ ["dashboard","grid-outline","لوحتي"], ["cases","briefcase-outline","القضايا"], ["forms","document-text-outline","الاستمارات"], ["settings","settings-outline","الإعدادات"] ] as [Tab, string, string][]).map(([key, icon, label]) => (
           <TouchableOpacity key={key} onPress={() => setTab(key)} style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: tab === key ? PURPLE : "transparent" }}>
             <Ionicons name={icon as any} size={18} color={tab === key ? PURPLE : "#6B7280"} />
@@ -620,7 +621,7 @@ export default function LawyerPortal() {
                   <Text style={{ color: "#9CA3AF", fontSize: 12, marginBottom: 8 }}>الحالة الحالية: {STATUS_CONF[selectedCase.status]?.ar}</Text>
                   {(NEXT_STATUS[selectedCase.status] || []).map(ns => (
                     <TouchableOpacity key={ns.status} onPress={() => changeStatus(ns.status)}
-                      style={{ backgroundColor: ns.color + "22", borderWidth: 1, borderColor: ns.color, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      style={{ backgroundColor: ns.color + "22", borderWidth: 1, borderColor: ns.color, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
                       <Ionicons name={STATUS_CONF[ns.status]?.icon as any} size={20} color={ns.color} />
                       <Text style={{ color: ns.color, fontWeight: "700", fontSize: 15 }}>{ns.ar}</Text>
                     </TouchableOpacity>
@@ -688,11 +689,11 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
 
       {/* Stats Grid */}
       <SectionTitle text="إحصائيات القضايا" />
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
+      <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
         <StatCard icon="📂" value={stats?.contracts.total || 0} label="إجمالي القضايا" color={PURPLE} />
         <StatCard icon="⏳" value={stats?.contracts.pending || 0} label="قيد المراجعة" color={GOLD} />
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
+      <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
         <StatCard icon="⚡" value={stats?.contracts.in_progress || 0} label="قيد التنفيذ" color={BLUE} />
         <StatCard icon="✅" value={stats?.contracts.completed || 0} label="مكتملة" color={GREEN} />
       </View>
@@ -721,7 +722,7 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
             {profile?.is_verified && <Row style={{ backgroundColor: GREEN + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, gap: 4 }}><Ionicons name="shield-checkmark" size={12} color={GREEN} /><Text style={{ color: GREEN, fontSize: 11, fontWeight: "700" }}>موثّق</Text></Row>}
           </View>
         </Row>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+        <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
           {[
             profile?.has_unlimited_contacts && "✅ تواصل غير محدود",
             profile?.has_ads && "📣 إعلانات ترويجية",
@@ -785,11 +786,11 @@ function CasesTab({ cases, loading, filter, setFilter, search, setSearch, onSear
     <View style={{ flex: 1 }}>
       {/* Search */}
       <View style={{ padding: 14, gap: 10 }}>
-        <View style={{ flexDirection: "row", backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER, alignItems: "center", paddingHorizontal: 12, gap: 8 }}>
+        <View style={{ flexDirection: "row-reverse", backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER, alignItems: "center", paddingHorizontal: 12, gap: 8 }}>
           <Ionicons name="search-outline" size={16} color="#6B7280" />
           <TextInput value={search} onChangeText={setSearch} onSubmitEditing={onSearch} placeholder="بحث في القضايا…" placeholderTextColor="#4B5563" returnKeyType="search" style={{ flex: 1, color: "#fff", fontSize: 13, paddingVertical: 10 }} />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false}>
           <Row style={{ gap: 8 }}>
             {statuses.map(s => {
               const conf = s ? STATUS_CONF[s] : null;
@@ -804,7 +805,7 @@ function CasesTab({ cases, loading, filter, setFilter, search, setSearch, onSear
               );
             })}
           </Row>
-        </ScrollView>
+        </HScroll>
       </View>
 
       {loading ? (
@@ -871,7 +872,7 @@ function ChatListTab({ cases, loading, onOpen }: any) {
           contentContainerStyle={{ padding: 14, gap: 8, paddingBottom: 40 }}
           renderItem={({ item: c }: { item: Case }) => (
             <TouchableOpacity onPress={() => onOpen(c)}
-              style={{ backgroundColor: CARD, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.unread_count > 0 ? PURPLE : BORDER, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              style={{ backgroundColor: CARD, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.unread_count > 0 ? PURPLE : BORDER, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
               <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: PURPLE + "33", alignItems: "center", justifyContent: "center" }}>
                 <Text style={{ fontSize: 20 }}>👤</Text>
               </View>
@@ -918,7 +919,7 @@ function DocsListTab({ cases, loading, onOpen }: any) {
           contentContainerStyle={{ padding: 14, gap: 8, paddingBottom: 40 }}
           renderItem={({ item: c }: { item: Case }) => c.doc_count === 0 ? null : (
             <TouchableOpacity onPress={() => onOpen(c)}
-              style={{ backgroundColor: CARD, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: BORDER, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              style={{ backgroundColor: CARD, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: BORDER, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
               <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: BLUE + "22", alignItems: "center", justifyContent: "center" }}>
                 <Ionicons name="documents-outline" size={22} color={BLUE} />
               </View>
@@ -949,7 +950,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
   return (
     <View style={{ flex: 1 }}>
       {/* Section tabs */}
-      <View style={{ flexDirection: "row", padding: 14, gap: 8 }}>
+      <View style={{ flexDirection: "row-reverse", padding: 14, gap: 8 }}>
         {([ ["profile","ملف تعريفي"], ["services","الخدمات"], ["backup","النسخ الاحتياطي"] ] as [typeof section, string][]).map(([key, lbl]) => (
           <TouchableOpacity key={key} onPress={() => setSection(key)}
             style={{ flex: 1, backgroundColor: section === key ? PURPLE : CARD, borderRadius: 10, paddingVertical: 10, alignItems: "center", borderWidth: 1, borderColor: section === key ? PURPLE : BORDER }}>
@@ -971,7 +972,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
             <Input label="البريد الإلكتروني" value={form.email || ""}       onChangeText={f("email")}       keyboardType="email-address" />
             <Input label="عنوان المكتب"      value={form.office_addr || ""} onChangeText={f("office_addr")} placeholder="الحي / الشارع / رقم المكتب" />
             <SectionTitle text="المنطقة الجغرافية" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
               <Row style={{ gap: 8 }}>
                 {SUDANESE_DISTRICTS.map(d => (
                   <TouchableOpacity key={d} onPress={() => setForm((p: any) => ({ ...p, district: d }))}
@@ -980,7 +981,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
                   </TouchableOpacity>
                 ))}
               </Row>
-            </ScrollView>
+            </HScroll>
             <Input label="أتعاب الاستشارة"  value={form.consult_fee || ""} onChangeText={f("consult_fee")} placeholder="مثال: 500 ج.س / 30 دقيقة" />
             <Input label="اللغات"            value={form.languages || ""}   onChangeText={f("languages")}   placeholder="العربية، الإنجليزية…" />
             <TouchableOpacity onPress={onSave} disabled={saving}
@@ -1009,7 +1010,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
                 </Row>
                 <Input label="عنوان الخدمة *" value={svc.title} onChangeText={(v: string) => setServices((p: Service[]) => p.map((s: Service, i: number) => i === idx ? { ...s, title: v } : s))} placeholder="مثال: صياغة عقود الإيجار" maxLength={150} />
                 <Input label="وصف الخدمة" value={svc.description} onChangeText={(v: string) => setServices((p: Service[]) => p.map((s: Service, i: number) => i === idx ? { ...s, description: v } : s))} placeholder="اشرح ما تشمله هذه الخدمة…" multiline />
-                <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                   <View style={{ flex: 1 }}>
                     <Input label="الأتعاب" value={svc.price_text} onChangeText={(v: string) => setServices((p: Service[]) => p.map((s: Service, i: number) => i === idx ? { ...s, price_text: v } : s))} placeholder="500 ج.س" />
                   </View>
@@ -1165,7 +1166,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
 
           {/* Client contact buttons */}
           <SectionTitle text="التواصل مع العميل" />
-          <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flexDirection: "row-reverse", gap: 10 }}>
             <TouchableOpacity onPress={() => Linking.openURL(`tel:${c.client_phone}`)}
               style={{ flex: 1, backgroundColor: GREEN + "22", borderRadius: 12, padding: 14, alignItems: "center", borderWidth: 1, borderColor: GREEN }}>
               <Ionicons name="call-outline" size={20} color={GREEN} />
@@ -1226,7 +1227,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
                       </Text>
                       {m.body ? <Text style={{ color: "#fff", fontSize: 14, lineHeight: 20 }}>{m.body}</Text> : null}
                       {m.file_url ? (
-                        <TouchableOpacity onPress={() => Linking.openURL(m.file_url)} style={{ marginTop: m.body ? 8 : 0, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 10 }}>
+                        <TouchableOpacity onPress={() => Linking.openURL(m.file_url)} style={{ marginTop: m.body ? 8 : 0, flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 10 }}>
                           <Text style={{ fontSize: 22 }}>{fileIcon(m.file_type)}</Text>
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: "#D1D5DB", fontSize: 12, fontWeight: "600" }} numberOfLines={1}>{m.file_name || "ملف مرفق"}</Text>
@@ -1242,7 +1243,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
             />
           )}
           {/* Input */}
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
             <TouchableOpacity onPress={onSendWithFile} style={{ padding: 10, backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
               <Ionicons name="attach-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -1265,7 +1266,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
         <View style={{ flex: 1 }}>
           <View style={{ padding: 14 }}>
             <TouchableOpacity onPress={onDocModal}
-              style={{ backgroundColor: BLUE + "22", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: BLUE, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10 }}>
+              style={{ backgroundColor: BLUE + "22", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: BLUE, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 10 }}>
               <Ionicons name="cloud-upload-outline" size={20} color={BLUE} />
               <Text style={{ color: BLUE, fontWeight: "700", fontSize: 15 }}>رفع مستند جديد</Text>
             </TouchableOpacity>

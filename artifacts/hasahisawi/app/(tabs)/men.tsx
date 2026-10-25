@@ -15,6 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import ModernHeader from "@/components/ui/ModernHeader";
 
+import HScroll from "@/components/HScroll";
 // ══════════════════════════════════════════════════════
 // TYPES
 // ══════════════════════════════════════════════════════
@@ -174,7 +175,7 @@ export default function MenScreen() {
         </View>
 
         {/* Filter chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingBottom: 4 }}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, paddingBottom: 4 }}>
           {([["all", "الكل", "apps-outline", "#aaa"], ...Object.entries(TYPE_CONFIG).map(([k, v]) => [k, v.label, v.icon, v.color])] as [string, string, string, string][]).map(([k, label, icon, color]) => (
             <TouchableOpacity
               key={k}
@@ -185,7 +186,7 @@ export default function MenScreen() {
               <Text style={[s.chipText, filter === k && { color }]}>{label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </HScroll>
       </ModernHeader>
 
       {/* Search */}
@@ -359,7 +360,7 @@ export default function MenScreen() {
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                   <Text style={jm.fieldLabel}>نوع الخدمة *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                  <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
                     {JOIN_TYPES.map(jt => (
                       <TouchableOpacity
                         key={jt.key}
@@ -370,7 +371,7 @@ export default function MenScreen() {
                         <Text style={[jm.typeChipText, joinType === jt.key && { color: PRIMARY }]}>{jt.label}</Text>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
+                  </HScroll>
 
                   {[
                     { label: "الاسم الكامل *",      val: joinName,    set: setJoinName,    placeholder: "أحمد محمد علي"          },
@@ -432,48 +433,48 @@ export default function MenScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
+  statsRow: { flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
 
-  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.bg },
+  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.bg },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
 
   searchSection: { backgroundColor: Colors.cardBg, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 14, gap: 8, ...Colors.shadow.card },
+  searchRow: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 14, gap: 8, ...Colors.shadow.card },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary, paddingVertical: 11 },
 
   card: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 10, borderWidth: 1, overflow: "hidden", ...Colors.shadow.card },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  cardHeader: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
   iconCircle: { width: 52, height: 52, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  cardMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  typeBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
+  cardMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 4 },
+  typeBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
   typeBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   ratingText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  tagsRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   tagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
-  cardInfoRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  cardInfoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, flexWrap: "wrap" },
   cardInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
+  actionBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   emptyState: { alignItems: "center", paddingTop: 40, gap: 12 },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   emptyBtn: { borderRadius: Colors.radius.md, overflow: "hidden", marginTop: 8, width: "80%" },
-  emptyBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14 },
+  emptyBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14 },
   emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
 
 // ── أنماط نموذج الانضمام ─────────────────────────────────────────────────────
 const jm = StyleSheet.create({
   joinBanner: {
-    flexDirection: "row", alignItems: "center", gap: 12,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
     borderWidth: 1.5, borderColor: PRIMARY + "40",
     padding: 14, overflow: "hidden", ...Colors.shadow.card,
@@ -488,15 +489,15 @@ const jm = StyleSheet.create({
   joinBannerArrow: { width: 32, height: 32, borderRadius: Colors.radius.sm, backgroundColor: PRIMARY + "18", alignItems: "center", justifyContent: "center" },
 
   fab: { position: "absolute", bottom: 24, alignSelf: "center", borderRadius: Colors.radius.pill, overflow: "hidden", ...Colors.shadow.raised, shadowColor: PRIMARY },
-  fabGrad: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 14 },
+  fabGrad: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 14 },
   fabText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
   overlay: { flex: 1, backgroundColor: "#00000088", justifyContent: "flex-end" },
   sheet: { maxHeight: "92%" },
   sheetInner: { borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 36 },
-  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
+  sheetHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
   closeBtn: { width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
-  sheetTitleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sheetTitleWrap: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
 
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6 },
@@ -506,14 +507,14 @@ const jm = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
   },
   typeChip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row-reverse", alignItems: "center", gap: 6,
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.bg,
   },
   typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
 
   sendBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 4 },
-  sendBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
+  sendBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
   sendBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   successBox: { alignItems: "center", paddingVertical: 32, gap: 14 },

@@ -24,6 +24,7 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 
+import HScroll from "@/components/HScroll";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -666,7 +667,7 @@ function StoreDetailModal({
           <>
             {/* Categories bar */}
             {storeData && storeData.categories.length > 0 && (
-              <ScrollView
+              <HScroll
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.catScroll}
@@ -699,7 +700,7 @@ function StoreDetailModal({
                       </Text>
                     </TouchableOpacity>
                   ))}
-              </ScrollView>
+              </HScroll>
             )}
 
             {/* Products grid */}
@@ -1023,7 +1024,7 @@ export default function StoresScreen() {
       {activeTab === "browse" ? (
         <>
           {/* Type filter */}
-          <ScrollView
+          <HScroll
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.typeFilterScroll}
@@ -1044,7 +1045,7 @@ export default function StoresScreen() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </HScroll>
 
           {/* Search */}
           <View style={styles.searchWrap}>

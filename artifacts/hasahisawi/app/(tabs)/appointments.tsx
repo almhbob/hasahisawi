@@ -19,6 +19,7 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
 
 
+import HScroll from "@/components/HScroll";
 // ══════════════════════════════════════════════════════════
 // TYPES
 // ══════════════════════════════════════════════════════════
@@ -513,8 +514,8 @@ export default function AppointmentsScreen() {
               </View>
 
               <Text style={s.sectionLabel}>التاريخ</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: "row", gap: 10, paddingBottom: 4 }}>
+              <HScroll horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: "row-reverse", gap: 10, paddingBottom: 4 }}>
                   {getNextDates().map((d) => (
                     <TouchableOpacity
                       key={d.value}
@@ -526,7 +527,7 @@ export default function AppointmentsScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-              </ScrollView>
+              </HScroll>
 
               {date !== "" && (
                 <Animated.View entering={FadeIn.duration(300)}>
@@ -662,7 +663,7 @@ export default function AppointmentsScreen() {
       {tab === "my" && (
         <View style={{ flex: 1 }}>
           {/* Filter bar */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
             {([["all", "الكل"], ["pending", "بانتظار التأكيد"], ["confirmed", "مؤكدة"], ["cancelled", "ملغاة"]] as [AppStatus | "all", string][]).map(([k, label]) => (
               <TouchableOpacity
                 key={k}
@@ -672,7 +673,7 @@ export default function AppointmentsScreen() {
                 <Text style={[s.filterChipText, apptFilter === k && { color: "#000" }]}>{label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </HScroll>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
             {filteredAppts.length === 0 && apptStatus === "loading" && <LoadingBlock label="جارٍ تحميل مواعيدك…" />}
@@ -739,11 +740,11 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
   // Header
-  resetBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
+  resetBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
   resetBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-  tabRow: { flexDirection: "row", gap: 10 },
+  tabRow: { flexDirection: "row-reverse", gap: 10 },
   tabBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
     paddingVertical: 11, borderRadius: Colors.radius.md, overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
   },
@@ -755,17 +756,17 @@ const s = StyleSheet.create({
   body: { flex: 1 },
 
   // Progress
-  progressRow: { flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 20 },
+  progressRow: { flexDirection: "row-reverse", justifyContent: "center", gap: 8, marginBottom: 20 },
   progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.divider },
 
   // Step titles
   stepTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, flex: 1, textAlign: "right" },
-  stepHeaderRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
+  stepHeaderRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 4 },
   backBtn: { width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: Colors.primary + "20", justifyContent: "center", alignItems: "center" },
 
   // Category cards
   catCard: {
-    flexDirection: "row", alignItems: "center", gap: 14, padding: 18,
+    flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 18,
     borderRadius: Colors.radius.xl, borderWidth: 1, overflow: "hidden",
     ...Colors.shadow.card,
   },
@@ -776,12 +777,12 @@ const s = StyleSheet.create({
   catCount: { marginTop: 4 },
   catCountText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "right" },
 
-  infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
+  infoBox: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
   infoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
 
   // Facility card
   facilityCard: {
-    flexDirection: "row", alignItems: "center", gap: 12, padding: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14,
     borderRadius: Colors.radius.lg, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden",
     ...Colors.shadow.card,
   },
@@ -792,7 +793,7 @@ const s = StyleSheet.create({
 
   // Facility banner
   facilityBanner: {
-    flexDirection: "row", alignItems: "center", gap: 12, padding: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14,
     borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden",
   },
   facilityBannerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
@@ -801,7 +802,7 @@ const s = StyleSheet.create({
   // Services
   sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   serviceItem: {
-    flexDirection: "row", alignItems: "center", gap: 10, padding: 14,
+    flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 14,
     borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, overflow: "hidden",
   },
   serviceIcon: { width: 28, height: 28, borderRadius: Colors.radius.sm - 2, backgroundColor: Colors.primary + "20", justifyContent: "center", alignItems: "center" },
@@ -816,7 +817,7 @@ const s = StyleSheet.create({
   dateChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
   // Time
-  timeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  timeGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   timeChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Colors.radius.sm,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden",
@@ -826,7 +827,7 @@ const s = StyleSheet.create({
 
   // Next btn
   nextBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
     borderRadius: Colors.radius.lg, paddingVertical: 16, marginTop: 8,
   },
   nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
@@ -834,21 +835,21 @@ const s = StyleSheet.create({
   // Fields
   fieldBlock: { gap: 6 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
-  fieldWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md, backgroundColor: Colors.cardBg },
+  fieldWrap: { flexDirection: "row-reverse", alignItems: "center", borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md, backgroundColor: Colors.cardBg },
   field: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary, paddingVertical: 13, paddingHorizontal: 12 },
 
   // Summary
   summaryCard: { borderRadius: Colors.radius.xl, padding: 18, gap: 0, borderWidth: 1, borderColor: Colors.primary + "30" },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12 },
+  summaryRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 12 },
   summaryKey: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary },
   summaryVal: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", flex: 1, marginRight: 12 },
   summaryDivider: { height: 1, backgroundColor: Colors.divider },
 
-  warningBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.accent + "30" },
+  warningBox: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.accent + "30" },
   warningText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
 
   confirmBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
     borderRadius: Colors.radius.lg, paddingVertical: 17,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
@@ -861,14 +862,14 @@ const s = StyleSheet.create({
 
   // Appointment card
   apptCard: { borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, backgroundColor: Colors.cardBg, gap: 12, overflow: "hidden", ...Colors.shadow.card },
-  apptHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  apptHeader: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   apptFacility: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", flex: 1, marginRight: 8 },
-  apptStatus: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
+  apptStatus: { flexDirection: "row-reverse", alignItems: "center", gap: 5, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
   apptStatusText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   apptBody: { gap: 8 },
-  apptRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  apptRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   apptRowVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", flex: 1, marginLeft: 8 },
-  cancelBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.sm, paddingVertical: 10, backgroundColor: Colors.danger + "12", borderWidth: 1, borderColor: Colors.danger + "30" },
+  cancelBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.sm, paddingVertical: 10, backgroundColor: Colors.danger + "12", borderWidth: 1, borderColor: Colors.danger + "30" },
   cancelBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.danger },
 
   // Empty state

@@ -20,6 +20,7 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import { ModernCard } from "@/components/ui/ModernCard";
 
 
+import HScroll from "@/components/HScroll";
 // ─── Keys ────────────────────────────────────────────────────────────────────
 export const SCHOOLS_KEY = "edu_institutions_v2";
 export const INSTITUTIONS_KEY = SCHOOLS_KEY;
@@ -474,13 +475,13 @@ function StudyTips() {
   const [cat, setCat] = useState(cats[0]);
   return (
     <View style={{ flex:1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:12 }} style={{ flexGrow:0 }}>
+      <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:12 }} style={{ flexGrow:0 }}>
         {cats.map(c => (
           <TouchableOpacity key={c} style={[tl.tipCat, cat===c && { backgroundColor:Colors.accent+"25", borderColor:Colors.accent }]} onPress={() => setCat(c)}>
             <Text style={[tl.tipCatText, cat===c && { color:Colors.accent, fontFamily:"Cairo_600SemiBold" }]}>{c}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </HScroll>
       <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled>
         {TIPS_DATA[cat].map((tip, i) => (
           <View key={i} style={tl.tipItem}>
@@ -892,13 +893,13 @@ function InstFormModal({ visible, initial, onClose, onSave }: {
                 <TextInput style={imf.input} value={name} onChangeText={setName} placeholder="اسم المؤسسة التعليمية" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
                 <Text style={imf.label}>نوع المؤسسة *</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:4 }}>
+                <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:4 }}>
                   {(Object.keys(INST_LABELS) as InstType[]).map(k => (
                     <AnimatedPress key={k} style={[imf.typeChip, type===k && { backgroundColor: INST_COLORS[k]+"30", borderColor: INST_COLORS[k]+"80" }]} onPress={()=>setType(k)}>
                       <Text style={[imf.typeChipText, type===k && { color: INST_COLORS[k] }]}>{INST_LABELS[k]}</Text>
                     </AnimatedPress>
                   ))}
-                </ScrollView>
+                </HScroll>
 
                 <Text style={imf.label}>العنوان *</Text>
                 <TextInput style={imf.input} value={address} onChangeText={setAddress} placeholder="الحي والشارع" placeholderTextColor={Colors.textMuted} textAlign="right" />
@@ -1008,14 +1009,14 @@ function JoinRequestForm({ onSubmit, onCancel }: { onSubmit: (r:JoinRequest)=>vo
         <TextInput style={jf.input} value={name} onChangeText={setName} placeholder="الاسم الكامل للمؤسسة" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
         <Text style={jf.label}>نوع المؤسسة *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:4 }}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, paddingBottom:4 }}>
           {(Object.keys(INST_LABELS) as InstType[]).map(k => (
             <AnimatedPress key={k} style={[jf.typeChip, type===k && { backgroundColor: INST_COLORS[k]+"30", borderColor: INST_COLORS[k]+"80" }]} onPress={()=>setType(k)}>
               <Ionicons name={INST_ICONS[k] as any} size={14} color={type===k ? INST_COLORS[k] : Colors.textMuted} />
               <Text style={[jf.typeChipText, type===k && { color: INST_COLORS[k] }]}>{INST_LABELS[k]}</Text>
             </AnimatedPress>
           ))}
-        </ScrollView>
+        </HScroll>
 
         <Text style={jf.label}>العنوان *</Text>
         <TextInput style={jf.input} value={address} onChangeText={setAddress} placeholder="الحي والشارع" placeholderTextColor={Colors.textMuted} textAlign="right" />
@@ -1063,7 +1064,7 @@ const jf = StyleSheet.create({
   bannerSub:   { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", lineHeight:18 },
   label:       { fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:6, marginTop:14 },
   input:       { backgroundColor:Colors.cardBg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider },
-  typeChip:    { flexDirection:"row", alignItems:"center", gap:6, paddingHorizontal:12, paddingVertical:7, borderRadius:10, backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.divider },
+  typeChip:    { flexDirection:"row-reverse", alignItems:"center", gap:6, paddingHorizontal:12, paddingVertical:7, borderRadius:10, backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.divider },
   typeChipText:{ fontFamily:"Cairo_500Medium", fontSize:12, color:Colors.textSecondary },
   svcsGrid:    { flexDirection:"row-reverse", flexWrap:"wrap", gap:8, marginTop:4 },
   svcCheck:    { flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:Colors.cardBg, borderRadius:8, paddingHorizontal:10, paddingVertical:6, borderWidth:1, borderColor:Colors.divider },
@@ -1166,7 +1167,7 @@ function ChipSelect({ options, value, onSelect, color }: {
   options: string[]; value: string; onSelect: (v: string) => void; color?: string;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+    <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
       {options.map(o => (
         <TouchableOpacity key={o}
           style={[ff.chip, value === o && { backgroundColor: (color||Colors.primary)+"20", borderColor: (color||Colors.primary)+"70" }]}
@@ -1174,7 +1175,7 @@ function ChipSelect({ options, value, onSelect, color }: {
           <Text style={[ff.chipText, value === o && { color: color||Colors.primary, fontFamily: "Cairo_600SemiBold" }]}>{o}</Text>
         </TouchableOpacity>
       ))}
-    </ScrollView>
+    </HScroll>
   );
 }
 
@@ -1805,7 +1806,7 @@ const fm = StyleSheet.create({
   refLabel:    { fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted },
   refNum:      { fontFamily:"Cairo_700Bold", fontSize:20, color:Colors.primary, letterSpacing:1 },
   refHint:     { fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"center" },
-  arrowSep:    { flexDirection:"row", alignItems:"center", gap:8, marginVertical:10 },
+  arrowSep:    { flexDirection:"row-reverse", alignItems:"center", gap:8, marginVertical:10 },
   arrowLine:   { flex:1, height:1, backgroundColor:Colors.divider },
   arrowIcon:   { width:32, height:32, borderRadius:16, backgroundColor:Colors.accent+"15", alignItems:"center", justifyContent:"center", borderWidth:1, borderColor:Colors.accent+"40" },
 });
@@ -2200,7 +2201,7 @@ export default function StudentScreen() {
         </View>
 
         {/* Tab Bar */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        <HScroll horizontal showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.tabsContent}>
           {TAB_OPTIONS.map(tab => (
             <AnimatedPress key={tab.key} style={[s.tabBtn, activeTab===tab.key && s.tabBtnActive]}
@@ -2218,7 +2219,7 @@ export default function StudentScreen() {
               )}
             </AnimatedPress>
           ))}
-        </ScrollView>
+        </HScroll>
       </ModernHeader>
 
       {/* ── TAB: SERVICES ── */}
@@ -2298,14 +2299,14 @@ export default function StudentScreen() {
       {/* ── TAB: INSTITUTIONS ── */}
       {activeTab === "institutions" && (
         <View style={s.flex1}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          <HScroll horizontal showsHorizontalScrollIndicator={false}
             style={s.filtersRow} contentContainerStyle={s.filtersContent}>
             {INST_TYPE_FILTERS.map(f => (
               <AnimatedPress key={f.key} style={[s.filterChip, instFilter===f.key && s.filterChipActive]} onPress={()=>setInstFilter(f.key as any)}>
                 <Text style={[s.filterChipText, instFilter===f.key && s.filterChipTextActive]}>{f.label}</Text>
               </AnimatedPress>
             ))}
-          </ScrollView>
+          </HScroll>
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
             {filteredInsts.length === 0 ? (
               <View style={s.emptyState}>
@@ -2518,7 +2519,7 @@ export default function StudentScreen() {
                         ))}
                         <View style={{ marginBottom:12 }}>
                           <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:5 }}>نوع النشاط *</Text>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse" }}>
+                          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse" }}>
                             {LIB_CATS.filter(c=>c.key!=="all").map(c=>(
                               <TouchableOpacity key={c.key} onPress={()=>setLibForm(f=>({...f,category:c.key as LibraryCat}))}
                                 style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
@@ -2527,7 +2528,7 @@ export default function StudentScreen() {
                                 <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: libForm.category===c.key ? c.color : Colors.textMuted }}>{c.label}</Text>
                               </TouchableOpacity>
                             ))}
-                          </ScrollView>
+                          </HScroll>
                         </View>
                         <View style={{ marginBottom:12 }}>
                           <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>الخدمات المقدمة</Text>
@@ -2588,7 +2589,7 @@ export default function StudentScreen() {
               </TouchableOpacity>
             </View>
             {/* Category chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse" }}>
+            <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse" }}>
               {LIB_CATS.map(cat=>(
                 <TouchableOpacity key={cat.key} onPress={()=>setLibCat(cat.key)}
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
@@ -2598,7 +2599,7 @@ export default function StudentScreen() {
                   <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: libCat===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </HScroll>
           </View>
 
           {/* Library list */}
@@ -2766,7 +2767,7 @@ export default function StudentScreen() {
       {activeTab === "admin" && isAdmin && (
         <View style={s.flex1}>
           {/* Admin Sub Tabs */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          <HScroll horizontal showsHorizontalScrollIndicator={false}
             style={{ borderBottomWidth:1, borderBottomColor:Colors.divider, backgroundColor:Colors.cardBg }}
             contentContainerStyle={{ flexDirection:"row-reverse", gap:4, paddingHorizontal:12, paddingVertical:8 }}>
             {([
@@ -2783,7 +2784,7 @@ export default function StudentScreen() {
                 {t.badge>0 && <View style={s.tabBadge}><Text style={s.tabBadgeText}>{t.badge}</Text></View>}
               </AnimatedPress>
             ))}
-          </ScrollView>
+          </HScroll>
 
           {/* Requests */}
           {adminSubTab === "requests" && (
@@ -2806,7 +2807,7 @@ export default function StudentScreen() {
           {/* Registrations */}
           {adminSubTab === "registrations" && (
             <View style={s.flex1}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              <HScroll horizontal showsHorizontalScrollIndicator={false}
                 style={{ borderBottomWidth:1, borderBottomColor:Colors.divider }}
                 contentContainerStyle={{ flexDirection:"row-reverse", gap:6, padding:10 }}>
                 {(["all","pending","approved","rejected"] as const).map(st => (
@@ -2817,7 +2818,7 @@ export default function StudentScreen() {
                     </Text>
                   </AnimatedPress>
                 ))}
-              </ScrollView>
+              </HScroll>
               <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
                 {formsLoading ? (
                   <View style={s.emptyState}>
@@ -2888,7 +2889,7 @@ export default function StudentScreen() {
           {/* Transfers */}
           {adminSubTab === "transfers" && (
             <View style={s.flex1}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              <HScroll horizontal showsHorizontalScrollIndicator={false}
                 style={{ borderBottomWidth:1, borderBottomColor:Colors.divider }}
                 contentContainerStyle={{ flexDirection:"row-reverse", gap:6, padding:10 }}>
                 {(["all","pending","approved","rejected"] as const).map(st => (
@@ -2899,7 +2900,7 @@ export default function StudentScreen() {
                     </Text>
                   </AnimatedPress>
                 ))}
-              </ScrollView>
+              </HScroll>
               <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
                 {formsLoading ? (
                   <View style={s.emptyState}>
@@ -3158,7 +3159,7 @@ const s = StyleSheet.create({
   manageCardInfo:{ flex:1 },
   manageCardName:{ fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, textAlign:"right" },
   manageCardType:{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", marginTop:2 },
-  manageCardActions:{ flexDirection:"row", gap:8 },
+  manageCardActions:{ flexDirection:"row-reverse", gap:8 },
   manageActionBtn:{ width:34, height:34, borderRadius:10, justifyContent:"center", alignItems:"center" },
   statusRow:   { flexDirection:"row-reverse", alignItems:"center", gap:6 },
   statusDot:   { width:7, height:7, borderRadius:4 },

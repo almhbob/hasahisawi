@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   header: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 10,
     marginBottom: 12,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   inviteBanner: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     gap: 10,
     alignItems: "flex-start",
     backgroundColor: "#3B82F611",
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     borderColor: "#1e2d22",
   },
   cardHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     gap: 12,
     alignItems: "flex-start",
     marginBottom: 10,
@@ -236,12 +236,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   contactRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     gap: 8,
     marginTop: 4,
   },
   contactBtn: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 5,
     borderWidth: 1,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   joinCallout: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
     marginTop: 14,

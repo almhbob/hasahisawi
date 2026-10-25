@@ -24,6 +24,7 @@ import {
   formatFare,
 } from "@/constants/transport-zones";
 
+import HScroll from "@/components/HScroll";
 const ACCENT  = "#F97316";
 const ACCENT2 = "#FBBF24";
 const GREEN   = "#2EAD6B";
@@ -622,26 +623,30 @@ export default function TransportScreen() {
     setIncomingLoading(true);
     try {
       const url = driverModeId ? `${apiUrl}/api/transport/driver/${driverModeId}/incoming-trips` : `${apiUrl}/api/transport/trips?status=pending`;
-      const res = await fetchWithTimeout(url);
+      const res = await fetchWithTimeout(url, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
       if (res.ok) setIncomingTrips(await res.json());
     } catch {} finally { setIncomingLoading(false); }
-  }, [apiUrl, driverModeId]);
+  }, [apiUrl, driverModeId, token]);
 
   const toggleDriverAvailabilityLite = useCallback(async (driver: Driver) => {
     const next = !driver.is_online;
     try {
       const res = await fetchWithTimeout(`${apiUrl}/api/transport/drivers/${driver.id}/online`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ is_online: next }),
       });
+      if (res.status === 401 || res.status === 403) {
+        Alert.alert("غير مصرح", token ? "هذا السائق لا يتبع حسابك. سجّل الدخول بالحساب المسجّل به السائق." : "سجّل الدخول بحساب السائق أولاً.");
+        return;
+      }
       if (res.ok) {
         setDriverModeId(next ? driver.id : null);
         setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_online: next } : d));
         if (next) loadIncomingTripsLite();
       }
     } catch { Alert.alert("خطأ", "تعذر تحديث حالة السائق"); }
-  }, [apiUrl, loadIncomingTripsLite]);
+  }, [apiUrl, token, loadIncomingTripsLite]);
 
   const acceptIncomingTripLite = useCallback(async (trip: Trip) => {
     const driver = drivers.find(d => d.id === driverModeId);
@@ -969,7 +974,7 @@ export default function TransportScreen() {
           ))}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsScroll}>
+        <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsScroll}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key as any)}
               style={[s.tabBtn, activeTab === t.key && s.tabBtnActive]}>
@@ -977,7 +982,7 @@ export default function TransportScreen() {
               <Text style={[s.tabLabel, activeTab === t.key && s.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </HScroll>
       </ModernHeader>
 
       {/* ── المحتوى ── */}
@@ -1992,7 +1997,7 @@ export default function TransportScreen() {
                     <MaterialCommunityIcons name="clock-fast" size={16} color={ACCENT} />
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>أحدث الإضافات</Text>
                   </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
+                  <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
                     {communityStats.recent.map((r, i) => {
                       const zm = ZONE_META_MOB[r.zone_id];
                       return (
@@ -2012,7 +2017,7 @@ export default function TransportScreen() {
                         </View>
                       );
                     })}
-                  </ScrollView>
+                  </HScroll>
                 </View>
               )}
 
@@ -2159,7 +2164,7 @@ export default function TransportScreen() {
 
                   {/* اختيار المنطقة */}
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>المنطقة *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingVertical: 2 }}>
+                  <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingVertical: 2 }}>
                     {[1,2,3,4,5].map(z => {
                       const zm = ZONE_META_MOB[z];
                       const sel = addZone === z;
@@ -2172,7 +2177,7 @@ export default function TransportScreen() {
                       );
                     })}
                           <OrgInviteCard />
-</ScrollView>
+</HScroll>
 
                   {/* اسم الحي */}
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 18 }}>اسم الحي أو القرية *</Text>
@@ -2651,7 +2656,7 @@ const lw = StyleSheet.create({
   iconWrap:        { width: 40, height: 40, borderRadius: 20, backgroundColor: "#DC262618", alignItems: "center", justifyContent: "center" },
   title:           { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#DC2626", textAlign: "right" },
   subtitle:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC262699", textAlign: "right" },
-  readMoreBtn:     { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "#DC262615", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  readMoreBtn:     { flexDirection: "row-reverse", alignItems: "center", gap: 2, backgroundColor: "#DC262615", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
   readMoreText:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#DC2626" },
   divider:         { height: 1, backgroundColor: "#DC262625", marginVertical: 12 },
   ruleRow:         { flexDirection: "row-reverse", gap: 10, marginBottom: 10, alignItems: "flex-start" },

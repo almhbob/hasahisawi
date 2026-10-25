@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
+import HScroll from "@/components/HScroll";
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
 const GREEN = "#22C55E";
@@ -827,13 +828,13 @@ function PermissionsModal({ staff, token, visible, onClose, onSaved }: {
           <Text style={m.title}>صلاحيات {staff.full_name}</Text>
 
           <Text style={[m.label, { textAlign: "right", marginBottom: 2 }]}>قوالب جاهزة</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse" }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse" }}>
             {Object.keys(PERMISSION_PRESETS).map(pr => (
               <TouchableOpacity key={pr} onPress={() => applyPreset(pr)} style={m.chip}>
                 <Text style={m.chipText}>{pr}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </HScroll>
 
           <View style={{ gap: 10, marginTop: 4 }}>
             {(Object.keys(DEFAULT_PERMISSIONS) as (keyof Permissions)[]).map(k => (
@@ -1015,7 +1016,7 @@ const ls = StyleSheet.create({
 });
 
 const ps = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
+  header: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center" },
   statsRow: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },

@@ -96,12 +96,12 @@ const s = StyleSheet.create({
   },
   topStripe: { position: "absolute", top: 0, left: 0, right: 0, height: 3 },
   newBadge: {
-    position: "absolute", top: 12, left: 12, flexDirection: "row", alignItems: "center", gap: 4,
+    position: "absolute", top: 12, left: 12, flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: "#FFD700", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, zIndex: 2,
   },
   newBadgeText: { fontSize: 10, fontWeight: "800", color: "#000" },
 
-  header: { flexDirection: "row", gap: 14, alignItems: "center", marginBottom: 14, marginTop: 6 },
+  header: { flexDirection: "row-reverse", gap: 14, alignItems: "center", marginBottom: 14, marginTop: 6 },
   iconWrap: {
     width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", overflow: "hidden",
     shadowColor: "#FFD700", shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4,
@@ -110,19 +110,19 @@ const s = StyleSheet.create({
   title: { fontSize: 14, fontWeight: "800", color: "#fff", textAlign: "right", lineHeight: 20 },
   subtitle: { fontSize: 11.5, color: "rgba(255,255,255,0.7)", marginTop: 3, textAlign: "right" },
 
-  sectorsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 },
+  sectorsRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 14 },
   sectorChip: {
-    flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5,
+    flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5,
     borderRadius: 10, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1,
   },
   sectorEmoji: { fontSize: 12 },
   sectorLabel: { fontSize: 10.5, color: "#fff", fontWeight: "600" },
 
-  ctaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  ctaInfo: { flexDirection: "row", alignItems: "center", gap: 5 },
+  ctaRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  ctaInfo: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
   ctaInfoText: { fontSize: 11, color: "#FFD700", fontWeight: "600" },
   ctaBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row-reverse", alignItems: "center", gap: 8,
     backgroundColor: "#FFD700", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
   },
   ctaBtnText: { fontSize: 13, fontWeight: "800", color: "#000" },

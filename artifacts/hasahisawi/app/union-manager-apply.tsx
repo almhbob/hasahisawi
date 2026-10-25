@@ -439,7 +439,7 @@ export default function UnionManagerApplyScreen() {
 
       {/* خطأ الإرسال */}
       {submitError ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#2D0A0A", borderTopWidth: 1, borderTopColor: "#DC262640", paddingHorizontal: 16, paddingVertical: 10 }}>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#2D0A0A", borderTopWidth: 1, borderTopColor: "#DC262640", paddingHorizontal: 16, paddingVertical: 10 }}>
           <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#DC2626", flex: 1, textAlign: "right" }}>{submitError}</Text>
         </View>
@@ -476,7 +476,7 @@ export default function UnionManagerApplyScreen() {
 
 const s = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 32 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
+  header: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "center" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.6)", textAlign: "center", marginTop: 2 },

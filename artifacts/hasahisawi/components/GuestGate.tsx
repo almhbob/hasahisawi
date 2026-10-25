@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   registerGradient: {
     borderRadius: 16,
     paddingVertical: 16,
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,

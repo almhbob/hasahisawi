@@ -138,13 +138,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent + "0C", bottom: -30, right: -20,
   },
   badge: {
-    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end",
+    flexDirection: "row-reverse", alignItems: "center", gap: 5, alignSelf: "flex-end",
     backgroundColor: Colors.primary + "25", borderWidth: 1, borderColor: Colors.primary + "50",
     paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
   },
   badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.primary },
 
-  content: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
+  content: { flexDirection: "row-reverse", gap: 14, alignItems: "flex-start" },
   iconWrap: {},
   iconBg: {
     width: 46, height: 46, borderRadius: 13,
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary,
     textAlign: "right", lineHeight: 18,
   },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginTop: 4 },
   chip: {
     paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
     backgroundColor: Colors.primary + "18",
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
 
   btn: { borderRadius: 12, overflow: "hidden" },
   btnGrad: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 12,
   },
   btnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
