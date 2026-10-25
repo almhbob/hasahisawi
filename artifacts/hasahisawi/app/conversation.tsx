@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Image,
-  Alert,
+  Alert, Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,9 +12,27 @@ import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/lib/auth-context";
 import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
-import { isFirebaseAvailable } from "@/lib/firebase/index";
-import { uploadPostImage } from "@/lib/firebase/storage";
-import { useApiMessages, apiSendMessage, apiMarkRead, ApiMessage } from "@/lib/api-chat";
+import { useApiMessages, apiSendMessage, apiMarkRead, apiGetOrCreateChat, ApiMessage } from "@/lib/api-chat";
+import { getApiUrl } from "@/lib/query-client";
+import { filePart } from "@/lib/xplatform";
+
+// أرقام سودانية داخل نص الرسالة تصبح قابلة للاتصال بلمسة
+const PHONE_RE = /(\+?249\d{9}|0\d{9})/g;
+function splitPhones(text: string): Array<{ t: string; phone?: string }> {
+  const out: Array<{ t: string; phone?: string }> = [];
+  let last = 0;
+  for (const m of text.matchAll(PHONE_RE)) {
+    const i = m.index ?? 0;
+    if (i > last) out.push({ t: text.slice(last, i) });
+    out.push({ t: m[0], phone: m[0] });
+    last = i + m[0].length;
+  }
+  if (last < text.length) out.push({ t: text.slice(last) });
+  return out;
+}
+function dial(phone: string) {
+  Linking.openURL(`tel:${phone.replace(/[^\d+]/g, "")}`).catch(() => Alert.alert("تعذّر الاتصال", "لا يمكن فتح تطبيق الهاتف على هذا الجهاز"));
+}
 
 // ── مساعدات ──────────────────────────────────────────────────────────────────
 
@@ -64,7 +82,11 @@ function MessageBubble({
           ) : null}
           {msg.content ? (
             <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>
-              {msg.content}
+              {splitPhones(msg.content).map((part, i) => part.phone ? (
+                <Text key={i} onPress={() => dial(part.phone!)} style={{ textDecorationLine: "underline", fontFamily: "Cairo_700Bold" }}>
+                  {part.t} 📞
+                </Text>
+              ) : <Text key={i}>{part.t}</Text>)}
             </Text>
           ) : null}
           <View style={styles.msgMeta}>
@@ -90,12 +112,21 @@ function MessageBubble({
 
 export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ chatId: string; otherName: string; otherAvatar?: string }>();
-  const { chatId, otherName, otherAvatar } = params;
+  const params = useLocalSearchParams<{ chatId?: string; userId?: string; otherName: string; otherAvatar?: string }>();
+  const { chatId, userId, otherName, otherAvatar } = params;
   const { user, token } = useAuth();
 
   const myId = user?.id ?? 0;
-  const chatIdNum = chatId ? parseInt(chatId) : null;
+  // المحادثة قد تُفتح بمعرّف المحادثة، أو بمعرّف المستخدم فقط (من الملف الشخصي) فننشئها/نجلبها
+  const [chatIdNum, setChatIdNum] = useState<number | null>(chatId ? parseInt(chatId) || null : null);
+  const [openError, setOpenError] = useState("");
+  useEffect(() => {
+    if (chatIdNum || !userId || !token) return;
+    if (Number(userId) === myId) { setOpenError("لا يمكنك مراسلة نفسك"); return; }
+    apiGetOrCreateChat(token, Number(userId))
+      .then((c) => setChatIdNum(c.id))
+      .catch((e: any) => setOpenError(e?.message || "تعذّر فتح المحادثة"));
+  }, [userId, token, chatIdNum, myId]);
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -119,14 +150,16 @@ export default function ConversationScreen() {
   }, [messages.length]);
 
   async function handleSend() {
-    if (!text.trim() || !chatIdNum || !token || sending) return;
+    if (!text.trim() || sending) return;
+    if (!token) { Alert.alert("سجّل الدخول", "يجب تسجيل الدخول لإرسال الرسائل"); return; }
+    if (!chatIdNum) { Alert.alert("لحظة", openError || "جارٍ تجهيز المحادثة… حاول بعد ثانية"); return; }
     setSending(true);
     const t = text.trim();
     setText("");
     try {
       await apiSendMessage(token, chatIdNum, t);
-    } catch {
-      Alert.alert("خطأ", "تعذّر إرسال الرسالة");
+    } catch (e: any) {
+      Alert.alert("تعذّر الإرسال", e?.message || "تحقق من اتصالك وحاول مجدداً");
       setText(t);
     } finally {
       setSending(false);
@@ -134,11 +167,8 @@ export default function ConversationScreen() {
   }
 
   async function handleSendImage() {
-    if (!chatIdNum || !token) return;
-    if (!isFirebaseAvailable()) {
-      Alert.alert("غير متاح", "إرسال الصور يتطلب Firebase");
-      return;
-    }
+    if (!token) { Alert.alert("سجّل الدخول", "يجب تسجيل الدخول لإرسال الصور"); return; }
+    if (!chatIdNum) { Alert.alert("لحظة", openError || "جارٍ تجهيز المحادثة…"); return; }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول للمعرض"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -148,13 +178,47 @@ export default function ConversationScreen() {
     if (result.canceled || !result.assets[0]) return;
     setImgUploading(true);
     try {
-      const url = await uploadPostImage(String(myId), result.assets[0].uri);
-      await apiSendMessage(token, chatIdNum, "", url);
-    } catch {
-      Alert.alert("خطأ", "تعذّر إرسال الصورة");
+      const form = new FormData();
+      form.append("image", (await filePart(result.assets[0].uri, "chat.jpg", "image/jpeg")) as any);
+      const r = await fetch(`${getApiUrl()}/api/chats/${chatIdNum}/image`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
+      });
+      const data: any = await r.json().catch(() => ({}));
+      if (!r.ok || !data?.url) throw new Error(data?.error || "تعذّر رفع الصورة");
+      await apiSendMessage(token, chatIdNum, "", data.url);
+    } catch (e: any) {
+      Alert.alert("تعذّر إرسال الصورة", e?.message || "حاول مجدداً");
     } finally {
       setImgUploading(false);
     }
+  }
+
+  // الاتصال: أرقام المستخدمين مخفية حفاظاً على الخصوصية، فيتم بموافقة الطرفين:
+  // يرسل المستخدم رقمه داخل المحادثة، وأي رقم في الرسائل يصبح قابلاً للاتصال بلمسة.
+  function handleCall() {
+    const theirPhone = [...messages].reverse()
+      .filter((m) => m.sender_id !== myId && m.content)
+      .map((m) => (m.content.match(PHONE_RE) || [])[0])
+      .find(Boolean);
+    const myPhone = user?.phone ? String(user.phone) : "";
+    const buttons: any[] = [];
+    if (theirPhone) buttons.push({ text: `اتصل بـ ${theirPhone}`, onPress: () => dial(theirPhone) });
+    if (myPhone) buttons.push({
+      text: "أرسل رقمي ليتصل بي",
+      onPress: async () => {
+        if (!token || !chatIdNum) return;
+        try { await apiSendMessage(token, chatIdNum, `📞 هذا رقمي، اتصل بي: ${myPhone}`); }
+        catch (e: any) { Alert.alert("تعذّر الإرسال", e?.message || "حاول مجدداً"); }
+      },
+    });
+    buttons.push({ text: "إلغاء", style: "cancel" });
+    Alert.alert(
+      "اتصال",
+      theirPhone
+        ? `شارك ${otherName ?? "الطرف الآخر"} رقمه في المحادثة.`
+        : `رقم ${otherName ?? "الطرف الآخر"} مخفي حفاظاً على خصوصيته. أرسل رقمك ليتصل بك، أو اطلب منه مشاركة رقمه هنا.`,
+      buttons,
+    );
   }
 
   // تجميع الرسائل مع فواصل اليوم
@@ -189,8 +253,8 @@ export default function ConversationScreen() {
           <Text style={styles.headerName} numberOfLines={1}>{otherName ?? "محادثة"}</Text>
           <Text style={styles.headerStatus}>عضو نشط</Text>
         </View>
-        <TouchableOpacity hitSlop={10} style={styles.headerAction}>
-          <Ionicons name="call-outline" size={20} color={Colors.textMuted} />
+        <TouchableOpacity hitSlop={10} style={styles.headerAction} onPress={handleCall} accessibilityLabel="اتصال">
+          <Ionicons name="call-outline" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -211,8 +275,8 @@ export default function ConversationScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Ionicons name="chatbubble-ellipses-outline" size={56} color={Colors.textMuted} />
-              <Text style={styles.emptyTitle}>ابدأ المحادثة</Text>
-              <Text style={styles.emptyText}>أرسل رسالتك الأولى لـ {otherName}</Text>
+              <Text style={styles.emptyTitle}>{openError ? "تعذّر فتح المحادثة" : "ابدأ المحادثة"}</Text>
+              <Text style={styles.emptyText}>{openError || `أرسل رسالتك الأولى لـ ${otherName ?? ""}`}</Text>
             </View>
           }
           renderItem={({ item, index }) => {

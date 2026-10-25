@@ -164,6 +164,22 @@ const withFiles = (req: Request, res: Response) => new Promise<void>((resolve, r
   storeFiles(req as any, res as any, (err: any) => (err ? reject(err) : resolve()));
 });
 
+// ── chat: image upload (participants only) → Cloudinary URL ──────────────────
+// The app then posts the URL as an image message. Replaces the old Firebase
+// Storage path, which is not available in the Android build.
+router.post("/chats/:chatId/image", wrap(async (req, res) => {
+  const u = await requireUser(req, res); if (!u) return;
+  const chatId = Number(req.params.chatId);
+  if (!Number.isInteger(chatId) || chatId <= 0) return res.status(400).json({ error: "محادثة غير صالحة" });
+  const c = await query(`SELECT id FROM chats WHERE id=$1 AND (user1_id=$2 OR user2_id=$2)`, [chatId, u.id]);
+  if (!c.rows[0]) return res.status(403).json({ error: "غير مصرح" });
+  if (!cloudinaryReady()) return res.status(503).json({ error: "رفع الصور غير مهيأ على الخادم" });
+  await withFiles(req, res);
+  const url = await uploadImage(req, "image", "hasahisawi/chat");
+  if (!url) return res.status(400).json({ error: "أرسل صورة صالحة (حتى 6 ميجابايت)" });
+  return res.json({ url });
+}));
+
 // ── merchant: register / my store ─────────────────────────────────────────────
 router.post("/store/register", wrap(async (req, res) => {
   await withFiles(req, res);
