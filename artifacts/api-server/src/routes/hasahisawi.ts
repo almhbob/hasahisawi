@@ -4416,8 +4416,8 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
     await chatPlus.ensureChatPlus();
     const cc = chat.rows[0];
     const otherIdForBlock = me.id === cc.user1_id ? cc.user2_id : cc.user1_id;
-    const blocks = await chatPlus.isBlockedBetween(me.id, otherIdForBlock);
-    if (blocks.includes(me.id)) return res.status(403).json({ error: "لقد حظرت هذا المستخدم — ألغِ الحظر لإرسال الرسائل" });
+    const blocks = await chatPlus.isBlockedBetween(Number(me.id), otherIdForBlock);
+    if (blocks.includes(Number(me.id))) return res.status(403).json({ error: "لقد حظرت هذا المستخدم — ألغِ الحظر لإرسال الرسائل" });
     if (blocks.includes(otherIdForBlock)) return res.status(403).json({ error: "لا يمكنك مراسلة هذا المستخدم" });
     let replyTo: number | null = null;
     if (req.body.reply_to_id) {
@@ -4443,7 +4443,7 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
       `INSERT INTO chat_messages (chat_id, sender_id, content, image_url, type, reply_to_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [chatId, me.id, msgContent, image_url || null, msgType, replyTo]
     );
-    chatPlus.touchPresence(me.id);
+    chatPlus.touchPresence(Number(me.id));
     await query(`UPDATE chat_user_state SET typing_until=NULL WHERE chat_id=$1 AND user_id=$2`, [chatId, me.id]).catch(() => {});
     const c = chat.rows[0];
     const isUser1 = me.id === c.user1_id;
@@ -4500,7 +4500,7 @@ router.post("/chats/:chatId/read", async (req: Request, res: Response) => {
       `UPDATE chat_messages SET is_read=TRUE, read_at=NOW(), updated_at=NOW() WHERE chat_id=$1 AND sender_id<>$2 AND is_read=FALSE`,
       [chatId, me.id]
     );
-    chatPlus.touchPresence(me.id);
+    chatPlus.touchPresence(Number(me.id));
     return res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "route error");
