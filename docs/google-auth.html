@@ -10,7 +10,7 @@
   * { box-sizing: border-box; }
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family: "Segoe UI", Tahoma, "Noto Kufi Arabic", sans-serif; display:flex; align-items:center; justify-content:center; padding:24px 16px; }
   .card { width:100%; max-width:400px; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:28px 22px; text-align:center; box-shadow:0 10px 30px rgba(23,63,95,.08); }
-  .logo { height:110px; width:auto; object-fit:contain; }
+  .logo { width:96px; height:96px; border-radius:24px; object-fit:cover; box-shadow:0 8px 22px rgba(6,50,90,.12); }
   h1 { font-size:20px; margin:14px 0 6px; }
   p { color:var(--muted); font-size:14px; line-height:1.8; margin:0 0 18px; }
   button, a.btn { display:flex; width:100%; align-items:center; justify-content:center; gap:10px; border:1px solid var(--line); background:#fff; color:#1f1f1f; border-radius:14px; padding:14px; font-size:16px; font-weight:600; cursor:pointer; text-decoration:none; font-family:inherit; }
@@ -26,7 +26,7 @@
 </head>
 <body>
   <main class="card">
-    <img class="logo" src="/google-auth-logo.png" alt="" onerror="this.style.display='none'" />
+    <img class="logo" src="/google-auth-logo.png?v=2" alt="شعار حصاحيصاوي" onerror="this.style.display='none'" />
     <h1>الدخول بحساب Google</h1>
     <p>اختر حسابك في Google، وسنعيدك إلى تطبيق حصاحيصاوي تلقائياً.</p>
     <button id="go" type="button">
@@ -70,8 +70,10 @@
   var provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 
-  var busy = false;
+  var busy = false, finished = false;
   function finish(user) {
+    if (finished) return Promise.resolve();
+    finished = true;
     setStatus("جارٍ تسجيل الدخول…", "", true);
     return user.getIdToken(true).then(function (idToken) {
       return fetch(API + "/api/auth/firebase-exchange", {
@@ -81,16 +83,29 @@
       });
     }).then(function (r) {
       return r.json().then(function (d) { if (!r.ok || !d.token) throw new Error(d.error || "تعذّر إكمال الدخول"); return d; });
-    }).then(function (d) {
+    }).catch(function (e) { finished = false; throw e; }).then(function (d) {
       setStatus("تم الدخول بنجاح ✓ — جارٍ العودة للتطبيق", "ok");
       auth.signOut().catch(function () {});
       returnToApp("token=" + encodeURIComponent(d.token));
     });
   }
+  // على بعض الهواتف تُغلق نافذة Google قبل أن تصل النتيجة، فيظهر "أُلغي" رغم نجاح الدخول.
+  // نراقب حالة الدخول مباشرة، فإن اكتمل نكمل العودة للتطبيق تلقائياً.
+  auth.onAuthStateChanged(function (u) { if (u && busy && !finished) finish(u).catch(fail); });
   function fail(e) {
-    busy = false; btn.disabled = false;
     var code = (e && e.code) || "";
-    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") { setStatus("أُلغيت العملية. اضغط الزر للمحاولة مجدداً.", "err"); return; }
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      // انتظر لحظة: قد تكون النتيجة في الطريق
+      setStatus("جارٍ التحقق…", "", true);
+      setTimeout(function () {
+        if (finished) return;
+        if (auth.currentUser) { finish(auth.currentUser).catch(fail); return; }
+        busy = false; btn.disabled = false;
+        setStatus("لم يكتمل الدخول. اضغط الزر مرة أخرى واختر حسابك.", "err");
+      }, 2500);
+      return;
+    }
+    busy = false; btn.disabled = false;
     setStatus((e && e.message) ? "تعذّر الدخول: " + e.message : "تعذّر الدخول، حاول مجدداً.", "err");
   }
 
