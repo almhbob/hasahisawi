@@ -17,6 +17,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ClubsHub from "@/components/sports/ClubsHub";
 
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
@@ -1203,14 +1204,14 @@ export default function SportsScreen() {
                   <Ionicons name="log-out-outline" size={13} color="#fff" />
                   <Text style={[s.adminBadgeTxt,{color:"#fff"}]}>خروج</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.fabAdd} onPress={()=>{
+                {tab!=="clubs" && <TouchableOpacity style={s.fabAdd} onPress={()=>{
                   if (tab==="news") setAddPost(true);
                   else if (tab==="players") setAddPlayer(true);
                   else if (tab==="matches") setAddMatch(true);
                   else setAddClub(true);
                 }}>
                   <Ionicons name="add" size={18} color="#000" />
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </>
             ) : (
               <TouchableOpacity style={[s.adminBadge,{borderColor:"rgba(255,255,255,0.28)"}]} onPress={()=>setPinModal(true)}>
@@ -1372,19 +1373,7 @@ export default function SportsScreen() {
       {/* CLUBS */}
       {tab==="clubs" && (
         <ScrollView style={s.scroll} contentContainerStyle={s.pad} showsVerticalScrollIndicator={false}>
-          {filteredClubs.length===0 && (
-            <View style={s.empty}>
-              <Ionicons name="shield-outline" size={52} color={Colors.textMuted} />
-              <Text style={s.emptyTitle}>لا توجد أندية بعد</Text>
-              {isAdmin && <Text style={s.emptySub}>اضغط + لإضافة نادٍ</Text>}
-            </View>
-          )}
-          {filteredClubs.map((c,i)=>(
-            <Animated.View key={c.id} entering={FadeInDown.delay(i*60).springify()}>
-              <ClubCard club={c} />
-              {isAdmin && <TouchableOpacity style={s.delChip} onPress={()=>deleteClub(c.id)}><Ionicons name="trash-outline" size={12} color={Colors.danger}/><Text style={s.delChipTxt}>حذف النادي</Text></TouchableOpacity>}
-            </Animated.View>
-          ))}
+          <ClubsHub search={search} />
                 <OrgInviteCard />
 </ScrollView>
       )}

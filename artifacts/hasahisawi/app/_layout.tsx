@@ -15,6 +15,7 @@ import AdminAlertsWatcher from "@/components/AdminAlertsWatcher";
 import LaunchSplash, { SplashArt } from "@/components/LaunchSplash";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
+import { reloadAppAsync } from "expo";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -52,11 +53,14 @@ try {
   };
 } catch {}
 
-// ── إعداد RTL متزامن قبل أي render ─────────────────────────────
-// التطبيق عربي بالأساس — يُطبَّق RTL مباشرةً عند تحميل الموديول
+// ── اتجاه الواجهة ─────────────────────────────────────────────
+// كل الشاشات مكتوبة بمحاذاة يمين صريحة (row-reverse + textAlign:"right").
+// تفعيل RTL على مستوى النظام كان يعكسها مرة ثانية فتظهر الواجهة على اليسار
+// كأنها إنجليزية. لذلك نثبّت التخطيط الأساسي LTR، والتصميم نفسه يتكفّل باليمين.
 if (Platform.OS !== "web") {
-  I18nManager.allowRTL(true);
-  I18nManager.forceRTL(true);
+  I18nManager.allowRTL(false);
+  I18nManager.forceRTL(false);
+  I18nManager.swapLeftAndRightInRTL(false);
 }
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
@@ -262,6 +266,7 @@ function RootLayoutNav() {
         <Stack.Screen name="report"          options={{ headerShown: false }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="curriculum"      options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="sports-club"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="member-card"     options={{ headerShown: false, animation: "slide_from_bottom", contentStyle: { backgroundColor: "#F3F1EC" } }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="auth-callback"      options={{ headerShown: false, animation: "fade" }} />
@@ -312,6 +317,16 @@ export default function RootLayout() {
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
   // على الويب: ننتظر صحوة الخادم قبل تشغيل AuthProvider — على الموبايل لا حاجة
   const [serverReady, setServerReady] = useState(Platform.OS !== "web");
+
+  useEffect(() => {
+    // الأجهزة التي كانت على وضع RTL القديم: إعادة تشغيل واحدة لتطبيق الاتجاه الصحيح فوراً
+    if (Platform.OS !== "web" && I18nManager.isRTL) {
+      AsyncStorage.getItem("hsh_dir_fix_v1").then((done) => {
+        if (done) return;
+        AsyncStorage.setItem("hsh_dir_fix_v1", "1").finally(() => { reloadAppAsync().catch(() => {}); });
+      }).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     initAppCheck().catch(() => {});

@@ -1,4 +1,4 @@
-// رفع ملفات كبيرة (كتب حتى 300MB) مباشرةً إلى التخزين عبر رابط موقّع،
+// رفع ملفات كبيرة (كتب حتى 500MB) مباشرةً إلى التخزين عبر رابط موقّع،
 // مع شريط تقدّم، دون تحميل الملف كاملاً في ذاكرة التطبيق على الهاتف.
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
@@ -16,7 +16,7 @@ function parseResult(text: string): string {
 function friendly(status: number, text: string): Error {
   let msg = "";
   try { const b = JSON.parse(text); msg = b?.error?.message || b?.error || ""; } catch {}
-  if (status === 413 || /too large|size/i.test(msg)) return new Error("حجم الملف أكبر من الحد المسموح (300 ميجابايت).");
+  if (status === 413 || /too large|exceeds|maximum size/i.test(msg)) return new Error("حجم الملف أكبر من الحد المسموح (500 ميجابايت).");
   if (status === 403 || /expired/i.test(msg)) return new Error("انتهت صلاحية رابط الرفع — أعد المحاولة.");
   return new Error(msg || `فشل الرفع (${status})`);
 }
