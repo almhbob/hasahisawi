@@ -58,6 +58,12 @@ const CHANNEL_SOUND_MAP: Record<string, string> = {
   "hasahisawi-default": "hasahisawi_notif",
 };
 
+// قنوات Android بنغمات (الإصدار s2). أي معرّف قديم يُحوَّل لنظيره الجديد.
+function chanV2(id?: string): string {
+  const base = String(id || "hasahisawi-default").replace(/-s2$/, "");
+  const known = ["hasahisawi-default", "hasahisawi-chat", "hasahisawi-urgent", "hasahisawi-transport", "hasahisawi-prayer"];
+  return (known.includes(base) ? base : "hasahisawi-default") + "-s2";
+}
 function pushSound(channelId: string) {
   return CHANNEL_SOUND_MAP[channelId] ?? "hasahisawi_notif";
 }
@@ -70,9 +76,9 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data:
       to,
       title,
       body,
-      data: { ...data, channelId, ring: true, transport_request: true },
+      data: { ...data, channelId: chanV2(channelId), ring: true, transport_request: true },
       sound: pushSound(channelId),
-      channelId,
+      channelId: chanV2(channelId),
       priority: "high",
       badge: 1,
     },
@@ -80,9 +86,9 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data:
       to,
       title: "🔔 طلب مشوار ينتظر القبول",
       body,
-      data: { ...data, channelId, ring: true, transport_request: true, reminder: true },
+      data: { ...data, channelId: chanV2(channelId), ring: true, transport_request: true, reminder: true },
       sound: pushSound(channelId),
-      channelId,
+      channelId: chanV2(channelId),
       priority: "high",
       badge: 1,
     },

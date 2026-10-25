@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  View, Text, StyleSheet, TextInput,
-  TouchableOpacity, ActivityIndicator, KeyboardAvoidingView,
-  Platform, FlatList, I18nManager,
+  View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Platform, FlatList, I18nManager,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -165,7 +164,7 @@ export default function AiSupportScreen() {
   return (
     <KeyboardAvoidingView
       style={s.root}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
       keyboardVerticalOffset={insets.bottom + 10}
     >
       <BrandPattern variant="diagonal" opacity={0.025} />

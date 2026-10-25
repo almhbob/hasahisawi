@@ -126,7 +126,7 @@ async function pushToUser(userId: number, title: string, body: string, data: Rec
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 2500);
     await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rows.map((r: any) => ({ to: r.token, title, body, sound: "hasahisawi_notif", channelId: "hasahisawi-default", data }))),
+      body: JSON.stringify(rows.map((r: any) => ({ to: r.token, title, body, sound: "hasahisawi_notif", channelId: "hasahisawi-default-s2", data }))),
     }).finally(() => clearTimeout(t));
   } catch (e: any) { logger.warn({ err: e?.message }, "[stores] push failed"); }
 }
