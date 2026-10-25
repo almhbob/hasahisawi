@@ -1,15 +1,14 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
-
-const LOGO = require("@/assets/images/logo.png");
+import { getApiUrl } from "@/lib/query-client";
 
 function normalizeHomeGender(value: string | null | undefined) {
   const g = String(value ?? "").trim().toLowerCase();
@@ -18,40 +17,73 @@ function normalizeHomeGender(value: string | null | undefined) {
   return null;
 }
 
+type GroupKey = "daily" | "pro" | "health" | "community";
+
 type Service = {
   id: string;
   label: string;
+  short: string;
   sub: string;
+  keywords?: string;
   icon: any;
   iconType: "ionicons" | "material";
-  tone: "green" | "gold";
+  group: GroupKey;
   route: any;
-  badge?: string;
+  isNew?: boolean;
 };
 
 const SERVICES: Service[] = [
-  { id: "medical", label: "الدليل الطبي", sub: "صيدليات · مستشفيات · عيادات", icon: "medkit", iconType: "ionicons", tone: "green", route: "/(tabs)/medical" },
-  { id: "lawyers", label: "المحامون والخدمات القانونية", sub: "محامون · استشارات · عقود", icon: "scale-balance", iconType: "material", tone: "gold", route: "/(tabs)/lawyers", badge: "قانون" },
-  { id: "missing", label: "مفقودات", sub: "أعلن عن غرض مفقود أو موجود", icon: "search", iconType: "ionicons", tone: "gold", route: "/(tabs)/missing" },
-  { id: "student", label: "الخدمات الطلابية", sub: "مدارس · معاهد · التعليم", icon: "school", iconType: "ionicons", tone: "green", route: "/(tabs)/student" },
-  { id: "restaurants", label: "المطاعم والكافتريات", sub: "منيو مصور · كاشير · فواتير", icon: "restaurant-outline", iconType: "ionicons", tone: "gold", route: "/(tabs)/restaurants", badge: "جديد" },
-  { id: "market", label: "السوق", sub: "الأسر المنتجة · دلالة وأدوات", icon: "storefront", iconType: "ionicons", tone: "green", route: "/(tabs)/market" },
-  { id: "product-showcase", label: "سوق المتاجر", sub: "ملابس · عطور · أحذية · بوتيكات", icon: "storefront-outline", iconType: "ionicons", tone: "gold", route: "/(tabs)/product-showcase", badge: "جديد" },
-  { id: "jobs", label: "وظائف", sub: "وظائف وفرص عمل محلية", icon: "briefcase", iconType: "ionicons", tone: "green", route: "/(tabs)/jobs" },
-  { id: "women", label: "قسم المرأة", sub: "متاجر وخدمات نسائية", icon: "face-woman", iconType: "material", tone: "green", route: "/(tabs)/women" },
-  { id: "social", label: "المجتمع", sub: "منشورات · صور · تعليقات", icon: "chatbubbles", iconType: "ionicons", tone: "green", route: "/(tabs)/social" },
-  { id: "sports", label: "النشاط الرياضي", sub: "الأندية · الفعاليات · البطولات", icon: "football", iconType: "ionicons", tone: "green", route: "/(tabs)/sports" },
-  { id: "culture", label: "النشاط الثقافي", sub: "معارض · فعاليات · مراكز", icon: "palette", iconType: "material", tone: "gold", route: "/(tabs)/culture" },
-  { id: "orgs", label: "المنظمات", sub: "جمعيات خيرية · مبادرات", icon: "hand-heart", iconType: "material", tone: "green", route: "/(tabs)/orgs" },
-  { id: "transport", label: "مشاويرك علينا", sub: "طلبات مباشرة للسائقين", icon: "car-side", iconType: "material", tone: "gold", route: "/(tabs)/transport" },
-  { id: "cv-builder", label: "منشئ السيرة الذاتية", sub: "قوالب مجانية · PDF", icon: "document-text-outline", iconType: "ionicons", tone: "green", route: "/(tabs)/cv-builder", badge: "جديد" },
-  { id: "calendar", label: "التقويم", sub: "أعياد ومناسبات", icon: "calendar", iconType: "ionicons", tone: "gold", route: "/(tabs)/calendar" },
-  { id: "appointments", label: "المواعيد", sub: "حجز وتنبيهات", icon: "calendar-check-outline", iconType: "material", tone: "green", route: "/(tabs)/appointments" },
-  { id: "reports", label: "التبليغ السريع", sub: "مياه · كهرباء · بيئة", icon: "megaphone", iconType: "ionicons", tone: "gold", route: "/(tabs)/reports" },
-  { id: "numbers", label: "أرقام مهمة", sub: "طوارئ وخدمات", icon: "call", iconType: "ionicons", tone: "green", route: "/(tabs)/numbers" },
-  { id: "telecom", label: "الاتصالات", sub: "MTN · Zain · Sudani", icon: "cellular", iconType: "ionicons", tone: "green", route: "/(tabs)/telecom" },
-  { id: "travel", label: "السفر والرحلات", sub: "وكالات · حجوزات · تذاكر", icon: "airplane", iconType: "ionicons", tone: "gold", route: "/(tabs)/travel" },
+  // يومي
+  { id: "transport", label: "مشاويرك علينا", short: "مشاويرك", sub: "اطلب سائقاً مباشرة", keywords: "مشوار تاكسي ركشة سائق توصيل", icon: "car-side", iconType: "material", group: "daily", route: "/(tabs)/transport" },
+  { id: "market", label: "السوق", short: "السوق", sub: "الأسر المنتجة والدلالة", keywords: "بيع شراء أسر منتجة", icon: "storefront", iconType: "ionicons", group: "daily", route: "/(tabs)/market" },
+  { id: "product-showcase", label: "سوق المتاجر", short: "المتاجر", sub: "ملابس، عطور، أحذية", keywords: "بوتيك محل متجر", icon: "storefront-outline", iconType: "ionicons", group: "daily", route: "/(tabs)/product-showcase" },
+  { id: "restaurants", label: "المطاعم والكافتريات", short: "المطاعم", sub: "منيو مصوّر وطلبات", keywords: "أكل مطعم كافتيريا وجبات", icon: "restaurant-outline", iconType: "ionicons", group: "daily", route: "/(tabs)/restaurants" },
+  { id: "travel", label: "السفر والرحلات", short: "السفر", sub: "وكالات وحجز تذاكر", keywords: "بص سفريات تذكرة طيران وكالة", icon: "airplane", iconType: "ionicons", group: "daily", route: "/(tabs)/travel" },
+  { id: "appointments", label: "المواعيد", short: "المواعيد", sub: "حجز وتنبيهات", keywords: "حجز موعد", icon: "calendar-check-outline", iconType: "material", group: "daily", route: "/(tabs)/appointments" },
+  { id: "calendar", label: "التقويم", short: "التقويم", sub: "أعياد ومناسبات", keywords: "تاريخ هجري مناسبة", icon: "calendar", iconType: "ionicons", group: "daily", route: "/(tabs)/calendar" },
+  { id: "telecom", label: "الاتصالات", short: "الاتصالات", sub: "MTN · زين · سوداني", keywords: "رصيد شبكة باقات زين سوداني ام تي ان", icon: "cellular", iconType: "ionicons", group: "daily", route: "/(tabs)/telecom" },
+  { id: "numbers", label: "أرقام مهمة", short: "أرقام مهمة", sub: "طوارئ وخدمات", keywords: "شرطة إسعاف مطافي طوارئ رقم", icon: "call", iconType: "ionicons", group: "daily", route: "/(tabs)/numbers" },
+  // مهني وقانوني
+  { id: "lawyers", label: "المحامون والخدمات القانونية", short: "المحامون", sub: "استشارات وعقود", keywords: "محامي قانون عقد استشارة توثيق", icon: "scale-balance", iconType: "material", group: "pro", route: "/(tabs)/lawyers" },
+  { id: "jobs", label: "وظائف", short: "وظائف", sub: "فرص عمل محلية", keywords: "عمل وظيفة توظيف", icon: "briefcase", iconType: "ionicons", group: "pro", route: "/(tabs)/jobs" },
+  { id: "cv-builder", label: "السيرة الذاتية", short: "السيرة", sub: "قوالب مجانية PDF", keywords: "سي في cv سيرة", icon: "document-text-outline", iconType: "ionicons", group: "pro", route: "/(tabs)/cv-builder", isNew: true },
+  // صحة وتعليم
+  { id: "medical", label: "الدليل الطبي", short: "الطبي", sub: "صيدليات ومستشفيات", keywords: "صيدلية مستشفى عيادة دكتور طبيب", icon: "medkit", iconType: "ionicons", group: "health", route: "/(tabs)/medical" },
+  { id: "student", label: "الخدمات الطلابية", short: "الطلاب", sub: "مدارس ومعاهد", keywords: "مدرسة جامعة معهد تعليم", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
+  // المجتمع
+  { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },
+  { id: "women", label: "قسم المرأة", short: "المرأة", sub: "متاجر وخدمات نسائية", keywords: "نساء", icon: "face-woman", iconType: "material", group: "community", route: "/(tabs)/women" },
+  { id: "orgs", label: "المنظمات", short: "المنظمات", sub: "جمعيات ومبادرات", keywords: "خيري جمعية تطوع", icon: "hand-heart", iconType: "material", group: "community", route: "/(tabs)/orgs" },
+  { id: "sports", label: "النشاط الرياضي", short: "الرياضة", sub: "أندية وبطولات", keywords: "كورة نادي دوري", icon: "football", iconType: "ionicons", group: "community", route: "/(tabs)/sports" },
+  { id: "culture", label: "النشاط الثقافي", short: "الثقافة", sub: "معارض وفعاليات", keywords: "ثقافة فن معرض", icon: "palette", iconType: "material", group: "community", route: "/(tabs)/culture" },
+  { id: "missing", label: "مفقودات", short: "مفقودات", sub: "مفقود أو موجود", keywords: "ضائع فقدت لقيت", icon: "search", iconType: "ionicons", group: "community", route: "/(tabs)/missing" },
+  { id: "reports", label: "التبليغ السريع", short: "التبليغ", sub: "مياه، كهرباء، بيئة", keywords: "بلاغ شكوى كهرباء موية", icon: "megaphone", iconType: "ionicons", group: "community", route: "/(tabs)/reports" },
 ];
+
+const GROUPS: { key: GroupKey; title: string }[] = [
+  { key: "daily", title: "يومي" },
+  { key: "pro", title: "مهني وقانوني" },
+  { key: "health", title: "صحة وتعليم" },
+  { key: "community", title: "المجتمع" },
+];
+
+const DEFAULT_TOP = ["transport", "market", "lawyers", "appointments"];
+const USAGE_KEY = "hsh_home_usage_v1";
+
+const G = Colors.primary;
+const G_DEEP = Colors.primaryDeep;
+const G_TINT = "#E8F5EE";
+
+// Arabic-aware normalisation so «أ/إ/آ → ا», «ة → ه», «ى → ي» all match
+function norm(s: string) {
+  return s
+    .replace(/[ً-ْـ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .toLowerCase()
+    .trim();
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -60,145 +92,205 @@ function greeting() {
   return "مساء النور";
 }
 
-function toneColor(tone: Service["tone"]) {
-  return tone === "gold" ? Colors.accent : Colors.primary;
+function SvcIcon({ item, size, color }: { item: Service; size: number; color: string }) {
+  return item.iconType === "ionicons"
+    ? <Ionicons name={item.icon} size={size} color={color} />
+    : <MaterialCommunityIcons name={item.icon} size={size} color={color} />;
 }
 
-function ServiceCard({ item, index }: { item: Service; index: number }) {
-  const color = toneColor(item.tone);
+function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => void }) {
   return (
-    <Animated.View entering={FadeInDown.delay(90 + index * 24).springify()} style={styles.cardWrap}>
-      <AnimatedPress onPress={() => router.push(item.route)}>
-        <View style={styles.serviceCard}>
-          <LinearGradient colors={[color + "18", "rgba(255,255,255,0.72)"]} style={StyleSheet.absoluteFill} />
-          <View style={[styles.iconBox, { borderColor: color + "38", backgroundColor: color + "12" }]}>
-            {item.iconType === "ionicons"
-              ? <Ionicons name={item.icon} size={22} color={color} />
-              : <MaterialCommunityIcons name={item.icon} size={22} color={color} />}
+    <View style={styles.cardWrap}>
+    <AnimatedPress onPress={() => onOpen(item)}>
+      <View style={styles.card} accessible accessibilityRole="button" accessibilityLabel={item.label}>
+        <View style={styles.cardIcon}><SvcIcon item={item} size={21} color={G_DEEP} /></View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
+            {item.isNew ? <View style={styles.newBadge}><Text style={styles.newBadgeText}>جديد</Text></View> : null}
           </View>
-          <Text style={styles.serviceLabel} numberOfLines={2}>{item.label}</Text>
-          <Text style={styles.serviceSub} numberOfLines={3}>{item.sub}</Text>
-          {item.badge ? (
-            <View style={[styles.badge, { borderColor: color + "44", backgroundColor: color + "14" }]}>
-              <Text style={[styles.badgeText, { color }]}>{item.badge}</Text>
-            </View>
-          ) : null}
-          <View style={[styles.bottomLine, { backgroundColor: color }]} />
+          <Text style={styles.cardSub} numberOfLines={1}>{item.sub}</Text>
         </View>
-      </AnimatedPress>
-    </Animated.View>
+      </View>
+    </AnimatedPress>
+    </View>
   );
 }
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 28 : insets.top + 12;
-  const date = useMemo(() => new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" }), []);
+  const topPad = Platform.OS === "web" ? 24 : insets.top + 10;
   const { user, isGuest, logout } = useAuth();
-  // First name of the signed-in user; guests see «زائر» (was hardcoded to the developer's name)
   const displayName = (user?.name?.trim().split(/\s+/)[0]) || "زائر";
-  const visibleServices = useMemo(() => {
+
+  const [query, setQuery] = useState("");
+  const [usage, setUsage] = useState<Record<string, number>>({});
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(USAGE_KEY);
+        if (raw) setUsage(JSON.parse(raw) || {});
+      } catch {}
+    })();
+  }, []);
+
+  // Refresh the bell count whenever the home tab regains focus
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`${getApiUrl()}/api/notifications`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && Array.isArray(data)) setUnread(data.filter((n: any) => !n?.is_read).length);
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, []));
+
+  const services = useMemo(() => {
     const gender = normalizeHomeGender(user?.gender);
-    if (gender === "male" && user?.role !== "admin") return SERVICES.filter(item => item.id !== "women");
+    if (gender === "male" && user?.role !== "admin") return SERVICES.filter(s => s.id !== "women");
     return SERVICES;
   }, [user?.gender, user?.role]);
 
+  const top = useMemo(() => {
+    const byId = new Map(services.map(s => [s.id, s]));
+    const used = Object.entries(usage).filter(([id]) => byId.has(id)).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+    const ids = [...used, ...DEFAULT_TOP.filter(id => !used.includes(id))].slice(0, 4);
+    return ids.map(id => byId.get(id)!).filter(Boolean);
+  }, [services, usage]);
+
+  const results = useMemo(() => {
+    const q = norm(query);
+    if (!q) return null;
+    const terms = q.split(/\s+/).filter(Boolean);
+    return services.filter(s => {
+      const hay = norm(`${s.label} ${s.short} ${s.sub} ${s.keywords ?? ""}`);
+      return terms.every(t => hay.includes(t));
+    });
+  }, [query, services]);
+
+  const open = useCallback((s: Service) => {
+    setUsage(prev => {
+      const next = { ...prev, [s.id]: (prev[s.id] || 0) + 1 };
+      AsyncStorage.setItem(USAGE_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+    router.push(s.route);
+  }, []);
+
+  const hasUsage = Object.keys(usage).length > 0;
+
   return (
     <View style={styles.container}>
-      <LinearGradient colors={Colors.gradients.appShell} style={StyleSheet.absoluteFill} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={[styles.hero, { paddingTop: topPad }]}> 
-          <View style={styles.heroGlowGreen} />
-          <View style={styles.heroGlowGold} />
-
-          <Animated.View entering={FadeIn.duration(500)} style={styles.topRow}>
-            <View style={styles.logoShell}>
-              <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Header */}
+        <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { paddingTop: topPad }]}>
+          <TouchableOpacity
+            style={styles.headerUser}
+            activeOpacity={isGuest ? 1 : 0.8}
+            disabled={isGuest}
+            onPress={() => router.push("/profile" as any)}
+            accessibilityRole={isGuest ? undefined : "button"}
+            accessibilityLabel={isGuest ? undefined : "ملفي الشخصي"}
+          >
+            <View style={styles.avatar}>
+              {!isGuest && user?.avatar_url
+                ? <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                : <Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.eyebrow}>منصة لخدمة مواطن المنطقة وضواحيها</Text>
-              <Text style={styles.title}>حصاحيصاوي</Text>
-              <Text style={styles.subtitle}>كل احتياجاتك اليومية في تجربة واحدة</Text>
+              <Text style={styles.hello} numberOfLines={1}>{greeting()}، {displayName}</Text>
+              <Text style={styles.helloSub} numberOfLines={1}>حصاحيصاوي · خدمات مدينتك في مكان واحد</Text>
             </View>
-            <TouchableOpacity
-              onPress={() => router.push("/notifications" as any)}
-              style={styles.roundBtn}
-              accessibilityRole="button"
-              accessibilityLabel="الإشعارات"
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+
+          {isGuest ? (
+            <TouchableOpacity style={styles.loginBtn} activeOpacity={0.85} onPress={() => { logout(); }} accessibilityRole="button" accessibilityLabel="تسجيل الدخول">
+              <Ionicons name="log-in-outline" size={15} color="#fff" />
+              <Text style={styles.loginBtnText}>دخول</Text>
             </TouchableOpacity>
-          </Animated.View>
+          ) : null}
 
-          <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.heroCard}>
-            <LinearGradient colors={["rgba(255,255,255,0.86)", "rgba(255,255,255,0.48)"]} style={StyleSheet.absoluteFill} />
-            <View style={styles.heroTextBlock}>
-              <Text style={styles.heroTitle}>خدمات، سوق، مشاوير، مطاعم، ومجتمع في مكان واحد</Text>
-              <Text style={styles.heroText}>منصة موحدة تجمع كل خدمات حصاحيصا لتسهيل حياتك اليومية.</Text>
-            </View>
-            <View style={styles.heroIconCluster}>
-              <View style={[styles.miniIcon, { backgroundColor: Colors.primary + "14" }]}><Ionicons name="airplane" size={20} color={Colors.primary} /></View>
-              <View style={[styles.miniIcon, { backgroundColor: Colors.accent + "18" }]}><Ionicons name="cube" size={20} color={Colors.accentDeep} /></View>
-              <View style={[styles.miniIcon, { backgroundColor: Colors.primary + "14" }]}><Ionicons name="bag" size={20} color={Colors.primary} /></View>
-            </View>
-          </Animated.View>
+          <TouchableOpacity
+            onPress={() => router.push("/notifications" as any)}
+            style={styles.bell}
+            accessibilityRole="button"
+            accessibilityLabel={unread > 0 ? `الإشعارات، ${unread} غير مقروءة` : "الإشعارات"}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="notifications-outline" size={21} color={Colors.textPrimary} />
+            {unread > 0 ? (
+              <View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unread > 9 ? "9+" : unread}</Text></View>
+            ) : null}
+          </TouchableOpacity>
+        </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(170).springify()} style={styles.statsRow}>
-            <View style={styles.statCard}><Text style={styles.statNum}>آمن</Text><Text style={styles.statText}>تجربة موثوقة</Text></View>
-            <View style={styles.statCard}><Text style={[styles.statNum, { color: Colors.accentDeep }]}>محلي</Text><Text style={styles.statText}>قريب من الناس</Text></View>
-            <View style={styles.statCard}><Text style={styles.statNum}>شامل</Text><Text style={styles.statText}>كل الخدمات</Text></View>
-          </Animated.View>
-        </View>
+        {/* Search */}
+        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.searchBox}>
+          <Ionicons name="search" size={18} color={Colors.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="ابحث: محامي، مشوار، صيدلية…"
+            placeholderTextColor={Colors.textMuted}
+            style={styles.searchInput}
+            textAlign="right"
+            returnKeyType="search"
+            accessibilityLabel="بحث في الخدمات"
+          />
+          {query ? (
+            <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="مسح البحث">
+              <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </Animated.View>
 
         <View style={styles.body}>
-          <Animated.View entering={FadeInDown.delay(130).springify()} style={styles.greetingCard}>
-            <LinearGradient colors={Colors.gradients.glass} style={StyleSheet.absoluteFill} />
-            <TouchableOpacity
-              style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}
-              activeOpacity={isGuest ? 1 : 0.8}
-              disabled={isGuest}
-              onPress={() => router.push("/profile" as any)}
-              accessibilityRole={isGuest ? undefined : "button"}
-              accessibilityLabel={isGuest ? undefined : "ملفي الشخصي"}
-            >
-              <View style={[styles.avatar, { overflow: "hidden" }]}>
-                {!isGuest && user?.avatar_url
-                  ? <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-                  : <Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text>}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.greeting}>{greeting()}، {displayName}</Text>
-                <Text style={styles.dateText}>{isGuest ? date : "اضغط لعرض ملفك الشخصي"}</Text>
-              </View>
-            </TouchableOpacity>
-            {isGuest ? (
-              <TouchableOpacity
-                style={styles.loginBtn}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="تسجيل الدخول"
-                onPress={() => { logout(); }}
-              >
-                <Ionicons name="log-in-outline" size={15} color="#fff" />
-                <Text style={styles.loginBtnText}>تسجيل الدخول</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.onlineBadge}><Text style={styles.onlineText}>جاهز</Text></View>
-            )}
-          </Animated.View>
-
-          <View style={styles.sectionHead}>
+          {results ? (
             <View>
-              <Text style={styles.sectionTitle}>الخدمات</Text>
-              <Text style={styles.sectionSub}>{visibleServices.length} خدمة في مكان واحد</Text>
+              <Text style={styles.groupTitle}>{results.length ? `النتائج (${results.length})` : "لا توجد خدمة بهذا الاسم"}</Text>
+              {results.length === 0 ? (
+                <Text style={styles.emptyText}>جرّب كلمة أخرى مثل: صيدلية، تذكرة، وظيفة، بلاغ</Text>
+              ) : (
+                <View style={styles.grid}>{results.map(s => <ServiceRow key={s.id} item={s} onOpen={open} />)}</View>
+              )}
             </View>
-            <View style={styles.sectionMark} />
-          </View>
+          ) : (
+            <>
+              {/* Quick access */}
+              <Animated.View entering={FadeInDown.delay(110).springify()}>
+                <Text style={styles.groupTitle}>{hasUsage ? "الأكثر استخداماً لك" : "ابدأ من هنا"}</Text>
+                <View style={styles.quickRow}>
+                  {top.map(s => (
+                    <View key={s.id} style={{ flex: 1 }}><AnimatedPress onPress={() => open(s)}>
+                      <View style={styles.quick} accessible accessibilityRole="button" accessibilityLabel={s.label}>
+                        <View style={styles.quickIcon}><SvcIcon item={s} size={24} color="#fff" /></View>
+                        <Text style={styles.quickText} numberOfLines={1}>{s.short}</Text>
+                      </View>
+                    </AnimatedPress></View>
+                  ))}
+                </View>
+              </Animated.View>
 
-          <View style={styles.grid}>
-            {visibleServices.map((item, index) => <ServiceCard key={item.id} item={item} index={index} />)}
-          </View>
+              {GROUPS.map((g, gi) => {
+                const items = services.filter(s => s.group === g.key);
+                if (!items.length) return null;
+                return (
+                  <Animated.View key={g.key} entering={FadeInDown.delay(160 + gi * 50).springify()} style={{ marginTop: 22 }}>
+                    <View style={styles.groupHead}>
+                      <Text style={styles.groupTitle}>{g.title}</Text>
+                      <Text style={styles.groupCount}>{items.length}</Text>
+                    </View>
+                    <View style={styles.grid}>{items.map(s => <ServiceRow key={s.id} item={s} onOpen={open} />)}</View>
+                  </Animated.View>
+                );
+              })}
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -207,47 +299,34 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  hero: { paddingHorizontal: 18, paddingBottom: 22, overflow: "hidden" },
-  heroGlowGreen: { position: "absolute", width: 210, height: 210, borderRadius: 120, backgroundColor: Colors.primary + "16", top: 12, right: -70 },
-  heroGlowGold: { position: "absolute", width: 180, height: 180, borderRadius: 100, backgroundColor: Colors.accent + "18", bottom: -50, left: -60 },
-  topRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
-  logoShell: { width: 54, height: 54, borderRadius: Colors.radius.lg, backgroundColor: "rgba(255,255,255,0.88)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.borderSubtle, ...Colors.shadow.card },
-  logo: { width: 44, height: 44, borderRadius: Colors.radius.md },
-  eyebrow: { fontFamily: "Cairo_600SemiBold", color: Colors.primary, fontSize: 11, textAlign: "right", marginBottom: 2 },
-  title: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 24, textAlign: "right" },
-  subtitle: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, textAlign: "right", marginTop: 2 },
-  roundBtn: { width: 44, height: 44, borderRadius: Colors.radius.lg, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.74)", borderWidth: 1, borderColor: Colors.borderSubtle },
-  heroCard: { marginTop: 22, borderRadius: Colors.radius.xl, overflow: "hidden", borderWidth: 1, borderColor: Colors.border, padding: 18, flexDirection: "row-reverse", alignItems: "center", gap: 14, ...Colors.shadow.raised },
-  heroTextBlock: { flex: 1 },
-  heroTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 19, lineHeight: 30, textAlign: "right" },
-  heroText: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, lineHeight: 21, textAlign: "right", marginTop: 6 },
-  heroIconCluster: { gap: 8 },
-  miniIcon: { width: 45, height: 45, borderRadius: Colors.radius.lg, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.borderSubtle },
-  statsRow: { flexDirection: "row-reverse", gap: 10, marginTop: 14 },
-  statCard: { flex: 1, minHeight: 72, borderRadius: Colors.radius.xl, backgroundColor: "rgba(255,255,255,0.68)", borderWidth: 1, borderColor: Colors.borderSubtle, alignItems: "center", justifyContent: "center" },
-  statNum: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 17 },
-  statText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10.5, marginTop: 2 },
-  body: { padding: 16, paddingTop: 8 },
-  greetingCard: { borderRadius: Colors.radius.xl, minHeight: 76, overflow: "hidden", backgroundColor: Colors.glassCard, borderWidth: 1, borderColor: Colors.borderSubtle, flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, marginBottom: 14, ...Colors.shadow.card },
-  avatar: { width: 48, height: 48, borderRadius: Colors.radius.lg, backgroundColor: Colors.primary + "12", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.primary + "30" },
-  avatarText: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 18 },
-  greeting: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 15 },
-  dateText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11, marginTop: 3 },
-  onlineBadge: { borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: Colors.primary + "12", borderWidth: 1, borderColor: Colors.primary + "30" },
-  onlineText: { fontFamily: "Cairo_700Bold", color: Colors.primaryDeep, fontSize: 11 },
-  loginBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, borderRadius: Colors.radius.pill, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: Colors.primary },
+  header: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 12 },
+  headerUser: { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  avatar: { width: 44, height: 44, borderRadius: 22, overflow: "hidden", backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontFamily: "Cairo_700Bold", color: G_DEEP, fontSize: 18 },
+  hello: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
+  helloSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11.5, textAlign: "right", marginTop: -2 },
+  bell: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" },
+  bellBadge: { position: "absolute", top: 6, right: 6, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#D64545", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
+  bellBadgeText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 9.5, lineHeight: 13 },
+  loginBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 12, height: 34, backgroundColor: G },
   loginBtnText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
-  sectionHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sectionTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 19, textAlign: "right" },
-  sectionSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11, textAlign: "right", marginTop: 2 },
-  sectionMark: { width: 42, height: 5, borderRadius: Colors.radius.pill, backgroundColor: Colors.accent },
+  searchBox: { marginHorizontal: 16, height: 48, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.07)", flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, gap: 8 },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, paddingVertical: 0, writingDirection: "rtl" },
+  body: { paddingHorizontal: 16, paddingTop: 18 },
+  groupHead: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  groupTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 15.5, textAlign: "right", marginBottom: 10 },
+  groupCount: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, fontSize: 12, marginBottom: 10 },
+  emptyText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 13, textAlign: "right" },
+  quickRow: { flexDirection: "row-reverse", gap: 10 },
+  quick: { alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  quickIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: G, alignItems: "center", justifyContent: "center" },
+  quickText: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 12 },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
-  cardWrap: { width: "31.5%" },
-  serviceCard: { minHeight: 122, borderRadius: Colors.radius.lg, overflow: "hidden", backgroundColor: Colors.glassCard, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 10, alignItems: "center", justifyContent: "center", ...Colors.shadow.card },
-  iconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 8 },
-  serviceLabel: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "center", fontSize: 11, lineHeight: 16 },
-  serviceSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", fontSize: 10.5, lineHeight: 15, marginTop: 4 },
-  badge: { position: "absolute", top: 6, right: 6, borderWidth: 1, borderRadius: Colors.radius.sm, paddingHorizontal: 5, paddingVertical: 2 },
-  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9.5 },
-  bottomLine: { position: "absolute", bottom: 0, left: 12, right: 12, height: 2, borderRadius: 3, opacity: 0.9 },
+  cardWrap: { width: "48.4%" },
+  card: { flexDirection: "row-reverse", alignItems: "center", gap: 10, minHeight: 66, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  cardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
+  cardTitle: { flexShrink: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 12.5, textAlign: "right" },
+  cardSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10.5, textAlign: "right", marginTop: -1 },
+  newBadge: { backgroundColor: Colors.accent, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 0 },
+  newBadgeText: { fontFamily: "Cairo_700Bold", color: "#3A2A00", fontSize: 9, lineHeight: 15 },
 });
