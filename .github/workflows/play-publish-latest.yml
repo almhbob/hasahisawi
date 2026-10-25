@@ -1,0 +1,99 @@
+name: Google Play — publish latest built version
+
+# Uploads the AAB of the newest GitHub release to Google Play and rolls it out
+# (production, completed) — no rebuild. Triggered by changing .play-publish.
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Track (production / beta / alpha / internal)"
+        required: false
+        default: "production"
+  push:
+    branches: [master, main]
+    paths:
+      - '.play-publish'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: play-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download newest AAB from GitHub releases
+        id: aab
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eo pipefail
+          TAG=$(gh release list -R "$GITHUB_REPOSITORY" --limit 20 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[].tagName' | while read t; do
+            if gh release view "$t" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -q '\.aab$'; then echo "$t"; break; fi; done)
+          [ -n "$TAG" ] || { echo "::error::No release with an AAB found"; exit 1; }
+          mkdir -p dl && gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p '*.aab' -D dl
+          AAB=$(ls dl/*.aab | head -1)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "aab=$AAB" >> $GITHUB_OUTPUT
+          echo "::notice::Publishing $TAG ($(du -h "$AAB" | cut -f1))"
+
+      - name: Verify signing key
+        run: |
+          EXPECTED="${{ vars.PLAY_UPLOAD_SHA1 }}"; EXPECTED="${EXPECTED:-7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08}"
+          mkdir -p sig && unzip -q -o "${{ steps.aab.outputs.aab }}" 'META-INF/*.RSA' -d sig
+          SHA1=$(keytool -printcert -file sig/META-INF/*.RSA | grep -m1 'SHA1:' | awk '{print $2}')
+          [ "$SHA1" = "$EXPECTED" ] || { echo "::error::AAB signed with $SHA1, Google Play expects $EXPECTED"; exit 1; }
+          echo "Signature OK ($SHA1)"
+
+      - name: Upload and roll out on Google Play
+        env:
+          PKG: com.almhbob.hasahisawi
+          API: https://api-server-gilt-ten.vercel.app
+          AAB: ${{ steps.aab.outputs.aab }}
+          TAG: ${{ steps.aab.outputs.tag }}
+        run: |
+          set -u
+          TRACK="${{ github.event.inputs.track }}"; TRACK="${TRACK:-production}"
+          die() { echo "::error::$1 — $(echo "${2:-}" | jq -r '.error.message // .error // .' 2>/dev/null | head -c 500)"; exit 1; }
+          OIDC=$(curl -sS --retry 3 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          R=$(curl -sS --retry 3 --retry-all-errors -X POST -H "Authorization: Bearer $OIDC" "$API/api/ci/play-token") || die "Token request failed (network)"
+          TOKEN=$(echo "$R" | jq -r '.access_token // empty'); [ -n "$TOKEN" ] || die "No Play token" "$R"
+          echo "::add-mask::$TOKEN"
+          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
+          AUTH="Authorization: Bearer $TOKEN"
+
+          R=$(curl -sS --retry 3 -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/edits") || die "Edit request failed (network)"
+          EDIT=$(echo "$R" | jq -r '.id // empty'); [ -n "$EDIT" ] || die "Could not open a Play edit" "$R"
+
+          VC=""
+          for attempt in 1 2 3; do
+            R=$(curl -sS --max-time 900 -X POST -H "$AUTH" -H "Content-Type: application/octet-stream" --data-binary @"$AAB" \
+                  "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/$PKG/edits/$EDIT/bundles?uploadType=media") || { echo "upload attempt $attempt: network error"; sleep 15; continue; }
+            VC=$(echo "$R" | jq -r '.versionCode // empty')
+            [ -n "$VC" ] && break
+            MSG=$(echo "$R" | jq -r '.error.message // empty')
+            # already uploaded earlier → reuse that version code
+            if echo "$MSG" | grep -qi "already been used"; then VC=$(echo "$TAG" | grep -o 'build[0-9]*' | tr -dc '0-9'); echo "Bundle already on Play — reusing versionCode $VC"; break; fi
+            echo "upload attempt $attempt failed: $MSG"; sleep 15
+          done
+          [ -n "$VC" ] || die "AAB upload failed after 3 attempts" "$R"
+          echo "Bundle versionCode $VC"
+
+          VERSION=$(echo "$TAG" | grep -o 'v[0-9.]*' | head -1 | tr -d v)
+          BODY=$(jq -n --arg t "$TRACK" --arg n "${VERSION:-release} ($VC)" --arg vc "$VC" \
+                 '{track:$t, releases:[{name:$n, versionCodes:[$vc], status:"completed", releaseNotes:[{language:"ar", text:"تحسينات وإصلاحات: المراسلة والاتصال داخل التطبيق، إرسال الصور، الدخول عبر Google والبصمة، وروابط الانضمام للجهات."}]}]}')
+          R=$(curl -sS --retry 3 -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
+          if ! echo "$R" | jq -e '.releases' >/dev/null 2>&1; then
+            BODY=$(echo "$BODY" | jq 'del(.releases[0].releaseNotes)')
+            R=$(curl -sS --retry 3 -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
+            echo "$R" | jq -e '.releases' >/dev/null 2>&1 || die "Track update failed" "$R"
+          fi
+          R=$(curl -sS --retry 3 -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit")
+          echo "$R" | jq -e '.id' >/dev/null 2>&1 || die "Commit failed" "$R"
+          echo "::notice::Published ${VERSION} ($VC) on $TRACK — rolled out (subject to Google review)"
