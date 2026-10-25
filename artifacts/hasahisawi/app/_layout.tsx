@@ -216,7 +216,9 @@ function AuthGate() {
     const inOnboarding      = segments[0] === "onboarding";
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
-    const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback";
+    // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
+    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership"];
+    const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
       if (!inLogin && !inOnboarding && !inPublicAuth) {
