@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 import { logger } from "../lib/logger";
 import { sessionUser } from "../lib/shared-db";
 
-export const BOOK_MAX_MB = 300;
+export const BOOK_MAX_MB = 500;
 export const CLOUDINARY_RAW_LIMIT_MB = 9.5;
 
 const ALLOWED_TYPES = [
@@ -40,8 +40,10 @@ router.post("/curriculum/upload-target", async (req, res) => {
     const ext = (rawName.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6) || "pdf";
     const contentType = EXT_TYPE[ext] || (ALLOWED_TYPES.includes(String(req.body?.content_type)) ? String(req.body.content_type) : "application/octet-stream");
 
-    if (!blobConfigured() || (size > 0 && size <= CLOUDINARY_RAW_LIMIT_MB * 1024 * 1024 && req.body?.prefer !== "blob")) {
-      return res.json({ provider: "cloudinary", max_file_mb: blobConfigured() ? BOOK_MAX_MB : CLOUDINARY_RAW_LIMIT_MB });
+    // كل الكتب تذهب إلى التخزين الكبير متى كان متاحاً — Cloudinary المجاني يرفض كثيراً من ملفات PDF
+    // (حد 10MB للملفات الخام) فكان المستخدم يرى «الحجم أكبر من المسموح» حتى لملفات متوسطة.
+    if (!blobConfigured()) {
+      return res.json({ provider: "cloudinary", max_file_mb: CLOUDINARY_RAW_LIMIT_MB });
     }
 
     const { issueSignedToken, presignUrl } = await import("@vercel/blob");
@@ -67,5 +69,16 @@ router.post("/curriculum/upload-target", async (req, res) => {
     return res.status(500).json({ error: "تعذّر تجهيز الرفع — حاول لاحقاً" });
   }
 });
+
+// حذف ملف من التخزين الكبير عند حذف الكتاب (يوفّر المساحة)
+export async function deleteBookBlob(url: string | null | undefined) {
+  try {
+    if (!url || !blobConfigured() || !/\.blob\.vercel-storage\.com\//.test(url)) return;
+    const { del } = await import("@vercel/blob");
+    await del(url);
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "curriculum blob delete");
+  }
+}
 
 export default router;

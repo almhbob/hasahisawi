@@ -19168,7 +19168,7 @@ const CURRICULUM_SUBJECTS: Record<string, string[]> = {
   intermediate: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "التاريخ", "الجغرافيا", "الحاسوب", "اللغة الفرنسية"],
   secondary: ["التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "اللغة الإنجليزية", "الرياضيات الأساسية", "الرياضيات المتخصصة", "الفيزياء", "الكيمياء", "الأحياء", "التاريخ", "الجغرافيا", "الحاسوب", "علوم الحاسوب", "الفنون", "الاقتصاد", "اللغة الفرنسية"],
 };
-const CURRICULUM_MAX_FILE_MB = 300;
+const CURRICULUM_MAX_FILE_MB = 500;
 
 let _curriculumReady: Promise<void> | null = null;
 function ensureCurriculumTables(): Promise<void> {
@@ -19368,10 +19368,12 @@ router.delete("/curriculum/books/:id", writeLimiter, async (req: Request, res: R
     await ensureCurriculumTables();
     const user = await getSessionUser(req) as Record<string, any> | null;
     if (!user) return res.status(401).json({ error: "سجّل الدخول" });
-    const { rows } = await query(`SELECT uploader_id FROM curriculum_books WHERE id=$1`, [Number(req.params.id)]);
+    const { rows } = await query(`SELECT uploader_id, file_url FROM curriculum_books WHERE id=$1`, [Number(req.params.id)]);
     if (!rows.length) return res.status(404).json({ error: "غير موجود" });
     if (!isCurriculumModerator(user) && rows[0].uploader_id !== user.id) return res.status(403).json({ error: "غير مسموح" });
     await query(`DELETE FROM curriculum_books WHERE id=$1`, [Number(req.params.id)]);
+    const { deleteBookBlob } = await import("./curriculum-upload");
+    await deleteBookBlob(rows[0].file_url);
     return res.json({ ok: true });
   } catch (err) { logger.error({ err }, "curriculum/books DELETE"); return res.status(500).json({ error: "Server error" }); }
 });

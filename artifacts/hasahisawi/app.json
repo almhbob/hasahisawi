@@ -68,7 +68,7 @@
       "expo-font",
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
-      "expo-localization",
+      ["expo-localization", { "supportsRTL": false, "forcesRTL": false }],
       [
         "expo-location",
         {

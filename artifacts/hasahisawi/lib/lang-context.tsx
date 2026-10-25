@@ -29,9 +29,10 @@ export function LangProvider({ children, initialLang }: { children: React.ReactN
 
   const setLanguage = async (newLang: Lang) => {
     await AsyncStorage.setItem(LANG_KEY, newLang);
-    const shouldBeRTL = newLang === "ar";
+    // الاتجاه ثابت (انظر app/_layout.tsx) — لا نقلبه عند تغيير اللغة
     if (Platform.OS !== "web") {
-      I18nManager.forceRTL(shouldBeRTL);
+      I18nManager.allowRTL(false);
+      I18nManager.forceRTL(false);
     }
     await reloadAppAsync();
   };

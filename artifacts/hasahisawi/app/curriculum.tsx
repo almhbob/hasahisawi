@@ -385,7 +385,7 @@ function UploadForm({ meta, api, token, isMod, onDone }: { meta: Meta; api: stri
   };
 
   const uploadToCloud = async (a: DocumentPicker.DocumentPickerAsset): Promise<string> => {
-    // الملفات الكبيرة تذهب مباشرةً إلى التخزين السحابي الكبير (حتى 300MB).
+    // الملفات الكبيرة تذهب مباشرةً إلى التخزين السحابي الكبير (حتى 500MB).
     const tr = await fetch(`${api}/api/curriculum/upload-target`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
