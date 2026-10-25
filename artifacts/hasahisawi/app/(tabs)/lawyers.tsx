@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
@@ -114,7 +115,7 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v:number)=>
 // ═══════════════════════════════════════════════════════════════════════════
 //                                MAIN
 // ═══════════════════════════════════════════════════════════════════════════
-export default function LawyersScreen() {
+function LawyersScreen() {
   const router = useRouter();
   const { user, token } = useAuth();
   const [tab, setTab] = useState<"directory" | "forms" | "contracts">("directory");
@@ -1616,3 +1617,5 @@ const s = StyleSheet.create({
   contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
   contractDownloadText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12, flex: 1, textAlign: "center" },
 });
+
+export default withRTLScreen(LawyersScreen);

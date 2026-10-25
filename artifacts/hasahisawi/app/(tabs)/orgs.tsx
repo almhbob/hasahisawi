@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -124,7 +125,7 @@ function SectionHeader({ title, sub, color }: { title: string; sub?: string; col
 // ══════════════════════════════════════════════════════
 type SubTab = "orgs" | "events" | "campaigns";
 
-export default function OrgsScreen() {
+function OrgsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const [search, setSearch] = useState("");
@@ -579,3 +580,5 @@ const s = StyleSheet.create({
   modalSubmit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.md, paddingVertical: 15 },
   modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
 });
+
+export default withRTLScreen(OrgsScreen);

@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform,
@@ -322,7 +323,7 @@ function CompanyModal({ company, visible, onClose, offers, services }: {
 // ══════════════════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
-export default function TelecomScreen() {
+function TelecomScreen() {
   const [tab, setTab]               = useState<"companies" | "offers" | "events" | "services">("companies");
   const [companies, setCompanies]   = useState<Company[]>(FALLBACK_COMPANIES);
   const [offers, setOffers]         = useState<Offer[]>([]);
@@ -733,3 +734,5 @@ const styles = StyleSheet.create({
   contractBtn:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingVertical: 12 },
   contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });
+
+export default withRTLScreen(TelecomScreen);

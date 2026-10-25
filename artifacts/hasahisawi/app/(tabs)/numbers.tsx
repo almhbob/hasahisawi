@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
@@ -374,7 +375,7 @@ function EditNumberModal({ visible, onClose, onSave, saving, initial }: {
   );
 }
 
-export default function NumbersScreen() {
+function NumbersScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const auth = useAuth();
@@ -729,3 +730,5 @@ const modal = StyleSheet.create({
   saveBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center" },
   saveText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
+
+export default withRTLScreen(NumbersScreen);

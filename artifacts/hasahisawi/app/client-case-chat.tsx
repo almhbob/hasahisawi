@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 /**
  * client-case-chat.tsx
  * شاشة الدردشة والمستندات للعميل مع محاميه
@@ -82,7 +83,7 @@ const fileIcon = (type: string) => {
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────
-export default function ClientCaseChat() {
+function ClientCaseChat() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token, user } = useAuth();
@@ -401,3 +402,5 @@ export default function ClientCaseChat() {
     </View>
   );
 }
+
+export default withRTLScreen(ClientCaseChat);

@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
@@ -206,7 +207,7 @@ function EntityCard({ entity, onPress, index }: { entity: RatedEntity; onPress: 
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function RatingsScreen() {
+function RatingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, isGuest, token } = useAuth();
 
@@ -754,3 +755,5 @@ const s = StyleSheet.create({
   addInput: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 16, paddingVertical: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
   catsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });
+
+export default withRTLScreen(RatingsScreen);

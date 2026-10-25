@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -179,7 +180,7 @@ const STATUS_LABELS: Record<AppStatus, { label: string; color: string; icon: str
 // ══════════════════════════════════════════════════════════
 type Step = "category" | "facility" | "service" | "datetime" | "info" | "confirm";
 
-export default function AppointmentsScreen() {
+function AppointmentsScreen() {
   const { isGuest, user, token } = useAuth();
   const { gov_appointments_enabled } = useFeatureFlags();
   // Tab: book | my
@@ -879,3 +880,5 @@ const s = StyleSheet.create({
   emptyBtnGrad: { borderRadius: Colors.radius.lg, paddingHorizontal: 28, paddingVertical: 14 },
   emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000" },
 });
+
+export default withRTLScreen(AppointmentsScreen);

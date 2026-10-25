@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Platform, Image,
@@ -12,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { chatApi } from "@/lib/chat-plus";
 import { useAuth } from "@/lib/auth-context";
 import UserAvatar from "@/components/UserAvatar";
 import { notify, confirmAction, uploadProfilePhoto } from "@/lib/xplatform";
@@ -159,6 +160,18 @@ export default function ProfileScreen() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const [showPresence, setShowPresence] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!isOwn || !token) return;
+    chatApi.presence(token).then((r) => setShowPresence(r.show_presence)).catch(() => {});
+  }, [isOwn, token]);
+  const togglePresence = async () => {
+    if (!token || showPresence === null) return;
+    const v = !showPresence; setShowPresence(v);
+    try { await chatApi.setPresence(token, v); notify("تم", v ? "يظهر للآخرين أنك «نشط الآن» وآخر ظهورك" : "أُخفيت حالتك وآخر ظهورك عن الآخرين"); }
+    catch (e: any) { setShowPresence(!v); notify("تعذّر", e?.message || "حاول مجدداً"); }
   };
 
   const toggleBiometrics = async () => {
@@ -344,6 +357,9 @@ export default function ProfileScreen() {
             <Quick icon="create" label="منشور جديد" sub="شارك مجتمعك" color={Colors.accentDeep} onPress={() => router.push("/(tabs)/social" as any)} />
             {Platform.OS !== "web" && biometricsAvailable && (
               <Quick icon="finger-print" label="الدخول بالبصمة" sub={biometricsEnabled ? "مفعّل — اضغط للإيقاف" : "اضغط للتفعيل"} color="#2F8A8A" onPress={toggleBiometrics} />
+            )}
+            {showPresence !== null && (
+              <Quick icon={showPresence ? "eye" : "eye-off"} label="حالة النشاط" sub={showPresence ? "ظاهرة — اضغط للإخفاء" : "مخفية — اضغط للإظهار"} color="#1D66D4" onPress={togglePresence} />
             )}
             <Quick icon="log-out" label="تسجيل الخروج" sub="من هذا الجهاز" color="#B4232F" onPress={signOut} />
           </Animated.View>

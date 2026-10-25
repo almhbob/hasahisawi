@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform,
@@ -390,7 +391,7 @@ function PackagesModal({ visible, onClose }: { visible: boolean; onClose: () => 
 // ══════════════════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
-export default function FactoriesScreen() {
+function FactoriesScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
 
@@ -699,3 +700,5 @@ const styles = StyleSheet.create({
   ctaBtn:        { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Colors.radius.sm },
   ctaBtnText:    { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });
+
+export default withRTLScreen(FactoriesScreen);

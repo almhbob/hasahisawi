@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
@@ -267,7 +268,7 @@ function StudentUnionTab() {
   );
 }
 
-export default function UnionsScreen() {
+function UnionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token } = useAuth();
@@ -1475,3 +1476,5 @@ const stuStyles = StyleSheet.create({
   portalTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   portalSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 });
+
+export default withRTLScreen(UnionsScreen);

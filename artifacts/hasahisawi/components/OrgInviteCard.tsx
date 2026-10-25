@@ -1,3 +1,4 @@
+import { withRTLBlock } from "@/components/RTLScope";
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,7 +35,7 @@ interface Props {
   delay?: number;
 }
 
-export default function OrgInviteCard({ delay = 0 }: Props) {
+function OrgInviteCard({ delay = 0 }: Props) {
   const router = useRouter();
   const { token, isGuest } = useAuth();
   const [status, setStatus] = useState<OrgStatus>("none");
@@ -176,3 +177,5 @@ const styles = StyleSheet.create({
   },
   btnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 });
+
+export default withRTLBlock(OrgInviteCard);

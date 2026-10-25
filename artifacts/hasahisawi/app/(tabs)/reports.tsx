@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -253,7 +254,7 @@ async function safeCall(number: string) {
   }
 }
 
-export default function ReportsScreen() {
+function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { isRTL, tr } = useLang();
@@ -1503,3 +1504,5 @@ const fb = StyleSheet.create({
   replyLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
   replyText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
 });
+
+export default withRTLScreen(ReportsScreen);

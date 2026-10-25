@@ -1,3 +1,4 @@
+import { withRTLScreen } from "@/components/RTLScope";
 import React, { useRef, useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
@@ -215,7 +216,7 @@ function Field({
 // ══════════════════════════════════════════════════════
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
-export default function OrgJoinScreen() {
+function OrgJoinScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const router = useRouter();
@@ -1728,3 +1729,5 @@ const fi = StyleSheet.create({
     minHeight: 110, paddingVertical: 13, textAlignVertical: "top", lineHeight: 24,
   },
 });
+
+export default withRTLScreen(OrgJoinScreen);
