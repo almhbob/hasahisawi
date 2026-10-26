@@ -17,6 +17,7 @@ import sportsClubsRouter from "./sports-clubs";
 import providerListingsRouter from "./provider-listings";
 import chatPlusRouter from "./chat-plus";
 import profilePlusRouter from "./profile-plus";
+import callsRouter from "./calls";
 
 const router: IRouter = Router();
 
@@ -36,6 +37,7 @@ router.use(sportsClubsRouter);
 router.use(providerListingsRouter);
 router.use(chatPlusRouter);
 router.use(profilePlusRouter);
+router.use(callsRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);

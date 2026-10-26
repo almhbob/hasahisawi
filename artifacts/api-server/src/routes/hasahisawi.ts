@@ -179,6 +179,8 @@ async function sendPushToUser(
       sound: pushSound(channelId),
       channelId: chanV2(channelId),
       badge: 1,
+      // أولوية عالية حتى لا يؤخّر Android الإشعار في وضع توفير الطاقة
+      priority: "high",
     }));
 
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -4461,6 +4463,8 @@ router.post("/chats/:chatId/messages", async (req: Request, res: Response) => {
 
     // ── إرسال إشعار Push للمستقبِل (إلا إن كتم المحادثة) ──
     const recipientId = isUser1 ? c.user2_id : c.user1_id;
+    // رسالة جديدة تُظهر المحادثة المخفية لدى المستقبِل (كأرشيف واتساب) حتى لا تضيع الرسائل الواردة
+    await query(`UPDATE chat_user_state SET hidden=FALSE WHERE chat_id=$1 AND user_id=$2 AND hidden`, [chatId, recipientId]).catch(() => {});
     if (await chatPlus.isMuted(chatId, recipientId)) return res.json(msg);
     const notifBody = image_url ? "📷 أرسل لك صورة" : (msgContent.length > 60 ? msgContent.slice(0, 60) + "…" : msgContent);
     // ننتظر الإشعار (بحد أقصى 2.5 ث) — على Vercel تتوقف الدالة بعد الرد فيضيع الإشعار

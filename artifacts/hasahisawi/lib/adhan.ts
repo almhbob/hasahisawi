@@ -29,14 +29,14 @@ export type AdhanVoice = {
 
 export const ADHAN_VOICES: AdhanVoice[] = [
   {
+    id: "sudani", name: "أذان بصوت شيخ سوداني", desc: "أذان كامل بالمقام السوداني (حوالي دقيقتين)",
+    sound: "hasahisawi_adhan_sd", channel: "adhan-sd-v3",
+    asset: () => require("../assets/sounds/adhan/sd.mp3"), available: true,
+  },
+  {
     id: "full", name: "الأذان الكامل", desc: "أذان كامل بصوت المؤذّن (حوالي دقيقة ونصف)",
     sound: "hasahisawi_adhan_full", channel: "adhan-full-v3",
     asset: () => require("../assets/sounds/adhan.mp3"), available: true,
-  },
-  {
-    id: "sudani", name: "أذان بصوت شيخ سوداني", desc: "بانتظار إضافة التسجيل الصوتي",
-    sound: "hasahisawi_adhan_sd", channel: "adhan-sd-v3",
-    asset: null, available: false,
   },
   {
     id: "short", name: "تنبيه قصير", desc: "نغمة قصيرة مع إشعار الصلاة",
@@ -59,7 +59,7 @@ export type AdhanSettings = {
 
 export const DEFAULT_ADHAN: AdhanSettings = {
   enabled: true,
-  voice: "full",
+  voice: "sudani",
   prayers: { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true },
   remindBefore: 0,
 };

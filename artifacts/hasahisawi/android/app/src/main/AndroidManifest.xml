@@ -17,14 +17,14 @@
   <!-- Explicitly remove permissions that violate Google Play policy -->
   <!-- SYSTEM_ALERT_WINDOW: not used — draw-over-apps triggers Misleading Ads policy -->
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
-  <!-- RECORD_AUDIO: not used — flags as potential spyware -->
-  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
-  <!-- MODIFY_AUDIO_SETTINGS: not used — modifying system audio with no justification -->
-  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" tools:node="remove"/>
+  <!-- RECORD_AUDIO: used only during in-app voice calls (requested at call time) -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+  <!-- MODIFY_AUDIO_SETTINGS: required by WebRTC for voice calls (audio routing) -->
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <!-- USE_FINGERPRINT: deprecated since API 28, superseded by USE_BIOMETRIC -->
   <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove"/>
-  <!-- RECEIVE_BOOT_COMPLETED: not needed — app uses push (FCM), not local scheduled boot jobs -->
-  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove"/>
+  <!-- RECEIVE_BOOT_COMPLETED: restores the locally scheduled adhan notifications after a reboot -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>

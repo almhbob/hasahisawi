@@ -27,6 +27,12 @@ export type ChatListItem = {
 
 export const REACTIONS = ["❤️", "👍", "😂", "😮", "😢", "🙏"];
 
+// حالة التطبيق — على بعض أجهزة Android تبقى AppState.currentState «unknown» عند الإقلاع
+// فكان التحديث الدوري لا يعمل ولا تظهر الرسائل الواردة. نعتبره نشطاً ما لم يذهب للخلفية.
+let appActive = AppState.currentState !== "background" && AppState.currentState !== "inactive";
+AppState.addEventListener("change", (s) => { appActive = s !== "background" && s !== "inactive"; });
+export const isAppActive = () => appActive;
+
 async function api(path: string, token: string, init: { method?: string; body?: unknown } = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20000);
@@ -81,11 +87,11 @@ export function presenceText(online: boolean, lastSeen: string | null, typing?: 
 export function usePresencePing(token: string | null | undefined) {
   useEffect(() => {
     if (!token) return;
-    let active = AppState.currentState === "active";
+    let active = isAppActive();
     const beat = () => { if (active) chatApi.ping(token).catch(() => {}); };
     beat();
     const t = setInterval(beat, 60000);
-    const sub = AppState.addEventListener("change", (s) => { active = s === "active"; if (active) beat(); });
+    const sub = AppState.addEventListener("change", (s) => { active = s !== "background" && s !== "inactive"; if (active) beat(); });
     return () => { clearInterval(t); sub.remove(); };
   }, [token]);
 }
@@ -104,8 +110,9 @@ export function useChatList(token: string | null | undefined) {
   useEffect(() => {
     refresh();
     if (!token) return;
-    const t = setInterval(() => { if (AppState.currentState === "active") refresh(); }, 6000);
-    return () => clearInterval(t);
+    const t = setInterval(() => { if (isAppActive()) refresh(); }, 5000);
+    const sub = AppState.addEventListener("change", (s) => { if (s === "active") refresh(); });
+    return () => { clearInterval(t); sub.remove(); };
   }, [token, refresh]);
   return { chats, setChats, loading, error, refresh };
 }
@@ -151,8 +158,9 @@ export function useChatSync(token: string | null | undefined, chatId: number | n
     lastId.current = 0; since.current = null; setMessages([]); setLoading(true);
     if (!token || !chatId) { setLoading(!chatId); return; }
     sync(true);
-    const t = setInterval(() => { if (AppState.currentState === "active") sync(); }, 2500);
-    return () => clearInterval(t);
+    const t = setInterval(() => { if (isAppActive()) sync(); }, 2500);
+    const sub = AppState.addEventListener("change", (s) => { if (s === "active") sync(); });
+    return () => { clearInterval(t); sub.remove(); };
   }, [token, chatId, sync]);
 
   const addPending = (m: ChatMsg) => setMessages((p) => [...p, m]);
