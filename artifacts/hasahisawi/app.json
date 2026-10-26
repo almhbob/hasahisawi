@@ -100,7 +100,8 @@
             "./assets/sounds/hasahisawi_notif.wav",
             "./assets/sounds/hasahisawi_chat.wav",
             "./assets/sounds/hasahisawi_urgent.wav",
-            "./assets/sounds/hasahisawi_prayer.wav"
+            "./assets/sounds/hasahisawi_prayer.wav",
+            "./assets/sounds/adhan.mp3"
           ],
           "androidChannels": [
             {

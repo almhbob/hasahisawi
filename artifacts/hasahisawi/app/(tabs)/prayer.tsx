@@ -20,14 +20,18 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 
 
-const ADHAN_ENABLED_KEY = "adhan_enabled_v1";
-const PRAYER_CACHE_KEY  = "prayer_cache_v1";
+import AdhanSettingsCard from "@/components/prayer/AdhanSettingsCard";
+import {
+  AdhanSettings, DEFAULT_ADHAN, loadAdhanSettings, saveAdhanSettings, scheduleAdhan,
+  cancelAdhan, requestAdhanPermission, stopAdhanPreview, PRAYER_CACHE_KEY,
+} from "@/lib/adhan";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
 const HASAHISA_LAT  = 14.0566;
 const HASAHISA_LON  = 33.4001;
 const SETTINGS_KEY  = "prayer_settings_v2";
-const NOTIF_CHANNEL = "adhan-channel";
+
+const ATHAN_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 const PRAYER_LIST = [
   { key: "Fajr",    name: "الفجر",   icon: "moon-outline"         as const, color: "#5B8DB8" },
@@ -38,7 +42,6 @@ const PRAYER_LIST = [
   { key: "Isha",    name: "العشاء",  icon: "moon"                 as const, color: "#5B8DB8" },
 ];
 
-const ATHAN_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 const METHODS = [
   { id: 3,  name: "الهيئة المصرية العامة للمساحة (موصى به للسودان)" },
@@ -118,73 +121,6 @@ function hijriToJD(year: number, month: number, day: number): number {
 
 function jdWeekday(jd: number): number {
   return Math.floor(jd + 1.5) % 7;
-}
-
-// ─── إشعارات الأذان المحلية ───────────────────────────────────────────────────
-async function ensureAndroidChannel() {
-  if (Platform.OS !== "android") return;
-  try {
-    await Notifications.setNotificationChannelAsync(NOTIF_CHANNEL, {
-      name: "أذان الصلاة",
-      importance: Notifications.AndroidImportance.MAX,
-      sound: "default",
-      enableVibrate: true,
-      vibrationPattern: [0, 300, 200, 300],
-      lightColor: "#27AE68",
-      enableLights: true,
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      bypassDnd: false,
-      showBadge: false,
-    });
-  } catch {}
-}
-
-async function requestNotifPermission(): Promise<boolean> {
-  try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    if (existing === "granted") return true;
-    const { status } = await Notifications.requestPermissionsAsync();
-    return status === "granted";
-  } catch {
-    return false;
-  }
-}
-
-async function scheduleAdhanNotifications(times: Record<string, string>) {
-  try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    const now = new Date();
-    // جدول للأيام الـ 7 القادمة حتى لا يضطر المستخدم لفتح التطبيق يومياً
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      for (const key of ATHAN_PRAYERS) {
-        const timeStr = times[key];
-        if (!timeStr) continue;
-        const [h, m] = timeStr.split(":").map(Number);
-        const prayerDate = new Date();
-        prayerDate.setDate(prayerDate.getDate() + dayOffset);
-        prayerDate.setHours(h, m, 0, 0);
-        if (prayerDate <= now) continue;
-        const prayerName = PRAYER_LIST.find(p => p.key === key)?.name ?? key;
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `🕌 حان وقت صلاة ${prayerName}`,
-            body: `الله أكبر — ${formatTime(timeStr)}`,
-            sound: "default",
-            priority: Notifications.AndroidNotificationPriority.MAX,
-            ...(Platform.OS === "android" ? { channelId: NOTIF_CHANNEL } : {}),
-          } as any,
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: prayerDate,
-          },
-        });
-      }
-    }
-  } catch {}
-}
-
-async function cancelAdhanNotifications() {
-  try { await Notifications.cancelAllScheduledNotificationsAsync(); } catch {}
 }
 
 // ─── مكوّن خلية اليوم الهجري ─────────────────────────────────────────────────
@@ -323,24 +259,16 @@ function PrayerScreen() {
     return DAILY_VERSES[dayOfMonth % DAILY_VERSES.length];
   }, []);
 
-  // ── الأذان (إشعارات نظام محلية فقط — لا تشغيل صوت داخل التطبيق) ─────────
-  const [adhanEnabled, setAdhanEnabled] = useState(true);
+  // ── الأذان (إشعارات محلية تعمل والتطبيق مغلق) ─────────────────────────
+  const [adhan, setAdhan] = useState<AdhanSettings>(DEFAULT_ADHAN);
   const adhanEnabledRef = useRef(true);
   const timesRef        = useRef<Record<string, string> | null>(null);
 
-  useEffect(() => { adhanEnabledRef.current = adhanEnabled; }, [adhanEnabled]);
+  useEffect(() => { adhanEnabledRef.current = adhan.enabled; }, [adhan.enabled]);
   useEffect(() => { timesRef.current = times; }, [times]);
 
-  // تهيئة الإشعارات عند التحميل (بدون أي صوت داخلي)
   useEffect(() => {
-    AsyncStorage.getItem(ADHAN_ENABLED_KEY).then(v => {
-      const enabled = v === null ? true : v === "1";
-      setAdhanEnabled(enabled);
-      adhanEnabledRef.current = enabled;
-    });
-
-    ensureAndroidChannel();
-
+    loadAdhanSettings().then((st) => { setAdhan(st); adhanEnabledRef.current = st.enabled; });
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
@@ -350,22 +278,19 @@ function PrayerScreen() {
         shouldShowList: true,
       }),
     });
+    return () => { stopAdhanPreview(); };
   }, []);
 
-  // ── تفعيل / إيقاف جدولة الأذان ───────────────────────────────────────────
-  const toggleAdhanEnabled = useCallback(async (next: boolean) => {
-    setAdhanEnabled(next);
-    adhanEnabledRef.current = next;
-    try { await AsyncStorage.setItem(ADHAN_ENABLED_KEY, next ? "1" : "0"); } catch {}
-
-    if (!next) {
-      cancelAdhanNotifications();
-    } else {
-      const granted = await requestNotifPermission();
-      if (granted && timesRef.current) {
-        scheduleAdhanNotifications(timesRef.current);
-      }
+  const updateAdhan = useCallback(async (next: AdhanSettings) => {
+    setAdhan(next);
+    adhanEnabledRef.current = next.enabled;
+    await saveAdhanSettings(next);
+    if (next.enabled) {
+      const granted = await requestAdhanPermission();
+      if (!granted) return;
     }
+    if (timesRef.current) scheduleAdhan(timesRef.current, next);
+    else if (!next.enabled) cancelAdhan();
   }, []);
 
   // ── التقويم الهجري ─────────────────────────────────────────────────────────
@@ -499,8 +424,8 @@ function PrayerScreen() {
 
       // جدولة الإشعارات المحلية إذا كان الأذان مفعّلاً
       if (adhanEnabledRef.current) {
-        const granted = await requestNotifPermission();
-        if (granted) scheduleAdhanNotifications(data.timings);
+        const granted = await requestAdhanPermission();
+        if (granted) scheduleAdhan(data.timings);
       }
     } catch {
       // محاولة استخدام البيانات المخزّنة مسبقاً عند فقدان الاتصال
@@ -689,36 +614,11 @@ function PrayerScreen() {
                     <Text style={s.countdownText}>سيحين بعد: {formatCountdown(countdown)}</Text>
                   </View>
 
-                  {/* ── التحكم بالأذان التلقائي ── */}
-                  <View style={s.adhanControlRow}>
-
-                    {/* مفتاح التفعيل */}
-                    <View style={[s.toggleWrap, adhanEnabled && s.toggleWrapOn]}>
-                      <Ionicons
-                        name={adhanEnabled ? "notifications" : "notifications-off-outline"}
-                        size={16}
-                        color={adhanEnabled ? Colors.primary : Colors.textMuted}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.toggleLabel, adhanEnabled && { color: Colors.primary }]}>
-                          {adhanEnabled ? "الأذان مُفعَّل" : "الأذان معطّل"}
-                        </Text>
-                        <Text style={s.toggleSub}>
-                          {adhanEnabled ? "سيؤذَّن تلقائياً عند كل صلاة" : "اضغط لتفعيل الأذان التلقائي"}
-                        </Text>
-                      </View>
-                      <Switch
-                        value={adhanEnabled}
-                        onValueChange={toggleAdhanEnabled}
-                        trackColor={{ false: Colors.divider, true: Colors.primary + "60" }}
-                        thumbColor={adhanEnabled ? Colors.primary : Colors.textMuted}
-                        ios_backgroundColor={Colors.divider}
-                      />
-                    </View>
-                  </View>
-
                 </Animated.View>
               )}
+
+              {/* إعدادات الأذان */}
+              <AdhanSettingsCard value={adhan} onChange={updateAdhan} />
 
               {/* قائمة أوقات الصلوات */}
               <View style={s.prayerList}>
@@ -739,6 +639,18 @@ function PrayerScreen() {
                         <Text style={[s.prayerTime, isNext && { color: p.color, fontFamily: "Cairo_700Bold" }]}>
                           {times[p.key] ? formatTime(times[p.key], fmt24) : "--"}
                         </Text>
+                        {ATHAN_PRAYERS.includes(p.key) && (() => {
+                          const on = adhan.enabled && adhan.prayers[p.key as keyof typeof adhan.prayers];
+                          return (
+                            <Pressable
+                              hitSlop={8}
+                              onPress={() => updateAdhan({ ...adhan, enabled: true, prayers: { ...adhan.prayers, [p.key]: !on || !adhan.enabled ? true : false } })}
+                              style={[s.bellBtn, on && { backgroundColor: p.color + "18", borderColor: p.color + "55" }]}
+                            >
+                              <Ionicons name={on ? "volume-high" : "volume-mute-outline"} size={16} color={on ? p.color : Colors.textMuted} />
+                            </Pressable>
+                          );
+                        })()}
                       </View>
                     </Animated.View>
                   );
@@ -1298,6 +1210,7 @@ const s = StyleSheet.create({
   },
   prayerIconBox: { width: 40, height: 40, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center" },
   prayerInfo:    { flex: 1, gap: 2 },
+  bellBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.divider, marginStart: 6 },
   prayerName:    { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   prayerSub:     { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" },
   prayerTime:    { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textSecondary },

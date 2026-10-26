@@ -46,6 +46,8 @@ import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork, checkConnected } from "@/lib/network";
 import { cacheGet, cacheSet, cacheAge } from "@/lib/offline-cache";
 import UserAvatar from "@/components/UserAvatar";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import ActiveNowRow from "@/components/social/ActiveNowRow";
 import OrgInviteCard from "@/components/OrgInviteCard";
 
 
@@ -65,6 +67,7 @@ type Post = {
   author_id?: number | null;
   author_name: string;
   author_avatar?: string | null;
+  author_verified?: boolean;
   content: string;
   category: string;
   likes_count: number;
@@ -1044,11 +1047,15 @@ function PostCard({
             <UserAvatar name={post.author_name} avatarUrl={post.author_avatar} size={44} borderRadius={14} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginHorizontal: 10 }}>
-            <Text
-              style={[styles.authorName, post.author_id ? { textDecorationLine: "none" } : null]}
-              onPress={post.author_id ? () => openAuthorProfile(post.author_id) : undefined}
-              suppressHighlighting
-            >{post.author_name}</Text>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+              <Text
+                style={[styles.authorName, { flexShrink: 1 }, post.author_id ? { textDecorationLine: "none" } : null]}
+                onPress={post.author_id ? () => openAuthorProfile(post.author_id) : undefined}
+                suppressHighlighting
+                numberOfLines={1}
+              >{post.author_name}</Text>
+              {post.author_verified ? <VerifiedBadge size={15} /> : null}
+            </View>
             <View style={styles.metaRow}>
               <Text style={styles.cardTime}>{timeAgo(post.created_at)}</Text>
               {post.views_count > 0 && (
@@ -1486,6 +1493,7 @@ export default function SocialScreen() {
               {!auth.isGuest ? (
                 <ComposeBar name={userName} onPress={handleComposePress} />
               ) : null}
+              {!showSaved && <ActiveNowRow token={auth.isGuest ? null : auth.token} />}
               {!showSaved && posts.length >= 3 && <StoriesRow posts={posts} />}
             </>
           }

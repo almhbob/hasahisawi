@@ -1,7 +1,7 @@
 // مركز الطلبات — صندوق موحّد للإدارة: كل طلب جديد يظهر هنا لحظة وصوله،
 // مع مراجعة مباشرة للأنواع التي لم تكن لها لوحة (المتاجر، ركن المرأة، الطلبات العامة).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Linking, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Linking, RefreshControl, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import ModernHeader from "@/components/ui/ModernHeader";
@@ -12,7 +12,7 @@ import { confirmAction, notify } from "@/lib/xplatform";
 import { setAdminUnread } from "@/lib/admin-alerts-store";
 import type { AdminAlert } from "@/components/AdminAlertsWatcher";
 
-type Tab = "feed" | "stores" | "women" | "general";
+type Tab = "feed" | "stores" | "women" | "general" | "verify";
 
 const SCREEN_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   lawyers: "briefcase-outline", institutions: "business-outline", women: "flower-outline", stores: "storefront-outline",
@@ -63,6 +63,7 @@ export default function AdminRequestsScreen() {
   const [stores, setStores] = useState<any[]>([]);
   const [women, setWomen] = useState<any[]>([]);
   const [general, setGeneral] = useState<any[]>([]);
+  const [verifs, setVerifs] = useState<any[]>([]);
 
   const call = useCallback(async (path: string, init?: RequestInit) => {
     const r = await fetch(`${getApiUrl()}${path}`, {
@@ -94,6 +95,7 @@ export default function AdminRequestsScreen() {
         all.sort((a: any, b: any) => Number(["new", "pending"].includes(b.status)) - Number(["new", "pending"].includes(a.status)) || String(b.created_at).localeCompare(String(a.created_at)));
         setWomen(all);
       }
+      else if (tab === "verify") { const d = await call("/api/admin/verification-requests?status=pending"); setVerifs(d.requests || []); }
       else { const d = await call("/api/admin/join-requests"); setGeneral(d.requests || []); }
     } catch (e: any) { notify("تعذّر التحميل", e?.message); }
     finally { setLoading(false); }
@@ -117,11 +119,22 @@ export default function AdminRequestsScreen() {
     } catch (e: any) { notify("تعذّر التنفيذ", e?.message); }
   };
 
+  const reviewVerif = async (id: number, status: "approved" | "rejected") => {
+    const ok = await confirmAction(status === "approved" ? "توثيق الحساب" : "رفض التوثيق", status === "approved" ? "ستظهر شارة «موثوق» بجانب اسم المستخدم في كل التطبيق." : "سيصل إشعار للمستخدم بإمكانية إعادة المحاولة.", status === "approved" ? "توثيق" : "رفض", status === "rejected");
+    if (!ok) return;
+    try {
+      await call(`/api/admin/verification-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status, admin_note: status === "rejected" ? "المستند غير واضح أو غير مطابق، أعد المحاولة بصورة أوضح" : undefined }) });
+      if (status === "approved") notify("تم ✅", "أصبح الحساب موثوقاً");
+      load();
+    } catch (e: any) { notify("تعذّر التنفيذ", e?.message); }
+  };
+
   const tabs = useMemo(() => ([
     { key: "feed" as const, label: "الأحدث", icon: "notifications-outline" as const },
     { key: "stores" as const, label: "المتاجر", icon: "storefront-outline" as const },
     ...(isAdmin ? [{ key: "women" as const, label: "ركن المرأة", icon: "flower-outline" as const }] : []),
     { key: "general" as const, label: "طلبات عامة", icon: "document-text-outline" as const },
+    { key: "verify" as const, label: "التوثيق", icon: "shield-checkmark-outline" as const },
   ]), [isAdmin]);
 
   if (!isStaff) {
@@ -133,7 +146,8 @@ export default function AdminRequestsScreen() {
     );
   }
 
-  const data: any[] = tab === "feed" ? alerts : tab === "stores" ? stores : tab === "women" ? women : general;
+  const data: any[] = tab === "feed" ? alerts : tab === "stores" ? stores : tab === "women" ? women : tab === "verify" ? verifs : general;
+  const VKIND: Record<string, string> = { identity: "توثيق هوية", professional: "توثيق مهني", business: "نشاط تجاري", public_figure: "شخصية عامة" };
 
   const renderItem = ({ item }: { item: any }) => {
     if (tab === "feed") {
@@ -176,6 +190,33 @@ export default function AdminRequestsScreen() {
             {item.status !== "active" && <Act label="اعتماد" color="#00966A" icon="checkmark-circle-outline" onPress={() => review("store", item.id, "active", "اعتماد المتجر")} />}
             {item.status === "pending" && <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => review("store", item.id, "rejected", "رفض الطلب")} />}
             {item.status === "active" && <Act label="إيقاف" color="#6B7280" icon="pause-circle-outline" onPress={() => review("store", item.id, "suspended", "إيقاف المتجر")} />}
+          </View>
+        </View>
+      );
+    }
+    if (tab === "verify") {
+      return (
+        <View style={s.card}>
+          <View style={s.row}>
+            <View style={[s.icon, { backgroundColor: "#1D9BF01A" }]}><Ionicons name="shield-checkmark-outline" size={18} color="#1D9BF0" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.title}>{item.name}</Text>
+              <Text style={s.body}>{VKIND[item.kind] || item.kind}{item.phone ? ` · ${item.phone}` : ""}</Text>
+              {!!item.headline && <Text style={s.meta}>{item.headline}</Text>}
+              {!!item.note && <Text style={s.meta} numberOfLines={3}>«{item.note}»</Text>}
+              <Text style={s.meta}>{ago(item.created_at)}</Text>
+            </View>
+            {!!item.doc_url && (
+              <Pressable onPress={() => Linking.openURL(item.doc_url)}>
+                <Image source={{ uri: item.doc_url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: "#eee" }} />
+              </Pressable>
+            )}
+          </View>
+          <View style={s.actions}>
+            <Act label="الملف" color="#1D66D4" icon="person-outline" onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(item.user_id) } })} />
+            {!!item.doc_url && <Act label="المستند" color="#6B7280" icon="image-outline" onPress={() => Linking.openURL(item.doc_url)} />}
+            <Act label="توثيق" color="#00966A" icon="checkmark-circle-outline" onPress={() => reviewVerif(item.id, "approved")} />
+            <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => reviewVerif(item.id, "rejected")} />
           </View>
         </View>
       );

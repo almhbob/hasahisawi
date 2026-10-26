@@ -365,7 +365,8 @@ const styles = StyleSheet.create({
 
   // الشريط السفلي
   tabBar: {
-    flexDirection: "row",
+    // من اليمين: الرئيسية ← الأذان ← القائمة ← الدردشة ← المواعيد
+    flexDirection: "row-reverse",
     alignItems: "center",
     backgroundColor: Colors.bg,
     borderTopWidth: 0,

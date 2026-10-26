@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Platform, Image,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Image, Modal, Pressable,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,32 +9,19 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import QRCode from "react-native-qrcode-svg";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
-import { chatApi } from "@/lib/chat-plus";
+import { chatApi, presenceText } from "@/lib/chat-plus";
 import { useAuth } from "@/lib/auth-context";
 import UserAvatar from "@/components/UserAvatar";
-import { notify, confirmAction, uploadProfilePhoto } from "@/lib/xplatform";
+import VerifiedBadge, { VERIFIED_BLUE } from "@/components/VerifiedBadge";
+import { EditProfileModal, CertFormModal, VerifyModal } from "@/components/profile/ProfileForms";
+import { notify, confirmAction, uploadProfilePhoto, openExternal, copyText, systemShare } from "@/lib/xplatform";
+import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from "@/lib/profile-api";
 
-type UserProfile = {
-  id: number;
-  name: string;
-  role: string;
-  avatar_url: string | null;
-  created_at: string;
-  bio: string | null;
-  posts_count: number;
-  reports_count: number;
-};
-
-type Post = {
-  id: number;
-  content: string;
-  image_url?: string | null;
-  created_at: string;
-  likes_count: number;
-  comments_count?: number;
-};
+type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
+type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
 
 const ROLE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   admin:     { label: "الإدارة",  color: "#B4232F", icon: "shield-checkmark" },
@@ -44,13 +30,9 @@ const ROLE_MAP: Record<string, { label: string; color: string; icon: keyof typeo
   user:      { label: "عضو",      color: Colors.primary, icon: "person-circle" },
 };
 
-const BIO_MAX = 300;
-const NAME_MAX = 60;
-
 function memberSince(iso: string) {
   try { return new Date(iso).toLocaleDateString("ar", { year: "numeric", month: "long" }); } catch { return ""; }
 }
-
 function timeAgo(iso: string) {
   const d = new Date(iso);
   const diff = Date.now() - d.getTime();
@@ -69,72 +51,37 @@ export default function ProfileScreen() {
   const profileId = viewingId ?? (isGuest ? null : user?.id ?? null);
   const isOwn = !!user && !isGuest && (viewingId === null || viewingId === user.id);
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<FullProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", bio: "", neighborhood: "" });
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [certEdit, setCertEdit] = useState<{ open: boolean; cert: Cert | null }>({ open: false, cert: null });
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId) { setLoading(false); return; }
     setLoading(true); setFailed(false);
     try {
-      const base = getApiUrl();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const [profRes, postsRes] = await Promise.all([
-        fetch(`${base}/api/users/${profileId}/profile`, { headers }),
-        fetch(`${base}/api/posts?user_id=${profileId}&limit=20`, { headers }),
+      const [p, postsRes] = await Promise.all([
+        profileApi.full(profileId, token).catch((e) => { if (e?.status === 404) return null; throw e; }),
+        fetch(`${getApiUrl()}/api/posts?user_id=${profileId}&limit=20`, { headers }).catch(() => null),
       ]);
-      if (profRes.ok) setProfile(await profRes.json());
-      else { setProfile(null); setFailed(profRes.status !== 404); }
-      if (postsRes.ok) {
-        const data = await postsRes.json();
-        setPosts(Array.isArray(data) ? data : data.posts ?? []);
-      }
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [profileId, token]);
+      setProfile(p);
+      if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
+      if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
+    } catch { setFailed(true); }
+    finally { setLoading(false); }
+  }, [profileId, token, isOwn]);
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
-  const startEdit = () => {
-    setForm({
-      name: profile?.name || user?.name || "",
-      bio: profile?.bio || "",
-      neighborhood: user?.neighborhood || "",
-    });
-    setEditing(true);
-  };
-
-  const saveEdit = async () => {
-    if (!token) return;
-    const name = form.name.trim();
-    if (name.length < 2) { notify("الاسم مطلوب", "اكتب اسمك (حرفان على الأقل)."); return; }
-    setSaving(true);
-    try {
-      const res = await fetch(`${getApiUrl()}/api/auth/profile`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name, bio: form.bio.trim(), neighborhood: form.neighborhood.trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "تعذّر حفظ البيانات");
-      setProfile((p) => (p ? { ...p, name, bio: form.bio.trim() } : p));
-      await refreshUser();
-      setEditing(false);
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (e: any) {
-      notify("تعذّر الحفظ", e?.message || "حاول مرة أخرى");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const haptic = () => { if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); };
 
   const pickAvatar = async () => {
     if (!isOwn || !token || uploading) return;
@@ -142,24 +89,15 @@ export default function ProfileScreen() {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") { notify("الإذن مطلوب", "يرجى السماح للتطبيق بالوصول إلى مكتبة الصور"); return; }
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.7 });
     if (result.canceled || !result.assets[0]) return;
     setUploading(true);
     try {
       const url = await uploadProfilePhoto(result.assets[0].uri, token);
       setProfile((p) => (p ? { ...p, avatar_url: url } : p));
-      await refreshUser();
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (e: any) {
-      notify("تعذّر رفع الصورة", e?.message || "حاول بصورة أصغر حجماً");
-    } finally {
-      setUploading(false);
-    }
+      await refreshUser(); haptic();
+    } catch (e: any) { notify("تعذّر رفع الصورة", e?.message || "حاول بصورة أصغر حجماً"); }
+    finally { setUploading(false); }
   };
 
   const [showPresence, setShowPresence] = useState<boolean | null>(null);
@@ -177,21 +115,35 @@ export default function ProfileScreen() {
   const toggleBiometrics = async () => {
     try {
       if (biometricsEnabled) {
-        if (await confirmAction("إيقاف البصمة", "سيُطلب منك كلمة المرور عند الدخول القادم.", "إيقاف", true)) {
-          await disableBiometrics();
-          notify("تم", "أُوقف الدخول بالبصمة على هذا الجهاز");
-        }
-      } else {
-        await enableBiometrics(String(user?.email || user?.phone || ""));
-        notify("تم التفعيل", "يمكنك الآن الدخول ببصمتك من شاشة تسجيل الدخول");
-      }
-    } catch (e: any) {
-      notify("تعذّر", e?.message || "تعذّر تفعيل البصمة");
-    }
+        if (await confirmAction("إيقاف البصمة", "سيُطلب منك كلمة المرور عند الدخول القادم.", "إيقاف", true)) { await disableBiometrics(); notify("تم", "أُوقف الدخول بالبصمة على هذا الجهاز"); }
+      } else { await enableBiometrics(String(user?.email || user?.phone || "")); notify("تم التفعيل", "يمكنك الآن الدخول ببصمتك من شاشة تسجيل الدخول"); }
+    } catch (e: any) { notify("تعذّر", e?.message || "تعذّر تفعيل البصمة"); }
   };
 
-  const signOut = async () => {
-    if (await confirmAction("تسجيل الخروج", "هل تريد تسجيل الخروج من حسابك؟", "خروج", true)) await logout();
+  const signOut = async () => { if (await confirmAction("تسجيل الخروج", "هل تريد تسجيل الخروج من حسابك؟", "خروج", true)) await logout(); };
+
+  const endorse = async (skill: string) => {
+    if (!profile) return;
+    if (!token || isGuest) { notify("سجّل الدخول", "سجّل الدخول لتزكية مهارات الآخرين"); return; }
+    try {
+      const r = await profileApi.endorse(token, profile.id, skill);
+      setProfile((p) => p ? { ...p, skills: p.skills.map((s) => s.name === skill ? { ...s, count: r.count, mine: r.endorsed } : s) } : p);
+      if (r.endorsed) haptic();
+    } catch (e: any) { notify("تعذّر", e?.message || "حاول مجدداً"); }
+  };
+
+  const deleteCert = async (c: Cert) => {
+    if (!token) return;
+    if (!(await confirmAction("حذف الشهادة", `حذف «${c.title}» من ملفك؟`, "حذف", true))) return;
+    try { await profileApi.delCert(token, c.id); setProfile((p) => p ? { ...p, certificates: p.certificates.filter((x) => x.id !== c.id) } : p); }
+    catch (e: any) { notify("تعذّر الحذف", e?.message || "حاول مجدداً"); }
+  };
+
+  const shareCv = async () => {
+    if (!profile) return;
+    const url = publicCvUrl(profile.id);
+    const ok = await systemShare(`الملف المهني لـ ${profile.name}${profile.headline ? ` — ${profile.headline}` : ""}`, url);
+    if (!ok) { const r = await copyText(url); if (r === "copied") notify("تم النسخ", "نُسخ رابط الملف المهني"); }
   };
 
   // ── زائر / بلا حساب ──────────────────────────────────────────
@@ -202,7 +154,7 @@ export default function ProfileScreen() {
         <View style={styles.centerBox}>
           <View style={styles.emptyIcon}><Ionicons name="person-outline" size={40} color={Colors.primary} /></View>
           <Text style={styles.emptyTitle}>أنشئ ملفك الشخصي</Text>
-          <Text style={styles.emptyText}>سجّل الدخول لإضافة صورتك وبياناتك، ونشر المنشورات، والحصول على بطاقة العضوية.</Text>
+          <Text style={styles.emptyText}>سجّل الدخول لإضافة صورتك وشهاداتك وروابطك، والحصول على ملف مهني تشاركه مع جهات العمل.</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={() => logout()} accessibilityRole="button">
             <Ionicons name="log-in-outline" size={18} color="#fff" />
             <Text style={styles.primaryBtnText}>تسجيل الدخول</Text>
@@ -240,6 +192,10 @@ export default function ProfileScreen() {
 
   const roleInfo = ROLE_MAP[profile.role] ?? ROLE_MAP.user;
   const avatarUrl = isOwn ? (user?.avatar_url ?? profile.avatar_url) : profile.avatar_url;
+  const links = SOCIALS.filter((s) => profile.social_links?.[s.key]);
+  const presence = !isOwn ? presenceText(profile.online, profile.last_seen_at) : "";
+  const comp = profile.completeness;
+  const verif = profile.verification;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -250,12 +206,8 @@ export default function ProfileScreen() {
             <Ionicons name="settings-outline" size={21} color={Colors.textSecondary} />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}
-            accessibilityLabel="مراسلة"
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={21} color={Colors.primary} />
+          <TouchableOpacity style={styles.iconBtn} onPress={shareCv} accessibilityLabel="مشاركة">
+            <Ionicons name="share-social-outline" size={21} color={Colors.primary} />
           </TouchableOpacity>
         )}
       />
@@ -263,95 +215,261 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         {/* ── البطاقة الرئيسية ── */}
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.hero}>
-          <LinearGradient colors={[Colors.primaryDeep, Colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
+          <LinearGradient colors={profile.is_verified ? ["#0B4F8A", VERIFIED_BLUE] : [Colors.primaryDeep, Colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
             <View style={styles.coverRing} />
             <View style={[styles.coverRing, { width: 120, height: 120, left: -30, top: 40, opacity: 0.08 }]} />
+            {profile.open_to_work && (
+              <View style={styles.otw}><Ionicons name="briefcase" size={12} color={Colors.primaryDeep} /><Text style={styles.otwText}>متاح للعمل</Text></View>
+            )}
           </LinearGradient>
 
           <View style={styles.avatarWrap}>
-            <TouchableOpacity onPress={isOwn ? pickAvatar : undefined} activeOpacity={isOwn ? 0.8 : 1} disabled={!isOwn || uploading} accessibilityRole={isOwn ? "button" : undefined} accessibilityLabel={isOwn ? "تغيير الصورة الشخصية" : undefined}>
-              <View style={styles.avatarFrame}>
-                <UserAvatar name={profile.name} avatarUrl={avatarUrl} size={100} borderRadius={32} />
+            <TouchableOpacity onPress={isOwn ? pickAvatar : avatarUrl ? () => setPreview(avatarUrl) : undefined} activeOpacity={0.85} disabled={uploading} accessibilityLabel={isOwn ? "تغيير الصورة الشخصية" : undefined}>
+              <View style={[styles.avatarFrame, profile.is_verified && { backgroundColor: VERIFIED_BLUE }]}>
+                <View style={{ borderRadius: 32, overflow: "hidden", borderWidth: profile.is_verified ? 3 : 0, borderColor: "#fff" }}>
+                  <UserAvatar name={profile.name} avatarUrl={avatarUrl} size={100} borderRadius={30} />
+                </View>
               </View>
-              {isOwn && (
+              {isOwn ? (
                 <View style={styles.cameraBadge}>
                   {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={16} color="#fff" />}
                 </View>
-              )}
+              ) : profile.online ? <View style={styles.onlineDot} /> : null}
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.name}>{profile.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{profile.name}</Text>
+            {profile.is_verified && <VerifiedBadge size={20} />}
+          </View>
+          {profile.headline ? <Text style={styles.headline}>{profile.headline}</Text> : null}
           <View style={styles.metaRow}>
-            <View style={[styles.rolePill, { backgroundColor: roleInfo.color + "14", borderColor: roleInfo.color + "40" }]}>
-              <Ionicons name={roleInfo.icon} size={12} color={roleInfo.color} />
-              <Text style={[styles.rolePillText, { color: roleInfo.color }]}>{roleInfo.label}</Text>
-            </View>
+            {profile.is_verified ? <VerifiedBadge compact={false} label={profile.verified_label} /> : (
+              <View style={[styles.rolePill, { backgroundColor: roleInfo.color + "14", borderColor: roleInfo.color + "40" }]}>
+                <Ionicons name={roleInfo.icon} size={12} color={roleInfo.color} />
+                <Text style={[styles.rolePillText, { color: roleInfo.color }]}>{roleInfo.label}</Text>
+              </View>
+            )}
+            {profile.profession ? <Text style={styles.metaText}>{profile.profession}</Text> : null}
             <Text style={styles.metaText}>عضو منذ {memberSince(profile.created_at)}</Text>
           </View>
-          {isOwn && user?.neighborhood ? (
-            <View style={styles.locRow}>
-              <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
-              <Text style={styles.metaText}>{user.neighborhood} · الحصاحيصا</Text>
-            </View>
-          ) : null}
+          <View style={styles.locRow}>
+            {profile.neighborhood ? (<><Ionicons name="location-outline" size={13} color={Colors.textMuted} /><Text style={styles.metaText}>{profile.neighborhood} · الحصاحيصا</Text></>) : null}
+            {presence ? <Text style={[styles.metaText, profile.online && { color: "#16A34A", fontFamily: "Cairo_700Bold" }]}>{profile.neighborhood ? " · " : ""}{presence}</Text> : null}
+          </View>
 
-          {!editing && (
-            <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
-              {profile.bio || (isOwn ? "أضف نبذة قصيرة عنك ليتعرّف عليك الآخرون." : "لا توجد نبذة.")}
-            </Text>
+          <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
+            {profile.bio || (isOwn ? "أضف نبذة قصيرة عنك ليتعرّف عليك الآخرون وجهات العمل." : "لا توجد نبذة.")}
+          </Text>
+
+          {links.length > 0 && (
+            <View style={styles.socialRow}>
+              {links.map((s) => (
+                <TouchableOpacity key={s.key} style={[styles.socialBtn, { backgroundColor: s.color + "14" }]} onPress={() => openExternal(String(profile.social_links[s.key]))} accessibilityLabel={s.label}>
+                  <Ionicons name={s.icon as any} size={19} color={s.color} />
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
 
           <View style={styles.stats}>
             <Stat value={profile.posts_count} label="منشور" />
             <View style={styles.statDivider} />
-            <Stat value={profile.reports_count} label="بلاغ للمدينة" />
+            <Stat value={profile.certificates.length} label="شهادة" />
+            <View style={styles.statDivider} />
+            <Stat value={profile.endorsers_count} label="زكّاه" />
+            {isOwn && (<><View style={styles.statDivider} /><Stat value={profile.views_30d ?? 0} label="زيارة/30 يوم" /></>)}
           </View>
 
-          {isOwn && !editing && (
-            <View style={styles.heroActions}>
-              <TouchableOpacity style={styles.primaryBtn} onPress={startEdit} accessibilityRole="button">
-                <Ionicons name="create-outline" size={17} color="#fff" />
-                <Text style={styles.primaryBtnText}>تعديل البيانات</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.ghostBtn} onPress={pickAvatar} disabled={uploading} accessibilityRole="button">
-                <Ionicons name="image-outline" size={17} color={Colors.primaryDeep} />
-                <Text style={styles.ghostBtnText}>{avatarUrl ? "تغيير الصورة" : "إضافة صورة"}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={styles.heroActions}>
+            {isOwn ? (
+              <>
+                <TouchableOpacity style={styles.primaryBtn} onPress={() => setEditOpen(true)}>
+                  <Ionicons name="create-outline" size={17} color="#fff" />
+                  <Text style={styles.primaryBtnText}>تعديل الملف</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ghostBtn} onPress={() => setQrOpen(true)}>
+                  <Ionicons name="qr-code-outline" size={17} color={Colors.primaryDeep} />
+                  <Text style={styles.ghostBtnText}>ملفي المهني</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={17} color="#fff" />
+                  <Text style={styles.primaryBtnText}>مراسلة</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ghostBtn} onPress={() => openExternal(publicCvUrl(profile.id))}>
+                  <Ionicons name="document-text-outline" size={17} color={Colors.primaryDeep} />
+                  <Text style={styles.ghostBtnText}>السيرة المهنية</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </Animated.View>
 
-        {/* ── نموذج التعديل ── */}
-        {isOwn && editing && (
-          <Animated.View entering={FadeInDown.springify()} style={styles.card}>
-            <Text style={styles.cardTitle}>بياناتي</Text>
-            <Field label="الاسم" value={form.name} max={NAME_MAX} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="اسمك الكامل" />
-            <Field label="الحي" value={form.neighborhood} max={60} onChange={(v) => setForm((f) => ({ ...f, neighborhood: v }))} placeholder="مثال: حي الشرقي" />
-            <Field label="نبذة عنك" value={form.bio} max={BIO_MAX} multiline onChange={(v) => setForm((f) => ({ ...f, bio: v }))} placeholder="عملك، اهتماماتك، ما تقدّمه للمجتمع…" />
-            {(user?.phone || user?.email) ? (
-              <View style={styles.privateBox}>
-                <Ionicons name="lock-closed-outline" size={14} color={Colors.textMuted} />
-                <Text style={styles.privateText}>
-                  {[user?.phone, user?.email].filter(Boolean).join(" · ")} — لا تظهر للآخرين
-                </Text>
-              </View>
-            ) : null}
-            <View style={styles.formActions}>
-              <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={saveEdit} disabled={saving} accessibilityRole="button">
-                {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="checkmark" size={18} color="#fff" />}
-                <Text style={styles.primaryBtnText}>حفظ</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.ghostBtn} onPress={() => setEditing(false)} disabled={saving} accessibilityRole="button">
-                <Text style={styles.ghostBtnText}>إلغاء</Text>
-              </TouchableOpacity>
+        {/* ── اكتمال الملف ── */}
+        {isOwn && comp && comp.percent < 100 && (
+          <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>قوة ملفك</Text>
+              <Text style={[styles.cardCount, { color: Colors.primary, fontFamily: "Cairo_700Bold" }]}>{comp.percent}%</Text>
+            </View>
+            <View style={styles.bar}><View style={[styles.barFill, { width: `${comp.percent}%` }]} /></View>
+            <Text style={styles.hint}>الملف المكتمل يظهر أولاً لجهات العمل ويكسب ثقة الناس. أكمل:</Text>
+            <View style={styles.chips}>
+              {comp.missing.map((m) => (
+                <TouchableOpacity key={m} style={styles.missChip} onPress={() => m.includes("توثيق") ? setVerifyOpen(true) : m.includes("شهادة") ? setCertEdit({ open: true, cert: null }) : m.includes("صورة") ? pickAvatar() : setEditOpen(true)}>
+                  <Ionicons name="add-circle-outline" size={14} color={Colors.primaryDeep} />
+                  <Text style={styles.missText}>{m}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </Animated.View>
         )}
 
+        {/* ── التوثيق ── */}
+        {isOwn && !profile.is_verified && (
+          <Animated.View entering={FadeInDown.delay(60).springify()} style={[styles.card, styles.verifyCard]}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+              <View style={styles.verifyIcon}><Ionicons name="shield-checkmark" size={24} color={VERIFIED_BLUE} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitleNoMb}>{verif?.status === "pending" ? "طلب التوثيق قيد المراجعة" : "احصل على شارة «موثوق»"}</Text>
+                <Text style={styles.hint}>
+                  {verif?.status === "pending" ? "ستصلك إشعار فور مراجعة الإدارة لطلبك." :
+                    verif?.status === "rejected" ? `لم يُقبل الطلب السابق${verif.admin_note ? `: ${verif.admin_note}` : ""}. يمكنك إعادة المحاولة.` :
+                      "شارة زرقاء بجانب اسمك تؤكد أن حسابك حقيقي وتزيد ثقة الناس وجهات العمل بك."}
+                </Text>
+              </View>
+            </View>
+            {verif?.status !== "pending" && (
+              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: VERIFIED_BLUE, marginTop: 12 }]} onPress={() => setVerifyOpen(true)}>
+                <Ionicons name="shield-checkmark-outline" size={17} color="#fff" />
+                <Text style={styles.primaryBtnText}>طلب التوثيق</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        )}
+
+        {/* ── المهارات والتزكيات ── */}
+        {(profile.skills.length > 0 || isOwn) && (
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>المهارات</Text>
+              {isOwn ? <TouchableOpacity onPress={() => setEditOpen(true)}><Text style={styles.link}>تعديل</Text></TouchableOpacity> : <Text style={styles.cardCount}>اضغط للتزكية 👏</Text>}
+            </View>
+            {profile.skills.length === 0 ? (
+              <Text style={styles.hint}>أضف مهاراتك ليزكّيك من يعرفك — التزكيات تبني سمعتك المهنية في المدينة.</Text>
+            ) : (
+              <View style={styles.chips}>
+                {profile.skills.map((s) => (
+                  <TouchableOpacity key={s.name} disabled={isOwn} onPress={() => endorse(s.name)} style={[styles.skill, s.mine && styles.skillMine]} activeOpacity={0.8}>
+                    {s.mine && <Ionicons name="checkmark" size={13} color="#fff" />}
+                    <Text style={[styles.skillText, s.mine && { color: "#fff" }]}>{s.name}</Text>
+                    {s.count > 0 && <View style={[styles.skillCount, s.mine && { backgroundColor: "#ffffff30" }]}><Text style={[styles.skillCountText, s.mine && { color: "#fff" }]}>{s.count}</Text></View>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </Animated.View>
+        )}
+
+        {/* ── الشهادات والخبرات ── */}
+        {(profile.certificates.length > 0 || isOwn) && (
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>الشهادات والخبرات</Text>
+              {isOwn && (
+                <TouchableOpacity style={styles.addMini} onPress={() => setCertEdit({ open: true, cert: null })}>
+                  <Ionicons name="add" size={16} color="#fff" /><Text style={styles.addMiniText}>إضافة</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {isOwn && !profile.show_certs && <Text style={[styles.hint, { color: "#B45309" }]}>شهاداتك مخفية عن الآخرين — يمكنك إظهارها من «تعديل الملف».</Text>}
+            {profile.certificates.length === 0 ? (
+              <TouchableOpacity style={styles.emptyCert} onPress={() => setCertEdit({ open: true, cert: null })}>
+                <Ionicons name="ribbon-outline" size={30} color={Colors.primary} />
+                <Text style={styles.emptyCertTitle}>أرفق شهاداتك</Text>
+                <Text style={styles.hint}>مؤهلاتك، دوراتك، رخصك وخبراتك — تظهر تلقائياً في ملفك المهني لجهات العمل.</Text>
+              </TouchableOpacity>
+            ) : profile.certificates.map((c) => {
+              const k = CERT_KINDS.find((x) => x.key === c.kind) || CERT_KINDS[5];
+              return (
+                <View key={c.id} style={styles.cert}>
+                  <TouchableOpacity onPress={() => c.file_url ? (c.file_type === "image" ? setPreview(c.file_url) : openExternal(c.file_url)) : undefined} activeOpacity={c.file_url ? 0.8 : 1}>
+                    {c.file_url && c.file_type === "image" ? (
+                      <Image source={{ uri: c.file_url }} style={styles.certThumb} />
+                    ) : (
+                      <View style={[styles.certThumb, { backgroundColor: k.color + "14", alignItems: "center", justifyContent: "center" }]}>
+                        <Ionicons name={(c.file_type === "pdf" ? "document-text" : k.icon) as any} size={24} color={c.file_type === "pdf" ? "#C62828" : k.color} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.certKind, { color: k.color }]}>{k.label}{!c.is_public && isOwn ? " · مخفية" : ""}</Text>
+                    <Text style={styles.certTitle}>{c.title}</Text>
+                    {(c.issuer || c.issued_on) ? <Text style={styles.certMeta}>{[c.issuer, c.issued_on].filter(Boolean).join(" · ")}</Text> : null}
+                    <View style={{ flexDirection: "row-reverse", gap: 12, marginTop: 2 }}>
+                      {c.file_url ? <Text style={styles.link} onPress={() => c.file_type === "image" ? setPreview(c.file_url!) : openExternal(c.file_url!)}>عرض المرفق</Text> : null}
+                      {c.credential_url ? <Text style={styles.link} onPress={() => openExternal(c.credential_url!)}>التحقق</Text> : null}
+                    </View>
+                  </View>
+                  {isOwn && (
+                    <View style={{ gap: 10 }}>
+                      <TouchableOpacity hitSlop={8} onPress={() => setCertEdit({ open: true, cert: c })}><Ionicons name="create-outline" size={19} color={Colors.textSecondary} /></TouchableOpacity>
+                      <TouchableOpacity hitSlop={8} onPress={() => deleteCert(c)}><Ionicons name="trash-outline" size={19} color="#C62828" /></TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </Animated.View>
+        )}
+
+        {/* ── الملف المهني لجهات العمل ── */}
+        {isOwn && (
+          <Animated.View entering={FadeInDown.delay(120).springify()} style={[styles.card, styles.cvCard]}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+              <View style={[styles.verifyIcon, { backgroundColor: "#ffffff20" }]}><Ionicons name="briefcase" size={22} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitleNoMb, { color: "#fff" }]}>ملفك المهني جاهز تلقائياً</Text>
+                <Text style={[styles.hint, { color: "#ffffffCC" }]}>رابط واحد يجمع نبذتك ومهاراتك وشهاداتك وروابطك — أرسله لأي جهة عمل أو اعرض رمز QR.</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
+              <TouchableOpacity style={styles.cvBtn} onPress={shareCv}><Ionicons name="share-social" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>مشاركة</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={() => setQrOpen(true)}><Ionicons name="qr-code" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>QR</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={() => openExternal(publicCvUrl(profile.id))}><Ionicons name="eye" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>معاينة</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={() => router.push("/(tabs)/cv-builder" as any)}><Ionicons name="document" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>سيرة PDF</Text></TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── من زار ملفي ── */}
+        {isOwn && visitors.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(130).springify()} style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>زاروا ملفك مؤخراً</Text>
+              <Text style={styles.cardCount}>{visitors.length}</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, flexDirection: "row-reverse" }}>
+              {visitors.map((v) => (
+                <TouchableOpacity key={v.id} style={styles.visitor} onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(v.id) } })}>
+                  <UserAvatar name={v.name} avatarUrl={v.avatar_url} size={52} borderRadius={18} />
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 3 }}>
+                    <Text style={styles.visitorName} numberOfLines={1}>{v.name.split(" ")[0]}</Text>
+                    {v.is_verified && <VerifiedBadge size={12} />}
+                  </View>
+                  <Text style={styles.visitorTime}>{timeAgo(v.viewed_at)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
+
         {/* ── اختصارات صاحب الملف ── */}
-        {isOwn && !editing && (
-          <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.quickGrid}>
+        {isOwn && (
+          <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.quickGrid}>
             <Quick icon="card" label="بطاقة العضوية" sub="بطاقتك الموثّقة" color="#21423A" onPress={() => router.push("/member-card" as any)} />
             <Quick icon="library" label="المكتبة المنهجية" sub="كتب المنهج السوداني" color="#2A6FA8" onPress={() => router.push("/curriculum" as any)} />
             <Quick icon="create" label="منشور جديد" sub="شارك مجتمعك" color={Colors.accentDeep} onPress={() => router.push("/(tabs)/social" as any)} />
@@ -366,7 +484,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ── المنشورات ── */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.card}>
+        <Animated.View entering={FadeInDown.delay(160).springify()} style={styles.card}>
           <View style={styles.cardHead}>
             <Text style={styles.cardTitle}>{isOwn ? "منشوراتي" : "المنشورات"}</Text>
             <Text style={styles.cardCount}>{profile.posts_count}</Text>
@@ -391,6 +509,45 @@ export default function ProfileScreen() {
           ))}
         </Animated.View>
       </ScrollView>
+
+      {/* ── النوافذ ── */}
+      {isOwn && token && (
+        <>
+          <EditProfileModal visible={editOpen} profile={profile} token={token} onClose={() => setEditOpen(false)}
+            onSaved={async (p, name) => { setProfile({ ...p, name }); setEditOpen(false); haptic(); refreshUser().catch(() => {}); }} />
+          <CertFormModal visible={certEdit.open} cert={certEdit.cert} token={token} onClose={() => setCertEdit({ open: false, cert: null })}
+            onSaved={() => { setCertEdit({ open: false, cert: null }); haptic(); fetchProfile(); }} />
+          <VerifyModal visible={verifyOpen} token={token} onClose={() => setVerifyOpen(false)}
+            onSent={() => { setVerifyOpen(false); notify("تم إرسال الطلب", "ستراجع الإدارة طلبك ويصلك إشعار بالنتيجة"); fetchProfile(); }} />
+        </>
+      )}
+
+      <Modal visible={qrOpen} transparent animationType="fade" onRequestClose={() => setQrOpen(false)}>
+        <Pressable style={styles.overlay} onPress={() => setQrOpen(false)}>
+          <Pressable style={styles.qrCard} onPress={() => {}}>
+            <View style={styles.nameRow}>
+              <Text style={[styles.name, { fontSize: 18, marginTop: 0 }]}>{profile.name}</Text>
+              {profile.is_verified && <VerifiedBadge size={18} />}
+            </View>
+            {profile.headline ? <Text style={styles.headline}>{profile.headline}</Text> : null}
+            <View style={{ padding: 14, backgroundColor: "#fff", borderRadius: 18, marginTop: 12, borderWidth: 1, borderColor: Colors.border }}>
+              <QRCode value={publicCvUrl(profile.id)} size={200} color={Colors.primaryDeep} />
+            </View>
+            <Text style={[styles.hint, { textAlign: "center", marginTop: 10 }]}>امسح الرمز لفتح الملف المهني</Text>
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12, alignSelf: "stretch" }}>
+              <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={shareCv}><Ionicons name="share-social" size={16} color="#fff" /><Text style={styles.primaryBtnText}>مشاركة الرابط</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.ghostBtn} onPress={() => setQrOpen(false)}><Text style={styles.ghostBtnText}>إغلاق</Text></TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
+        <Pressable style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.92)" }]} onPress={() => setPreview(null)}>
+          {preview ? <Image source={{ uri: preview }} style={{ width: "94%", height: "80%" }} resizeMode="contain" /> : null}
+          <View style={styles.previewClose}><Ionicons name="close" size={24} color="#fff" /></View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -426,29 +583,9 @@ function Quick({ icon, label, sub, color, onPress }: { icon: keyof typeof Ionico
   );
 }
 
-function Field({ label, value, onChange, placeholder, max, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; max: number; multiline?: boolean }) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <View style={styles.fieldHead}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <Text style={styles.fieldCount}>{value.length}/{max}</Text>
-      </View>
-      <TextInput
-        value={value}
-        onChangeText={(v) => onChange(v.slice(0, max))}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.textSubtle}
-        multiline={multiline}
-        style={[styles.input, multiline && { minHeight: 90, textAlignVertical: "top" }]}
-        textAlign="right"
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
+  header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
   iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
 
@@ -458,23 +595,30 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
 
   hero: { marginHorizontal: 16, marginTop: 6, backgroundColor: "#fff", borderRadius: 24, borderWidth: 1, borderColor: Colors.border, overflow: "hidden", alignItems: "center", paddingBottom: 18 },
-  cover: { alignSelf: "stretch", height: 96, overflow: "hidden" },
+  cover: { alignSelf: "stretch", height: 104, overflow: "hidden" },
   coverRing: { position: "absolute", width: 180, height: 180, borderRadius: 90, borderWidth: 26, borderColor: "#fff", opacity: 0.07, right: -40, top: -60 },
+  otw: { position: "absolute", top: 12, right: 12, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  otwText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: Colors.primaryDeep },
   avatarWrap: { marginTop: -54 },
   avatarFrame: { padding: 4, borderRadius: 36, backgroundColor: "#fff" },
   cameraBadge: { position: "absolute", bottom: 2, left: 2, width: 32, height: 32, borderRadius: 11, backgroundColor: Colors.primary, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
-  name: { fontFamily: "Cairo_700Bold", fontSize: 21, color: Colors.textPrimary, marginTop: 8, textAlign: "center", paddingHorizontal: 16 },
-  metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap", justifyContent: "center" },
+  onlineDot: { position: "absolute", bottom: 6, left: 6, width: 20, height: 20, borderRadius: 10, backgroundColor: "#22C55E", borderWidth: 3, borderColor: "#fff" },
+  nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8, paddingHorizontal: 16 },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 21, color: Colors.textPrimary, textAlign: "center" },
+  headline: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primaryDeep, textAlign: "center", paddingHorizontal: 20 },
+  metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap", justifyContent: "center", paddingHorizontal: 12 },
   rolePill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
   rolePillText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   metaText: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textMuted },
   locRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
   bio: { fontFamily: "Cairo_400Regular", fontSize: 14, lineHeight: 23, color: Colors.textSecondary, textAlign: "center", marginTop: 10, paddingHorizontal: 22 },
   bioEmpty: { color: Colors.textSubtle, fontStyle: "italic" },
-  stats: { flexDirection: "row-reverse", alignItems: "center", marginTop: 14, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 16, backgroundColor: Colors.bg },
-  stat: { alignItems: "center", minWidth: 90 },
+  socialRow: { flexDirection: "row-reverse", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 12, paddingHorizontal: 16 },
+  socialBtn: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  stats: { flexDirection: "row-reverse", alignItems: "center", marginTop: 14, paddingVertical: 10, paddingHorizontal: 10, borderRadius: 16, backgroundColor: Colors.bg, alignSelf: "stretch", marginHorizontal: 14, justifyContent: "space-around" },
+  stat: { alignItems: "center", minWidth: 56 },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.primaryDeep },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted },
   statDivider: { width: 1, height: 28, backgroundColor: Colors.border },
   heroActions: { flexDirection: "row-reverse", gap: 10, marginTop: 14, paddingHorizontal: 16, alignSelf: "stretch" },
 
@@ -485,16 +629,43 @@ const styles = StyleSheet.create({
 
   card: { marginHorizontal: 16, marginTop: 14, backgroundColor: "#fff", borderRadius: 22, borderWidth: 1, borderColor: Colors.border, padding: 16 },
   cardHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 8 },
+  cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 4 },
+  cardTitleNoMb: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   cardCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  hint: { fontFamily: "Cairo_400Regular", fontSize: 12.5, lineHeight: 20, color: Colors.textMuted, textAlign: "right" },
+  link: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.primary },
+  bar: { height: 8, borderRadius: 4, backgroundColor: Colors.bg, overflow: "hidden", marginVertical: 8, flexDirection: "row-reverse" },
+  barFill: { height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  missChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "0D", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  missText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primaryDeep },
 
-  fieldHead: { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 5 },
-  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
-  fieldCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSubtle },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 13, backgroundColor: Colors.bg, paddingHorizontal: 13, paddingVertical: Platform.OS === "web" ? 11 : 9, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
-  privateBox: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: Colors.bg, borderRadius: 12, padding: 10, marginBottom: 12 },
-  privateText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
-  formActions: { flexDirection: "row-reverse", gap: 10 },
+  verifyCard: { borderColor: VERIFIED_BLUE + "40", backgroundColor: "#F3F9FE" },
+  verifyIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: VERIFIED_BLUE + "18", alignItems: "center", justifyContent: "center" },
+
+  skill: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  skillMine: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  skillText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary },
+  skillCount: { minWidth: 20, paddingHorizontal: 5, height: 20, borderRadius: 10, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center" },
+  skillCountText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.primaryDeep },
+
+  addMini: { flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: Colors.primary, paddingHorizontal: 11, height: 30, borderRadius: 10 },
+  addMiniText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
+  emptyCert: { alignItems: "center", gap: 4, paddingVertical: 18, borderRadius: 16, borderWidth: 1.5, borderStyle: "dashed", borderColor: Colors.primary + "50", marginTop: 6, paddingHorizontal: 16 },
+  emptyCertTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.primaryDeep },
+  cert: { flexDirection: "row-reverse", gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: Colors.divider, alignItems: "flex-start" },
+  certThumb: { width: 58, height: 58, borderRadius: 12, backgroundColor: Colors.bg },
+  certKind: { fontFamily: "Cairo_700Bold", fontSize: 11, textAlign: "right" },
+  certTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
+  certMeta: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textMuted, textAlign: "right" },
+
+  cvCard: { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep },
+  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: "#fff" },
+  cvBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primaryDeep },
+
+  visitor: { width: 68, alignItems: "center", gap: 3 },
+  visitorName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, maxWidth: 56 },
+  visitorTime: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
 
   quickGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginHorizontal: 16, marginTop: 14 },
   quick: { width: "48%", flexGrow: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, alignItems: "flex-end", gap: 2 },
@@ -510,4 +681,8 @@ const styles = StyleSheet.create({
   postMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 4 },
   postStat: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
   postTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+
+  overlay: { flex: 1, backgroundColor: "rgba(10,20,16,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
+  qrCard: { backgroundColor: "#fff", borderRadius: 24, padding: 20, alignItems: "center", width: "100%", maxWidth: 360 },
+  previewClose: { position: "absolute", top: 50, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: "#ffffff25", alignItems: "center", justifyContent: "center" },
 });

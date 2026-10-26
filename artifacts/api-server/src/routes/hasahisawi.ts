@@ -1,3 +1,4 @@
+import { ensureProfilePlus } from "./profile-plus";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import { Pool } from "pg";
@@ -3214,10 +3215,12 @@ router.get("/posts", async (req: Request, res: Response) => {
     const offsetParam = `$${paramIndex++}`;
     params.push(limitNum, offsetNum);
 
+    await ensureProfilePlus().catch(() => {});
     const sql = `
       SELECT
         p.*,
         u.avatar_url AS author_avatar,
+        COALESCE(u.is_verified, false) AS author_verified,
         COUNT(DISTINCT l.id)::int AS likes_count,
         COUNT(DISTINCT c.id)::int AS comments_count,
         CASE WHEN EXISTS(
@@ -3228,7 +3231,7 @@ router.get("/posts", async (req: Request, res: Response) => {
       LEFT JOIN social_likes l ON l.post_id=p.id
       LEFT JOIN social_comments c ON c.post_id=p.id
       ${whereClause}
-      GROUP BY p.id, u.avatar_url
+      GROUP BY p.id, u.avatar_url, u.is_verified
       ORDER BY p.created_at DESC
       LIMIT ${limitParam} OFFSET ${offsetParam}
     `;
