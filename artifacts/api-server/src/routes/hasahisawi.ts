@@ -1,4 +1,6 @@
 import { ensureProfilePlus } from "./profile-plus";
+import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
+import { canManageZawajil, notifyZawajilManagers } from "./zawajil-admin";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import { Pool } from "pg";
@@ -2340,6 +2342,12 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
+/** إدارة زواجل: الإدارة (أو رمز PIN) أو مدير مفوّض للقسم */
+async function canZawajilRequest(req: Request): Promise<boolean> {
+  if (await isAdminRequest(req)) return true;
+  try { return await canManageZawajil((await getSessionUser(req)) as any); } catch { return false; }
+}
+
 async function isAdminRequest(req: Request): Promise<boolean> {
   try {
     const user = await getSessionUser(req);
@@ -3375,20 +3383,47 @@ router.post("/posts/:id/like", writeLimiter, async (req: Request, res: Response)
 // Push Tokens — تسجيل وتحديث رمز الإشعارات
 // ══════════════════════════════════════════════════════
 
+// إزالة رمز الجهاز عند تسجيل الخروج (حتى لا تصل إشعارات الحساب لجهاز خرج منه)
+router.post("/push-tokens/remove", async (req: Request, res: Response) => {
+  try {
+    const me = await getSessionUser(req);
+    if (!me) return res.status(401).json({ error: "غير مصرح" });
+    const token = String(req.body?.token || "");
+    if (token) await query(`DELETE FROM push_tokens WHERE user_id=$1 AND token=$2`, [me.id, token]);
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "route error"); return res.status(500).json({ error: "Server error" }); }
+});
+
 router.post("/push-tokens", writeLimiter, async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me) return res.status(401).json({ error: "غير مصرح" });
-    const { token, platform } = req.body as { token: string; platform?: string };
+    const { token, platform, channel_ver } = req.body as { token: string; platform?: string; channel_ver?: number };
     if (!token || !token.startsWith("ExponentPushToken[")) {
       return res.status(400).json({ error: "رمز إشعار غير صالح" });
     }
-    await query(
-      `INSERT INTO push_tokens (user_id, token, platform, updated_at)
-       VALUES ($1,$2,$3,NOW())
-       ON CONFLICT (user_id) DO UPDATE SET token=$2, platform=$3, updated_at=NOW()`,
-      [me.id, token, platform || "android"]
-    );
+    const ver = Math.min(Math.max(Number(channel_ver) || 2, 2), 9);
+    let multi = true;
+    await ensurePushCols().catch(() => { multi = false; });
+    if (multi) {
+      // كل جهاز برمزه؛ إن انتقل الجهاز لحساب آخر يُنقل الرمز معه
+      await query(
+        `INSERT INTO push_tokens (user_id, token, platform, channel_ver, updated_at)
+         VALUES ($1,$2,$3,$4,NOW())
+         ON CONFLICT (token) DO UPDATE SET user_id=$1, platform=$3, channel_ver=$4, updated_at=NOW()`,
+        [me.id, token, platform || "android", ver]
+      );
+      // نحتفظ بآخر 5 أجهزة فقط لكل مستخدم
+      await query(`DELETE FROM push_tokens WHERE user_id=$1 AND id NOT IN (SELECT id FROM push_tokens WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 5)`, [me.id]).catch(() => {});
+    } else {
+      await query(
+        `INSERT INTO push_tokens (user_id, token, platform, updated_at)
+         VALUES ($1,$2,$3,NOW())
+         ON CONFLICT (user_id) DO UPDATE SET token=$2, platform=$3, updated_at=NOW()`,
+        [me.id, token, platform || "android"]
+      );
+    }
+    forgetPushToken(token);
     return res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "route error");
@@ -13594,11 +13629,9 @@ router.post("/zawajil/orders", async (req: Request, res: Response) => {
     const countR = await query(`SELECT COUNT(*) FROM zawajil_orders`);
     const n = parseInt(countR.rows[0].count) + 1;
     const orderNumber = `ZWJ-${new Date().getFullYear()}-${String(n).padStart(4,"0")}`;
+    // صاحب الطلب من جلسة الدخول (لإيصال إشعارات حالة الطلب إليه)
     let senderId: number | null = null;
-    const auth = req.headers.authorization;
-    if (auth?.startsWith("Bearer ") && !auth.startsWith("Bearer tc_")) {
-      try { const p = JSON.parse(Buffer.from(auth.slice(7).split(".")[1],"base64").toString()); senderId = p.userId || null; } catch { /* ignore */ }
-    }
+    try { const su = await getSessionUser(req); senderId = su?.id ? Number(su.id) : null; } catch { /* ignore */ }
     const r = await query(`INSERT INTO zawajil_orders
       (order_number,sender_id,sender_name,sender_phone,sender_anonymous,recipient_name,recipient_phone,recipient_address,
        delivery_location,service_type,occasion_type,message_text,message_by_us,voice_presentation,
@@ -13609,6 +13642,8 @@ router.post("/zawajil/orders", async (req: Request, res: Response) => {
        service_type,occasion_type||null,message_text||null,Boolean(message_by_us),Boolean(voice_presentation),
        gift_type||"none",gift_product_id||null,gift_product_name||null,gift_external_desc||null,
        gift_money_amount||0,true]);
+    const SVC: Record<string,string> = { hamasat_itab: "همسات عتاب", nifaj: "نفاج", shoubash: "شوبش", tabrikat: "تبريكات", salamat: "سلامات" };
+    await notifyZawajilManagers("💌 طلب زواجل جديد", `${r.rows[0].order_number} · ${SVC[service_type] || service_type} إلى ${recipient_name}`, { order_id: r.rows[0].id });
     return res.status(201).json(r.rows[0]);
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -13627,6 +13662,7 @@ router.post("/zawajil/apply", async (req: Request, res: Response) => {
       [role, gender||null, full_name.trim(), phone.trim(), age ? parseInt(age) : null,
        neighborhood||null, experience||null, notes||null, samples_url||null]
     );
+    await notifyZawajilManagers("🙋 طلب انضمام لزواجل", `${full_name.trim()} — ${role}`, { application_id: r.rows[0].id });
     return res.status(201).json({ ok: true, id: r.rows[0].id });
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -13657,7 +13693,7 @@ router.post("/zawajil/shoubash-guests", async (req: Request, res: Response) => {
 });
 
 router.get("/admin/zawajil/orders", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureZawajilTables();
     const { status } = req.query as Record<string,string>;
@@ -13670,7 +13706,7 @@ router.get("/admin/zawajil/orders", async (req: Request, res: Response) => {
 });
 
 router.patch("/admin/zawajil/orders/:id/review", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureZawajilTables();
     const { action, admin_notes, rejection_reason, modification_request, estimated_cost } = req.body;
@@ -13700,7 +13736,7 @@ router.patch("/admin/zawajil/orders/:id/review", async (req: Request, res: Respo
 });
 
 router.patch("/admin/zawajil/orders/:id/status", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureZawajilTables();
     const { status, admin_notes } = req.body;
@@ -13729,7 +13765,7 @@ router.patch("/admin/zawajil/orders/:id/status", async (req: Request, res: Respo
 });
 
 router.get("/admin/zawajil/products", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureZawajilTables();
     const r = await query(`SELECT * FROM zawajil_products ORDER BY sort_order,name`);
@@ -13738,7 +13774,7 @@ router.get("/admin/zawajil/products", async (req: Request, res: Response) => {
 });
 
 router.post("/admin/zawajil/products", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await ensureZawajilTables();
     const { name, description, price, category, image_url, is_available, sort_order } = req.body;
@@ -13750,7 +13786,7 @@ router.post("/admin/zawajil/products", async (req: Request, res: Response) => {
 });
 
 router.patch("/admin/zawajil/products/:id", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     const { name, description, price, category, image_url, is_available, sort_order } = req.body;
     const r = await query(`UPDATE zawajil_products SET name=COALESCE($1,name),description=COALESCE($2,description),price=COALESCE($3::numeric,price),category=COALESCE($4,category),image_url=COALESCE($5,image_url),is_available=COALESCE($6,is_available),sort_order=COALESCE($7::int,sort_order) WHERE id=$8 RETURNING *`,
@@ -13760,7 +13796,7 @@ router.patch("/admin/zawajil/products/:id", async (req: Request, res: Response) 
 });
 
 router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     await query(`DELETE FROM zawajil_products WHERE id=$1`, [req.params.id]);
     return res.json({ success: true });
@@ -13769,7 +13805,7 @@ router.delete("/admin/zawajil/products/:id", async (req: Request, res: Response)
 
 // PATCH /api/admin/zawajil/orders/:id/assign — assign a zaajil courier to order
 router.patch("/admin/zawajil/orders/:id/assign", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     const { zaajil_id, zaajil_name, zaajil_phone, delivery_notes, pickup_time } = req.body as any;
     const r = await query(
@@ -13789,7 +13825,7 @@ router.patch("/admin/zawajil/orders/:id/assign", async (req: Request, res: Respo
 
 // PATCH /api/admin/zawajil/orders/:id/complete-delivery — mark as delivered
 router.patch("/admin/zawajil/orders/:id/complete-delivery", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     const { delivery_notes } = req.body as any;
     await query(
@@ -13802,7 +13838,7 @@ router.patch("/admin/zawajil/orders/:id/complete-delivery", async (req: Request,
 
 // GET /api/admin/zawajil/zaajileen — list approved zaajil (couriers) for assignment
 router.get("/admin/zawajil/zaajileen", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     const r = await query(`SELECT id, full_name, phone, neighborhood, experience FROM zawajil_applications WHERE role='zaajil' AND status='approved' ORDER BY full_name`);
     return res.json({ zaajileen: r.rows });
@@ -13811,7 +13847,7 @@ router.get("/admin/zawajil/zaajileen", async (req: Request, res: Response) => {
 
 // GET /api/admin/zawajil/applications
 router.get("/admin/zawajil/applications", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     const role = req.query.role as string;
     const where = role ? `WHERE role=$1` : "";
@@ -13826,7 +13862,7 @@ router.get("/admin/zawajil/applications", async (req: Request, res: Response) =>
 
 // PATCH /api/admin/zawajil/applications/:id/status
 router.patch("/admin/zawajil/applications/:id/status", async (req: Request, res: Response) => {
-  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  if (!await canZawajilRequest(req)) return res.status(403).json({ error: "غير مصرح" });
   try {
     const { status, notes } = req.body as any;
     if (!["approved","rejected","pending"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });

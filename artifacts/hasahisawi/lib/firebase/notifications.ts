@@ -3,25 +3,30 @@ import { getApiUrl } from "@/lib/query-client";
 
 // ── إصدار القنوات — ارفع الرقم عند تغيير إعدادات الصوت ──────────────────────
 // Android يجمّد إعدادات القناة بعد أول إنشاء؛ تغيير الإصدار يُجبر إعادة البناء
-const CHANNEL_VERSION     = "6";
+const CHANNEL_VERSION     = "7";
+/** إصدار القنوات الذي يُبلَّغ به الخادم ليختار القناة الصحيحة لكل جهاز */
+export const PUSH_CHANNEL_VER = 3;
 const CHANNEL_VERSION_KEY = "@hasahisawi/notif_ch_v";
 
 // ── معرّفات قنوات التنبيه (Android) ─────────────────────────────────────────
+// الجيل الثالث (-s3): كل القنوات تنبيه منبثق بصوت حتى والتطبيق مغلق
 export const CHANNELS = {
-  DEFAULT:   "hasahisawi-default-s2",
-  CHAT:      "hasahisawi-chat-s2",
-  URGENT:    "hasahisawi-urgent-s2",
-  TRANSPORT: "hasahisawi-transport-s2",
-  PRAYER:    "hasahisawi-prayer-s2",
+  DEFAULT:   "hasahisawi-default-s3",
+  CHAT:      "hasahisawi-chat-s3",
+  URGENT:    "hasahisawi-urgent-s3",
+  TRANSPORT: "hasahisawi-transport-s3",
+  PRAYER:    "hasahisawi-prayer-s3",
+  CALL:      "hasahisawi-call-s3",
 } as const;
 
 // نغمة مخصصة لكل قناة (اسم الملف بدون امتداد)
 const CHANNEL_SOUNDS: Record<string, string> = {
-  "hasahisawi-default-s2":   "hasahisawi_notif",
-  "hasahisawi-chat-s2":      "hasahisawi_chat",
-  "hasahisawi-urgent-s2":    "hasahisawi_urgent",
-  "hasahisawi-transport-s2": "hasahisawi_urgent",
-  "hasahisawi-prayer-s2":    "hasahisawi_prayer",
+  "hasahisawi-default-s3":   "hasahisawi_notif",
+  "hasahisawi-chat-s3":      "hasahisawi_chat",
+  "hasahisawi-urgent-s3":    "hasahisawi_urgent",
+  "hasahisawi-transport-s3": "hasahisawi_urgent",
+  "hasahisawi-prayer-s3":    "hasahisawi_prayer",
+  "hasahisawi-call-s3":      "hasahisawi_ring",
 };
 
 // للتوافق مع الكود القديم
@@ -46,14 +51,15 @@ async function ensureAndroidChannels(
     if (stored !== CHANNEL_VERSION) {
       // Android يستعيد إعدادات القناة المحذوفة إذا أُعيد إنشاؤها بنفس المعرّف (ومنها كتم الصوت)،
       // لذلك انتقلنا لمعرّفات جديدة (-s2) ونحذف القديمة فقط حتى لا تتكرر في الإعدادات.
-      for (const id of ["hasahisawi-default", "hasahisawi-chat", "hasahisawi-urgent", "hasahisawi-transport", "hasahisawi-prayer"]) {
-        await Notifications.deleteNotificationChannelAsync(id).catch(() => {});
+      for (const base of ["hasahisawi-default", "hasahisawi-chat", "hasahisawi-urgent", "hasahisawi-transport", "hasahisawi-prayer"]) {
+        await Notifications.deleteNotificationChannelAsync(base).catch(() => {});
       }
     }
 
     await Notifications.setNotificationChannelAsync(CHANNELS.DEFAULT, {
       name: "حصاحيصاوي — تنبيهات عامة",
-      importance: Notifications.AndroidImportance.DEFAULT,
+      description: "إشعارات الطلبات والتحديثات والخدمات",
+      importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 200, 100, 200],
       lightColor: "#22C55E",
       enableLights: true,
@@ -66,7 +72,7 @@ async function ensureAndroidChannels(
     await Notifications.setNotificationChannelAsync(CHANNELS.CHAT, {
       name: "حصاحيصاوي — رسائل",
       description: "رسائل الدردشة والمحادثات",
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 100, 80, 100, 80, 100],
       lightColor: "#3B82F6",
       enableLights: true,
@@ -117,6 +123,21 @@ async function ensureAndroidChannels(
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
+    await Notifications.setNotificationChannelAsync(CHANNELS.CALL, {
+      name: "حصاحيصاوي — مكالمات صوتية",
+      description: "رنين المكالمات الواردة عبر الإنترنت",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 900, 700, 900, 700, 900, 700, 900],
+      lightColor: "#22C55E",
+      enableLights: true,
+      enableVibrate: true,
+      showBadge: false,
+      sound: CHANNEL_SOUNDS[CHANNELS.CALL],
+      bypassDnd: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      audioAttributes: { usage: Notifications.AndroidAudioUsage.NOTIFICATION_RINGTONE, contentType: Notifications.AndroidAudioContentType.SONIFICATION },
+    } as any);
+
     // احفظ الإصدار الجديد بعد نجاح الإنشاء
     if (stored !== CHANNEL_VERSION) {
       await AsyncStorage.setItem(CHANNEL_VERSION_KEY, CHANNEL_VERSION).catch(() => {});
@@ -132,6 +153,10 @@ async function setupHandler(
     handleNotification: async (notification) => {
       const channelId = (notification.request.content.data as any)?.channelId as string | undefined;
       const isUrgent  = channelId === CHANNELS.URGENT || channelId === CHANNELS.TRANSPORT;
+      // المكالمة الواردة والتطبيق مفتوح: شاشة الرنين داخل التطبيق تكفي
+      if ((notification.request.content.data as any)?.type === "call") {
+        return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: true };
+      }
       return {
         shouldShowAlert:  true,
         shouldPlaySound:  true,
@@ -144,6 +169,18 @@ async function setupHandler(
       };
     },
   });
+}
+
+let lastPushToken: string | null = null;
+/** فصل الجهاز عن الحساب عند تسجيل الخروج */
+export async function unregisterPushToken(authToken: string): Promise<void> {
+  if (Platform.OS === "web" || !lastPushToken) return;
+  try {
+    await fetch(`${getApiUrl()}/api/push-tokens/remove`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ token: lastPushToken }),
+    });
+  } catch {}
 }
 
 // ── تسجيل Push Token ─────────────────────────────────────────────────────────
@@ -191,9 +228,10 @@ export async function registerForPushNotifications(
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ token, platform: Platform.OS }),
+        body: JSON.stringify({ token, platform: Platform.OS, channel_ver: PUSH_CHANNEL_VER }),
       }).catch(() => {});
     }
+    lastPushToken = token;
 
     return token;
   } catch {
@@ -269,6 +307,8 @@ export async function scheduleOccasionReminder(
   return scheduleLocalNotification(notification, delaySeconds);
 }
 
+const handledResponses = new Set<string | undefined>();
+
 // ── الاستماع للإشعارات الواردة والمضغوط عليها ────────────────────────────────
 export function addNotificationListener(
   onReceive?: (notification: import("expo-notifications").Notification) => void,
@@ -286,9 +326,19 @@ export function addNotificationListener(
       onReceive?.(notification);
     });
     responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      handledResponses.add(response?.notification?.request?.identifier);
       const data = (response?.notification?.request?.content?.data ?? {}) as Record<string, unknown>;
       onResponse?.(data);
     });
+    // فتح التطبيق المغلق بالضغط على إشعار: نوجّه المستخدم لوجهته بعد اكتمال التحميل
+    Notifications.getLastNotificationResponseAsync().then((r) => {
+      const id = r?.notification?.request?.identifier;
+      if (!r || cancelled || !id || handledResponses.has(id)) return;
+      if (Date.now() - (r.notification.date || 0) > 10 * 60 * 1000) return;
+      handledResponses.add(id);
+      const data = (r.notification.request.content.data ?? {}) as Record<string, unknown>;
+      setTimeout(() => onResponse?.(data), 600);
+    }).catch(() => {});
   }).catch(() => {});
 
   return () => {

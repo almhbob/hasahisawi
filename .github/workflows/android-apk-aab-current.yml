@@ -185,6 +185,7 @@ jobs:
           cp "$SRC/hasahisawi_urgent.wav" "$DEST/hasahisawi_urgent.wav"
           cp "$SRC/hasahisawi_prayer.wav" "$DEST/hasahisawi_prayer.wav"
           cp "$SRC/adhan.mp3" "$DEST/hasahisawi_adhan_full.mp3"
+          cp "$SRC/hasahisawi_ring.mp3" "$DEST/hasahisawi_ring.mp3"
           # أصوات أذان إضافية (مثل صوت شيخ سوداني) توضع في assets/sounds/adhan/<name>.mp3
           if [ -d "$SRC/adhan" ]; then for f in "$SRC"/adhan/*.mp3; do [ -f "$f" ] && cp "$f" "$DEST/hasahisawi_adhan_$(basename "$f")"; done; fi
 
