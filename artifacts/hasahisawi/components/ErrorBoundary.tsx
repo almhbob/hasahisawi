@@ -13,6 +13,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    // إبلاغ الخادم بالخطأ (يظهر في سجل الخادم للتشخيص)
+    try {
+      const { getApiUrl } = require("@/lib/query-client");
+      fetch(`${getApiUrl()}/api/client-errors`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: String(error?.message || error).slice(0, 500), stack: String(error?.stack || "").slice(0, 2000), component: String(info?.componentStack || "").slice(0, 2000) }),
+      }).catch(() => {});
+    } catch {}
   }
 
   reset = () => this.setState({ error: null });

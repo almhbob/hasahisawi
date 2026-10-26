@@ -3018,7 +3018,7 @@ export default function AdminDashboard() {
 
   const isAdmin = user?.role === "admin";
   const isMod   = user?.role === "moderator";
-  const modPerms = (user?.permissions ?? []) as string[];
+  const modPerms = (Array.isArray(user?.permissions) ? user!.permissions : []) as string[];
 
   useEffect(() => {
     if (authLoading) return;
@@ -3945,7 +3945,10 @@ export default function AdminDashboard() {
     setPermModal(u);
     try {
       const res = await apiFetch(`/api/admin/users/${u.id}/permissions`, token);
-      if (res.ok) setPermSections(await safeJson(res));
+      if (res.ok) {
+        const d: any = await safeJson(res);
+        setPermSections(Array.isArray(d) ? d : Array.isArray(d?.sections) ? d.sections : []);
+      }
       else setPermSections([]);
     } catch { setPermSections([]); }
   };
@@ -4407,6 +4410,15 @@ export default function AdminDashboard() {
                 <Text style={[uc.secBtnTxt, { color: "#F0A500" }]}>الصلاحيات</Text>
               </TouchableOpacity>
             )}
+
+            {/* الملف الشخصي (عرض الإدارة) */}
+            <TouchableOpacity
+              style={[uc.secBtn, { borderColor: "#1D9BF040", backgroundColor: "#1D9BF012" }]}
+              onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(u.id) } })}
+            >
+              <Ionicons name="person-circle-outline" size={14} color="#1D9BF0" />
+              <Text style={[uc.secBtnTxt, { color: "#1D9BF0" }]}>الملف</Text>
+            </TouchableOpacity>
 
             {/* Change role */}
             <TouchableOpacity
@@ -7886,6 +7898,18 @@ export default function AdminDashboard() {
                         </View>
                       ) : null}
                     </View>
+
+                    {/* الملف الشخصي الكامل (للإدارة والمشرفين) */}
+                    {statsUser && (
+                      <TouchableOpacity
+                        style={[ps.confirmBtn, { backgroundColor: "#1D9BF0", marginBottom: 10 }]}
+                        onPress={() => { const id = statsUser.id; setStatsUser(null); setUserStats(null); router.push({ pathname: "/profile" as any, params: { id: String(id) } }); }}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="person-circle-outline" size={18} color="#fff" />
+                        <Text style={ps.confirmBtnTxt}>فتح الملف الشخصي</Text>
+                      </TouchableOpacity>
+                    )}
 
                     {/* أزرار الإجراءات */}
                     {isAdmin && statsUser && (

@@ -3226,6 +3226,15 @@ router.get("/posts", async (req: Request, res: Response) => {
     params.push(limitNum, offsetNum);
 
     await ensureProfilePlus().catch(() => {});
+    // منشورات صاحب ملف مقفل لا تُعرض في ملفه إلا له وللإدارة
+    if (user_id) {
+      const lk = await query(`SELECT profile_locked FROM users WHERE id=$1`, [Number(user_id)]).catch(() => ({ rows: [] as any[] }));
+      if (lk.rows[0]?.profile_locked) {
+        const viewer = await getSessionUser(req).catch(() => null);
+        const allowed = viewer && (Number(viewer.id) === Number(user_id) || viewer.role === "admin" || viewer.role === "moderator");
+        if (!allowed) return res.json([]);
+      }
+    }
     const sql = `
       SELECT
         p.*,

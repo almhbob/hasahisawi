@@ -26,7 +26,7 @@ export function ensureProfilePlus(): Promise<void> {
         "skills JSONB NOT NULL DEFAULT '[]'::jsonb", "social_links JSONB NOT NULL DEFAULT '{}'::jsonb",
         "open_to_work BOOLEAN NOT NULL DEFAULT FALSE", "show_certs BOOLEAN NOT NULL DEFAULT TRUE",
         "is_verified BOOLEAN NOT NULL DEFAULT FALSE", "verified_at TIMESTAMPTZ", "verified_label VARCHAR(80)",
-        "cover_theme VARCHAR(20)", "bio TEXT", "neighborhood VARCHAR(100)",
+        "cover_theme VARCHAR(20)", "bio TEXT", "neighborhood VARCHAR(100)", "profile_locked BOOLEAN NOT NULL DEFAULT FALSE",
         "last_seen_at TIMESTAMPTZ", "show_presence BOOLEAN NOT NULL DEFAULT TRUE",
       ]) await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`);
       await query(`CREATE TABLE IF NOT EXISTS user_certificates (
@@ -169,14 +169,24 @@ function completeness(u: any, certs: number, avatar: boolean) {
   return { percent: Math.round((done / items.length) * 100), missing: items.filter(([ok]) => !ok).map(([, l]) => l) };
 }
 
-async function loadFull(id: number, viewerId: number | null) {
+async function loadFull(id: number, viewerId: number | null, viewerStaff = false) {
   const u = (await query(
-    `SELECT id, name, role, avatar_url, created_at, bio, neighborhood, headline, profession, skills, social_links,
+    `SELECT id, name, role, avatar_url, created_at, bio, neighborhood, headline, profession, skills, social_links, profile_locked, phone, email,
             open_to_work, show_certs, is_verified, verified_at, verified_label, cover_theme, show_presence, last_seen_at,
             (show_presence AND last_seen_at > NOW() - make_interval(secs => ${ONLINE_SEC})) AS online
        FROM users WHERE id=$1 AND COALESCE(is_banned,false)=false`, [id])).rows[0];
   if (!u) return null;
   const own = viewerId === id;
+  // 🔒 الملف المقفل: لا يرى غير صاحبه والإدارة إلا الاسم والصورة والتوثيق
+  if (u.profile_locked && !own && !viewerStaff) {
+    return {
+      id: u.id, name: u.name, role: u.role, avatar_url: u.avatar_url, created_at: u.created_at,
+      is_verified: u.is_verified, verified_label: u.verified_label, locked: true,
+      online: false, last_seen_at: null, bio: null, neighborhood: null, headline: null, profession: null,
+      skills: [], social_links: {}, open_to_work: false, show_certs: false, cover_theme: null, verified_at: null,
+      certificates: [], posts_count: 0, reports_count: 0, endorsers_count: 0,
+    };
+  }
   const [certs, endorse, counts, views, verif] = await Promise.all([
     query(`SELECT id, kind, title, issuer, issued_on, credential_id, credential_url, file_url, file_type, is_public, reviewed, created_at
              FROM user_certificates WHERE user_id=$1 ${own ? "" : "AND is_public"} ORDER BY sort_order, issued_on DESC NULLS LAST, id DESC`, [id]),
@@ -195,12 +205,15 @@ async function loadFull(id: number, viewerId: number | null) {
     bio: u.bio, neighborhood: u.neighborhood, headline: u.headline, profession: u.profession,
     skills: skills.map((s) => ({ name: s, count: (emap.get(s) as any)?.n || 0, mine: !!(emap.get(s) as any)?.mine })),
     social_links: u.social_links || {}, open_to_work: u.open_to_work, show_certs: u.show_certs,
+    profile_locked: !!u.profile_locked, locked: false,
     is_verified: u.is_verified, verified_label: u.verified_label, verified_at: u.verified_at, cover_theme: u.cover_theme,
     online: u.show_presence ? !!u.online : false, last_seen_at: u.show_presence ? u.last_seen_at : null,
     certificates: certRows,
     posts_count: counts.rows[0]?.posts ?? 0, reports_count: counts.rows[0]?.reports ?? 0,
     endorsers_count: counts.rows[0]?.endorsers ?? 0,
   };
+  // عرض الإدارة: بيانات التواصل الخاصة
+  if (viewerStaff && !own) out.admin_contact = { phone: u.phone || null, email: u.email || null, neighborhood: u.neighborhood || null };
   if (own) {
     out.views_30d = views.rows[0]?.n ?? 0;
     out.verification = verif.rows[0] || null;
@@ -215,7 +228,7 @@ router.get("/profile/:id/full", async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(404).json({ error: "المستخدم غير موجود" });
     const me = await sessionUser(req);
-    const p = await loadFull(id, me ? Number(me.id) : null);
+    const p = await loadFull(id, me ? Number(me.id) : null, isStaff(me));
     if (!p) return res.status(404).json({ error: "المستخدم غير موجود" });
     if (me && Number(me.id) !== id) {
       query(`INSERT INTO profile_views (user_id, viewer_id) VALUES ($1,$2)
@@ -240,6 +253,7 @@ router.patch("/profile/me", async (req: Request, res: Response) => {
     if ("skills" in b) set("skills", JSON.stringify(cleanSkills(b.skills)));
     if ("open_to_work" in b) set("open_to_work", !!b.open_to_work);
     if ("show_certs" in b) set("show_certs", b.show_certs !== false);
+    if ("profile_locked" in b) set("profile_locked", !!b.profile_locked);
     if ("cover_theme" in b) set("cover_theme", str(b.cover_theme, 20) || null);
     if ("social_links" in b) {
       const links: Record<string, string> = {};
@@ -436,6 +450,7 @@ router.get("/public/cv/:id", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=120");
     if (!p) return res.status(404).send(`<!doctype html><meta charset="utf-8"><body dir="rtl" style="font-family:sans-serif;padding:40px">الملف غير موجود</body>`);
+    if ((p as any).locked) return res.status(200).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body dir="rtl" style="font-family:Cairo,sans-serif;padding:40px;text-align:center;background:#F4F7F5"><div style="font-size:42px">🔒</div><h2>${esc(p.name)}</h2><p style="color:#6B7C74">قفل صاحب الملف ملفه الشخصي، لذلك لا تظهر تفاصيله للعامة.</p></body>`);
     const certs = (p.certificates as any[]).map((c) => `
       <div class="cert">
         <div class="k">${esc(KIND_AR[c.kind] || "")}</div>

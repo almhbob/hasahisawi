@@ -274,4 +274,11 @@ router.get("/calls/:id/signals", async (req, res) => {
 
 
 
+// ── أخطاء واجهة التطبيق (تُسجّل في سجل الخادم للتشخيص) ─────────
+router.post("/client-errors", (req: Request, res: Response) => {
+  const b = req.body || {};
+  logger.error({ clientError: { message: String(b.message || "").slice(0, 500), stack: String(b.stack || "").slice(0, 2000), component: String(b.component || "").slice(0, 2000), ua: String(req.headers["user-agent"] || "").slice(0, 120) } }, "[client-error] " + String(b.message || "").slice(0, 200));
+  return res.json({ ok: true });
+});
+
 export default router;
