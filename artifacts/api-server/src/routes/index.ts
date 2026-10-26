@@ -18,6 +18,7 @@ import providerListingsRouter from "./provider-listings";
 import chatPlusRouter from "./chat-plus";
 import profilePlusRouter from "./profile-plus";
 import callsRouter from "./calls";
+import zawajilAdminRouter from "./zawajil-admin";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,7 @@ router.use(providerListingsRouter);
 router.use(chatPlusRouter);
 router.use(profilePlusRouter);
 router.use(callsRouter);
+router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);

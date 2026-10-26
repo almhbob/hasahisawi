@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { globalLimiter } from "./lib/rate-limiters";
+import { installPushNormalizer } from "./lib/push-normalize";
+
+installPushNormalizer();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

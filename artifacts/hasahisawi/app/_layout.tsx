@@ -205,6 +205,7 @@ function AuthGate() {
         }
 
         // ── زواجيل ──
+        if (screen === "zawajil-manager") { router.push("/(tabs)/zawajil-manager" as any); return; }
         if (screen === "zawajil" || type === "zawajil") {
           router.push("/zawajil" as any);
           return;
@@ -278,6 +279,29 @@ function PresenceBeat() {
   useEffect(() => { const t = setTimeout(() => { rescheduleAdhanFromCache(); }, 4000); return () => clearTimeout(t); }, []);
   const { token, isGuest } = useAuth();
   usePresencePing(isGuest ? null : token);
+  // تنبيه لمرة واحدة: استثناء التطبيق من توفير البطارية حتى تصل الإشعارات والمكالمات والتطبيق مغلق
+  useEffect(() => {
+    if (Platform.OS !== "android" || isGuest || !token) return;
+    const t = setTimeout(async () => {
+      try {
+        const AS = (await import("@react-native-async-storage/async-storage")).default;
+        if (await AS.getItem("hsh_battery_tip_v1")) return;
+        await AS.setItem("hsh_battery_tip_v1", "1");
+        const { Alert, Linking } = await import("react-native");
+        Alert.alert(
+          "🔔 لا تفوّتك أي رسالة أو مكالمة",
+          "لتصلك الإشعارات بصوت والمكالمات حتى والتطبيق مغلق، اسمح لحصاحيصاوي بالعمل في الخلفية:\n\n• البطارية ← «غير مقيّد» أو «بدون قيود»\n• الإشعارات ← مفعّلة لكل الفئات",
+          [
+            { text: "لاحقاً", style: "cancel" },
+            { text: "إعدادات الإشعارات", onPress: () => Linking.openSettings().catch(() => {}) },
+            { text: "إعدادات البطارية", onPress: () => Linking.sendIntent("android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS").catch(() => Linking.openSettings().catch(() => {})) },
+          ],
+        );
+      } catch {}
+    }, 9000);
+    return () => clearTimeout(t);
+  }, [token, isGuest]);
+
   // مراقبة المكالمات الواردة أثناء فتح التطبيق (احتياطاً إن تأخّر الإشعار)
   const nav = useRouter();
   useEffect(() => {

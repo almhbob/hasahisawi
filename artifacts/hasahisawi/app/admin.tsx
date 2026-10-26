@@ -6985,7 +6985,20 @@ export default function AdminDashboard() {
           ── زواجل
       ═══════════════════════════════════════════════════════ */}
       {tab === "zawajil" && isAdmin && (
-        <AdminZawajilTab token={token!} apiBase={getApiUrl()} />
+        <>
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/zawajil-manager" as any)}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#B8336A", marginHorizontal: 16, marginTop: 12, padding: 14, borderRadius: 16 }}
+          >
+            <Ionicons name="gift" size={20} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#fff", textAlign: "right" }}>لوحة إدارة زواجل الكاملة</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#ffffffD0", textAlign: "right" }}>الطلبات، المتجر، الانضمام، وتفويض المشرفين</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color="#fff" />
+          </TouchableOpacity>
+          <AdminZawajilTab token={token!} apiBase={getApiUrl()} />
+        </>
       )}
 
       {/* ═══════════════════════════════════════════════════════

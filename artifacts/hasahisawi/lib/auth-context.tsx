@@ -267,7 +267,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       const base = getApiUrl();
-      if (base && token) await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (base && token) {
+        await (await import("@/lib/firebase/notifications")).unregisterPushToken(token).catch(() => {});
+        await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      }
     } catch {}
     setUser(null); setToken(null); setIsGuest(false);
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY, GUEST_KEY]);

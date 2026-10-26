@@ -39,6 +39,8 @@ export default function CallScreen() {
   const [secs, setSecs] = useState(0);
   const [endText, setEndText] = useState("");
   const [webOn, setWebOn] = useState(false);
+  const [speaker, setSpeaker] = useState(true);
+  const [reconnecting, setReconnecting] = useState(false);
   const web = useRef<WebView>(null);
   const ring = useRef<any>(null);
   const finished = useRef(false);
@@ -52,13 +54,15 @@ export default function CallScreen() {
     const s = ring.current; ring.current = null;
     if (s) { s.stopAsync().catch(() => {}); s.unloadAsync().catch(() => {}); }
   }, []);
-  const startRing = useCallback(async () => {
+  // kind: "incoming" نغمة رنين + اهتزاز | "ringback" نغمة الانتظار للمتصل
+  const startRing = useCallback(async (kind: "incoming" | "ringback" = "incoming") => {
     if (Platform.OS === "web") return;
-    Vibration.vibrate([0, 900, 700], true);
+    if (kind === "incoming") Vibration.vibrate([0, 900, 700], true);
     try {
       const { Audio } = await import("expo-av");
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: false, staysActiveInBackground: false });
-      const { sound } = await Audio.Sound.createAsync(require("../assets/sounds/hasahisawi_urgent.wav"), { shouldPlay: true, isLooping: true, volume: 1 });
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: false, staysActiveInBackground: false, playThroughEarpieceAndroid: false });
+      const src = kind === "incoming" ? require("../assets/sounds/hasahisawi_ring.mp3") : require("../assets/sounds/ringback.wav");
+      const { sound } = await Audio.Sound.createAsync(src, { shouldPlay: true, isLooping: true, volume: kind === "incoming" ? 1 : 0.6 });
       if (finished.current) { sound.unloadAsync().catch(() => {}); return; }
       ring.current = sound;
     } catch {}
@@ -73,6 +77,23 @@ export default function CallScreen() {
     setPhase("ended");
     setTimeout(() => { if (router.canGoBack()) router.back(); else router.replace("/(tabs)/chat" as any); }, 1400);
   }, [stopRing]);
+
+  // ── توجيه الصوت: مكبّر الصوت (افتراضي) أو سماعة الأذن ──
+  const routeAudio = useCallback(async (onSpeaker: boolean) => {
+    if (Platform.OS !== "android") return;
+    try {
+      const { Audio } = await import("expo-av");
+      await Audio.setAudioModeAsync({ playThroughEarpieceAndroid: !onSpeaker, shouldDuckAndroid: false, staysActiveInBackground: true, playsInSilentModeIOS: true });
+    } catch {}
+  }, []);
+  useEffect(() => {
+    if (phase !== "active") return;
+    // WebRTC يغيّر وضع الصوت عند الاتصال — نعيد التوجيه بعده
+    routeAudio(speaker);
+    const t = setTimeout(() => routeAudio(speaker), 1200);
+    return () => clearTimeout(t);
+  }, [phase, speaker, routeAudio]);
+  useEffect(() => () => { routeAudio(true); }, [routeAudio]);
 
   // ── التحميل ──
   useEffect(() => {
@@ -90,7 +111,7 @@ export default function CallScreen() {
           else close("المكالمة منتهية");
         } else {
           if (!(await micPermission())) { callsApi.end(token, callId).catch(() => {}); close("لا يمكن الاتصال بدون إذن الميكروفون"); return; }
-          setPhase("ringing"); setWebOn(true);
+          setPhase("ringing"); setWebOn(true); startRing("ringback");
         }
       } catch (e: any) { close(e?.message || "تعذّر فتح المكالمة"); }
     })();
@@ -152,11 +173,11 @@ export default function CallScreen() {
 
   const onMessage = (e: any) => {
     let m: any; try { m = JSON.parse(e.nativeEvent.data); } catch { return; }
-    if (m.type === "status" && m.status === "accepted" && phase === "ringing") setPhase("connecting");
-    if (m.type === "conn") {
-      if (m.state === "connected") { setPhase("active"); Vibration.vibrate(60); }
-      if (m.state === "failed") { if (token) callsApi.end(token, callId).catch(() => {}); close("تعذّر الاتصال — تحقّق من الإنترنت"); }
-    }
+    if (m.type === "status" && m.status === "accepted" && phase === "ringing") { stopRing(); setPhase("connecting"); }
+    const up = (m.type === "conn" && m.state === "connected") || (m.type === "ice" && (m.state === "connected" || m.state === "completed"));
+    if (up && phase !== "active" && phase !== "ended") { stopRing(); setPhase("active"); Vibration.vibrate(60); }
+    if (m.type === "ice" && m.state === "disconnected" && phase === "active") setReconnecting(true);
+    if (up) setReconnecting(false);
     if (m.type === "ended") {
       const r = m.reason;
       close(r === "declined" ? "رُفضت المكالمة" : r === "missed" ? "لم يتم الرد" : r === "failed" ? "انقطع الاتصال" : phase === "active" ? `انتهت المكالمة · ${fmt(secs)}` : "انتهت المكالمة");
@@ -169,7 +190,7 @@ export default function CallScreen() {
     phase === "incoming" ? "مكالمة صوتية واردة" :
     phase === "ringing" ? "جارٍ الرنين…" :
     phase === "connecting" ? "جارٍ الاتصال…" :
-    phase === "active" ? fmt(secs) : endText;
+    phase === "active" ? (reconnecting ? `جارٍ إعادة الاتصال… ${fmt(secs)}` : fmt(secs)) : endText;
 
   const config = JSON.stringify({ api: getApiUrl(), token, callId, role, ice: ice || undefined });
 
@@ -213,10 +234,10 @@ export default function CallScreen() {
             <Text style={st.btnTxt}>إنهاء</Text>
           </View>
           <View style={st.btnCol}>
-            <TouchableOpacity style={st.small} onPress={() => router.push({ pathname: "/conversation" as any, params: { chatId: String(call?.chat_id || ""), otherName } })} disabled={!call?.chat_id} accessibilityLabel="الدردشة">
-              <Ionicons name="chatbubble-ellipses" size={24} color="#fff" />
+            <TouchableOpacity style={[st.small, speaker && { backgroundColor: "#fff" }]} onPress={() => { const v = !speaker; setSpeaker(v); routeAudio(v); }} accessibilityLabel="مكبّر الصوت">
+              <Ionicons name={speaker ? "volume-high" : "ear-outline"} size={26} color={speaker ? "#0B5C45" : "#fff"} />
             </TouchableOpacity>
-            <Text style={st.btnTxt}>رسالة</Text>
+            <Text style={st.btnTxt}>{speaker ? "مكبّر الصوت" : "سماعة الأذن"}</Text>
           </View>
         </View>
       )}
@@ -234,6 +255,7 @@ export default function CallScreen() {
           mediaCapturePermissionGrantType="grant"
           injectedJavaScriptBeforeContentLoaded={`window.__CALL = ${config}; true;`}
           onMessage={onMessage}
+          onLoadEnd={() => web.current?.injectJavaScript(`window.__CALL = ${config}; window.__boot && window.__boot(); true;`)}
           onError={() => { if (token) callsApi.end(token, callId).catch(() => {}); close("تعذّر تحميل المكالمة"); }}
         />
       ) : null}

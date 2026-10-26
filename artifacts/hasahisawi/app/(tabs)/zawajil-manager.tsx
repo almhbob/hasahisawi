@@ -1,919 +1,610 @@
-import React, { useState, useEffect, useCallback } from "react";
+// إدارة زواجل — تفتح بحساب الإدارة أو لمن مُنح إدارة القسم (بدون حساب منفصل)
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, Alert, ActivityIndicator, Platform,
-  KeyboardAvoidingView, Pressable, RefreshControl, Switch,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator,
+  RefreshControl, Switch, Linking, Platform, Pressable, KeyboardAvoidingView, Image,
 } from "react-native";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
-import { getApiUrl } from "@/lib/query-client";
-import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import UserAvatar from "@/components/UserAvatar";
+import { useAuth } from "@/lib/auth-context";
+import { getApiUrl } from "@/lib/query-client";
+import { notify, confirmAction } from "@/lib/xplatform";
+import { uploadFile } from "@/lib/firebase/storage";
 
+const PINK = "#D6367A";
+const GRAD = ["#7A1E4B", "#B8336A", "#D6367A"] as const;
 
-const PINK = "#EC4899";
-const PINK2 = "#F472B6";
-const BG = "#070D0A";
-const CARD = "#0D1F12";
-const CARD2 = "#0A1A10";
-const BORDER = "#1A3020";
-
-const TOKEN_KEY = "zawajil_manager_token";
-const MANAGER_KEY = "zawajil_manager_info";
-
-// ── حالات الطلب ─────────────────────────────────────────────────────────────
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending_review: { label: "قيد المراجعة",     color: "#F59E0B" },
-  approved:       { label: "موافق عليه",        color: "#22C55E" },
-  preparing:      { label: "جاري التحضير",      color: "#0EA5E9" },
-  sending:        { label: "جاري الإرسال",      color: "#C084FC" },
-  completed:      { label: "مكتمل",             color: "#3EFF9C" },
-  rejected:       { label: "مرفوض",             color: "#EF4444" },
+const STATUS: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  pending_review:         { label: "بانتظار المراجعة", color: "#D97706", icon: "time-outline" },
+  modification_requested: { label: "طُلب تعديل",       color: "#7C3AED", icon: "create-outline" },
+  approved:               { label: "مقبول",            color: "#16A34A", icon: "checkmark-circle-outline" },
+  preparing:              { label: "قيد التجهيز",      color: "#0284C7", icon: "cube-outline" },
+  sending:                { label: "في الطريق",        color: "#9333EA", icon: "bicycle-outline" },
+  completed:              { label: "تم التسليم",       color: "#059669", icon: "gift-outline" },
+  rejected:               { label: "مرفوض",            color: "#DC2626", icon: "close-circle-outline" },
+  returned:               { label: "مُعاد",            color: "#6B7280", icon: "return-up-back-outline" },
+};
+const FILTERS = ["all", "pending_review", "approved", "preparing", "sending", "completed", "rejected"];
+const SERVICES: Record<string, { label: string; emoji: string }> = {
+  hamasat_itab: { label: "همسات عتاب", emoji: "💌" }, nifaj: { label: "نفاج", emoji: "💡" },
+  shoubash: { label: "شوبش", emoji: "💍" }, tabrikat: { label: "تبريكات", emoji: "🎉" }, salamat: { label: "سلامات", emoji: "🌿" },
+};
+const OCCASIONS: Record<string, string> = { engagement: "خطوبة", graduation: "تخرج", excellence: "تفوق / نجاح", newborn: "مولود جديد", other: "أخرى" };
+const GIFTS: Record<string, string> = { none: "بدون هدية", from_store: "من متجر زواجل", money: "مبلغ مادي", external: "هدية خارجية" };
+const ROLES: Record<string, string> = {
+  zaajil: "زاجل — مندوب توصيل", krowan: "كروان — مؤدي صوتي", khattaat: "خطاط", designer: "مصمم",
+  gift_store: "متجر هدايا", service_girl: "خدمة — بنات", service_boy: "خدمة — أولاد",
 };
 
-const SERVICE_LABELS: Record<string, string> = {
-  hamasat_itab: "همسات عتاب",
-  nifaj:        "نفاج",
-  shoubash:     "شوبش",
-  tabrikat:     "تبريكات",
-  salamat:      "سلامات",
-};
+type Tab = "orders" | "products" | "apps" | "managers";
 
-type Manager = { id: number; full_name: string; username: string };
-type Stats = { total_orders: number; pending: number; completed: number; revenue: number };
-type Order = {
-  id: number; order_number: string; recipient_name: string; service_type: string;
-  status: string; estimated_cost?: number; admin_notes?: string;
-  rejection_reason?: string; created_at: string; sender_name?: string;
-  sender_phone?: string; message?: string; notes?: string;
-  shoubash_guests?: any[];
-};
-type Product = {
-  id: number; name: string; description?: string; price: number;
-  category: string; is_available: boolean; sort_order: number;
-};
+function ago(iso: string) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 1) return "الآن"; if (m < 60) return `قبل ${m} د`;
+  const h = Math.round(m / 60); if (h < 24) return `قبل ${h} س`;
+  return new Date(iso).toLocaleDateString("ar", { day: "numeric", month: "short" });
+}
+const money = (n: any) => `${Number(n || 0).toLocaleString("en")} ج.س`;
 
-// ── شاشة تسجيل الدخول ───────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (tok: string, mgr: Manager) => void }) {
+export default function ZawajilManager() {
   const insets = useSafeAreaInsets();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState("");
+  const { token, isGuest, user } = useAuth();
+  const [access, setAccess] = useState<{ allowed: boolean; is_admin: boolean } | null>(null);
+  const [tab, setTab] = useState<Tab>("orders");
+  const [stats, setStats] = useState<any>(null);
 
-  const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      setError("أدخل اسم المستخدم وكلمة المرور");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "بيانات الدخول غير صحيحة"); return; }
-      await AsyncStorage.setItem(TOKEN_KEY, data.token);
-      await AsyncStorage.setItem(MANAGER_KEY, JSON.stringify(data.manager));
-      onLogin(data.token, data.manager);
-    } catch {
-      setError("تعذّر الاتصال بالخادم");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <KeyboardAvoidingView
-      style={[s.flex, { backgroundColor: BG }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={[s.loginContainer, { paddingTop: insets.top + 40 }]}>
-        {/* شعار */}
-        <Animated.View entering={FadeInDown.duration(500)} style={s.loginIconWrap}>
-          <LinearGradient colors={[PINK + "30", PINK + "10"]} style={s.loginIconBg}>
-            <Ionicons name="shield-checkmark" size={48} color={PINK} />
-          </LinearGradient>
-        </Animated.View>
-
-        <Animated.Text entering={FadeInDown.delay(100).duration(500)} style={s.loginTitle}>
-          بوابة مدير زواجل
-        </Animated.Text>
-        <Animated.Text entering={FadeInDown.delay(150).duration(500)} style={s.loginSubtitle}>
-          نظام الإدارة المستقل لخدمة زواجل
-        </Animated.Text>
-
-        <Animated.View entering={FadeInDown.delay(200).duration(500)} style={s.loginCard}>
-          {/* اسم المستخدم */}
-          <Text style={s.fieldLabel}>اسم المستخدم</Text>
-          <View style={s.inputWrap}>
-            <Ionicons name="person-outline" size={18} color={Colors.textMuted} style={s.inputIcon} />
-            <TextInput
-              style={s.input}
-              placeholder="أدخل اسم المستخدم"
-              placeholderTextColor={Colors.textMuted}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              textAlign="right"
-            />
-          </View>
-
-          {/* كلمة المرور */}
-          <Text style={[s.fieldLabel, { marginTop: 14 }]}>كلمة المرور</Text>
-          <View style={s.inputWrap}>
-            <TouchableOpacity onPress={() => setShowPass(!showPass)} style={s.inputIcon}>
-              <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color={Colors.textMuted} />
-            </TouchableOpacity>
-            <TextInput
-              style={s.input}
-              placeholder="كلمة المرور"
-              placeholderTextColor={Colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPass}
-              textAlign="right"
-            />
-          </View>
-
-          {error ? (
-            <View style={s.errorBox}>
-              <Ionicons name="alert-circle-outline" size={14} color="#EF4444" />
-              <Text style={s.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity style={s.loginBtn} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-            <LinearGradient colors={[PINK, "#BE185D"]} style={s.loginBtnGrad}>
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="log-in-outline" size={18} color="#fff" />
-                  <Text style={s.loginBtnText}>تسجيل الدخول</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
-
-// ── بطاقة إحصائية ────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, color }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string | number; color: string }) {
-  return (
-    <View style={[s.statCard, { borderColor: color + "30" }]}>
-      <LinearGradient colors={[color + "20", color + "08"]} style={s.statCardGrad}>
-        <Ionicons name={icon} size={22} color={color} />
-        <Text style={[s.statValue, { color }]}>{value}</Text>
-        <Text style={s.statLabel}>{label}</Text>
-      </LinearGradient>
-    </View>
-  );
-}
-
-// ── شارة الحالة ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: string }) {
-  const info = STATUS_LABELS[status] || { label: status, color: Colors.textMuted };
-  return (
-    <View style={[s.badge, { backgroundColor: info.color + "20", borderColor: info.color + "40" }]}>
-      <Text style={[s.badgeText, { color: info.color }]}>{info.label}</Text>
-    </View>
-  );
-}
-
-// ── بطاقة طلب ────────────────────────────────────────────────────────────────
-function OrderCard({
-  order, token, onRefresh,
-}: { order: Order; token: string; onRefresh: () => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [acting, setActing] = useState(false);
-  const [reviewModal, setReviewModal] = useState(false);
-  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
-  const [estimatedCost, setEstimatedCost] = useState(order.estimated_cost?.toString() || "");
-  const [adminNotes, setAdminNotes] = useState(order.admin_notes || "");
-  const [rejectionReason, setRejectionReason] = useState(order.rejection_reason || "");
-  const [newStatus, setNewStatus] = useState(order.status);
-
-  const updateStatus = async (status: string, notes?: string) => {
-    setActing(true);
-    try {
-      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/orders/${order.id}/status`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status, admin_notes: notes }),
-      });
-      if (res.ok) { onRefresh(); setExpanded(false); }
-      else { const d = await res.json(); Alert.alert("خطأ", d.error || "تعذّر التحديث"); }
-    } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setActing(false); }
-  };
-
-  const submitReview = async () => {
-    setActing(true);
-    try {
-      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/orders/${order.id}/review`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: reviewAction,
-          admin_notes: adminNotes || null,
-          rejection_reason: rejectionReason || null,
-          estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
-        }),
-      });
-      if (res.ok) { setReviewModal(false); onRefresh(); setExpanded(false); }
-      else { const d = await res.json(); Alert.alert("خطأ", d.error || "تعذّر التحديث"); }
-    } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setActing(false); }
-  };
-
-  const statusInfo = STATUS_LABELS[order.status] || { color: Colors.textMuted };
-
-  return (
-    <Animated.View entering={FadeInDown.springify().damping(18)} style={[s.orderCard, { borderLeftColor: statusInfo.color, borderLeftWidth: 3 }]}>
-      <TouchableOpacity onPress={() => setExpanded(!expanded)} activeOpacity={0.85}>
-        <View style={s.orderRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.orderNumber}># {order.order_number}</Text>
-            <Text style={s.orderRecipient}>{order.recipient_name}</Text>
-            <Text style={s.orderService}>{SERVICE_LABELS[order.service_type] || order.service_type}</Text>
-          </View>
-          <View style={{ alignItems: "flex-end", gap: 6 }}>
-            <StatusBadge status={order.status} />
-            {order.estimated_cost ? (
-              <Text style={s.orderCost}>{order.estimated_cost} ج.س</Text>
-            ) : null}
-            <Text style={s.orderDate}>{new Date(order.created_at).toLocaleDateString("ar-SA")}</Text>
-          </View>
-          <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.textMuted} style={{ marginRight: 4 }} />
-        </View>
-      </TouchableOpacity>
-
-      {expanded && (
-        <View style={s.orderDetails}>
-          <View style={s.detailDivider} />
-          {order.sender_name ? <Text style={s.detailLine}><Text style={s.detailKey}>المُرسِل: </Text>{order.sender_name}</Text> : null}
-          {order.sender_phone ? <Text style={s.detailLine}><Text style={s.detailKey}>الهاتف: </Text>{order.sender_phone}</Text> : null}
-          {order.message ? <Text style={s.detailLine}><Text style={s.detailKey}>الرسالة: </Text>{order.message}</Text> : null}
-          {order.notes ? <Text style={s.detailLine}><Text style={s.detailKey}>ملاحظات: </Text>{order.notes}</Text> : null}
-          {order.admin_notes ? <Text style={s.detailLine}><Text style={s.detailKey}>ملاحظات الإدارة: </Text>{order.admin_notes}</Text> : null}
-          {order.rejection_reason ? (
-            <Text style={[s.detailLine, { color: "#EF4444" }]}><Text style={s.detailKey}>سبب الرفض: </Text>{order.rejection_reason}</Text>
-          ) : null}
-
-          {/* أزرار الإجراءات */}
-          <View style={s.actionBtns}>
-            {order.status === "pending_review" && (
-              <>
-                <TouchableOpacity
-                  style={[s.actionBtn, { backgroundColor: "#EF444418", borderColor: "#EF444440" }]}
-                  onPress={() => { setReviewAction("reject"); setReviewModal(true); }}
-                  disabled={acting}
-                >
-                  <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                  <Text style={[s.actionBtnText, { color: "#EF4444" }]}>رفض</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.actionBtn, { backgroundColor: "#22C55E18", borderColor: "#22C55E40", flex: 2 }]}
-                  onPress={() => { setReviewAction("approve"); setReviewModal(true); }}
-                  disabled={acting}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={14} color="#22C55E" />
-                  <Text style={[s.actionBtnText, { color: "#22C55E" }]}>موافقة</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {order.status === "approved" && (
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: "#0EA5E918", borderColor: "#0EA5E940", flex: 1 }]}
-                onPress={() => updateStatus("preparing")}
-                disabled={acting}
-              >
-                {acting ? <ActivityIndicator size="small" color="#0EA5E9" /> : <>
-                  <Ionicons name="construct-outline" size={14} color="#0EA5E9" />
-                  <Text style={[s.actionBtnText, { color: "#0EA5E9" }]}>بدء التحضير</Text>
-                </>}
-              </TouchableOpacity>
-            )}
-            {order.status === "preparing" && (
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: "#C084FC18", borderColor: "#C084FC40", flex: 1 }]}
-                onPress={() => updateStatus("sending")}
-                disabled={acting}
-              >
-                {acting ? <ActivityIndicator size="small" color="#C084FC" /> : <>
-                  <Ionicons name="bicycle-outline" size={14} color="#C084FC" />
-                  <Text style={[s.actionBtnText, { color: "#C084FC" }]}>جاري الإرسال</Text>
-                </>}
-              </TouchableOpacity>
-            )}
-            {order.status === "sending" && (
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: "#3EFF9C18", borderColor: "#3EFF9C40", flex: 1 }]}
-                onPress={() => updateStatus("completed")}
-                disabled={acting}
-              >
-                {acting ? <ActivityIndicator size="small" color="#3EFF9C" /> : <>
-                  <Ionicons name="checkmark-done-outline" size={14} color="#3EFF9C" />
-                  <Text style={[s.actionBtnText, { color: "#3EFF9C" }]}>مكتمل</Text>
-                </>}
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* مودال المراجعة */}
-      <Modal visible={reviewModal} transparent animationType="slide" onRequestClose={() => setReviewModal(false)}>
-        <Pressable style={s.modalBackdrop} onPress={() => setReviewModal(false)}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
-            <Pressable onPress={e => e.stopPropagation()}>
-              <Animated.View entering={FadeInDown.springify().damping(22)} style={s.modalSheet}>
-                <View style={s.modalHandle} />
-                <Text style={s.modalTitle}>
-                  {reviewAction === "approve" ? "موافقة على الطلب" : "رفض الطلب"}
-                </Text>
-
-                {reviewAction === "approve" && (
-                  <>
-                    <Text style={s.fieldLabel}>التكلفة التقديرية (اختياري)</Text>
-                    <View style={s.inputWrap}>
-                      <Ionicons name="cash-outline" size={16} color={Colors.textMuted} style={s.inputIcon} />
-                      <TextInput
-                        style={s.input}
-                        placeholder="0.00 ج.س"
-                        placeholderTextColor={Colors.textMuted}
-                        value={estimatedCost}
-                        onChangeText={setEstimatedCost}
-                        keyboardType="decimal-pad"
-                        textAlign="right"
-                      />
-                    </View>
-                  </>
-                )}
-
-                {reviewAction === "reject" && (
-                  <>
-                    <Text style={s.fieldLabel}>سبب الرفض</Text>
-                    <View style={[s.inputWrap, { height: 80, alignItems: "flex-start", paddingTop: 10 }]}>
-                      <TextInput
-                        style={[s.input, { flex: 1, height: 60, textAlignVertical: "top" }]}
-                        placeholder="اذكر سبب الرفض..."
-                        placeholderTextColor={Colors.textMuted}
-                        value={rejectionReason}
-                        onChangeText={setRejectionReason}
-                        multiline
-                        textAlign="right"
-                      />
-                    </View>
-                  </>
-                )}
-
-                <Text style={[s.fieldLabel, { marginTop: 10 }]}>ملاحظات إضافية (اختياري)</Text>
-                <View style={[s.inputWrap, { height: 70, alignItems: "flex-start", paddingTop: 10 }]}>
-                  <TextInput
-                    style={[s.input, { flex: 1, height: 50, textAlignVertical: "top" }]}
-                    placeholder="أي ملاحظات إضافية..."
-                    placeholderTextColor={Colors.textMuted}
-                    value={adminNotes}
-                    onChangeText={setAdminNotes}
-                    multiline
-                    textAlign="right"
-                  />
-                </View>
-
-                <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 16 }}>
-                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: "#FFFFFF0A" }]} onPress={() => setReviewModal(false)}>
-                    <Text style={[s.modalBtnText, { color: Colors.textMuted }]}>إلغاء</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.modalBtn, { flex: 2, backgroundColor: reviewAction === "approve" ? "#22C55E" : "#EF4444" }]}
-                    onPress={submitReview}
-                    disabled={acting}
-                  >
-                    {acting ? <ActivityIndicator size="small" color="#fff" /> : (
-                      <Text style={[s.modalBtnText, { color: "#fff" }]}>
-                        {reviewAction === "approve" ? "تأكيد الموافقة" : "تأكيد الرفض"}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
-      </Modal>
-    </Animated.View>
-  );
-}
-
-// ── تبويب الطلبات ────────────────────────────────────────────────────────────
-function OrdersTab({ token }: { token: string }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState("all");
-
-  const load = useCallback(async () => {
-    try {
-      const q = filter !== "all" ? `?status=${filter}` : "";
-      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/orders${q}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setOrders(await res.json());
-    } catch {} finally { setLoading(false); setRefreshing(false); }
-  }, [token, filter]);
-
-  useEffect(() => { setLoading(true); load(); }, [load]);
-
-  const filters: Array<[string, string]> = [
-    ["all", "الكل"],
-    ["pending_review", "قيد المراجعة"],
-    ["approved", "موافق"],
-    ["preparing", "التحضير"],
-    ["sending", "الإرسال"],
-    ["completed", "مكتمل"],
-    ["rejected", "مرفوض"],
-  ];
-
-  return (
-    <View style={s.flex}>
-      {/* فلاتر الحالة */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
-        {filters.map(([k, lbl]) => (
-          <TouchableOpacity
-            key={k}
-            style={[s.filterChip, filter === k && { backgroundColor: PINK + "25", borderColor: PINK + "60" }]}
-            onPress={() => setFilter(k)}
-          >
-            <Text style={[s.filterChipText, filter === k && { color: PINK }]}>{lbl}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {loading ? (
-        <ActivityIndicator color={PINK} size="large" style={{ marginTop: 60 }} />
-      ) : (
-        <ScrollView
-          contentContainerStyle={s.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PINK} />}
-        >
-          {orders.length === 0 ? (
-            <View style={s.emptyWrap}>
-              <Ionicons name="gift-outline" size={48} color={Colors.textMuted} />
-              <Text style={s.emptyText}>لا توجد طلبات</Text>
-            </View>
-          ) : orders.map(order => (
-            <OrderCard key={order.id} order={order} token={token} onRefresh={load} />
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-}
-
-// ── تبويب المنتجات ───────────────────────────────────────────────────────────
-function ProductsTab({ token }: { token: string }) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [addModal, setAddModal] = useState(false);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [acting, setActing] = useState(false);
-
-  // حقول النموذج
-  const [pName, setPName] = useState("");
-  const [pDesc, setPDesc] = useState("");
-  const [pPrice, setPPrice] = useState("");
-  const [pCategory, setPCategory] = useState("general");
-  const [pAvailable, setPAvailable] = useState(true);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(`${getApiUrl()}/api/zawajil-manager/products`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setProducts(await res.json());
-    } catch {} finally { setLoading(false); }
+  const call = useCallback(async (path: string, init?: { method?: string; body?: unknown }) => {
+    const r = await fetch(`${getApiUrl()}/api${path}`, {
+      method: init?.method || "GET",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d?.error || `خطأ ${r.status}`);
+    return d;
   }, [token]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadAccess = useCallback(async () => {
+    if (!token || isGuest) { setAccess({ allowed: false, is_admin: false }); return; }
+    try { setAccess(await call("/zawajil-admin/access")); } catch { setAccess({ allowed: false, is_admin: false }); }
+  }, [token, isGuest, call]);
+  const loadStats = useCallback(async () => { try { setStats(await call("/zawajil-admin/dashboard")); } catch {} }, [call]);
 
-  const openAdd = () => {
-    setPName(""); setPDesc(""); setPPrice(""); setPCategory("general"); setPAvailable(true);
-    setEditProduct(null);
-    setAddModal(true);
-  };
+  useFocusEffect(useCallback(() => { loadAccess(); }, [loadAccess]));
+  useEffect(() => { if (access?.allowed) loadStats(); }, [access?.allowed, loadStats]);
 
-  const openEdit = (p: Product) => {
-    setPName(p.name); setPDesc(p.description || "");
-    setPPrice(p.price.toString()); setPCategory(p.category);
-    setPAvailable(p.is_available);
-    setEditProduct(p);
-    setAddModal(true);
-  };
-
-  const saveProduct = async () => {
-    if (!pName.trim()) { Alert.alert("خطأ", "اسم المنتج مطلوب"); return; }
-    setActing(true);
-    try {
-      const body = { name: pName, description: pDesc, price: parseFloat(pPrice) || 0, category: pCategory, is_available: pAvailable };
-      const url = editProduct
-        ? `${getApiUrl()}/api/zawajil-manager/products/${editProduct.id}`
-        : `${getApiUrl()}/api/zawajil-manager/products`;
-      const res = await fetch(url, {
-        method: editProduct ? "PATCH" : "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) { setAddModal(false); load(); }
-      else { const d = await res.json(); Alert.alert("خطأ", d.error || "تعذّر الحفظ"); }
-    } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setActing(false); }
-  };
-
-  const deleteProduct = (p: Product) => {
-    Alert.alert("حذف المنتج", `هل تريد حذف "${p.name}"؟`, [
-      { text: "إلغاء", style: "cancel" },
-      {
-        text: "حذف", style: "destructive",
-        onPress: async () => {
-          try {
-            await fetch(`${getApiUrl()}/api/zawajil-manager/products/${p.id}`, {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            load();
-          } catch { Alert.alert("خطأ", "تعذّر الحذف"); }
-        },
-      },
-    ]);
-  };
-
-  const toggleAvailable = async (p: Product) => {
-    try {
-      await fetch(`${getApiUrl()}/api/zawajil-manager/products/${p.id}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ is_available: !p.is_available }),
-      });
-      load();
-    } catch {}
-  };
-
-  return (
-    <View style={s.flex}>
-      {/* زر إضافة */}
-      <View style={s.productsHeader}>
-        <TouchableOpacity style={s.addBtn} onPress={openAdd} activeOpacity={0.85}>
-          <LinearGradient colors={[PINK, "#BE185D"]} style={s.addBtnGrad}>
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={s.addBtnText}>إضافة منتج</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={PINK} size="large" style={{ marginTop: 40 }} />
-      ) : (
-        <ScrollView contentContainerStyle={s.listContent}>
-          {products.length === 0 ? (
-            <View style={s.emptyWrap}>
-              <Ionicons name="cube-outline" size={48} color={Colors.textMuted} />
-              <Text style={s.emptyText}>لا توجد منتجات</Text>
-            </View>
-          ) : products.map(p => (
-            <Animated.View key={p.id} entering={FadeInDown.springify().damping(18)} style={s.productCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.productName}>{p.name}</Text>
-                {p.description ? <Text style={s.productDesc}>{p.description}</Text> : null}
-                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 4 }}>
-                  <Text style={s.productPrice}>{p.price} ج.س</Text>
-                  <View style={s.categoryChip}>
-                    <Text style={s.categoryText}>{p.category}</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={s.productActions}>
-                <Switch
-                  value={p.is_available}
-                  onValueChange={() => toggleAvailable(p)}
-                  trackColor={{ false: "#333", true: PINK + "80" }}
-                  thumbColor={p.is_available ? PINK : "#666"}
-                />
-                <TouchableOpacity onPress={() => openEdit(p)} style={s.iconBtn}>
-                  <Ionicons name="create-outline" size={18} color="#0EA5E9" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => deleteProduct(p)} style={s.iconBtn}>
-                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          ))}
-                <OrgInviteCard />
-</ScrollView>
-      )}
-
-      {/* مودال إضافة/تعديل */}
-      <Modal visible={addModal} transparent animationType="slide" onRequestClose={() => setAddModal(false)}>
-        <Pressable style={s.modalBackdrop} onPress={() => setAddModal(false)}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
-            <Pressable onPress={e => e.stopPropagation()}>
-              <Animated.View entering={FadeInDown.springify().damping(22)} style={s.modalSheet}>
-                <View style={s.modalHandle} />
-                <Text style={s.modalTitle}>{editProduct ? "تعديل المنتج" : "إضافة منتج جديد"}</Text>
-
-                <Text style={s.fieldLabel}>اسم المنتج *</Text>
-                <View style={s.inputWrap}>
-                  <TextInput style={s.input} placeholder="اسم المنتج" placeholderTextColor={Colors.textMuted}
-                    value={pName} onChangeText={setPName} textAlign="right" />
-                </View>
-
-                <Text style={[s.fieldLabel, { marginTop: 10 }]}>الوصف</Text>
-                <View style={[s.inputWrap, { height: 70, alignItems: "flex-start", paddingTop: 10 }]}>
-                  <TextInput style={[s.input, { flex: 1, height: 50, textAlignVertical: "top" }]}
-                    placeholder="وصف المنتج..." placeholderTextColor={Colors.textMuted}
-                    value={pDesc} onChangeText={setPDesc} multiline textAlign="right" />
-                </View>
-
-                <Text style={[s.fieldLabel, { marginTop: 10 }]}>السعر</Text>
-                <View style={s.inputWrap}>
-                  <Ionicons name="cash-outline" size={16} color={Colors.textMuted} style={s.inputIcon} />
-                  <TextInput style={s.input} placeholder="0.00" placeholderTextColor={Colors.textMuted}
-                    value={pPrice} onChangeText={setPPrice} keyboardType="decimal-pad" textAlign="right" />
-                </View>
-
-                <Text style={[s.fieldLabel, { marginTop: 10 }]}>الفئة</Text>
-                <View style={s.inputWrap}>
-                  <TextInput style={s.input} placeholder="general" placeholderTextColor={Colors.textMuted}
-                    value={pCategory} onChangeText={setPCategory} textAlign="right" />
-                </View>
-
-                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 14 }}>
-                  <Switch
-                    value={pAvailable}
-                    onValueChange={setPAvailable}
-                    trackColor={{ false: "#333", true: PINK + "80" }}
-                    thumbColor={pAvailable ? PINK : "#666"}
-                  />
-                  <Text style={s.fieldLabel}>متاح للطلب</Text>
-                </View>
-
-                <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 16 }}>
-                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: "#FFFFFF0A" }]} onPress={() => setAddModal(false)}>
-                    <Text style={[s.modalBtnText, { color: Colors.textMuted }]}>إلغاء</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.modalBtn, { flex: 2, backgroundColor: PINK }]} onPress={saveProduct} disabled={acting}>
-                    {acting ? <ActivityIndicator size="small" color="#fff" /> : (
-                      <Text style={[s.modalBtnText, { color: "#fff" }]}>{editProduct ? "حفظ التعديلات" : "إضافة"}</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
-      </Modal>
-    </View>
-  );
-}
-
-// ── الشاشة الرئيسية ──────────────────────────────────────────────────────────
-export default function ZawajilManagerScreen() {
-  const [token, setToken] = useState<string | null>(null);
-  const [manager, setManager] = useState<Manager | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"orders" | "products">("orders");
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  // فحص الجلسة المحفوظة
-  useEffect(() => {
-    (async () => {
-      const tok = await AsyncStorage.getItem(TOKEN_KEY);
-      const mgrRaw = await AsyncStorage.getItem(MANAGER_KEY);
-      if (tok && mgrRaw) {
-        setToken(tok);
-        setManager(JSON.parse(mgrRaw));
-      }
-      setLoading(false);
-    })();
-  }, []);
-
-  // جلب الإحصائيات
-  useEffect(() => {
-    if (!token) return;
-    (async () => {
-      try {
-        const res = await fetch(`${getApiUrl()}/api/zawajil-manager/dashboard`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const d = await res.json();
-          setStats(d.stats);
-          setManager(d.manager);
-        } else if (res.status === 401) {
-          // انتهت الجلسة
-          await AsyncStorage.removeItem(TOKEN_KEY);
-          await AsyncStorage.removeItem(MANAGER_KEY);
-          setToken(null); setManager(null);
-        }
-      } catch {}
-    })();
-  }, [token]);
-
-  const handleLogin = (tok: string, mgr: Manager) => {
-    setToken(tok);
-    setManager(mgr);
-  };
-
-  const handleLogout = async () => {
-    Alert.alert("تسجيل الخروج", "هل تريد الخروج من بوابة المدير؟", [
-      { text: "إلغاء", style: "cancel" },
-      {
-        text: "خروج", style: "destructive",
-        onPress: async () => {
-          try {
-            await fetch(`${getApiUrl()}/api/zawajil-manager/logout`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-            });
-          } catch {}
-          await AsyncStorage.removeItem(TOKEN_KEY);
-          await AsyncStorage.removeItem(MANAGER_KEY);
-          setToken(null); setManager(null); setStats(null);
-        },
-      },
-    ]);
-  };
-
-  if (loading) {
+  if (!access) {
+    return <View style={st.root}><ModernHeader title="إدارة زواجل" showBack gradient={GRAD} /><ActivityIndicator style={{ marginTop: 60 }} color={PINK} size="large" /></View>;
+  }
+  if (!access.allowed) {
     return (
-      <View style={[s.flex, { backgroundColor: BG, alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={PINK} size="large" />
+      <View style={st.root}>
+        <ModernHeader title="إدارة زواجل" subtitle="بوابة إدارة الطلبات والهدايا" icon="gift-outline" showBack gradient={GRAD} />
+        <View style={st.center}>
+          <View style={st.lockIcon}><Ionicons name={isGuest || !token ? "log-in-outline" : "lock-closed-outline"} size={40} color={PINK} /></View>
+          <Text style={st.centerTitle}>{isGuest || !token ? "سجّل الدخول أولاً" : "لا تملك صلاحية إدارة زواجل"}</Text>
+          <Text style={st.centerText}>
+            {isGuest || !token
+              ? "تفتح إدارة زواجل بحساب الإدارة أو بحساب مشرف مُنح إدارة القسم."
+              : `يمكن لمدير التطبيق منحك إدارة القسم من: إدارة زواجل ← المدراء، باستخدام رقم هاتفك${user?.phone ? ` (${user.phone})` : ""}.`}
+          </Text>
+          <TouchableOpacity style={st.primaryBtn} onPress={() => router.back()}><Text style={st.primaryTxt}>رجوع</Text></TouchableOpacity>
+        </View>
       </View>
     );
   }
 
-  if (!token || !manager) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  const logoutSlot = (
-    <TouchableOpacity onPress={handleLogout} style={s.logoutBtn}>
-      <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-      <Text style={s.logoutText}>خروج</Text>
-    </TouchableOpacity>
-  );
+  const o = stats?.orders || {};
+  const tabs: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap; badge?: number }[] = [
+    { key: "orders", label: "الطلبات", icon: "receipt-outline", badge: o.pending },
+    { key: "products", label: "المتجر", icon: "pricetags-outline" },
+    { key: "apps", label: "الانضمام", icon: "people-outline", badge: stats?.applications?.pending },
+    ...(access.is_admin ? [{ key: "managers" as Tab, label: "المدراء", icon: "shield-checkmark-outline" as const }] : []),
+  ];
 
   return (
-    <View style={[s.flex, { backgroundColor: BG }]}>
-      {/* رأس الصفحة */}
-      <ModernHeader
-        title="بوابة مدير زواجل"
-        subtitle={manager.full_name}
-        icon="shield-checkmark"
-        rightSlot={logoutSlot}
-      >
-        {/* بطاقات الإحصائيات */}
-        {stats && (
-          <Animated.View entering={FadeIn.duration(500)} style={s.statsRow}>
-            <StatCard icon="list-outline" label="إجمالي الطلبات" value={stats.total_orders} color="#0EA5E9" />
-            <StatCard icon="time-outline" label="قيد المراجعة" value={stats.pending} color="#F59E0B" />
-            <StatCard icon="checkmark-done-outline" label="مكتمل" value={stats.completed} color="#22C55E" />
-            <StatCard icon="cash-outline" label="الإيرادات" value={`${stats.revenue.toFixed(0)} ج`} color={PINK} />
-          </Animated.View>
-        )}
-
-        {/* أزرار التبويبات */}
-        <View style={s.tabBtns}>
-          {([["orders", "الطلبات", "receipt-outline"], ["products", "المنتجات", "cube-outline"]] as const).map(([k, lbl, icon]) => (
-            <TouchableOpacity
-              key={k}
-              style={[s.tabBtn, activeTab === k && { backgroundColor: "rgba(255,255,255,0.20)", borderColor: "rgba(255,255,255,0.45)" }]}
-              onPress={() => setActiveTab(k)}
-            >
-              <Ionicons name={icon} size={15} color={activeTab === k ? "#fff" : "rgba(255,255,255,0.60)"} />
-              <Text style={[s.tabBtnText, activeTab === k && { color: "#fff" }]}>{lbl}</Text>
-            </TouchableOpacity>
-          ))}
+    <View style={st.root}>
+      <ModernHeader title="إدارة زواجل" subtitle={access.is_admin ? "حساب الإدارة" : "مدير القسم"} icon="gift-outline" showBack gradient={GRAD}>
+        <View style={st.statsRow}>
+          <Stat n={o.pending ?? "–"} label="بانتظارك" />
+          <Stat n={o.active ?? "–"} label="قيد التنفيذ" />
+          <Stat n={o.completed ?? "–"} label="مكتملة" />
+          <Stat n={o.today ?? "–"} label="اليوم" />
         </View>
       </ModernHeader>
-
-      {/* المحتوى */}
-      {activeTab === "orders" && <OrdersTab token={token} />}
-      {activeTab === "products" && <ProductsTab token={token} />}
+      <View style={st.tabs}>
+        {tabs.map((t) => (
+          <Pressable key={t.key} onPress={() => setTab(t.key)} style={[st.tab, tab === t.key && st.tabOn]}>
+            <Ionicons name={t.icon} size={16} color={tab === t.key ? "#fff" : Colors.textSecondary} />
+            <Text style={[st.tabTxt, tab === t.key && { color: "#fff" }]}>{t.label}</Text>
+            {t.badge ? <View style={st.badge}><Text style={st.badgeTxt}>{t.badge}</Text></View> : null}
+          </Pressable>
+        ))}
+      </View>
+      <View style={{ flex: 1, paddingBottom: insets.bottom }}>
+        {tab === "orders" && <OrdersTab call={call} onChange={loadStats} />}
+        {tab === "products" && <ProductsTab call={call} />}
+        {tab === "apps" && <AppsTab call={call} onChange={loadStats} />}
+        {tab === "managers" && access.is_admin && <ManagersTab call={call} />}
+      </View>
     </View>
   );
 }
 
-// ── الأنماط ───────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  flex: { flex: 1 },
+function Stat({ n, label }: { n: any; label: string }) {
+  return <View style={st.stat}><Text style={st.statN}>{n}</Text><Text style={st.statL}>{label}</Text></View>;
+}
 
-  // صفحة الدخول
-  loginContainer: { alignItems: "center", padding: 24, paddingBottom: 48 },
-  loginIconWrap: { marginBottom: 20 },
-  loginIconBg: { width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center" },
-  loginTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", textAlign: "center", marginBottom: 4 },
-  loginSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginBottom: 28 },
-  loginCard: { width: "100%", backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 20 },
+// ── نافذة إدخال عامة ────────────────────────────────────────────
+type PromptCfg = { title: string; fields: { key: string; label: string; placeholder?: string; numeric?: boolean; multiline?: boolean; value?: string }[]; confirm: string; color?: string; onSubmit: (v: Record<string, string>) => Promise<void> };
+function PromptModal({ cfg, onClose }: { cfg: PromptCfg | null; onClose: () => void }) {
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (cfg) setVals(Object.fromEntries(cfg.fields.map((f) => [f.key, f.value || ""]))); }, [cfg]);
+  if (!cfg) return null;
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={st.overlay}>
+        <View style={st.prompt}>
+          <Text style={st.promptTitle}>{cfg.title}</Text>
+          {cfg.fields.map((f) => (
+            <View key={f.key} style={{ marginBottom: 10 }}>
+              <Text style={st.fLabel}>{f.label}</Text>
+              <TextInput value={vals[f.key] || ""} onChangeText={(t) => setVals((v) => ({ ...v, [f.key]: t }))} placeholder={f.placeholder} placeholderTextColor={Colors.textSubtle}
+                keyboardType={f.numeric ? "numeric" : "default"} multiline={f.multiline} style={[st.input, f.multiline && { minHeight: 80, textAlignVertical: "top" }]} textAlign="right" />
+            </View>
+          ))}
+          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 4 }}>
+            <TouchableOpacity disabled={busy} style={[st.primaryBtn, { flex: 1, backgroundColor: cfg.color || PINK }]} onPress={async () => { setBusy(true); try { await cfg.onSubmit(vals); onClose(); } catch (e: any) { notify("تعذّر التنفيذ", e?.message); } finally { setBusy(false); } }}>
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>{cfg.confirm}</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={st.ghostBtn} onPress={onClose}><Text style={st.ghostTxt}>إلغاء</Text></TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
 
-  // حقول الإدخال
-  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text, textAlign: "right", marginBottom: 6 },
-  inputWrap: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF0A", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12, height: 48 },
-  inputIcon: { marginLeft: 8 },
-  input: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: "#fff" },
+type Call = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 
-  // خطأ
-  errorBox: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, padding: 10, backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#EF444435" },
-  errorText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#EF4444", flex: 1, textAlign: "right" },
+// ── الطلبات ──────────────────────────────────────────────────────
+function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
+  const [filter, setFilter] = useState("pending_review");
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<number | null>(null);
+  const [prompt, setPrompt] = useState<PromptCfg | null>(null);
+  const [couriers, setCouriers] = useState<any[] | null>(null);
+  const [assignFor, setAssignFor] = useState<any>(null);
+  const [q, setQ] = useState("");
 
-  // زر الدخول
-  loginBtn: { marginTop: 20, borderRadius: Colors.radius.md, overflow: "hidden" },
-  loginBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14 },
-  loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const d = await call(`/admin/zawajil/orders?status=${filter}`); setOrders(d.orders || []); }
+    catch (e: any) { notify("تعذّر التحميل", e?.message); }
+    finally { setLoading(false); }
+  }, [call, filter]);
+  useEffect(() => { load(); }, [load]);
 
-  // رأس الصفحة — يستخدم الآن ModernHeader
-  logoutBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, padding: 8, backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#EF444435" },
-  logoutText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" },
+  const done = () => { load(); onChange(); };
+  const review = (o: any, action: "approve" | "reject" | "request_modification") => {
+    if (action === "approve") setPrompt({ title: `قبول الطلب ${o.order_number}`, confirm: "قبول وإشعار المرسل", color: "#16A34A",
+      fields: [{ key: "cost", label: "التكلفة التقديرية (ج.س)", numeric: true, value: o.estimated_cost ? String(Number(o.estimated_cost)) : "" }, { key: "notes", label: "ملاحظة للمرسل (اختياري)", multiline: true }],
+      onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/review`, { method: "PATCH", body: { action, estimated_cost: v.cost ? Number(v.cost) : undefined, admin_notes: v.notes || undefined } }); done(); } });
+    if (action === "reject") setPrompt({ title: "رفض الطلب", confirm: "رفض", color: "#DC2626", fields: [{ key: "r", label: "سبب الرفض", multiline: true }],
+      onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/review`, { method: "PATCH", body: { action, rejection_reason: v.r || "لم يستوفِ الطلب الشروط" } }); done(); } });
+    if (action === "request_modification") setPrompt({ title: "طلب تعديل من المرسل", confirm: "إرسال", color: "#7C3AED", fields: [{ key: "m", label: "ما المطلوب تعديله؟", multiline: true }],
+      onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/review`, { method: "PATCH", body: { action, modification_request: v.m } }); done(); } });
+  };
+  const setStatus = async (o: any, status: string, label: string) => {
+    if (!(await confirmAction(label, `تحديث الطلب ${o.order_number}؟ سيصل إشعار للمرسل.`, "تأكيد"))) return;
+    try { await call(`/admin/zawajil/orders/${o.id}/status`, { method: "PATCH", body: { status } }); done(); } catch (e: any) { notify("تعذّر", e?.message); }
+  };
+  const complete = (o: any) => setPrompt({ title: "تأكيد التسليم", confirm: "تم التسليم", color: "#059669", fields: [{ key: "n", label: "ملاحظات التسليم (اختياري)", multiline: true }],
+    onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/complete-delivery`, { method: "PATCH", body: { delivery_notes: v.n || undefined } }); await call(`/admin/zawajil/orders/${o.id}/status`, { method: "PATCH", body: { status: "completed" } }).catch(() => {}); done(); } });
+  const openAssign = async (o: any) => {
+    setAssignFor(o);
+    if (!couriers) { try { const d = await call("/admin/zawajil/zaajileen"); setCouriers(d.zaajileen || []); } catch { setCouriers([]); } }
+  };
+  const assign = async (c: any) => {
+    const o = assignFor; setAssignFor(null);
+    try { await call(`/admin/zawajil/orders/${o.id}/assign`, { method: "PATCH", body: { zaajil_id: c.id, zaajil_name: c.full_name, zaajil_phone: c.phone } }); done(); notify("تم", `أُسند الطلب إلى ${c.full_name}`); }
+    catch (e: any) { notify("تعذّر", e?.message); }
+  };
 
-  // إحصائيات
-  statsRow: { flexDirection: "row-reverse", gap: 8, marginBottom: 14 },
-  statCard: { flex: 1, borderRadius: Colors.radius.md, borderWidth: 1, overflow: "hidden" },
-  statCardGrad: { padding: 10, alignItems: "center", gap: 3 },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted, textAlign: "center" },
+  const shown = useMemo(() => {
+    const t = q.trim(); if (!t) return orders;
+    return orders.filter((o) => [o.order_number, o.recipient_name, o.sender_name, o.sender_phone, o.recipient_phone].some((x) => String(x || "").includes(t)));
+  }, [orders, q]);
 
-  // تبويبات
-  tabBtns: { flexDirection: "row-reverse", gap: 8 },
-  tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", backgroundColor: "rgba(255,255,255,0.08)" },
-  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.60)" },
+  return (
+    <>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filters}>
+        {FILTERS.map((f) => {
+          const on = filter === f; const c = f === "all" ? PINK : STATUS[f].color;
+          return (
+            <TouchableOpacity key={f} onPress={() => setFilter(f)} style={[st.chip, on && { backgroundColor: c, borderColor: c }]}>
+              <Text style={[st.chipTxt, on && { color: "#fff" }]}>{f === "all" ? "الكل" : STATUS[f].label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+      <View style={st.searchBox}>
+        <Ionicons name="search" size={16} color={Colors.textMuted} />
+        <TextInput value={q} onChangeText={setQ} placeholder="ابحث برقم الطلب أو الاسم أو الهاتف" placeholderTextColor={Colors.textSubtle} style={st.searchInput} textAlign="right" />
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} colors={[PINK]} />}>
+        {!loading && shown.length === 0 ? <Empty icon="file-tray-outline" text="لا توجد طلبات هنا" /> : null}
+        {shown.map((o) => {
+          const s = STATUS[o.status] || { label: o.status, color: "#6B7280", icon: "ellipse-outline" };
+          const sv = SERVICES[o.service_type] || { label: o.service_type, emoji: "🎁" };
+          const isOpen = open === o.id;
+          return (
+            <View key={o.id} style={st.card}>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => setOpen(isOpen ? null : o.id)} style={st.cardHead}>
+                <View style={[st.svcIcon, { backgroundColor: s.color + "15" }]}><Text style={{ fontSize: 22 }}>{sv.emoji}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <View style={st.rowR}>
+                    <Text style={st.cardTitle}>{sv.label} ← {o.recipient_name}</Text>
+                  </View>
+                  <Text style={st.meta}>{o.order_number} · {ago(o.created_at)}{Number(o.estimated_cost) ? ` · ${money(o.estimated_cost)}` : ""}</Text>
+                </View>
+                <View style={[st.pill, { backgroundColor: s.color + "15", borderColor: s.color + "40" }]}>
+                  <Ionicons name={s.icon} size={12} color={s.color} /><Text style={[st.pillTxt, { color: s.color }]}>{s.label}</Text>
+                </View>
+              </TouchableOpacity>
+              {isOpen && (
+                <View style={st.details}>
+                  <Line icon="person-outline" label="المرسل" value={o.sender_anonymous ? `${o.sender_name || "—"} (مجهول للمستلم)` : o.sender_name || "—"} phone={o.sender_phone} />
+                  <Line icon="gift-outline" label="المستلم" value={o.recipient_name} phone={o.recipient_phone} />
+                  {o.recipient_address ? <Line icon="location-outline" label="العنوان" value={`${o.recipient_address}${o.delivery_location === "outside_city" ? " (خارج المدينة)" : ""}`} /> : null}
+                  {o.occasion_type ? <Line icon="sparkles-outline" label="المناسبة" value={OCCASIONS[o.occasion_type] || o.occasion_type} /> : null}
+                  <Line icon="cube-outline" label="الهدية" value={`${GIFTS[o.gift_type] || o.gift_type || "—"}${o.gift_product_name ? ` · ${o.gift_product_name}` : ""}${Number(o.gift_money_amount) ? ` · ${money(o.gift_money_amount)}` : ""}${o.gift_external_desc ? ` · ${o.gift_external_desc}` : ""}`} />
+                  {o.voice_presentation ? <Line icon="mic-outline" label="تقديم صوتي" value="مطلوب (كروان)" /> : null}
+                  {o.message_text || o.message_by_us ? <View style={st.msgBox}><Text style={st.msgLabel}>{o.message_by_us ? "الرسالة (يكتبها فريق زواجل)" : "نص الرسالة"}</Text>{o.message_text ? <Text style={st.msgTxt}>{o.message_text}</Text> : null}</View> : null}
+                  {Array.isArray(o.shoubash_guests) && o.shoubash_guests.length ? (
+                    <View style={st.msgBox}><Text style={st.msgLabel}>مشاركو الشوبش ({o.shoubash_guests.length})</Text>
+                      {o.shoubash_guests.map((g: any) => <Text key={g.id} style={st.msgTxt}>• {g.guest_name}{g.gift_desc ? ` — ${g.gift_desc}` : ""}{Number(g.gift_amount) ? ` — ${money(g.gift_amount)}` : ""}</Text>)}
+                    </View>) : null}
+                  {o.assigned_zaajil_name ? <Line icon="bicycle-outline" label="الزاجل" value={o.assigned_zaajil_name} phone={o.assigned_zaajil_phone} /> : null}
+                  {o.modification_request ? <Line icon="create-outline" label="التعديل المطلوب" value={o.modification_request} /> : null}
+                  {o.rejection_reason ? <Line icon="close-circle-outline" label="سبب الرفض" value={o.rejection_reason} /> : null}
+                  {o.admin_notes ? <Line icon="document-text-outline" label="ملاحظات" value={o.admin_notes} /> : null}
+                  <View style={st.actions}>
+                    {(o.status === "pending_review" || o.status === "modification_requested") && <>
+                      <Act label="قبول" icon="checkmark-circle" color="#16A34A" onPress={() => review(o, "approve")} />
+                      <Act label="طلب تعديل" icon="create" color="#7C3AED" onPress={() => review(o, "request_modification")} />
+                      <Act label="رفض" icon="close-circle" color="#DC2626" onPress={() => review(o, "reject")} />
+                    </>}
+                    {o.status === "approved" && <>
+                      <Act label="إسناد لزاجل" icon="bicycle" color="#0284C7" onPress={() => openAssign(o)} />
+                      <Act label="بدء التجهيز" icon="cube" color="#0284C7" onPress={() => setStatus(o, "preparing", "بدء التجهيز")} />
+                    </>}
+                    {o.status === "preparing" && <>
+                      {!o.assigned_zaajil_name && <Act label="إسناد لزاجل" icon="bicycle" color="#0284C7" onPress={() => openAssign(o)} />}
+                      <Act label="خرج للتوصيل" icon="navigate" color="#9333EA" onPress={() => setStatus(o, "sending", "خرج للتوصيل")} />
+                    </>}
+                    {o.status === "sending" && <>
+                      <Act label="تم التسليم" icon="gift" color="#059669" onPress={() => complete(o)} />
+                      <Act label="مُعاد" icon="return-up-back" color="#6B7280" onPress={() => setStatus(o, "returned", "إعادة الطلب")} />
+                    </>}
+                  </View>
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+      <PromptModal cfg={prompt} onClose={() => setPrompt(null)} />
+      <Modal visible={!!assignFor} transparent animationType="slide" onRequestClose={() => setAssignFor(null)}>
+        <Pressable style={st.overlayBottom} onPress={() => setAssignFor(null)}>
+          <Pressable style={st.sheet} onPress={() => {}}>
+            <Text style={st.promptTitle}>اختر الزاجل لتوصيل {assignFor?.order_number}</Text>
+            {couriers === null ? <ActivityIndicator color={PINK} /> : couriers.length === 0 ? (
+              <Text style={st.centerText}>لا يوجد زواجل معتمدون بعد — اعتمدهم من تبويب «الانضمام».</Text>
+            ) : couriers.map((c) => (
+              <TouchableOpacity key={c.id} style={st.li} onPress={() => assign(c)}>
+                <Ionicons name="bicycle" size={20} color="#0284C7" />
+                <View style={{ flex: 1 }}><Text style={st.liName}>{c.full_name}</Text><Text style={st.meta}>{[c.phone, c.neighborhood].filter(Boolean).join(" · ")}</Text></View>
+                <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
-  // فلاتر
-  filterScroll: { maxHeight: 50 },
-  filterRow: { flexDirection: "row-reverse", paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.pill, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
-  filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
+function Line({ icon, label, value, phone }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; phone?: string | null }) {
+  return (
+    <View style={st.line}>
+      <Ionicons name={icon} size={15} color={Colors.textMuted} />
+      <Text style={st.lineLabel}>{label}:</Text>
+      <Text style={st.lineVal}>{value}</Text>
+      {phone ? (
+        <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+          <TouchableOpacity hitSlop={6} onPress={() => Linking.openURL(`tel:${phone}`)}><Ionicons name="call" size={17} color="#16A34A" /></TouchableOpacity>
+          <TouchableOpacity hitSlop={6} onPress={() => Linking.openURL(`https://wa.me/${String(phone).replace(/[^\d]/g, "").replace(/^0/, "249")}`)}><Ionicons name="logo-whatsapp" size={17} color="#25D366" /></TouchableOpacity>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+function Act({ label, icon, color, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; color: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={[st.act, { backgroundColor: color + "12", borderColor: color + "40" }]}>
+      <Ionicons name={icon} size={15} color={color} /><Text style={[st.actTxt, { color }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+function Empty({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  return <View style={{ alignItems: "center", paddingTop: 50, gap: 8 }}><Ionicons name={icon} size={46} color={Colors.textSubtle} /><Text style={st.centerText}>{text}</Text></View>;
+}
 
-  // محتوى القائمة
-  listContent: { padding: 14, paddingBottom: 40, gap: 10 },
+// ── منتجات المتجر ────────────────────────────────────────────────
+function ProductsTab({ call }: { call: Call }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [edit, setEdit] = useState<any | null>(null);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const d = await call("/admin/zawajil/products"); setItems(Array.isArray(d) ? d : []); } catch (e: any) { notify("تعذّر التحميل", e?.message); }
+    finally { setLoading(false); }
+  }, [call]);
+  useEffect(() => { load(); }, [load]);
+  const toggle = async (p: any) => {
+    setItems((l) => l.map((x) => x.id === p.id ? { ...x, is_available: !p.is_available } : x));
+    try { await call(`/admin/zawajil/products/${p.id}`, { method: "PATCH", body: { is_available: !p.is_available } }); } catch (e: any) { notify("تعذّر", e?.message); load(); }
+  };
+  const del = async (p: any) => {
+    if (!(await confirmAction("حذف المنتج", `حذف «${p.name}»؟`, "حذف", true))) return;
+    try { await call(`/admin/zawajil/products/${p.id}`, { method: "DELETE" }); load(); } catch (e: any) { notify("تعذّر", e?.message); }
+  };
+  return (
+    <>
+      <ScrollView contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 90 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} colors={[PINK]} />}>
+        {!loading && items.length === 0 ? <Empty icon="pricetags-outline" text="لا توجد منتجات — أضف أول منتج" /> : null}
+        {items.map((p) => (
+          <View key={p.id} style={[st.card, st.cardHead, !p.is_available && { opacity: 0.6 }]}>
+            {p.image_url ? <Image source={{ uri: p.image_url }} style={st.prodImg} /> : <View style={[st.prodImg, { alignItems: "center", justifyContent: "center" }]}><Ionicons name="gift" size={24} color={PINK} /></View>}
+            <View style={{ flex: 1 }}>
+              <Text style={st.cardTitle}>{p.name}</Text>
+              <Text style={st.meta}>{money(p.price)}{p.category && p.category !== "general" ? ` · ${p.category}` : ""}</Text>
+            </View>
+            <Switch value={!!p.is_available} onValueChange={() => toggle(p)} trackColor={{ true: PINK + "80", false: Colors.divider }} thumbColor={p.is_available ? PINK : "#eee"} />
+            <TouchableOpacity hitSlop={8} onPress={() => setEdit(p)}><Ionicons name="create-outline" size={20} color={Colors.textSecondary} /></TouchableOpacity>
+            <TouchableOpacity hitSlop={8} onPress={() => del(p)}><Ionicons name="trash-outline" size={20} color="#DC2626" /></TouchableOpacity>
+          </View>
+        ))}
+      </ScrollView>
+      <TouchableOpacity style={st.fab} onPress={() => setEdit({})}><Ionicons name="add" size={26} color="#fff" /><Text style={st.fabTxt}>منتج</Text></TouchableOpacity>
+      <ProductModal item={edit} call={call} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />
+    </>
+  );
+}
 
-  // فارغ
-  emptyWrap: { alignItems: "center", marginTop: 60, gap: 12 },
-  emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
+function ProductModal({ item, call, onClose, onSaved }: { item: any | null; call: Call; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ name: "", description: "", price: "", category: "", sort_order: "", image_url: "" });
+  const [busy, setBusy] = useState(false);
+  const [up, setUp] = useState(false);
+  useEffect(() => { if (item) setF({ name: item.name || "", description: item.description || "", price: item.price != null ? String(Number(item.price)) : "", category: item.category && item.category !== "general" ? item.category : "", sort_order: item.sort_order ? String(item.sort_order) : "", image_url: item.image_url || "" }); }, [item]);
+  if (!item) return null;
+  const pick = async () => {
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.75, allowsEditing: true, aspect: [1, 1] });
+    if (r.canceled || !r.assets[0]) return;
+    setUp(true);
+    try { const url = await uploadFile(`zawajil/products/${Date.now()}.jpg`, r.assets[0].uri, { fileName: "product.jpg", mimeType: "image/jpeg" }); setF((x) => ({ ...x, image_url: url })); }
+    catch (e: any) { notify("تعذّر رفع الصورة", e?.message); } finally { setUp(false); }
+  };
+  const save = async () => {
+    if (f.name.trim().length < 2) { notify("الاسم مطلوب"); return; }
+    setBusy(true);
+    try {
+      const body = { name: f.name.trim(), description: f.description.trim() || null, price: Number(f.price) || 0, category: f.category.trim() || "general", sort_order: Number(f.sort_order) || 0, image_url: f.image_url || null };
+      if (item.id) await call(`/admin/zawajil/products/${item.id}`, { method: "PATCH", body }); else await call(`/admin/zawajil/products`, { method: "POST", body });
+      onSaved();
+    } catch (e: any) { notify("تعذّر الحفظ", e?.message); } finally { setBusy(false); }
+  };
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={st.overlayBottom}>
+        <ScrollView style={st.sheet} contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+          <Text style={st.promptTitle}>{item.id ? "تعديل المنتج" : "منتج جديد في متجر زواجل"}</Text>
+          <TouchableOpacity onPress={pick} style={st.imgPick}>
+            {f.image_url ? <Image source={{ uri: f.image_url }} style={{ width: "100%", height: "100%", borderRadius: 14 }} /> : up ? <ActivityIndicator color={PINK} /> : <><Ionicons name="image-outline" size={28} color={PINK} /><Text style={st.ghostTxt}>صورة المنتج</Text></>}
+          </TouchableOpacity>
+          {([["name", "اسم المنتج", false], ["price", "السعر (ج.س)", true], ["category", "التصنيف (ورد، عطور، شوكولاتة…)", false], ["sort_order", "ترتيب الظهور", true]] as const).map(([k, l, num]) => (
+            <View key={k} style={{ marginBottom: 10 }}>
+              <Text style={st.fLabel}>{l}</Text>
+              <TextInput value={(f as any)[k]} onChangeText={(t) => setF((x) => ({ ...x, [k]: t }))} keyboardType={num ? "numeric" : "default"} style={st.input} textAlign="right" />
+            </View>
+          ))}
+          <Text style={st.fLabel}>الوصف</Text>
+          <TextInput value={f.description} onChangeText={(t) => setF((x) => ({ ...x, description: t }))} multiline style={[st.input, { minHeight: 80, textAlignVertical: "top" }]} textAlign="right" />
+          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 14 }}>
+            <TouchableOpacity disabled={busy || up} style={[st.primaryBtn, { flex: 1 }]} onPress={save}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>حفظ</Text>}</TouchableOpacity>
+            <TouchableOpacity style={st.ghostBtn} onPress={onClose}><Text style={st.ghostTxt}>إلغاء</Text></TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
 
-  // بطاقة الطلب
-  orderCard: { backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 14, ...Colors.shadow.card },
-  orderRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8 },
-  orderNumber: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, marginBottom: 2 },
-  orderRecipient: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", marginBottom: 2 },
-  orderService: { fontFamily: "Cairo_500Medium", fontSize: 12, color: PINK },
-  orderCost: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#22C55E" },
-  orderDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+// ── طلبات الانضمام (زواجل، كروان، خطاطين…) ───────────────────
+function AppsTab({ call, onChange }: { call: Call; onChange: () => void }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [role, setRole] = useState("");
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const d = await call(`/admin/zawajil/applications${role ? `?role=${role}` : ""}`); setItems(d.applications || []); } catch (e: any) { notify("تعذّر التحميل", e?.message); }
+    finally { setLoading(false); }
+  }, [call, role]);
+  useEffect(() => { load(); }, [load]);
+  const setStatus = async (a: any, status: string) => {
+    if (!(await confirmAction(status === "approved" ? "اعتماد" : "رفض", `${status === "approved" ? "اعتماد" : "رفض"} طلب ${a.full_name}؟`, "تأكيد", status === "rejected"))) return;
+    try { await call(`/admin/zawajil/applications/${a.id}/status`, { method: "PATCH", body: { status } }); load(); onChange(); } catch (e: any) { notify("تعذّر", e?.message); }
+  };
+  const SC: Record<string, string> = { pending: "#D97706", approved: "#16A34A", rejected: "#DC2626" };
+  const SL: Record<string, string> = { pending: "جديد", approved: "معتمد", rejected: "مرفوض" };
+  return (
+    <>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filters}>
+        {[["", "الكل"], ...Object.entries(ROLES)].map(([k, l]) => (
+          <TouchableOpacity key={k} onPress={() => setRole(k)} style={[st.chip, role === k && { backgroundColor: PINK, borderColor: PINK }]}>
+            <Text style={[st.chipTxt, role === k && { color: "#fff" }]}>{l}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <ScrollView contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} colors={[PINK]} />}>
+        {!loading && items.length === 0 ? <Empty icon="people-outline" text="لا توجد طلبات انضمام" /> : null}
+        {items.map((a) => (
+          <View key={a.id} style={st.card}>
+            <View style={st.cardHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={st.cardTitle}>{a.full_name}</Text>
+                <Text style={st.meta}>{ROLES[a.role] || a.role}{a.gender ? ` · ${a.gender === "female" ? "أنثى" : "ذكر"}` : ""}{a.age ? ` · ${a.age} سنة` : ""}{a.neighborhood ? ` · ${a.neighborhood}` : ""} · {ago(a.created_at)}</Text>
+              </View>
+              <View style={[st.pill, { backgroundColor: (SC[a.status] || "#6B7280") + "15", borderColor: (SC[a.status] || "#6B7280") + "40" }]}><Text style={[st.pillTxt, { color: SC[a.status] || "#6B7280" }]}>{SL[a.status] || a.status}</Text></View>
+            </View>
+            {a.experience ? <Text style={st.appTxt}>الخبرة: {a.experience}</Text> : null}
+            {a.notes ? <Text style={st.appTxt}>ملاحظات: {a.notes}</Text> : null}
+            <View style={st.actions}>
+              <Act label="اتصال" icon="call" color="#16A34A" onPress={() => Linking.openURL(`tel:${a.phone}`)} />
+              {a.samples_url ? <Act label="نماذج الأعمال" icon="images" color="#0284C7" onPress={() => Linking.openURL(a.samples_url)} /> : null}
+              {a.status !== "approved" && <Act label="اعتماد" icon="checkmark-circle" color="#16A34A" onPress={() => setStatus(a, "approved")} />}
+              {a.status !== "rejected" && <Act label="رفض" icon="close-circle" color="#DC2626" onPress={() => setStatus(a, "rejected")} />}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </>
+  );
+}
 
-  // تفاصيل الطلب
-  orderDetails: { marginTop: 4 },
-  detailDivider: { height: 1, backgroundColor: BORDER, marginVertical: 10 },
-  detailLine: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 3 },
-  detailKey: { fontFamily: "Cairo_600SemiBold", color: Colors.text },
+// ── المدراء المفوّضون (للإدارة فقط) ─────────────────────────────
+function ManagersTab({ call }: { call: Call }) {
+  const [managers, setManagers] = useState<any[]>([]);
+  const [cands, setCands] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const d = await call("/zawajil-admin/managers"); setManagers(d.managers || []); } catch (e: any) { notify("تعذّر التحميل", e?.message); }
+    finally { setLoading(false); }
+  }, [call]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const t = setTimeout(async () => { try { const d = await call(`/zawajil-admin/candidates?q=${encodeURIComponent(q.trim())}`); setCands(d.users || []); } catch {} }, 350);
+    return () => clearTimeout(t);
+  }, [q, call]);
+  const grant = async (u: any) => {
+    if (!(await confirmAction("منح إدارة زواجل", `منح ${u.name} صلاحية إدارة قسم زواجل؟`, "منح"))) return;
+    try { await call("/zawajil-admin/managers", { method: "POST", body: { user_id: u.id } }); notify("تم ✅", `أصبح ${u.name} مديراً لزواجل، ووصله إشعار بذلك`); load(); } catch (e: any) { notify("تعذّر", e?.message); }
+  };
+  const revoke = async (u: any) => {
+    if (!(await confirmAction("سحب الصلاحية", `سحب إدارة زواجل من ${u.name}؟`, "سحب", true))) return;
+    try { await call(`/zawajil-admin/managers/${u.id}`, { method: "DELETE" }); load(); } catch (e: any) { notify("تعذّر", e?.message); }
+  };
+  const ids = new Set(managers.map((m) => m.id));
+  const RL: Record<string, string> = { admin: "إدارة", moderator: "مشرف", user: "عضو" };
+  return (
+    <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} colors={[PINK]} />} keyboardShouldPersistTaps="handled">
+      <View style={st.infoBox}>
+        <Ionicons name="information-circle" size={18} color={PINK} />
+        <Text style={st.infoTxt}>حساب الإدارة يدخل دائماً. امنح أي مشرف أو عضو إدارة قسم زواجل ليستقبل الطلبات ويديرها من حسابه العادي.</Text>
+      </View>
+      <Text style={st.secTitle}>المدراء الحاليون ({managers.length})</Text>
+      {managers.length === 0 && !loading ? <Text style={st.centerText}>لم تمنح أحداً بعد.</Text> : null}
+      {managers.map((m) => (
+        <View key={m.id} style={[st.card, st.cardHead]}>
+          <UserAvatar name={m.name} avatarUrl={m.avatar_url} size={40} borderRadius={14} />
+          <View style={{ flex: 1 }}><Text style={st.cardTitle}>{m.name}</Text><Text style={st.meta}>{[RL[m.role] || m.role, m.phone].filter(Boolean).join(" · ")}</Text></View>
+          <Act label="سحب" icon="remove-circle" color="#DC2626" onPress={() => revoke(m)} />
+        </View>
+      ))}
+      <Text style={[st.secTitle, { marginTop: 8 }]}>إضافة مدير</Text>
+      <View style={st.searchBox}>
+        <Ionicons name="search" size={16} color={Colors.textMuted} />
+        <TextInput value={q} onChangeText={setQ} placeholder="ابحث بالاسم أو رقم الهاتف (يظهر المشرفون أولاً)" placeholderTextColor={Colors.textSubtle} style={st.searchInput} textAlign="right" />
+      </View>
+      {cands.filter((u) => !ids.has(u.id) && u.role !== "admin").map((u) => (
+        <View key={u.id} style={[st.card, st.cardHead]}>
+          <UserAvatar name={u.name} avatarUrl={u.avatar_url} size={40} borderRadius={14} />
+          <View style={{ flex: 1 }}><Text style={st.cardTitle}>{u.name}</Text><Text style={st.meta}>{[RL[u.role] || u.role, u.phone].filter(Boolean).join(" · ")}</Text></View>
+          <Act label="منح الإدارة" icon="shield-checkmark" color="#16A34A" onPress={() => grant(u)} />
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
 
-  // أزرار الإجراءات
-  actionBtns: { flexDirection: "row-reverse", gap: 8, marginTop: 10 },
-  actionBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm, borderWidth: 1 },
-  actionBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-
-  // شارة الحالة
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1 },
-  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
-
-  // بطاقة منتج
-  productCard: { backgroundColor: CARD, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, padding: 14, flexDirection: "row-reverse", alignItems: "center", gap: 10, ...Colors.shadow.card },
-  productName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" },
-  productDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
-  productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#22C55E" },
-  categoryChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Colors.radius.sm, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: BORDER },
-  categoryText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
-  productActions: { flexDirection: "column", alignItems: "center", gap: 8 },
-  iconBtn: { padding: 6 },
-
-  // رأس المنتجات
-  productsHeader: { padding: 14, paddingBottom: 8 },
-  addBtn: { borderRadius: Colors.radius.md, overflow: "hidden" },
-  addBtnGrad: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12 },
-  addBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-
-  // مودال
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#0D1F12", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, padding: 20, paddingBottom: 32, borderTopWidth: 1, borderColor: BORDER },
-  modalHandle: { width: 40, height: 4, backgroundColor: BORDER, borderRadius: Colors.radius.pill, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right", marginBottom: 16 },
-  modalBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.md, alignItems: "center" },
-  modalBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.bg },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 30, gap: 10 },
+  lockIcon: { width: 84, height: 84, borderRadius: 28, backgroundColor: PINK + "14", alignItems: "center", justifyContent: "center" },
+  centerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" },
+  centerText: { fontFamily: "Cairo_400Regular", fontSize: 13.5, lineHeight: 22, color: Colors.textSecondary, textAlign: "center" },
+  primaryBtn: { backgroundColor: PINK, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
+  primaryTxt: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#fff" },
+  ghostBtn: { height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: "#fff" },
+  ghostTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  statsRow: { flexDirection: "row-reverse", gap: 8 },
+  stat: { flex: 1, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 14, paddingVertical: 8, alignItems: "center" },
+  statN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
+  statL: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffffD0" },
+  tabs: { flexDirection: "row-reverse", gap: 6, paddingHorizontal: 12, paddingTop: 12 },
+  tab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border },
+  tabOn: { backgroundColor: PINK, borderColor: PINK },
+  tabTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textSecondary },
+  badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  badgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#fff" },
+  filters: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingTop: 12 },
+  chip: { paddingHorizontal: 13, height: 34, borderRadius: 17, borderWidth: 1, borderColor: Colors.border, backgroundColor: "#fff", justifyContent: "center" },
+  chipTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary },
+  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 12, marginTop: 10, backgroundColor: "#fff", borderRadius: 13, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 44 },
+  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textPrimary },
+  card: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 12 },
+  cardHead: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  svcIcon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  rowR: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+  cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
+  meta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  pill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  pillTxt: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  details: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.divider, gap: 7 },
+  line: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+  lineLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary },
+  lineVal: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  msgBox: { backgroundColor: PINK + "08", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: PINK + "25" },
+  msgLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: PINK, textAlign: "right", marginBottom: 2 },
+  msgTxt: { fontFamily: "Cairo_400Regular", fontSize: 13.5, lineHeight: 22, color: Colors.textPrimary, textAlign: "right" },
+  actions: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 6 },
+  act: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 11, height: 34, borderRadius: 11, borderWidth: 1 },
+  actTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5 },
+  appTxt: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 6 },
+  prodImg: { width: 54, height: 54, borderRadius: 14, backgroundColor: PINK + "10" },
+  fab: { position: "absolute", bottom: 20, left: 20, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: PINK, paddingHorizontal: 18, height: 50, borderRadius: 25, elevation: 5 },
+  fabTxt: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 22 },
+  overlayBottom: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  prompt: { backgroundColor: "#fff", borderRadius: 22, padding: 18 },
+  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, maxHeight: "85%" },
+  promptTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 12 },
+  fLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
+  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 12, backgroundColor: Colors.bg, paddingHorizontal: 12, paddingVertical: Platform.OS === "web" ? 10 : 8, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
+  imgPick: { height: 130, borderRadius: 14, borderWidth: 1.5, borderStyle: "dashed", borderColor: PINK + "60", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 12, backgroundColor: PINK + "06" },
+  li: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  liName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  infoBox: { flexDirection: "row-reverse", gap: 8, backgroundColor: PINK + "0C", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: PINK + "25" },
+  infoTxt: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12.5, lineHeight: 20, color: Colors.textPrimary, textAlign: "right" },
+  secTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
 });
