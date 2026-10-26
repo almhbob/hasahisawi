@@ -17,6 +17,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { reloadAppAsync } from "expo";
 import { usePresencePing } from "@/lib/chat-plus";
+import { rescheduleAdhanFromCache } from "@/lib/adhan";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -261,6 +262,8 @@ function AuthGate() {
 
 // نبض «نشط الآن» للدردشة ما دام التطبيق مفتوحاً
 function PresenceBeat() {
+  // تجديد جدول الأذان لسبعة أيام عند كل فتح للتطبيق
+  useEffect(() => { const t = setTimeout(() => { rescheduleAdhanFromCache(); }, 4000); return () => clearTimeout(t); }, []);
   const { token, isGuest } = useAuth();
   usePresencePing(isGuest ? null : token);
   return null;

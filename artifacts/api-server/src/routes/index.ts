@@ -16,6 +16,7 @@ import ciPlayTokenRouter from "./ci-play-token";
 import sportsClubsRouter from "./sports-clubs";
 import providerListingsRouter from "./provider-listings";
 import chatPlusRouter from "./chat-plus";
+import profilePlusRouter from "./profile-plus";
 
 const router: IRouter = Router();
 
@@ -34,6 +35,7 @@ router.use(ciPlayTokenRouter);
 router.use(sportsClubsRouter);
 router.use(providerListingsRouter);
 router.use(chatPlusRouter);
+router.use(profilePlusRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);
