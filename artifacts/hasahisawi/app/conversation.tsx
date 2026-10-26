@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
 import { apiGetOrCreateChat } from "@/lib/api-chat";
 import { chatApi, useChatSync, presenceText, REACTIONS, type ChatMsg } from "@/lib/chat-plus";
+import { callsApi } from "@/lib/calls";
 import { getApiUrl } from "@/lib/query-client";
 import { filePart } from "@/lib/xplatform";
 
@@ -155,11 +156,11 @@ export default function ConversationScreen() {
   useFocusEffect(useCallback(() => { if (chatIdNum && token) chatApi.read(token, chatIdNum).catch(() => {}); }, [chatIdNum, token, lastOtherId]));
 
   useEffect(() => {
-    const sub = Keyboard.addListener("keyboardDidShow", () => setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 60));
+    const sub = Keyboard.addListener("keyboardDidShow", () => { if (nearBottom.current) setTimeout(() => flatRef.current?.scrollToOffset({ offset: 0, animated: true }), 60); });
     return () => sub.remove();
   }, []);
   const lastKey = messages.length ? `${messages[messages.length - 1].id}-${messages.length}` : "";
-  useEffect(() => { if (lastKey && nearBottom.current) setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80); }, [lastKey]);
+  useEffect(() => { if (lastKey && nearBottom.current) setTimeout(() => flatRef.current?.scrollToOffset({ offset: 0, animated: true }), 60); }, [lastKey]);
 
   const onType = (t: string) => {
     setText(t);
@@ -233,7 +234,19 @@ export default function ConversationScreen() {
     finally { setImgUploading(false); }
   }
 
-  function handleCall() {
+  const [calling, setCalling] = useState(false);
+  async function startVoiceCall() {
+    if (!ensureReady() || calling) return;
+    if (Platform.OS === "web") { Alert.alert("المكالمات الصوتية", "المكالمات متاحة في تطبيق الجوال"); return; }
+    setCalling(true);
+    try {
+      const r = await callsApi.start(token!, chatIdNum!);
+      router.push({ pathname: "/call" as any, params: { callId: String(r.call.id), role: "caller", name: otherName, avatar: otherAvatar || "" } });
+    } catch (e: any) { Alert.alert("تعذّر الاتصال", e?.message || "حاول مجدداً"); }
+    finally { setCalling(false); }
+  }
+
+  function handlePhoneOptions() {
     const theirPhone = [...messages].reverse().filter((m) => m.sender_id !== myId && m.content && !m.deleted_at)
       .map((m) => (m.content.match(PHONE_RE) || [])[0]).find(Boolean);
     const myPhone = user?.phone ? String(user.phone) : "";
@@ -292,7 +305,7 @@ export default function ConversationScreen() {
   }
 
   const jumpTo = (id: number) => {
-    const idx = grouped.findIndex((g) => g.type === "msg" && g.msg.id === id);
+    const idx = listData.findIndex((g) => g.type === "msg" && g.msg.id === id);
     if (idx >= 0) flatRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.4 });
   };
 
@@ -311,6 +324,17 @@ export default function ConversationScreen() {
     }
     return out;
   }, [visible]);
+  // القائمة مقلوبة (الأحدث في الأسفل دائماً) — فلا تختفي الرسائل الواردة خارج الشاشة
+  const listData = useMemo(() => [...grouped].reverse(), [grouped]);
+  const [newBelow, setNewBelow] = useState(0);
+  const prevLast = useRef<number>(0);
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last) return;
+    if (prevLast.current && last.id !== prevLast.current && last.sender_id !== myId && !nearBottom.current) setNewBelow((n) => n + 1);
+    prevLast.current = last.id;
+  }, [messages, myId]);
+  const toBottom = () => { setNewBelow(0); nearBottom.current = true; flatRef.current?.scrollToOffset({ offset: 0, animated: true }); };
 
   const status = other ? presenceText(other.online, other.last_seen_at, other.typing) : "";
   const blockedAny = blocked.byMe || blocked.me;
@@ -333,7 +357,7 @@ export default function ConversationScreen() {
           {status ? <Text style={[st.hStatus, (other?.online || other?.typing) && { color: Colors.primary }]} numberOfLines={1}>{status}</Text> : null}
         </View>
         <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={() => { setSearchOn((v) => !v); setSearch(""); }} accessibilityLabel="بحث في المحادثة"><Ionicons name="search" size={19} color={Colors.textPrimary} /></TouchableOpacity>
-        <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={handleCall} accessibilityLabel="اتصال"><Ionicons name="call-outline" size={19} color={Colors.primary} /></TouchableOpacity>
+        <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={startVoiceCall} onLongPress={handlePhoneOptions} disabled={calling || blocked.byMe || blocked.me} accessibilityLabel="مكالمة صوتية">{calling ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="call" size={19} color={Colors.primary} />}</TouchableOpacity>
         <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={() => setMenu(true)} accessibilityLabel="خيارات المحادثة"><Ionicons name="ellipsis-vertical" size={19} color={Colors.textPrimary} /></TouchableOpacity>
       </View>
       {searchOn ? (
@@ -347,29 +371,30 @@ export default function ConversationScreen() {
       {/* الرسائل */}
       {sync.loading && chatIdNum ? (
         <View style={st.center}><ActivityIndicator color={Colors.primary} size="large" /></View>
+      ) : listData.length === 0 ? (
+        <View style={st.center}>
+          <Ionicons name={searchOn ? "search-outline" : "chatbubble-ellipses-outline"} size={54} color={Colors.textMuted} />
+          <Text style={st.emptyTitle}>{openError ? "تعذّر فتح المحادثة" : searchOn ? "لا نتائج" : "ابدأ المحادثة"}</Text>
+          <Text style={st.emptyText}>{openError || (searchOn ? "جرّب كلمة أخرى" : `أرسل رسالتك الأولى لـ ${otherName}`)}</Text>
+        </View>
       ) : (
+        <View style={{ flex: 1 }}>
         <FlatList
           ref={flatRef}
-          data={grouped}
+          inverted
+          data={listData}
           keyExtractor={(i) => i.key}
-          contentContainerStyle={[st.list, { paddingBottom: 10 }]}
-          onScroll={(e) => { const n = e.nativeEvent; nearBottom.current = n.contentOffset.y + n.layoutMeasurement.height > n.contentSize.height - 160; }}
+          contentContainerStyle={[st.list, { paddingTop: 10 }]}
+          onScroll={(e) => { const near = e.nativeEvent.contentOffset.y < 160; nearBottom.current = near; if (near && newBelow) setNewBelow(0); }}
           scrollEventThrottle={100}
           onScrollToIndexFailed={() => {}}
-          ListEmptyComponent={
-            <View style={st.center}>
-              <Ionicons name={searchOn ? "search-outline" : "chatbubble-ellipses-outline"} size={54} color={Colors.textMuted} />
-              <Text style={st.emptyTitle}>{openError ? "تعذّر فتح المحادثة" : searchOn ? "لا نتائج" : "ابدأ المحادثة"}</Text>
-              <Text style={st.emptyText}>{openError || (searchOn ? "جرّب كلمة أخرى" : `أرسل رسالتك الأولى لـ ${otherName}`)}</Text>
-            </View>
-          }
-          ListFooterComponent={other?.typing ? (
+          ListHeaderComponent={other?.typing ? (
             <View style={[st.bWrap, st.bWrapOther]}><View style={{ width: 30 }} /><View style={[st.bubble, st.bOther, { paddingVertical: 10 }]}><Text style={st.typingTxt}>يكتب الآن…</Text></View></View>
           ) : null}
           renderItem={({ item, index }) => {
             if (item.type === "sep") return <View style={st.sep}><Text style={st.sepTxt}>{item.label}</Text></View>;
             const m = item.msg; const isMe = m.sender_id === myId;
-            const nx = grouped[index + 1];
+            const nx = listData[index - 1]; // العنصر الأحدث (القائمة مقلوبة)
             const lastOfGroup = !nx || nx.type === "sep" || nx.msg.sender_id !== m.sender_id;
             return (
               <Bubble msg={m} isMe={isMe} myId={myId} otherName={otherName} otherAvatar={otherAvatar} showAvatar={lastOfGroup && !isMe}
@@ -380,6 +405,13 @@ export default function ConversationScreen() {
             );
           }}
         />
+        {newBelow > 0 ? (
+          <TouchableOpacity style={st.newPill} onPress={toBottom} activeOpacity={0.85}>
+            <Ionicons name="arrow-down" size={15} color="#fff" />
+            <Text style={st.newPillTxt}>{newBelow === 1 ? "رسالة جديدة" : `${newBelow} رسائل جديدة`}</Text>
+          </TouchableOpacity>
+        ) : null}
+        </View>
       )}
 
       {/* شريط الكتابة */}
@@ -445,6 +477,8 @@ export default function ConversationScreen() {
             <View style={st.handle} />
             <Text style={st.sheetTitle}>{otherName}</Text>
             <SheetBtn icon="search-outline" label="بحث في المحادثة" onPress={() => { setMenu(false); setSearchOn(true); }} />
+            <SheetBtn icon="call-outline" label="مكالمة صوتية عبر الإنترنت" onPress={() => { setMenu(false); startVoiceCall(); }} />
+            <SheetBtn icon="keypad-outline" label="اتصال هاتفي عادي" onPress={() => { setMenu(false); handlePhoneOptions(); }} />
             <SheetBtn icon={state.muted ? "notifications-outline" : "notifications-off-outline"} label={state.muted ? "إلغاء كتم الإشعارات" : "كتم الإشعارات"} onPress={() => toggleState("muted")} />
             <SheetBtn icon={state.pinned ? "pin-outline" : "pin"} label={state.pinned ? "إلغاء التثبيت" : "تثبيت أعلى القائمة"} onPress={() => toggleState("pinned")} />
             <SheetBtn icon={state.hidden ? "eye-outline" : "eye-off-outline"} label={state.hidden ? "إظهار المحادثة" : "إخفاء المحادثة"} onPress={() => toggleState("hidden")} />
@@ -531,4 +565,6 @@ const st = StyleSheet.create({
   sheetBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   sheetBtnTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   sheetMeta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 10 },
+  newPill: { position: "absolute", bottom: 12, alignSelf: "center", flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, elevation: 4, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  newPillTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
 });

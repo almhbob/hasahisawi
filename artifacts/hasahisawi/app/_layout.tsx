@@ -18,6 +18,8 @@ import React, { useEffect, useState } from "react";
 import { reloadAppAsync } from "expo";
 import { usePresencePing } from "@/lib/chat-plus";
 import { rescheduleAdhanFromCache } from "@/lib/adhan";
+import { callsApi, getActiveCall } from "@/lib/calls";
+import { isAppActive } from "@/lib/chat-plus";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -136,10 +138,20 @@ function AuthGate() {
           : String(channelId).startsWith("hasahisawi-prayer")  ? "prayer"
           : "success";
         vibrateForType(soundType).catch(() => {});
+        const d: any = n.request.content.data;
+        if (d?.type === "call" && d?.callId && getActiveCall() !== Number(d.callId)) {
+          router.push({ pathname: "/call", params: { callId: String(d.callId), role: "callee", name: String(d.callerName ?? "") } } as any);
+        }
       },
       (data) => {
         const type = data?.type as string | undefined;
         const screen = data?.screen as string | undefined;
+
+        // ── مكالمة صوتية واردة ──
+        if (type === "call" && data?.callId) {
+          if (getActiveCall() !== Number(data.callId)) router.push({ pathname: "/call", params: { callId: String(data.callId), role: "callee", name: String(data.callerName ?? "") } } as any);
+          return;
+        }
 
         // ── محادثات ──
         if (data?.chatId) {
@@ -266,6 +278,25 @@ function PresenceBeat() {
   useEffect(() => { const t = setTimeout(() => { rescheduleAdhanFromCache(); }, 4000); return () => clearTimeout(t); }, []);
   const { token, isGuest } = useAuth();
   usePresencePing(isGuest ? null : token);
+  // مراقبة المكالمات الواردة أثناء فتح التطبيق (احتياطاً إن تأخّر الإشعار)
+  const nav = useRouter();
+  useEffect(() => {
+    if (isGuest || !token || Platform.OS === "web") return;
+    let seen = 0;
+    const check = async () => {
+      if (!isAppActive() || getActiveCall()) return;
+      try {
+        const r = await callsApi.incoming(token);
+        if (r.call && r.call.id !== seen) {
+          seen = r.call.id;
+          nav.push({ pathname: "/call", params: { callId: String(r.call.id), role: "callee", name: r.call.caller_name || "", avatar: r.call.caller_avatar || "" } } as any);
+        }
+      } catch {}
+    };
+    check();
+    const t = setInterval(check, 6000);
+    return () => clearInterval(t);
+  }, [token, isGuest, nav]);
   return null;
 }
 
@@ -282,6 +313,7 @@ function RootLayoutNav() {
         <Stack.Screen name="onboarding"      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="complete-profile"   options={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="report"          options={{ headerShown: false }} />
+        <Stack.Screen name="call"            options={{ headerShown: false, animation: "fade", gestureEnabled: false, presentation: "fullScreenModal" }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="curriculum"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="sports-club"     options={{ headerShown: false, animation: "slide_from_right" }} />
