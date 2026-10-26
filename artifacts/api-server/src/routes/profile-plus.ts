@@ -80,8 +80,8 @@ export function ensureProfilePlus(): Promise<void> {
 
 router.use(["/profile", "/social/active-now", "/admin/verification", "/admin/users/:id/verify", "/public/cv"], async (_req, res, next) => {
   if (!dbEnabled) return res.status(503).json({ error: "قاعدة البيانات غير متاحة" });
-  try { await ensureProfilePlus(); next(); }
-  catch (err) { logger.error({ err }, "[profile+] ensure failed"); res.status(500).json({ error: "تعذّر تهيئة الملف الشخصي" }); }
+  try { await ensureProfilePlus(); return next(); }
+  catch (err) { logger.error({ err }, "[profile+] ensure failed"); return res.status(500).json({ error: "تعذّر تهيئة الملف الشخصي" }); }
 });
 
 // ── أدوات ─────────────────────────────────────────────────────────
@@ -221,8 +221,8 @@ router.get("/profile/:id/full", async (req: Request, res: Response) => {
       query(`INSERT INTO profile_views (user_id, viewer_id) VALUES ($1,$2)
              ON CONFLICT (user_id, viewer_id, day) DO UPDATE SET viewed_at=NOW()`, [id, Number(me.id)]).catch(() => {});
     }
-    res.json(p);
-  } catch (err) { logger.error({ err }, "[profile+] full"); res.status(500).json({ error: "تعذّر تحميل الملف" }); }
+    return res.json(p);
+  } catch (err) { logger.error({ err }, "[profile+] full"); return res.status(500).json({ error: "تعذّر تحميل الملف" }); }
 });
 
 // ── تحديث بياناتي المهنية ──────────────────────────────────────────
@@ -256,8 +256,8 @@ router.patch("/profile/me", async (req: Request, res: Response) => {
     if (!sets.length) return res.status(400).json({ error: "لا توجد تغييرات" });
     vals.push(Number(me.id));
     await query(`UPDATE users SET ${sets.join(", ")} WHERE id=$${vals.length}`, vals);
-    res.json(await loadFull(Number(me.id), Number(me.id)));
-  } catch (err) { logger.error({ err }, "[profile+] patch"); res.status(500).json({ error: "تعذّر الحفظ" }); }
+    return res.json(await loadFull(Number(me.id), Number(me.id)));
+  } catch (err) { logger.error({ err }, "[profile+] patch"); return res.status(500).json({ error: "تعذّر الحفظ" }); }
 });
 
 // ── الشهادات ───────────────────────────────────────────────────────
@@ -273,8 +273,8 @@ router.post("/profile/me/certificates", async (req: Request, res: Response) => {
       `INSERT INTO user_certificates (user_id, kind, title, issuer, issued_on, credential_id, credential_url, file_url, file_type, is_public, sort_order)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [Number(me.id), f.kind, f.title, f.issuer, f.issued_on, f.credential_id, f.credential_url, f.file_url, f.file_type, f.is_public, n]);
-    res.json(r.rows[0]);
-  } catch (err) { logger.error({ err }, "[profile+] cert add"); res.status(500).json({ error: "تعذّر إضافة الشهادة" }); }
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "[profile+] cert add"); return res.status(500).json({ error: "تعذّر إضافة الشهادة" }); }
 });
 
 router.patch("/profile/me/certificates/:cid", async (req: Request, res: Response) => {
@@ -289,8 +289,8 @@ router.patch("/profile/me/certificates/:cid", async (req: Request, res: Response
         WHERE id=$10 AND user_id=$11 RETURNING *`,
       [f.kind, f.title, f.issuer, f.issued_on, f.credential_id, f.credential_url, f.file_url, f.file_type, f.is_public, Number(req.params.cid), Number(me.id)]);
     if (!r.rows[0]) return res.status(404).json({ error: "الشهادة غير موجودة" });
-    res.json(r.rows[0]);
-  } catch (err) { logger.error({ err }, "[profile+] cert edit"); res.status(500).json({ error: "تعذّر التعديل" }); }
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "[profile+] cert edit"); return res.status(500).json({ error: "تعذّر التعديل" }); }
 });
 
 router.delete("/profile/me/certificates/:cid", async (req: Request, res: Response) => {
@@ -299,8 +299,8 @@ router.delete("/profile/me/certificates/:cid", async (req: Request, res: Respons
     if (!me) return res.status(401).json({ error: "سجّل الدخول أولاً" });
     const r = await query(`DELETE FROM user_certificates WHERE id=$1 AND user_id=$2`, [Number(req.params.cid), Number(me.id)]);
     if (!r.rowCount) return res.status(404).json({ error: "الشهادة غير موجودة" });
-    res.json({ ok: true });
-  } catch (err) { logger.error({ err }, "[profile+] cert del"); res.status(500).json({ error: "تعذّر الحذف" }); }
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "[profile+] cert del"); return res.status(500).json({ error: "تعذّر الحذف" }); }
 });
 
 // ── تزكية مهارة (مرة لكل شخص لكل مهارة) ───────────────────────────
@@ -321,8 +321,8 @@ router.post("/profile/:id/endorse", async (req: Request, res: Response) => {
       pushToUser(id, "👏 تزكية جديدة", `زكّاك ${me.name} في مهارة «${skill}»`, { type: "profile", userId: id });
     }
     const n = (await query(`SELECT COUNT(*)::int AS n FROM user_endorsements WHERE user_id=$1 AND skill=$2`, [id, skill])).rows[0].n;
-    res.json({ ok: true, endorsed, count: n });
-  } catch (err) { logger.error({ err }, "[profile+] endorse"); res.status(500).json({ error: "تعذّرت التزكية" }); }
+    return res.json({ ok: true, endorsed, count: n });
+  } catch (err) { logger.error({ err }, "[profile+] endorse"); return res.status(500).json({ error: "تعذّرت التزكية" }); }
 });
 
 // ── من زار ملفي ────────────────────────────────────────────────────
@@ -336,8 +336,8 @@ router.get("/profile/me/visitors", async (req: Request, res: Response) => {
         WHERE v.user_id=$1 AND v.day > CURRENT_DATE - 30 AND COALESCE(u.is_banned,false)=false
         ORDER BY v.viewer_id, v.viewed_at DESC`, [Number(me.id)]);
     const rows = r.rows.sort((a: any, b: any) => +new Date(b.viewed_at) - +new Date(a.viewed_at)).slice(0, 50);
-    res.json({ visitors: rows });
-  } catch (err) { logger.error({ err }, "[profile+] visitors"); res.status(500).json({ error: "تعذّر التحميل" }); }
+    return res.json({ visitors: rows });
+  } catch (err) { logger.error({ err }, "[profile+] visitors"); return res.status(500).json({ error: "تعذّر التحميل" }); }
 });
 
 // ── طلب التوثيق ───────────────────────────────────────────────────
@@ -355,8 +355,8 @@ router.post("/profile/me/verification", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO verification_requests (user_id, kind, doc_url, note) VALUES ($1,$2,$3,$4) RETURNING id, status, created_at`,
       [Number(me.id), kind, doc_url, str(req.body?.note, 500) || null]);
     recordAdminAlert({ kind: "verification", title: "طلب توثيق جديد", body: `${me.name} يطلب شارة «موثوق»`, screen: "requests", refId: String(r.rows[0].id), phone: me.phone || undefined }).catch(() => {});
-    res.json(r.rows[0]);
-  } catch (err) { logger.error({ err }, "[profile+] verif req"); res.status(500).json({ error: "تعذّر إرسال الطلب" }); }
+    return res.json(r.rows[0]);
+  } catch (err) { logger.error({ err }, "[profile+] verif req"); return res.status(500).json({ error: "تعذّر إرسال الطلب" }); }
 });
 
 // ── الإدارة: طلبات التوثيق ────────────────────────────────────────
@@ -369,8 +369,8 @@ router.get("/admin/verification-requests", async (req: Request, res: Response) =
       `SELECT v.*, u.name, u.avatar_url, u.phone, u.headline, u.created_at AS user_created_at
          FROM verification_requests v JOIN users u ON u.id=v.user_id
         WHERE v.status=$1 ORDER BY v.created_at DESC LIMIT 200`, [status]);
-    res.json({ requests: r.rows });
-  } catch (err) { logger.error({ err }, "[profile+] admin list"); res.status(500).json({ error: "تعذّر التحميل" }); }
+    return res.json({ requests: r.rows });
+  } catch (err) { logger.error({ err }, "[profile+] admin list"); return res.status(500).json({ error: "تعذّر التحميل" }); }
 });
 
 async function setVerified(userId: number, verified: boolean, label: string | null) {
@@ -396,8 +396,8 @@ router.patch("/admin/verification-requests/:rid", async (req: Request, res: Resp
     } else {
       pushToUser(row.user_id, "طلب التوثيق", str(req.body?.admin_note, 200) || "لم يُقبل طلب التوثيق، يمكنك إعادة المحاولة بصورة أوضح", { type: "profile", userId: row.user_id });
     }
-    res.json({ ok: true });
-  } catch (err) { logger.error({ err }, "[profile+] admin review"); res.status(500).json({ error: "تعذّرت المراجعة" }); }
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "[profile+] admin review"); return res.status(500).json({ error: "تعذّرت المراجعة" }); }
 });
 
 router.post("/admin/users/:id/verify", async (req: Request, res: Response) => {
@@ -406,8 +406,8 @@ router.post("/admin/users/:id/verify", async (req: Request, res: Response) => {
     if (!isStaff(me)) return res.status(403).json({ error: "للإدارة فقط" });
     const verified = req.body?.verified !== false;
     await setVerified(Number(req.params.id), verified, str(req.body?.label, 80) || "موثوق");
-    res.json({ ok: true, verified });
-  } catch (err) { logger.error({ err }, "[profile+] admin verify"); res.status(500).json({ error: "تعذّر التحديث" }); }
+    return res.json({ ok: true, verified });
+  } catch (err) { logger.error({ err }, "[profile+] admin verify"); return res.status(500).json({ error: "تعذّر التحديث" }); }
 });
 
 // ── النشطون الآن ───────────────────────────────────────────────────
@@ -421,8 +421,8 @@ router.get("/social/active-now", async (req: Request, res: Response) => {
           AND COALESCE(is_banned,false)=false AND id <> $1
         ORDER BY is_verified DESC, last_seen_at DESC LIMIT 60`, [me ? Number(me.id) : 0]);
     const total = (await query(`SELECT COUNT(*)::int AS n FROM users WHERE show_presence AND last_seen_at > NOW() - make_interval(secs => ${ONLINE_SEC})`)).rows[0].n;
-    res.json({ users: r.rows, total });
-  } catch (err) { logger.error({ err }, "[profile+] active"); res.status(500).json({ error: "تعذّر التحميل" }); }
+    return res.json({ users: r.rows, total });
+  } catch (err) { logger.error({ err }, "[profile+] active"); return res.status(500).json({ error: "تعذّر التحميل" }); }
 });
 
 // ── الملف المهني العام (صفحة ويب لجهات العمل) ─────────────────────
@@ -446,7 +446,7 @@ router.get("/public/cv/:id", async (req: Request, res: Response) => {
     const skills = (p.skills as any[]).map((s) => `<span class="chip">${esc(s.name)}${s.count ? ` <b>+${s.count}</b>` : ""}</span>`).join("");
     const links = Object.entries(p.social_links || {}).map(([k, v]) => `<a class="soc" href="${esc(v)}" target="_blank" rel="noopener">${esc(SOCIAL_AR[k] || k)}</a>`).join("");
     const since = new Date(p.created_at).toLocaleDateString("ar", { year: "numeric", month: "long" });
-    res.send(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return res.send(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(p.name)} — الملف المهني | حصاحيصاوي</title>
 <meta property="og:title" content="${esc(p.name)}${p.headline ? " — " + esc(p.headline) : ""}"><meta property="og:description" content="${esc((p.bio || "").slice(0, 160))}">
 ${p.avatar_url ? `<meta property="og:image" content="${esc(p.avatar_url)}">` : ""}
@@ -487,7 +487,7 @@ ${certs ? `<div class="sec"><h2>الشهادات والخبرات</h2>${certs}</
 ${links ? `<div class="sec"><h2>للتواصل</h2>${links}</div>` : ""}
 <div class="foot">الملف المهني على تطبيق حصاحيصاوي</div>
 </div></body></html>`);
-  } catch (err) { logger.error({ err }, "[profile+] public cv"); res.status(500).send("error"); }
+  } catch (err) { logger.error({ err }, "[profile+] public cv"); return res.status(500).send("error"); }
 });
 
 export default router;
