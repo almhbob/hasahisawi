@@ -112,6 +112,23 @@ export default function ProfileScreen() {
     catch (e: any) { setShowPresence(!v); notify("تعذّر", e?.message || "حاول مجدداً"); }
   };
 
+  const toggleLock = async () => {
+    if (!token || !profile) return;
+    const v = !profile.profile_locked;
+    const ok = await confirmAction(
+      v ? "🔒 قفل الملف الشخصي" : "فتح الملف الشخصي",
+      v ? "لن يرى غيرك إلا اسمك وصورتك وشارة التوثيق. تختفي نبذتك وشهاداتك ومهاراتك وروابطك ومنشوراتك من ملفك، ويُخفى ملفك المهني العام. يمكنك فتحه في أي وقت."
+        : "سيظهر ملفك كاملاً للجميع مرة أخرى.",
+      v ? "قفل الملف" : "فتح الملف",
+    );
+    if (!ok) return;
+    try {
+      const p = await profileApi.update(token, { profile_locked: v });
+      setProfile(p); haptic();
+      notify("تم", v ? "ملفك الشخصي مقفل الآن 🔒" : "ملفك الشخصي ظاهر للجميع");
+    } catch (e: any) { notify("تعذّر", e?.message || "حاول مجدداً"); }
+  };
+
   const toggleBiometrics = async () => {
     try {
       if (biometricsEnabled) {
@@ -195,6 +212,7 @@ export default function ProfileScreen() {
   const links = SOCIALS.filter((s) => profile.social_links?.[s.key]);
   const presence = !isOwn ? presenceText(profile.online, profile.last_seen_at) : "";
   const comp = profile.completeness;
+  const lockedView = !!profile.locked && !isOwn;
   const verif = profile.verification;
 
   return (
@@ -258,9 +276,14 @@ export default function ProfileScreen() {
             {presence ? <Text style={[styles.metaText, profile.online && { color: "#16A34A", fontFamily: "Cairo_700Bold" }]}>{profile.neighborhood ? " · " : ""}{presence}</Text> : null}
           </View>
 
-          <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
-            {profile.bio || (isOwn ? "أضف نبذة قصيرة عنك ليتعرّف عليك الآخرون وجهات العمل." : "لا توجد نبذة.")}
-          </Text>
+          {isOwn && profile.profile_locked ? (
+            <TouchableOpacity onPress={toggleLock} style={styles.ownLock}><Ionicons name="lock-closed" size={12} color="#7C3AED" /><Text style={styles.ownLockTxt}>ملفك مقفل — لا يراه إلا أنت والإدارة</Text></TouchableOpacity>
+          ) : null}
+          {!lockedView && (
+            <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
+              {profile.bio || (isOwn ? "أضف نبذة قصيرة عنك ليتعرّف عليك الآخرون وجهات العمل." : "لا توجد نبذة.")}
+            </Text>
+          )}
 
           {links.length > 0 && (
             <View style={styles.socialRow}>
@@ -272,14 +295,14 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <View style={styles.stats}>
+          {!lockedView && <View style={styles.stats}>
             <Stat value={profile.posts_count} label="منشور" />
             <View style={styles.statDivider} />
             <Stat value={profile.certificates.length} label="شهادة" />
             <View style={styles.statDivider} />
             <Stat value={profile.endorsers_count} label="زكّاه" />
             {isOwn && (<><View style={styles.statDivider} /><Stat value={profile.views_30d ?? 0} label="زيارة/30 يوم" /></>)}
-          </View>
+          </View>}
 
           <View style={styles.heroActions}>
             {isOwn ? (
@@ -299,14 +322,46 @@ export default function ProfileScreen() {
                   <Ionicons name="chatbubble-ellipses-outline" size={17} color="#fff" />
                   <Text style={styles.primaryBtnText}>مراسلة</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.ghostBtn} onPress={() => openExternal(publicCvUrl(profile.id))}>
+                {!lockedView && <TouchableOpacity style={styles.ghostBtn} onPress={() => openExternal(publicCvUrl(profile.id))}>
                   <Ionicons name="document-text-outline" size={17} color={Colors.primaryDeep} />
                   <Text style={styles.ghostBtnText}>السيرة المهنية</Text>
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </>
             )}
           </View>
         </Animated.View>
+
+        {/* ── ملف مقفل ── */}
+        {lockedView && (
+          <Animated.View entering={FadeInDown.delay(40).springify()} style={[styles.card, { alignItems: "center", gap: 6, paddingVertical: 26 }]}>
+            <View style={styles.lockBig}><Ionicons name="lock-closed" size={30} color={Colors.primaryDeep} /></View>
+            <Text style={styles.cardTitleNoMb}>{profile.name.split(" ")[0]} قفل ملفه الشخصي</Text>
+            <Text style={[styles.hint, { textAlign: "center" }]}>لا تظهر تفاصيل هذا الملف إلا لصاحبه. يمكنك مراسلته مباشرة.</Text>
+          </Animated.View>
+        )}
+
+        {/* ── عرض الإدارة ── */}
+        {!isOwn && profile.admin_contact && (
+          <Animated.View entering={FadeInDown.delay(40).springify()} style={[styles.card, styles.adminCard]}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>عرض الإدارة</Text>
+              <View style={styles.adminPill}><Ionicons name="shield-checkmark" size={12} color="#fff" /><Text style={styles.adminPillTxt}>{user?.role === "admin" ? "مدير" : "مشرف"}</Text></View>
+            </View>
+            {profile.profile_locked ? <Text style={[styles.hint, { color: "#B45309" }]}>🔒 هذا الملف مقفل للعامة — تراه كاملاً بصفتك من الإدارة.</Text> : null}
+            {[
+              ["call-outline", "الهاتف", profile.admin_contact.phone],
+              ["mail-outline", "البريد", profile.admin_contact.email],
+              ["location-outline", "الحي", profile.admin_contact.neighborhood],
+            ].filter(([, , v]) => v).map(([icon, label, v]) => (
+              <TouchableOpacity key={label as string} style={styles.adminRow} activeOpacity={0.8}
+                onPress={() => label === "الهاتف" ? openExternal(`tel:${v}`) : label === "البريد" ? openExternal(`mailto:${v}`) : undefined}>
+                <Ionicons name={icon as any} size={16} color={Colors.primaryDeep} />
+                <Text style={styles.adminLabel}>{label}:</Text>
+                <Text style={styles.adminVal} selectable>{v}</Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
 
         {/* ── اكتمال الملف ── */}
         {isOwn && comp && comp.percent < 100 && (
@@ -476,6 +531,7 @@ export default function ProfileScreen() {
             {Platform.OS !== "web" && biometricsAvailable && (
               <Quick icon="finger-print" label="الدخول بالبصمة" sub={biometricsEnabled ? "مفعّل — اضغط للإيقاف" : "اضغط للتفعيل"} color="#2F8A8A" onPress={toggleBiometrics} />
             )}
+            <Quick icon={profile.profile_locked ? "lock-closed" : "lock-open-outline"} label="قفل الملف الشخصي" sub={profile.profile_locked ? "مقفل — اضغط للفتح" : "ظاهر للجميع — اضغط للقفل"} color="#7C3AED" onPress={toggleLock} />
             {showPresence !== null && (
               <Quick icon={showPresence ? "eye" : "eye-off"} label="حالة النشاط" sub={showPresence ? "ظاهرة — اضغط للإخفاء" : "مخفية — اضغط للإظهار"} color="#1D66D4" onPress={togglePresence} />
             )}
@@ -484,7 +540,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ── المنشورات ── */}
-        <Animated.View entering={FadeInDown.delay(160).springify()} style={styles.card}>
+        {!lockedView && <Animated.View entering={FadeInDown.delay(160).springify()} style={styles.card}>
           <View style={styles.cardHead}>
             <Text style={styles.cardTitle}>{isOwn ? "منشوراتي" : "المنشورات"}</Text>
             <Text style={styles.cardCount}>{profile.posts_count}</Text>
@@ -507,7 +563,7 @@ export default function ProfileScreen() {
               </View>
             </TouchableOpacity>
           ))}
-        </Animated.View>
+        </Animated.View>}
       </ScrollView>
 
       {/* ── النوافذ ── */}
@@ -640,6 +696,15 @@ const styles = StyleSheet.create({
   missChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "0D", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   missText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primaryDeep },
 
+  ownLock: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#7C3AED12", borderWidth: 1, borderColor: "#7C3AED35", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginTop: 8 },
+  ownLockTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#7C3AED" },
+  lockBig: { width: 64, height: 64, borderRadius: 22, backgroundColor: Colors.primary + "14", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  adminCard: { borderColor: "#F0A50060", backgroundColor: "#FFFBF0" },
+  adminPill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#D97706", paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },
+  adminPillTxt: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  adminRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 6 },
+  adminLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  adminVal: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
   verifyCard: { borderColor: VERIFIED_BLUE + "40", backgroundColor: "#F3F9FE" },
   verifyIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: VERIFIED_BLUE + "18", alignItems: "center", justifyContent: "center" },
 

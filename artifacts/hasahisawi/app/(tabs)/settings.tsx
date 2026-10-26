@@ -1125,7 +1125,7 @@ export default function SettingsScreen() {
   const isAdmin = auth.user?.role === "admin";
   const isModerator = auth.user?.role === "moderator";
   const hasAccess = isAdmin || isModerator;
-  const moderatorPermissions = (auth.user as any)?.permissions as string[] | undefined;
+  const moderatorPermissions = (Array.isArray((auth.user as any)?.permissions) ? (auth.user as any).permissions : undefined) as string[] | undefined;
   const adminName = auth.user?.name || (lang === "ar" ? "المسؤول" : "Admin");
 
   const ADMIN_TABS = hasAccess ? ALL_ADMIN_TABS.filter(tab => {
@@ -2754,7 +2754,7 @@ export default function SettingsScreen() {
               managedUsers.filter(u => u.role !== "admin").map(u => {
                 const expanded = expandedUserId === u.id;
                 const isMod = u.role === "moderator";
-                const userPerms = u.permissions || [];
+                const userPerms: string[] = Array.isArray(u.permissions) ? u.permissions : [];
                 return (
                   <View key={u.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 12, marginBottom: 10, padding: 14, borderWidth: 1, borderColor: expanded ? Colors.primary + "40" : Colors.divider }}>
                     <TouchableOpacity onPress={() => setExpandedUserId(expanded ? null : u.id)} activeOpacity={0.7}>

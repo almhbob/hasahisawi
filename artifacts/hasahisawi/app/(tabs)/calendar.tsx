@@ -35,7 +35,6 @@ const HOLIDAYS: Holiday[] = [
   { month: 12, day: 19, nameAr: "ذكرى ثورة ديسمبر", nameEn: "December Revolution Day", type: "national", noteAr: "ثورة ديسمبر 2018", noteEn: "December Revolution 2018" },
 
   // ── إسلامية 2025 ─────────────────────────────────────────────
-  { month: 1,  day: 1,  year: 2025, nameAr: "رأس السنة الهجرية 1447", nameEn: "Islamic New Year 1447", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
   { month: 3,  day: 30, year: 2025, nameAr: "عيد الفطر المبارك", nameEn: "Eid Al-Fitr", type: "islamic", noteAr: "1-3 شوال 1446 — تقريبي", noteEn: "1-3 Shawwal 1446 — Approx." },
   { month: 3,  day: 31, year: 2025, nameAr: "عيد الفطر (ثاني أيام)", nameEn: "Eid Al-Fitr (Day 2)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
   { month: 4,  day: 1,  year: 2025, nameAr: "عيد الفطر (ثالث أيام)", nameEn: "Eid Al-Fitr (Day 3)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
@@ -57,6 +56,18 @@ const HOLIDAYS: Holiday[] = [
   { month: 5,  day: 29, year: 2026, nameAr: "عيد الأضحى (ثالث أيام)", nameEn: "Eid Al-Adha (Day 3)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
   { month: 6,  day: 15, year: 2026, nameAr: "رأس السنة الهجرية 1448", nameEn: "Islamic New Year 1448", type: "islamic", noteAr: "1 محرم 1448 — تقريبي", noteEn: "1 Muharram 1448 — Approx." },
   { month: 8,  day: 24, year: 2026, nameAr: "المولد النبوي الشريف", nameEn: "Prophet's Birthday", type: "islamic", noteAr: "12 ربيع الأول 1448 — تقريبي", noteEn: "12 Rabi' al-Awwal 1448 — Approx." },
+
+  // ── إسلامية 2027 ─────────────────────────────────────────────
+  { month: 2,  day: 8,  year: 2027, nameAr: "بداية شهر رمضان المبارك", nameEn: "Start of Ramadan", type: "islamic", noteAr: "1 رمضان 1448 — تقريبي", noteEn: "Approximate" },
+  { month: 3,  day: 10, year: 2027, nameAr: "عيد الفطر المبارك", nameEn: "Eid Al-Fitr", type: "islamic", noteAr: "1 شوال 1448 — تقريبي", noteEn: "Approximate" },
+  { month: 3,  day: 11, year: 2027, nameAr: "عيد الفطر (ثاني أيام)", nameEn: "Eid Al-Fitr (Day 2)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
+  { month: 3,  day: 12, year: 2027, nameAr: "عيد الفطر (ثالث أيام)", nameEn: "Eid Al-Fitr (Day 3)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
+  { month: 5,  day: 16, year: 2027, nameAr: "يوم عرفة", nameEn: "Arafat Day", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
+  { month: 5,  day: 17, year: 2027, nameAr: "عيد الأضحى المبارك", nameEn: "Eid Al-Adha", type: "islamic", noteAr: "10 ذي الحجة 1448 — تقريبي", noteEn: "Approximate" },
+  { month: 5,  day: 18, year: 2027, nameAr: "عيد الأضحى (ثاني أيام)", nameEn: "Eid Al-Adha (Day 2)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
+  { month: 5,  day: 19, year: 2027, nameAr: "عيد الأضحى (ثالث أيام)", nameEn: "Eid Al-Adha (Day 3)", type: "islamic", noteAr: "تقريبي", noteEn: "Approximate" },
+  { month: 6,  day: 6,  year: 2027, nameAr: "رأس السنة الهجرية 1449", nameEn: "Islamic New Year 1449", type: "islamic", noteAr: "1 محرم 1449 — تقريبي", noteEn: "Approximate" },
+  { month: 8,  day: 15, year: 2027, nameAr: "المولد النبوي الشريف", nameEn: "Prophet's Birthday", type: "islamic", noteAr: "12 ربيع الأول 1449 — تقريبي", noteEn: "Approximate" },
 
   // ── محلية / ذكرى ─────────────────────────────────────────────
   { month: 1,  day: 1,  nameAr: "رأس السنة الميلادية", nameEn: "New Year's Day", type: "local" },
@@ -102,7 +113,8 @@ function DayCell({
 
   const holidays = getHolidaysForDay(day, month, year);
   const isToday = day === today.d && month === today.m && year === today.y;
-  const isWeekend = [0, 6].includes(new Date(year, month - 1, day).getDay());
+  // عطلة نهاية الأسبوع في السودان: الجمعة والسبت
+  const isWeekend = [5, 6].includes(new Date(year, month - 1, day).getDay());
   const firstHoliday = holidays[0];
 
   return (
@@ -141,8 +153,11 @@ export default function CalendarScreen() {
   const { t, isRTL, lang, tr } = useLang();
   const now = new Date();
 
-  const months = t('calendar', 'months');
-  const dayNames = t('calendar', 'days');
+  const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+  const AR_DAYS = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
+  const m0 = t('calendar', 'months'), d0 = t('calendar', 'days');
+  const months: string[] = Array.isArray(m0) && m0.length === 12 ? m0 : AR_MONTHS;
+  const dayNames: string[] = Array.isArray(d0) && d0.length === 7 ? d0 : AR_DAYS;
 
   const typeConfig: Record<HolidayType, { color: string; label: string; icon: string }> = {
     national: { color: Colors.accent,    label: t('calendar', 'national'),  icon: "flag" },

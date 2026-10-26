@@ -76,8 +76,11 @@ r.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
     const me = await getSessionUser(req);
     if (me?.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
     const userId = Number(req.params.id);
-    const q = await query(`SELECT section FROM supervisor_section_permissions WHERE user_id=$1 ORDER BY section`, [userId]);
-    return res.json({ user_id: userId, sections: q.rows.map(x => x.section) });
+    // مصفوفة الأقسام (كما تتوقعها لوحة الإدارة) — تجمع الجدولين القديم والجديد
+    const q = await query(`SELECT section FROM supervisor_section_permissions WHERE user_id=$1
+                           UNION SELECT section FROM moderator_permissions WHERE user_id=$1 ORDER BY section`, [userId])
+      .catch(() => query(`SELECT section FROM supervisor_section_permissions WHERE user_id=$1 ORDER BY section`, [userId]));
+    return res.json(q.rows.map(x => x.section));
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -93,6 +96,13 @@ r.put("/admin/users/:id/permissions", async (req: Request, res: Response) => {
     for (const section of sections) {
       await query(`INSERT INTO supervisor_section_permissions(user_id, section) VALUES($1,$2) ON CONFLICT DO NOTHING`, [userId, section]);
     }
+    // الجدول الذي يقرؤه تسجيل الدخول ولوحة المشرف (permissions في /auth/me)
+    try {
+      await query(`DELETE FROM moderator_permissions WHERE user_id=$1`, [userId]);
+      for (const section of sections) {
+        await query(`INSERT INTO moderator_permissions (user_id, section) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [userId, section]);
+      }
+    } catch { /* الجدول يُنشأ عند تهيئة الخادم */ }
     return res.json({ ok: true, user_id: userId, sections });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });

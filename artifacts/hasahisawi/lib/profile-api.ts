@@ -18,6 +18,8 @@ export type FullProfile = {
   certificates: Cert[]; posts_count: number; reports_count: number; endorsers_count: number;
   views_30d?: number; verification?: { status: "pending" | "approved" | "rejected"; admin_note: string | null; created_at: string } | null;
   completeness?: { percent: number; missing: string[] };
+  locked?: boolean; profile_locked?: boolean;
+  admin_contact?: { phone: string | null; email: string | null; neighborhood: string | null };
 };
 
 export type SocialKey = "whatsapp" | "facebook" | "instagram" | "x" | "tiktok" | "linkedin" | "youtube" | "telegram" | "snapchat" | "github" | "website";
@@ -58,7 +60,7 @@ async function api(path: string, token: string | null | undefined, init: { metho
 
 export const profileApi = {
   full: (id: number, token?: string | null) => api(`/profile/${id}/full`, token) as Promise<FullProfile>,
-  update: (token: string, patch: Partial<{ headline: string; profession: string; bio: string; neighborhood: string; skills: string[]; social_links: Record<string, string>; open_to_work: boolean; show_certs: boolean }>) =>
+  update: (token: string, patch: Partial<{ headline: string; profession: string; bio: string; neighborhood: string; skills: string[]; social_links: Record<string, string>; open_to_work: boolean; show_certs: boolean; profile_locked: boolean }>) =>
     api(`/profile/me`, token, { method: "PATCH", body: patch }) as Promise<FullProfile>,
   addCert: (token: string, c: Partial<Cert>) => api(`/profile/me/certificates`, token, { method: "POST", body: c }) as Promise<Cert>,
   editCert: (token: string, id: number, c: Partial<Cert>) => api(`/profile/me/certificates/${id}`, token, { method: "PATCH", body: c }) as Promise<Cert>,
