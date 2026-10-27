@@ -59,6 +59,30 @@ for (const [kind, path, who, body] of joins) {
   if (r.status < 300) check(`  alert recorded for ${kind}`, after === before + 1, `${before}→${after}`);
 }
 
+// ── 1b) generic join request aliases ────────────────────────────────────────
+const aliasCases = [
+  ["/join-requests", "general", { request_type: "general", applicant_name: "طلب عام", phone: P(19) }],
+  ["/merchants/join-request", "merchant", { applicant_name: "متجر تجريبي", phone: P(20) }],
+  ["/merchant/join-request", "merchant", { applicant_name: "متجر بديل", phone: P(21) }],
+  ["/transport/driver/join-request", "driver", { name: "سائق تجريبي", phone: P(22) }],
+  ["/food/join-request", "food_business", { name: "مشروع طعام", phone: P(23) }],
+];
+const aliasResults = [];
+for (const [path, expectedType, body] of aliasCases) {
+  const response = await call("POST", path, male.token, body);
+  const stored = (await db.query("SELECT request_type,status,source_endpoint FROM join_requests WHERE phone=$1 ORDER BY id DESC LIMIT 1", [body.phone])).rows[0];
+  check("join alias " + path + " stores " + expectedType, response.status === 201 && response.json?.request?.request_type === expectedType && stored?.request_type === expectedType && stored?.status === "pending" && stored?.source_endpoint === path, response.status + " " + stored?.request_type + "/" + stored?.status + "/" + stored?.source_endpoint);
+  aliasResults.push(response.json?.request);
+}
+const duplicatePhone = P(24);
+const firstAlias = await call("POST", "/merchants/join-request", male.token, { applicant_name: "طلب متجر مكرر", phone: duplicatePhone });
+const secondAlias = await call("POST", "/merchant/join-request", male.token, { applicant_name: "طلب متجر مكرر", phone: duplicatePhone });
+const duplicates = (await db.query("SELECT id,status,duplicate_of FROM join_requests WHERE phone=$1 ORDER BY id ASC", [duplicatePhone])).rows;
+check("merchant alias marks duplicate safely", firstAlias.status === 201 && secondAlias.status === 201 && secondAlias.json?.duplicate === true && duplicates.length === 2 && duplicates[1].status === "duplicate" && Number(duplicates[1].duplicate_of) === Number(duplicates[0].id));
+const contactRequest = aliasResults[1];
+const contacted = await call("PATCH", "/admin/join-requests/" + contactRequest?.id, admin.token, { status: "contacted" });
+check("valid contacted status accepted", contacted.status === 200 && contacted.json?.status === "contacted", contacted.text.slice(0, 100));
+
 // ── 2) admin alerts feed & access ────────────────────────────────────────────
 let r = await call("GET", "/admin/alerts?after=0&limit=100", admin.token);
 check("admin sees alerts feed", r.status === 200 && r.json.alerts.length >= 18 && r.json.unread >= 18, `${r.status} ${r.json?.alerts?.length} unread=${r.json?.unread}`);
@@ -80,6 +104,10 @@ r = await call("GET", "/admin/join-requests", admin.token);
 const mj = r.json?.requests?.find((x) => x.request_type === "men_service" && x.payload?.service_type === "barber");
 check("admin lists men join request", !!mj, r.text.slice(0, 120));
 r = await call("PATCH", `/admin/join-requests/${mj?.id}`, admin.token, { status: "approved" }); check("admin approves generic join", r.status === 200 && r.json.status === "approved");
+const afterInvalidStatus = await call("PATCH", "/admin/join-requests/" + mj?.id, admin.token, { status: "not_a_status" });
+check("invalid join status rejected", afterInvalidStatus.status === 400, afterInvalidStatus.text);
+const statusAfterInvalid = (await db.query("SELECT status FROM join_requests WHERE id=$1", [mj?.id])).rows[0]?.status;
+check("invalid join status leaves request unchanged", statusAfterInvalid === "approved", statusAfterInvalid);
 
 // ── 4) women corner isolation ───────────────────────────────────────────────
 for (const [label, who, expect] of [["guest", null, 401], ["male", male, 403], ["unset gender", unset, 403], ["moderator(male)", mod, 403], ["female", female, 200], ["admin", admin, 200]]) {
@@ -155,3 +183,4 @@ const src = (await db.query(`SELECT source FROM curriculum_books ORDER BY id DES
 
 console.log(`\n${pass} passed, ${fail} failed`); if (fails.length) console.log("FAILED:", fails.join(" | "));
 await db.end();
+process.exitCode = fail > 0 ? 1 : 0;

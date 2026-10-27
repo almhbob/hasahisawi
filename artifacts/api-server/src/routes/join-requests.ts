@@ -126,7 +126,10 @@ router.patch("/admin/join-requests/:id", async (req, res) => {
   try {
     await initJoinRequestsDb();
     const admin = await requireAdmin(req, res); if (!admin) return;
-    const status = String(req.body?.status || "pending");
+    const status = String(req.body?.status || "pending").trim().toLowerCase();
+    if (!["pending", "approved", "rejected", "contacted"].includes(status)) {
+      return res.status(400).json({ error: "حالة الطلب غير صالحة" });
+    }
     const note = req.body?.review_note ? String(req.body.review_note) : null;
     const r = await query(`UPDATE join_requests SET status=$1,review_note=$2,reviewed_by=$3,reviewed_at=NOW(),updated_at=NOW() WHERE id=$4 RETURNING *`, [status, note, admin.id, req.params.id]);
     if (!r.rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
