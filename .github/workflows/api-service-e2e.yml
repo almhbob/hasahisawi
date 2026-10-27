@@ -81,13 +81,15 @@ jobs:
           const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
           await client.connect();
           let ready = false;
-          for (let attempt = 0; attempt < 60; attempt++) {
-            const result = await client.query("SELECT to_regclass('public.users') AS users, to_regclass('public.user_sessions') AS sessions, to_regclass('public.admin_alerts') AS alerts");
+          let missing = {};
+          for (let attempt = 0; attempt < 180; attempt++) {
+            const result = await client.query("SELECT to_regclass('public.users') IS NOT NULL AS users, to_regclass('public.user_sessions') IS NOT NULL AS sessions, to_regclass('public.admin_alerts') IS NOT NULL AS alerts, to_regclass('public.institution_applications') IS NOT NULL AS institutions, to_regclass('public.women_join_requests') IS NOT NULL AS women_join, to_regclass('public.women_stores') IS NOT NULL AS women_stores, to_regclass('public.occasion_shops') IS NOT NULL AS occasion_shops, to_regclass('public.transport_drivers') IS NOT NULL AS drivers, to_regclass('public.external_partnerships') IS NOT NULL AS partnerships, to_regclass('public.student_registrations') IS NOT NULL AS student_registrations, to_regclass('public.student_transfers') IS NOT NULL AS student_transfers, to_regclass('public.travel_companies') IS NOT NULL AS travel_companies, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='women_services' AND column_name='is_active') AS women_services_is_active");
             const row = result.rows[0];
-            if (row.users && row.sessions && row.alerts) { ready = true; break; }
+            missing = Object.fromEntries(Object.entries(row).filter(([, value]) => !value));
+            if (Object.keys(missing).length === 0) { ready = true; break; }
             await new Promise((resolve) => setTimeout(resolve, 1000));
           }
           await client.end();
-          if (!ready) { console.error("API test schema did not initialize"); process.exit(1); }
+          if (!ready) { console.error("API test schema did not initialize; missing:", JSON.stringify(missing)); process.exit(1); }
           NODE
           node qa/e2e-requests.mjs
