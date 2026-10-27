@@ -176,6 +176,7 @@ export const translations = {
       addEvent: "إضافة مناسبة",
       upcoming: "القادمة",
       past: "المنتهية",
+      holidayDisclaimer: "تواريخ الأعياد والمناسبات الإسلامية تقريبية وقد تختلف بحسب رؤية الهلال.",
     },
     auth: {
       login: "تسجيل الدخول",
@@ -232,6 +233,23 @@ export const translations = {
       local: "محلية",
       general: "عامة",
       publishedAt: "نشر في",
+    },
+  },
+  en: {
+    calendar: {
+      title: "Calendar & holidays",
+      months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+      days: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      local: "Local",
+      today: "Today",
+      national: "National",
+      islamic: "Islamic",
+      events: "Events",
+      noEvents: "No occasions this month",
+      addEvent: "Add occasion",
+      upcoming: "Upcoming",
+      past: "Past",
+      holidayDisclaimer: "Islamic holiday dates are approximate and may vary with the local moon sighting.",
     },
   },
 };
