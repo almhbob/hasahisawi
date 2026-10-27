@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Image, Modal, Pressable,
 } from "react-native";
@@ -62,8 +62,19 @@ export default function ProfileScreen() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const requestSequence = useRef(0);
+  const lastProfileId = useRef<number | null | undefined>(undefined);
 
   const fetchProfile = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+    const profileChanged = lastProfileId.current !== profileId;
+    lastProfileId.current = profileId;
+
+    if (profileChanged) {
+      setProfile(null);
+      setPosts([]);
+      setVisitors([]);
+    }
     if (!profileId) { setLoading(false); return; }
     setLoading(true); setFailed(false);
     try {
@@ -72,14 +83,19 @@ export default function ProfileScreen() {
         profileApi.full(profileId, token).catch((e) => { if (e?.status === 404) return null; throw e; }),
         fetch(`${getApiUrl()}/api/posts?user_id=${profileId}&limit=20`, { headers }).catch(() => null),
       ]);
+      if (requestId !== requestSequence.current) return;
       setProfile(p);
-      if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
-      if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
-    } catch { setFailed(true); }
-    finally { setLoading(false); }
+      if (postsRes?.ok) { const d = await postsRes.json(); if (requestId !== requestSequence.current) return; setPosts(Array.isArray(d) ? d : d.posts ?? []); }
+      else setPosts([]);
+      if (isOwn && token) profileApi.visitors(token).then((r) => { if (requestId === requestSequence.current) setVisitors(r.visitors); }).catch(() => {});
+    } catch { if (requestId === requestSequence.current) setFailed(true); }
+    finally { if (requestId === requestSequence.current) setLoading(false); }
   }, [profileId, token, isOwn]);
 
-  useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+  useFocusEffect(useCallback(() => {
+    fetchProfile();
+    return () => { requestSequence.current += 1; };
+  }, [fetchProfile]));
 
   const haptic = () => { if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); };
 
