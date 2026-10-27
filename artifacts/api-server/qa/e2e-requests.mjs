@@ -173,10 +173,11 @@ if (co.rows) {
 }
 
 // ── 8) big book upload target ───────────────────────────────────────────────
-r = await call("POST", "/curriculum/upload-target", male.token, { file_name: "كتاب.pdf", size: 40 * 1024 * 1024 }); check("upload-target responds", r.status === 200 && ["blob", "cloudinary"].includes(r.json.provider), r.text);
-r = await call("POST", "/curriculum/upload-target", male.token, { file_name: "x.pdf", size: 400 * 1024 * 1024 }); check("upload-target rejects > 300MB", r.status === 413);
+r = await call("POST", "/curriculum/upload-target", male.token, { file_name: "كتاب.pdf", size: 8 * 1024 * 1024 }); const uploadMaxMb = Number(r.json?.max_file_mb); check("upload-target responds", r.status === 200 && ["blob", "cloudinary"].includes(r.json.provider) && uploadMaxMb > 0, r.text);
+r = await call("POST", "/curriculum/upload-target", male.token, { file_name: "x.pdf", size: Math.ceil(uploadMaxMb * 1024 * 1024) + 1 }); check("upload-target rejects above provider limit", r.status === 413, r.status + " " + r.text.slice(0, 100));
+r = await call("POST", "/curriculum/upload-signature", male.token, { size: 10 * 1024 * 1024 }); check("Cloudinary signature rejects above raw limit", r.status === 413, r.status + " " + r.text.slice(0, 100));
 r = await call("POST", "/curriculum/upload-target", null, { file_name: "x.pdf", size: 1 }); check("upload-target requires login", r.status === 401);
-r = await call("GET", "/curriculum/meta"); check("curriculum max 300MB", r.json?.max_file_mb === 300, r.json?.max_file_mb);
+r = await call("GET", "/curriculum/meta"); check("curriculum max matches upload provider", r.status === 200 && Number(r.json?.max_file_mb) === uploadMaxMb, r.status + " " + r.json?.max_file_mb);
 r = await call("POST", "/curriculum/books", male.token, { stage: "primary", grade: 1, subject: "الرياضيات", kind: "textbook", title: "كتاب كبير", file_url: "https://abc123.public.blob.vercel-storage.com/curriculum/5/x.pdf", file_size: 50000000, file_format: "pdf" });
 check("blob URL accepted as upload", r.status === 201 || r.status === 200, r.text.slice(0, 140));
 const src = (await db.query(`SELECT source FROM curriculum_books ORDER BY id DESC LIMIT 1`)).rows[0]?.source; check("  stored as source=upload", src === "upload", src);
