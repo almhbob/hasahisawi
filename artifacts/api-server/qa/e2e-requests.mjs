@@ -28,6 +28,33 @@ const unset = await makeUser("بدون جنس");
 const admin = await makeUser("عاصم", { role: "admin", gender: "male" });
 const mod = await makeUser("خالد مشرف", { role: "moderator", gender: "male" });
 const merchant = await makeUser("عمر التاجر", { gender: "male" });
+const certOwner = await makeUser("عضو الشهادات");
+
+// ── 0) professional certificate bulk import ────────────────────────────────
+let certResult = await call("POST", "/profile/me/certificates/import", null, { records: [{ title: "Unauthenticated certificate" }] });
+check("certificate import requires login", certResult.status === 401);
+const tooManyCerts = Array.from({ length: 101 }, (_, i) => ({ title: `Certificate ${i}`, issuer: "E2E" }));
+certResult = await call("POST", "/profile/me/certificates/import", certOwner.token, { records: tooManyCerts });
+check("certificate import caps each batch at 100", certResult.status === 400);
+const certRecords = Array.from({ length: 75 }, (_, i) => ({
+  title: `Bulk Import E2E Certificate ${i + 1}`,
+  issuer: "E2E",
+  issued_on: new Date(Date.UTC(2024, 0, i + 1)).toISOString().slice(0, 10),
+  ...(i === 0 ? { expires_on: "2028-01-01" } : {}),
+}));
+certResult = await call("POST", "/profile/me/certificates/import", certOwner.token, { records: certRecords });
+check("certificate import saves all 75 records privately", certResult.status === 200 && certResult.json?.inserted === 75 && certResult.json?.total === 75, certResult.text);
+const savedCerts = await db.query(`SELECT title, expires_on, is_public FROM user_certificates WHERE user_id=$1 ORDER BY title`, [certOwner.id]);
+check("certificate expiry stored and records private", savedCerts.rows.length === 75 && savedCerts.rows.some((c) => c.expires_on === "2028-01-01") && savedCerts.rows.every((c) => c.is_public === false));
+certResult = await call("GET", `/profile/${certOwner.id}/full`, certOwner.token);
+check("certificate owner sees private imports", certResult.status === 200 && certResult.json?.certificates?.length === 75);
+certResult = await call("GET", `/profile/${certOwner.id}/full`, male.token);
+check("other users cannot see private imports", certResult.status === 200 && certResult.json?.certificates?.length === 0);
+certResult = await call("POST", "/profile/me/certificates/import", certOwner.token, { records: certRecords });
+check("certificate import skips existing duplicates", certResult.status === 200 && certResult.json?.inserted === 0 && certResult.json?.skipped === 75);
+const overLimitCerts = Array.from({ length: 26 }, (_, i) => ({ title: `Extra Certificate ${i}`, issuer: "E2E" }));
+certResult = await call("POST", "/profile/me/certificates/import", certOwner.token, { records: overLimitCerts });
+check("certificate import rejects total above 100 without partial writes", certResult.status === 409 && (await db.query(`SELECT COUNT(*)::int AS n FROM user_certificates WHERE user_id=$1`, [certOwner.id])).rows[0].n === 75);
 
 // ── 1) every join / request endpoint → 2xx + one admin alert ─────────────────
 const P = (i) => `0911${String(100000 + i).slice(-6)}`;
