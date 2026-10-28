@@ -1,0 +1,107 @@
+name: API service E2E
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'artifacts/api-server/**'
+      - 'artifacts/hasahisawi/app/profile.tsx'
+      - 'artifacts/hasahisawi/lib/profile-api.ts'
+      - 'artifacts/hasahisawi/components/profile/ProfileForms.tsx'
+      - '.github/workflows/api-service-e2e.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'artifacts/api-server/**'
+      - 'artifacts/hasahisawi/app/profile.tsx'
+      - 'artifacts/hasahisawi/lib/profile-api.ts'
+      - 'artifacts/hasahisawi/components/profile/ProfileForms.tsx'
+      - '.github/workflows/api-service-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-e2e:
+    name: Certificate import and service journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck API server
+        run: pnpm --filter @workspace/api-server run typecheck
+
+      - name: Typecheck profile app
+        run: pnpm --filter @workspace/hasahisawi run typecheck
+
+      - name: Build API server
+        working-directory: artifacts/api-server
+        run: node build.mjs
+
+      - name: Run isolated certificate and service tests
+        working-directory: artifacts/api-server
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          NODE_ENV: development
+          PORT: '8080'
+        run: |
+          set -euo pipefail
+          node dist/index.mjs > "$RUNNER_TEMP/api-e2e.log" 2>&1 &
+          api_pid=$!
+          cleanup() {
+            status=$?
+            kill "$api_pid" 2>/dev/null || true
+            wait "$api_pid" 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then tail -n 120 "$RUNNER_TEMP/api-e2e.log"; fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8080/api/healthz >/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then echo "API did not start"; exit 1; fi
+          node --input-type=module <<'NODE'
+          import pg from "pg";
+          const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          let ready = false;
+          let missing = {};
+          for (let attempt = 0; attempt < 180; attempt++) {
+            const result = await client.query("SELECT to_regclass('public.users') IS NOT NULL AS users, to_regclass('public.user_sessions') IS NOT NULL AS sessions, to_regclass('public.admin_alerts') IS NOT NULL AS alerts, to_regclass('public.institution_applications') IS NOT NULL AS institutions, to_regclass('public.women_join_requests') IS NOT NULL AS women_join, to_regclass('public.women_stores') IS NOT NULL AS women_stores, to_regclass('public.occasion_shops') IS NOT NULL AS occasion_shops, to_regclass('public.transport_drivers') IS NOT NULL AS drivers, to_regclass('public.external_partnerships') IS NOT NULL AS partnerships, to_regclass('public.student_registrations') IS NOT NULL AS student_registrations, to_regclass('public.student_transfers') IS NOT NULL AS student_transfers, to_regclass('public.travel_companies') IS NOT NULL AS travel_companies, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='women_services' AND column_name='is_active') AS women_services_is_active");
+            const row = result.rows[0];
+            missing = Object.fromEntries(Object.entries(row).filter(([, value]) => !value));
+            if (Object.keys(missing).length === 0) { ready = true; break; }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+          await client.end();
+          if (!ready) { console.error("API test schema did not initialize; missing:", JSON.stringify(missing)); process.exit(1); }
+          NODE
+          node qa/e2e-requests.mjs
