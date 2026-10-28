@@ -1,48 +1,28 @@
-name: Hasahisawi Android APK AAB Release
+name: Hasahisawi Android Test APK
 
 on:
   workflow_dispatch:
-    inputs:
-      play_track:
-        description: "Google Play track (internal / alpha / beta / production)"
-        required: false
-        default: ""
-      version_code:
-        description: "Override versionCode (leave empty for automatic)"
-        required: false
-        default: ""
-  push:
-    branches: [master, main]
-    paths:
-      - '.release-trigger'
-      - '.github/workflows/release-v6.yml'
-      - 'artifacts/hasahisawi/package.json'
-      - 'artifacts/hasahisawi/app.json'
-      - 'artifacts/hasahisawi/app/**'
-      - 'artifacts/hasahisawi/lib/**'
-      - 'artifacts/hasahisawi/components/**'
-      - 'artifacts/hasahisawi/scripts/**'
   pull_request:
     branches: [master, main]
     paths:
-      - '.release-trigger'
-      - '.github/workflows/release-v6.yml'
+      - '.apk-test-trigger'
+      - '.github/workflows/android-test-apk.yml'
       - 'artifacts/hasahisawi/package.json'
       - 'artifacts/hasahisawi/app.json'
       - 'artifacts/hasahisawi/app/**'
       - 'artifacts/hasahisawi/lib/**'
       - 'artifacts/hasahisawi/components/**'
       - 'artifacts/hasahisawi/scripts/**'
+      - 'artifacts/hasahisawi/android/**'
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
-  build-android:
-    name: Build APK and AAB
+  build-test-apk:
+    name: Build installable test APK
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -58,44 +38,17 @@ jobs:
           node-version: '22'
           cache: pnpm
 
-      - name: Add swap space
-        continue-on-error: true
-        run: |
-          sudo fallocate -l 4G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          free -h
-
       - name: Install dependencies
-        run: |
-          node artifacts/hasahisawi/scripts/ensure-android-release-deps.mjs
-          pnpm install --no-frozen-lockfile
-
-      - name: Read app version
-        id: ver
-        run: |
-          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
-          BASE_CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
-          # versionCode يزيد تلقائياً مع كل بناء (شرط Google Play لقبول أي تحديث)
-          OFFSET="${{ vars.PLAY_VERSION_CODE_OFFSET }}"; OFFSET="${OFFSET:-1000}"
-          AUTO=$(( OFFSET + ${{ github.run_number }} ))
-          CODE="${{ github.event.inputs.version_code }}"
-          if [ -z "$CODE" ]; then CODE=$(( AUTO > BASE_CODE ? AUTO : BASE_CODE )); fi
-          sed -i -E "s/^([[:space:]]*)versionCode [0-9]+/\1versionCode $CODE/" artifacts/hasahisawi/android/app/build.gradle
-          grep -n "versionCode" artifacts/hasahisawi/android/app/build.gradle
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "code=$CODE" >> $GITHUB_OUTPUT
-          echo "Building Hasahisawi v$VERSION build $CODE"
+        run: pnpm install --no-frozen-lockfile
 
       - name: Apply app patches
         working-directory: artifacts/hasahisawi
         run: |
-          node scripts/apply-latest-sections.mjs
-          node scripts/apply-travel-shipping-services.mjs
+          node scripts/apply-latest-sections.mjs || true
+          node scripts/fix-org-join-id-upload.mjs || true
           node scripts/apply-driver-inbox-lite.mjs || true
-          node scripts/apply-women-label-cleanup.mjs || true
-          node scripts/fix-social-image-items-duplicates.mjs || true
+          node scripts/patch-travel-agency-workspace.mjs || true
+          node scripts/patch-home-services-ui.mjs || true
 
       - name: Prepare Android build files
         run: |
@@ -108,13 +61,21 @@ jobs:
             echo ""
             echo "ndkVersion=$NDK_VER"
             echo "reactNativeArchitectures=arm64-v8a"
-            echo "org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+            echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+HeapDumpOnOutOfMemoryError"
             echo "org.gradle.parallel=false"
             echo "org.gradle.workers.max=1"
             echo "org.gradle.caching=true"
             echo "org.gradle.configuration-cache=false"
           } >> "$PROPS"
-          tail -20 "$PROPS"
+
+      - name: Create ephemeral debug keystore
+        run: |
+          mkdir -p artifacts/hasahisawi/android/app
+          keytool -genkeypair -noprompt -storetype JKS \
+            -keystore artifacts/hasahisawi/android/app/debug.keystore \
+            -storepass android -keypass android -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Patch Android native compatibility
         run: |
@@ -147,7 +108,6 @@ jobs:
           KOTLIN
 
           while IFS= read -r FIREBASE_BUILD; do
-            echo "Patching $FIREBASE_BUILD"
             sed -i "s/classifier = 'sources'/archiveClassifier = 'sources'/g" "$FIREBASE_BUILD" || true
             sed -i 's/classifier = "sources"/archiveClassifier = "sources"/g' "$FIREBASE_BUILD" || true
             sed -i "s/classifier 'sources'/archiveClassifier.set('sources')/g" "$FIREBASE_BUILD" || true
@@ -168,188 +128,39 @@ jobs:
           }
           JAVA_EOF
             fi
-            grep -n "classifier\|archiveClassifier" "$FIREBASE_BUILD" || true
           done < <(find node_modules artifacts/hasahisawi/node_modules -path "*/expo-firebase-core/android/build.gradle" 2>/dev/null)
 
-      - name: Create release signing key
-        id: signing
-        env:
-          # مفتاح توقيع ثابت (اختياري): عند ضبط هذه الأسرار تُوقَّع كل النسخ بالمفتاح نفسه،
-          # فتُثبَّت التحديثات فوق النسخة السابقة ويعمل تسجيل Google (SHA-1 ثابت).
-          # الأولوية لمفتاح الرفع المسجّل في Google Play (SHA1 7B:C4:A4:FC…) المحفوظ باسم KEYSTORE_BASE64
-          PLAY_KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
-          PLAY_KS_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          PLAY_KS_ALIAS: ${{ secrets.KEY_ALIAS }}
-          PLAY_KS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          ANDROID_KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -n "$PLAY_KS_B64" ]; then
-            KEYSTORE_B64="$PLAY_KS_B64"; KS_STORE_PASSWORD="$PLAY_KS_PASSWORD"; KS_KEY_ALIAS="$PLAY_KS_ALIAS"; KS_KEY_PASSWORD="$PLAY_KS_KEY_PASSWORD"
-            echo "Signing with the Google Play upload key (KEYSTORE_BASE64)"
-          else
-            KEYSTORE_B64="$ANDROID_KS_B64"; KS_STORE_PASSWORD="$ANDROID_KS_PASSWORD"; KS_KEY_ALIAS="$ANDROID_KS_ALIAS"; KS_KEY_PASSWORD="$ANDROID_KS_KEY_PASSWORD"
-          fi
-          KEYSTORE_DEST=artifacts/hasahisawi/android/app/release.keystore
-          mkdir -p artifacts/hasahisawi/android/app
-          STORE_PASSWORD="${KS_STORE_PASSWORD:-Hasahisawi2026Secure}"
-          KEY_ALIAS_VALUE="${KS_KEY_ALIAS:-hasahisawi}"
-          KEY_PASSWORD_VALUE="${KS_KEY_PASSWORD:-$STORE_PASSWORD}"
-          if [ -n "$KEYSTORE_B64" ]; then
-            printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$KEYSTORE_DEST"
-            echo "Using persistent signing key from secrets"
-          else
-          echo "::warning::ANDROID_KEYSTORE_BASE64 not set — generating a one-off signing key (updates will need uninstall)."
-          keytool -genkeypair -v \
-            -keystore "$KEYSTORE_DEST" \
-            -alias "$KEY_ALIAS_VALUE" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass "$STORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD_VALUE" \
-            -dname "CN=Hasahisawi, OU=Mobile, O=Hasahisawi, L=Hasahisa, ST=Gezira, C=SD"
-          fi
-          {
-            echo "storePassword=$STORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS_VALUE"
-            echo "keyPassword=$KEY_PASSWORD_VALUE"
-            echo "android.injected.signing.store.file=$GITHUB_WORKSPACE/$KEYSTORE_DEST"
-            echo "android.injected.signing.store.password=$STORE_PASSWORD"
-            echo "android.injected.signing.key.alias=$KEY_ALIAS_VALUE"
-            echo "android.injected.signing.key.password=$KEY_PASSWORD_VALUE"
-          } >> artifacts/hasahisawi/android/gradle.properties
-          keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" | grep -E 'Alias name|SHA1|SHA256|Valid from' || true
-          SHA1=$(keytool -list -v -keystore "$KEYSTORE_DEST" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS_VALUE" 2>/dev/null | grep -m1 'SHA1:' | awk '{print $2}')
-          if [ -n "$KEYSTORE_B64" ] && [ -z "$SHA1" ]; then
-            echo "::error::Could not open the keystore from secrets — check KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD."; exit 1
-          fi
-          echo "sha1=$SHA1" >> $GITHUB_OUTPUT
-          echo "Signing SHA1: $SHA1"
-
-      - name: Build release APK
+      - name: Build debug APK
         working-directory: artifacts/hasahisawi/android
         env:
           NODE_OPTIONS: "--max-old-space-size=3584"
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/apk-build.log"
+          ./gradlew assembleDebug --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/debug-apk-build.log"
 
-      - name: Build release AAB
-        working-directory: artifacts/hasahisawi/android
-        env:
-          NODE_OPTIONS: "--max-old-space-size=3584"
-        run: |
-          set -o pipefail
-          ./gradlew bundleRelease --no-daemon --build-cache --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/release-artifacts/aab-build.log"
-
-      - name: Collect APK and AAB
+      - name: Collect APK
         if: always()
         run: |
-          VERSION='${{ steps.ver.outputs.version }}'
-          CODE='${{ steps.ver.outputs.code }}'
+          VERSION=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.version)")
+          CODE=$(node -e "console.log(require('./artifacts/hasahisawi/app.json').expo.android.versionCode)")
           mkdir -p release-artifacts
-          APK=artifacts/hasahisawi/android/app/build/outputs/apk/release/app-release.apk
-          AAB=artifacts/hasahisawi/android/app/build/outputs/bundle/release/app-release.aab
-          if [ -f "$APK" ]; then cp "$APK" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.apk"; fi
-          if [ -f "$AAB" ]; then cp "$AAB" "release-artifacts/hasahisawi-v${VERSION}-build${CODE}.aab"; fi
-          ls -lh release-artifacts || true
+          FOUND=0
+          while IFS= read -r APK; do
+            FOUND=1
+            cp "$APK" "release-artifacts/hasahisawi-test-v${VERSION}-build${CODE}-$(basename "$APK")"
+          done < <(find artifacts/hasahisawi/android/app/build/outputs/apk -type f -name '*.apk' 2>/dev/null)
+          ls -lh release-artifacts
+          if [ "$FOUND" -ne 1 ]; then
+            echo "No APK file was produced"
+            exit 1
+          fi
 
-      - name: Upload artifacts and logs
+      - name: Upload test APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hasahisawi-android-v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}
+          name: hasahisawi-test-apk
           path: release-artifacts/*
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
-
-      - name: Verify real APK and AAB exist
-        run: |
-          APK_FILE=$(ls release-artifacts/*.apk 2>/dev/null | head -1 || true)
-          AAB_FILE=$(ls release-artifacts/*.aab 2>/dev/null | head -1 || true)
-          if [ -z "$APK_FILE" ] || [ -z "$AAB_FILE" ]; then
-            echo "Missing APK or AAB. Current release-artifacts content:"
-            ls -lah release-artifacts || true
-            exit 1
-          fi
-          echo "APK: $APK_FILE"
-          echo "AAB: $AAB_FILE"
-
-      - name: Publish to Google Play
-        id: play
-        if: ${{ github.event_name != 'pull_request' }}
-        continue-on-error: true
-        env:
-          PKG: com.almhbob.hasahisawi
-          API: https://api-server-gilt-ten.vercel.app
-          VERSION: ${{ steps.ver.outputs.version }}
-          CODE: ${{ steps.ver.outputs.code }}
-          SHA1: ${{ steps.signing.outputs.sha1 }}
-        run: |
-          set -euo pipefail
-          EXPECTED="${{ vars.PLAY_UPLOAD_SHA1 }}"; EXPECTED="${EXPECTED:-7B:C4:A4:FC:7A:92:37:05:D3:66:53:B1:E0:67:79:4D:6B:D4:C2:08}"
-          if [ "$SHA1" != "$EXPECTED" ]; then
-            echo "::warning::AAB signed with $SHA1 but Google Play expects $EXPECTED — skipping Play upload."; exit 0
-          fi
-          TRACK="${{ github.event.inputs.play_track }}"; TRACK="${TRACK:-${{ vars.PLAY_TRACK }}}"; TRACK="${TRACK:-production}"
-          STATUS="${{ vars.PLAY_RELEASE_STATUS }}"; STATUS="${STATUS:-completed}"
-          AAB=$(ls release-artifacts/*.aab | head -1)
-
-          # 1) رمز OIDC من GitHub ← رمز Google Play قصير العمر من خادمنا
-          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
-          echo "::add-mask::$OIDC"
-          RESP=$(curl -sS -X POST -H "Authorization: Bearer $OIDC" "$API/api/ci/play-token")
-          TOKEN=$(echo "$RESP" | jq -r '.access_token // empty')
-          SA_EMAIL=$(echo "$RESP" | jq -r '.client_email // empty')
-          if [ -z "$TOKEN" ]; then echo "::error::Could not get a Google Play token: $(echo "$RESP" | jq -c 'del(.access_token)')"; exit 1; fi
-          echo "::add-mask::$TOKEN"
-          echo "::notice::Google Play service account: ${SA_EMAIL/@/ (at) }"
-          echo "sa_email=$SA_EMAIL" >> $GITHUB_OUTPUT
-          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
-          AUTH="Authorization: Bearer $TOKEN"
-          fail() { MSG=$(echo "$2" | jq -r '.error.message // .error // empty' 2>/dev/null | head -c 400); echo "::error::$1 — ${MSG:-$2}"; exit 1; }
-
-          # 2) تعديل جديد
-          R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/edits")
-          EDIT=$(echo "$R" | jq -r '.id // empty'); [ -n "$EDIT" ] || fail "Play edit could not be created (is $SA_EMAIL invited in Play Console with release permission?)" "$R"
-
-          # 3) رفع الـ AAB
-          R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/octet-stream" --data-binary @"$AAB" \
-                "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/$PKG/edits/$EDIT/bundles?uploadType=media")
-          VC=$(echo "$R" | jq -r '.versionCode // empty'); [ -n "$VC" ] || fail "AAB upload failed" "$R"
-          echo "Uploaded bundle versionCode $VC"
-
-          # 4) ربطه بالمسار
-          NOTES=$(printf 'نسخة %s — تحسينات وإصلاحات لتجربة أفضل.' "$VERSION")
-          BODY=$(jq -n --arg t "$TRACK" --arg n "$VERSION ($VC)" --arg vc "$VC" --arg s "$STATUS" --arg notes "$NOTES" \
-                 '{track:$t, releases:[{name:$n, versionCodes:[$vc], status:$s, releaseNotes:[{language:"ar", text:$notes}]}]}')
-          R=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
-          if ! echo "$R" | jq -e '.releases' >/dev/null; then
-            echo "::warning::Track update with Arabic notes failed, retrying without notes"; echo "$R"
-            BODY=$(echo "$BODY" | jq 'del(.releases[0].releaseNotes)')
-            R=$(curl -sS -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
-            echo "$R" | jq -e '.releases' >/dev/null || fail "Track update failed" "$R"
-          fi
-
-          # 5) تثبيت التعديل
-          R=$(curl -sS -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit")
-          echo "$R" | jq -e '.id' >/dev/null || fail "Commit failed" "$R"
-          echo "✅ Published $VERSION ($VC) to Google Play track '$TRACK' as '$STATUS'"
-          echo "### ✅ Google Play: $VERSION ($VC) → $TRACK ($STATUS)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Publish GitHub Release
-        if: ${{ github.event_name != 'pull_request' && hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}-android
-          name: Hasahisawi v${{ steps.ver.outputs.version }} build ${{ steps.ver.outputs.code }} Android APK AAB
-          files: |
-            release-artifacts/*.apk
-            release-artifacts/*.aab
-          make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
