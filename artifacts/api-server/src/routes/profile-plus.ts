@@ -331,6 +331,10 @@ router.post("/profile/me/certificates/import", async (req: Request, res: Respons
     }
 
     const values: unknown[] = [];
+    const rowCasts = [
+      "INTEGER", "VARCHAR(20)", "VARCHAR(200)", "VARCHAR(200)", "VARCHAR(20)", "VARCHAR(20)",
+      "VARCHAR(120)", "TEXT", "TEXT", "VARCHAR(10)", "BOOLEAN", "INTEGER",
+    ];
     const tuples = candidates.map((f, index) => {
       const row = [
         Number(me.id), f.kind, f.title, f.issuer, f.issued_on, f.expires_on,
@@ -338,7 +342,7 @@ router.post("/profile/me/certificates/import", async (req: Request, res: Respons
       ];
       const first = values.length + 1;
       values.push(...row);
-      return `(${row.map((_, offset) => `$${first + offset}`).join(",")})`;
+      return `(${row.map((_, offset) => `$${first + offset}::${rowCasts[offset]}`).join(",")})`;
     });
     const countParam = values.length + 1;
     const limitParam = values.length + 2;
