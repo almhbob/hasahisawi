@@ -180,5 +180,9 @@ r = await call("POST", "/curriculum/books", male.token, { stage: "primary", grad
 check("blob URL accepted as upload", r.status === 201 || r.status === 200, r.text.slice(0, 140));
 const src = (await db.query(`SELECT source FROM curriculum_books ORDER BY id DESC LIMIT 1`)).rows[0]?.source; check("  stored as source=upload", src === "upload", src);
 
-console.log(`\n${pass} passed, ${fail} failed`); if (fails.length) console.log("FAILED:", fails.join(" | "));
+console.log(`\n${pass} passed, ${fail} failed`);
+if (fails.length) {
+  console.error("FAILED:", fails.join(" | "));
+  process.exitCode = 1;
+}
 await db.end();
