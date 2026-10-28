@@ -85,7 +85,6 @@
       "rollup>@rollup/rollup-linux-powerpc64le-gnu": "-",
       "rollup>@rollup/rollup-linux-riscv64-gnu": "-",
       "rollup>@rollup/rollup-linux-s390x-gnu": "-",
-      "rollup>@rollup/rollup-linux-x64-gnu": "-",
       "rollup>@rollup/rollup-linux-x64-musl": "-",
       "rollup>@rollup/rollup-openharmony-arm64": "-",
       "rollup>@rollup/rollup-win32-arm64-msvc": "-",
