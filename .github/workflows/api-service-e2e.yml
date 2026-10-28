@@ -61,7 +61,7 @@ jobs:
         working-directory: artifacts/api-server
         run: node build.mjs
 
-      - name: Run isolated certificate and service tests
+      - name: Run isolated certificate import tests
         working-directory: artifacts/api-server
         env:
           DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
@@ -101,4 +101,4 @@ jobs:
           await client.end();
           if (!ready) { console.error("API test schema did not initialize; missing:", JSON.stringify(missing)); process.exit(1); }
           NODE
-          node qa/e2e-requests.mjs
+          node qa/e2e-certificates.mjs
