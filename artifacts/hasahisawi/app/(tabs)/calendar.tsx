@@ -109,7 +109,7 @@ function DayCell({
   onPress: (d: number) => void;
   typeConfig: any;
 }) {
-  if (!day) return <View style={cal.dayCell} />;
+  if (!day) return <View style={cal.slot} />;
 
   const holidays = getHolidaysForDay(day, month, year);
   const isToday = day === today.d && month === today.m && year === today.y;
@@ -118,6 +118,7 @@ function DayCell({
   const firstHoliday = holidays[0];
 
   return (
+    <View style={cal.slot}>
     <AnimatedPress
       style={[
         cal.dayCell,
@@ -145,6 +146,7 @@ function DayCell({
         </View>
       )}
     </AnimatedPress>
+    </View>
   );
 }
 
@@ -347,20 +349,22 @@ export default function CalendarScreen() {
 }
 
 // ─── Calendar Styles ──────────────────────────────────────────────────────────
-const CELL_SIZE = (Platform.OS === "web" ? Math.min(480, 400) : 360) / 7;
 
 const cal = StyleSheet.create({
   weekRow: {
     borderBottomWidth: 0,
   },
   weekHeader: {
-    width: CELL_SIZE, alignItems: "center", paddingBottom: 8,
+    // سبعة أعمدة متساوية تتسع لأي شاشة (العرض الثابت كان يُخفي عمود السبت على الهواتف)
+    flex: 1, alignItems: "center", paddingBottom: 8,
   },
   weekHeaderText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary,
   },
+  // الخانة تأخذ سُبع الصف؛ AnimatedPress يغلّف الستايل بعنصر داخلي فلا يصل flex إليه
+  slot: { flex: 1, aspectRatio: 1 },
   dayCell: {
-    width: CELL_SIZE, height: CELL_SIZE,
+    width: "100%", aspectRatio: 1,
     alignItems: "center", justifyContent: "center",
     borderRadius: Colors.radius.sm, gap: 2,
   },
