@@ -4,8 +4,8 @@ import {
   View, Text, StyleSheet, Pressable,
   ScrollView, Image, Platform, Dimensions, I18nManager, PanResponder,
 } from "react-native";
+import { isDarkTheme } from "@/constants/theme-mode";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withSpring, runOnJS, interpolate, Extrapolation,
@@ -260,11 +260,8 @@ export default function DrawerMenu() {
             {...closePan.panHandlers}
           >
         {/* زجاج خلفي */}
-        <BlurView intensity={Platform.OS === "ios" ? 60 : 20} tint="light" style={StyleSheet.absoluteFill} />
-        <LinearGradient
-          colors={["#FFFFFF", Colors.bg]}
-          style={StyleSheet.absoluteFill}
-        />
+        {/* خلفية ثابتة بلون المظهر (كان تدرّجاً من الأبيض فيبدو مزعجاً في الوضع الداكن) */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkTheme ? Colors.bg : "#FFFFFF" }]} />
         {/* ── رأس الدرج ── */}
         <View style={[styles.header, { overflow: "hidden" }]}>
           <BrandPattern variant="header" opacity={0.04} />
@@ -445,7 +442,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(20,44,37,0.35)",
+    backgroundColor: isDarkTheme ? "rgba(0,0,0,0.55)" : "rgba(20,44,37,0.35)",
   },
   drawer: {
     position: "absolute",
