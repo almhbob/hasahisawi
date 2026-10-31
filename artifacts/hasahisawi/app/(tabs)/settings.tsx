@@ -35,6 +35,7 @@ import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 const ADMIN_PIN_KEY = "admin_pin";
@@ -2435,9 +2436,7 @@ export default function SettingsScreen() {
       </ModernHeader>
 
       {/* Tab Bar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
+      <RtlScrollRow
         style={styles.tabBar}
         contentContainerStyle={styles.tabBarContent}
       >
@@ -2451,7 +2450,7 @@ export default function SettingsScreen() {
             <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
 
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}

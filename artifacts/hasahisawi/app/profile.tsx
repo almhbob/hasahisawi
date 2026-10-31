@@ -22,6 +22,7 @@ import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from 
 import { blockUser } from "@/lib/social-safety";
 import { fetchFollowStats, followUser, unfollowUser, type FollowStats } from "@/lib/social-follow";
 import { volunteerApi, TIER_STYLE, type VolunteerSummary } from "@/lib/volunteer";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
 type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
@@ -616,7 +617,7 @@ export default function ProfileScreen() {
               <Text style={styles.cardTitle}>زاروا ملفك مؤخراً</Text>
               <Text style={styles.cardCount}>{visitors.length}</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, flexDirection: "row-reverse" }}>
+            <RtlScrollRow contentContainerStyle={{ gap: 12}}>
               {visitors.map((v) => (
                 <TouchableOpacity key={v.id} style={styles.visitor} onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(v.id) } })}>
                   <UserAvatar name={v.name} avatarUrl={v.avatar_url} size={52} borderRadius={18} />
@@ -627,7 +628,7 @@ export default function ProfileScreen() {
                   <Text style={styles.visitorTime}>{timeAgo(v.viewed_at)}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
           </Animated.View>
         )}
 
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
   ownLock: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#7C3AED12", borderWidth: 1, borderColor: "#7C3AED35", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginTop: 8 },
   ownLockTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#7C3AED" },
   lockBig: { width: 64, height: 64, borderRadius: 22, backgroundColor: Colors.primary + "14", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  adminCard: { borderColor: "#F0A50060", backgroundColor: "#FFFBF0" },
+  adminCard: { borderColor: "#F0A50060", backgroundColor: Colors.accentSoft },
   adminPill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#D97706", paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },
   adminPillTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
   adminRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 6 },

@@ -166,7 +166,10 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
           style={styles.topGradientLine}
         />
 
-        {/* تبويبتا اليسار */}
+        {/* زر القائمة في أقصى اليمين (الصف row-reverse: أول عنصر = اليمين) */}
+        <FabMenuButton open={open} />
+
+        {/* التبويبات: الرئيسية ← الأذان ← الدردشة ← المواعيد */}
         {TAB_ITEMS.slice(0, 2).map((item) => {
           const focused = currentRouteName === item.name;
           const isChatTab = item.name === "chat";
@@ -209,10 +212,6 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
           );
         })}
 
-        {/* ── زر القائمة المركزي FAB ── */}
-        <FabMenuButton open={open} />
-
-        {/* تبويبتا اليمين */}
         {TAB_ITEMS.slice(2).map((item) => {
           const focused = currentRouteName === item.name;
           const isChatTab = item.name === "chat";
@@ -365,7 +364,7 @@ const styles = StyleSheet.create({
 
   // الشريط السفلي
   tabBar: {
-    // من اليمين: الرئيسية ← الأذان ← القائمة ← الدردشة ← المواعيد
+    // من اليمين: القائمة ← الرئيسية ← الأذان ← الدردشة ← المواعيد
     flexDirection: "row-reverse",
     alignItems: "center",
     backgroundColor: Colors.bg,

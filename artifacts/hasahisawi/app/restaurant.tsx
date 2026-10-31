@@ -7,6 +7,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import BizLogo from "@/components/food/BizLogo";
 import { foodApi, TYPE_META, CAT_META, CAT_KEYS, ORDER_TYPE_AR, bizColor, fmtMoney, productImage, waLink, type FoodBusiness, type FoodProduct, type FoodCat, type OrderType } from "@/lib/food-api";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 function notify(t: string, m?: string) { if (Platform.OS === "web") (globalThis as any).alert?.(m ? `${t}\n${m}` : t); else Alert.alert(t, m); }
 
@@ -122,7 +123,7 @@ export default function RestaurantScreen() {
         </View>
 
         {cats.length > 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.cats}>
+          <RtlScrollRow contentContainerStyle={st.cats}>
             <TouchableOpacity onPress={() => setCat("")} style={[st.cat, cat === "" && { backgroundColor: c, borderColor: c }]}><Text style={[st.catTxt, cat === "" && { color: "#fff" }]}>الكل</Text></TouchableOpacity>
             {cats.map((k) => (
               <TouchableOpacity key={k} onPress={() => setCat(k)} style={[st.cat, cat === k && { backgroundColor: c, borderColor: c }]}>
@@ -130,7 +131,7 @@ export default function RestaurantScreen() {
                 <Text style={[st.catTxt, cat === k && { color: "#fff" }]}>{CAT_META[k].label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </RtlScrollRow>
         ) : null}
 
         <View style={{ paddingHorizontal: 16, gap: 10, marginTop: 6 }}>

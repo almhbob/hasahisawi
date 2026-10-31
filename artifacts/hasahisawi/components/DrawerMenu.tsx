@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   appRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 11,
   },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   roleBadge: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 3,
     borderRadius: 8,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   item: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 11,
     paddingVertical: 9,

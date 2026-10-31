@@ -25,6 +25,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -825,10 +826,8 @@ function ProductsTab({
       </View>
 
       {/* Category filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.categoryStrip, { flexDirection: "row-reverse" }]}
+      <RtlScrollRow
+        contentContainerStyle={[styles.categoryStrip, {}]}
       >
         <TouchableOpacity
           style={[styles.categoryChip, selectedCategory === null && styles.categoryChipActive]}
@@ -860,7 +859,7 @@ function ProductsTab({
           <Ionicons name="add" size={14} color={Colors.primary} />
           <Text style={[styles.categoryChipText, { color: Colors.primary }]}>تصنيف</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </RtlScrollRow>
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />

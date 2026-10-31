@@ -21,6 +21,7 @@ import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -356,8 +357,7 @@ export default function CultureScreen() {
       </ModernHeader>
 
       {/* Filter Bar */}
-      <ScrollView
-        horizontal showsHorizontalScrollIndicator={false}
+      <RtlScrollRow
         style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
         {(activeTab === "centers" ? CENTER_FILTERS : EVENT_FILTERS).map(f => (
@@ -380,7 +380,7 @@ export default function CultureScreen() {
             ]}>{f.label}</Text>
           </AnimatedPress>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
 
       {/* Centers Tab */}
       {activeTab === "centers" && (

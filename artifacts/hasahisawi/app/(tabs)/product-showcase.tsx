@@ -11,6 +11,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadMarketImage } from "@/lib/firebase/storage";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 type RetailCategory = "clothing" | "perfume" | "shoes" | "boutique" | "accessories" | "women";
 type MerchantStatus = "pending" | "approved";
@@ -392,7 +393,7 @@ export default function ProductShowcaseScreen() {
 
           <View style={styles.searchBox}><Ionicons name="search" size={18} color={Colors.textMuted} /><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر..." placeholderTextColor={Colors.textMuted} style={styles.input} /></View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+          <RtlScrollRow contentContainerStyle={styles.categoryRow}>
             {visibleCategories.map(cat => {
               const active = category === cat.key;
               return <TouchableOpacity key={cat.key} onPress={() => setCategory(cat.key)} style={[styles.categoryChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}>
@@ -400,15 +401,15 @@ export default function ProductShowcaseScreen() {
                 <Text style={[styles.categoryText, active && { color: "#001" }]}>{cat.label}</Text>
               </TouchableOpacity>;
             })}
-          </ScrollView>
+          </RtlScrollRow>
 
           <Text style={styles.sectionTitle}>المتاجر المعتمدة</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.merchantRow}>
+          <RtlScrollRow contentContainerStyle={styles.merchantRow}>
             {approvedMerchants.map(m => {
               const meta = CATEGORIES.find(c => c.key === m.category) || CATEGORIES[0];
               return <View key={m.id} style={styles.merchantCard}><MaterialCommunityIcons name={meta.icon as any} size={25} color={meta.color} /><Text style={styles.merchantName}>{m.shopName}</Text><Text style={styles.merchantMeta}>{meta.label} · {m.address}</Text></View>;
             })}
-          </ScrollView>
+          </RtlScrollRow>
 
           <Text style={styles.sectionTitle}>معرض المنتجات</Text>
           {filtered.map((item, index) => {
@@ -441,7 +442,7 @@ export default function ProductShowcaseScreen() {
           <TextInput style={styles.modalInput} value={ownerName} onChangeText={setOwnerName} placeholder="اسم المسؤول" placeholderTextColor={Colors.textMuted} />
           <TextInput style={styles.modalInput} value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" />
           <TextInput style={styles.modalInput} value={address} onChangeText={setAddress} placeholder="العنوان" placeholderTextColor={Colors.textMuted} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{visibleCategories.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</ScrollView>
+          <RtlScrollRow contentContainerStyle={styles.categoryRow}>{visibleCategories.filter(c => c.key !== "all").map(c => <TouchableOpacity key={c.key} onPress={() => setMerchantCat(c.key as RetailCategory)} style={[styles.categoryChip, merchantCat === c.key && { backgroundColor: c.color, borderColor: c.color }]}><Text style={[styles.categoryText, merchantCat === c.key && { color: "#001" }]}>{c.label}</Text></TouchableOpacity>)}</RtlScrollRow>
           <View style={styles.modalActions}><TouchableOpacity onPress={() => setJoinOpen(false)} style={styles.cancelBtn}><Text style={styles.cancelText}>إلغاء</Text></TouchableOpacity><TouchableOpacity onPress={addMerchant} style={styles.saveBtn}><Text style={styles.saveText}>إرسال الطلب</Text></TouchableOpacity></View>
         </View></View>
       </Modal>
@@ -449,7 +450,7 @@ export default function ProductShowcaseScreen() {
       <Modal visible={productOpen} transparent animationType="slide" onRequestClose={() => setProductOpen(false)}>
         <View style={styles.modalBackdrop}><View style={styles.modalCard}>
           <Text style={styles.modalTitle}>إضافة منتج للتاجر</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{approvedMerchants.map(m => <TouchableOpacity key={m.id} onPress={() => setSelectedMerchantId(m.id)} style={[styles.categoryChip, selectedMerchantId === m.id && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Text style={[styles.categoryText, selectedMerchantId === m.id && { color: "#001" }]}>{m.shopName}</Text></TouchableOpacity>)}</ScrollView>
+          <RtlScrollRow contentContainerStyle={styles.categoryRow}>{approvedMerchants.map(m => <TouchableOpacity key={m.id} onPress={() => setSelectedMerchantId(m.id)} style={[styles.categoryChip, selectedMerchantId === m.id && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Text style={[styles.categoryText, selectedMerchantId === m.id && { color: "#001" }]}>{m.shopName}</Text></TouchableOpacity>)}</RtlScrollRow>
           <TouchableOpacity onPress={pickImage} style={styles.imagePick}>{imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : <><Ionicons name="image-outline" size={26} color={Colors.textMuted} /><Text style={styles.imagePickText}>رفع صورة المنتج</Text></>}</TouchableOpacity>
           <TextInput style={styles.modalInput} value={productName} onChangeText={setProductName} placeholder="اسم المنتج" placeholderTextColor={Colors.textMuted} />
           <TextInput style={styles.modalInput} value={productPrice} onChangeText={setProductPrice} placeholder="السعر" placeholderTextColor={Colors.textMuted} keyboardType="numeric" />

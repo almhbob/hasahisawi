@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 const API = () => getApiUrl();
@@ -482,7 +483,7 @@ export default function RentalScreen() {
         >
           {/* Filter bar */}
           <View style={styles.filterBar}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <RtlScrollRow>
               <TouchableOpacity style={[styles.filterChip, filterType==="all" && styles.filterChipActive]} onPress={() => setFilterType("all")}>
                 <Text style={[styles.filterChipText, filterType==="all" && styles.filterChipTextActive]}>الكل</Text>
               </TouchableOpacity>
@@ -491,7 +492,7 @@ export default function RentalScreen() {
                   <Text style={[styles.filterChipText, filterType===rt.key && { color: rt.color }]}>{rt.label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
           </View>
 
           {/* Search + filters */}
@@ -584,26 +585,26 @@ export default function RentalScreen() {
             </View>
 
             <Text style={styles.sectionTitle}>التصنيف الفرعي</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            <RtlScrollRow style={{ marginBottom: 10 }}>
               {(form.rental_type==="real_estate" ? REAL_ESTATE_SUBTYPES : form.rental_type==="event_tools" ? EVENT_SUBTYPES : CONSTRUCTION_SUBTYPES).map(s => (
                 <TouchableOpacity key={s} style={[styles.filterChip, form.sub_type===s && styles.filterChipActive]} onPress={() => setForm(f=>({...f,sub_type:s}))}>
                   <Text style={[styles.filterChipText, form.sub_type===s && styles.filterChipTextActive]}>{s}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
 
             <Text style={styles.sectionTitle}>تفاصيل العرض</Text>
             <TextInput style={styles.input} placeholder="عنوان الإعلان *" placeholderTextColor={Colors.textMuted} value={form.title} onChangeText={v => setForm(f=>({...f,title:v}))} />
             <TextInput style={[styles.input, styles.textArea]} placeholder="وصف تفصيلي *" placeholderTextColor={Colors.textMuted} value={form.description} onChangeText={v => setForm(f=>({...f,description:v}))} multiline numberOfLines={4} textAlignVertical="top" />
 
             <Text style={styles.sectionTitle}>الموقع</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            <RtlScrollRow style={{ marginBottom: 8 }}>
               {NEIGHBORHOODS.map(n => (
                 <TouchableOpacity key={n} style={[styles.filterChip, form.neighborhood===n && styles.filterChipActive]} onPress={() => setForm(f=>({...f,neighborhood:n}))}>
                   <Text style={[styles.filterChipText, form.neighborhood===n && styles.filterChipTextActive]}>{n}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
             <TextInput style={styles.input} placeholder="العنوان التفصيلي (اختياري)" placeholderTextColor={Colors.textMuted} value={form.address} onChangeText={v => setForm(f=>({...f,address:v}))} />
 
             <Text style={styles.sectionTitle}>التسعير (اختياري)</Text>

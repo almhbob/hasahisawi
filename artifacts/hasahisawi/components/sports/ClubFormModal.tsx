@@ -8,6 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { uploadFile } from "@/lib/firebase/storage";
 import { clubsApi, SPORT_META, SPORT_KEYS, clubInitials, type Club, type ClubSport } from "@/lib/sports-clubs-api";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const PALETTE = ["#0E9C64", "#0B7A4E", "#F0B400", "#C26D3D", "#2186C2", "#06325A", "#B3261E", "#111111"];
 
@@ -128,7 +129,7 @@ export default function ClubFormModal({ visible, initial, token, userId, onClose
               </TouchableOpacity>
 
               <Text style={st.label}>الرياضة</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.chips}>
+              <RtlScrollRow contentContainerStyle={st.chips}>
                 {SPORT_KEYS.map((k) => {
                   const m = SPORT_META[k]; const on = f.sport === k;
                   return (
@@ -138,7 +139,7 @@ export default function ClubFormModal({ visible, initial, token, userId, onClose
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </RtlScrollRow>
 
               <Field f={f} set={set} label="اسم النادي *" k="name" placeholder="مثال: نادي الاتحاد الحصاحيصا" />
               <View style={st.row}>

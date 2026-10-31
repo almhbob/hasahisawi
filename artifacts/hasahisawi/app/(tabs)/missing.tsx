@@ -32,6 +32,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { LoadError } from "@/components/ui/LoadState";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 export type LostItem = {
@@ -301,7 +302,7 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
               <TextInput style={addModal.input} value={itemName} onChangeText={setItemName} placeholder="مثال: هاتف سامسونج" placeholderTextColor={Colors.textMuted} textAlign="right" />
 
               <Text style={addModal.label}>التصنيف</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <RtlScrollRow style={{ marginBottom: 12 }}>
                 {CATEGORIES.map(cat => (
                   <TouchableOpacity
                     key={cat}
@@ -312,7 +313,7 @@ function AddItemModal({ visible, onClose, onSave, saving }: {
                     <Text style={[addModal.catChipText, category === cat && { color: CATEGORY_COLORS[cat] || Colors.primary }]}>{CATEGORY_LABELS[cat]}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
 
               <Text style={addModal.label}>وصف الغرض</Text>
               <TextInput

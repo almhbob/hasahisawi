@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 // ─────────────────────────────────────────────
@@ -258,7 +259,7 @@ export default function EventsScreen() {
           </View>
 
           {/* فلتر النوع */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          <RtlScrollRow style={styles.filterScroll}>
             {EVENT_TYPES.map((t, i) => (
               <Animated.View key={t.key} entering={FadeInDown.delay(i * 40)}>
                 <TouchableOpacity
@@ -270,7 +271,7 @@ export default function EventsScreen() {
                 </TouchableOpacity>
               </Animated.View>
             ))}
-          </ScrollView>
+          </RtlScrollRow>
 
           {/* الفعاليات */}
           {loadingEvt ? (
@@ -305,7 +306,7 @@ export default function EventsScreen() {
 
           {/* فئات التأجير */}
           <Text style={styles.sectionTitle}>📦 فئات التأجير</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          <RtlScrollRow style={styles.filterScroll}>
             <TouchableOpacity
               style={[styles.rentalCatChip, filterCat === "all" && { borderColor: PRIMARY, backgroundColor: PRIMARY + "22" }]}
               onPress={() => setFilterCat("all")}
@@ -323,7 +324,7 @@ export default function EventsScreen() {
                 <Text style={[styles.rentalCatLabel, filterCat === c.key && { color: c.color }]}>{c.label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </RtlScrollRow>
 
           {/* بطاقات التأجير */}
           {loadingRent ? (
@@ -353,7 +354,7 @@ export default function EventsScreen() {
 
             {/* نوع الفعالية */}
             <Text style={styles.fieldLabel}>نوع الفعالية *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <RtlScrollRow style={{ marginBottom: 16 }}>
               {EVENT_TYPES.filter(t => t.key !== "all").map(t => (
                 <TouchableOpacity
                   key={t.key}
@@ -364,7 +365,7 @@ export default function EventsScreen() {
                   <Text style={[styles.typeChipText, form.type === t.key && { color: Colors.text }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
 
             {/* الحقول */}
             <FormField label="عنوان الفعالية *" placeholder="مثال: حفل تخرج دفعة 2026" value={form.title} onChangeText={(v: string) => setForm(f => ({ ...f, title: v }))} />

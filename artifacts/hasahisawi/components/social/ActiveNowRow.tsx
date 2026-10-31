@@ -8,6 +8,7 @@ import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { ActiveUser, profileApi } from "@/lib/profile-api";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const openProfile = (id: number) => router.push({ pathname: "/profile" as any, params: { id: String(id) } });
 const openChat = (u: ActiveUser) => router.push({ pathname: "/conversation" as any, params: { userId: String(u.id), otherName: u.name } });
@@ -41,7 +42,7 @@ export default function ActiveNowRow({ token, enabled = true }: { token?: string
         </View>
         <TouchableOpacity onPress={() => setOpen(true)} hitSlop={8}><Text style={st.all}>عرض الكل</Text></TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.row}>
+      <RtlScrollRow contentContainerStyle={st.row}>
         {users.slice(0, 20).map((u) => (
           <TouchableOpacity key={u.id} style={st.item} onPress={() => openProfile(u.id)} activeOpacity={0.8}>
             <View>
@@ -56,7 +57,7 @@ export default function ActiveNowRow({ token, enabled = true }: { token?: string
             </View>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <Pressable style={st.overlay} onPress={() => setOpen(false)}>

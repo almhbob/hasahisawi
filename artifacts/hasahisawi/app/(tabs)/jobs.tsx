@@ -30,6 +30,7 @@ import { checkConnected } from "@/lib/network";
 import { cacheGet, cacheSet } from "@/lib/offline-cache";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 export type Job = {
@@ -466,7 +467,7 @@ export default function JobsScreen() {
           </AnimatedPress>
         }
       >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+        <RtlScrollRow style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {TYPE_OPTIONS.map((opt) => (
             <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
               <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
@@ -474,7 +475,7 @@ export default function JobsScreen() {
               </View>
             </AnimatedPress>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
       </ModernHeader>
 
       <GuestGate

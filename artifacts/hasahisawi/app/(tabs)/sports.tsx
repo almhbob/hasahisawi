@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ClubsHub from "@/components/sports/ClubsHub";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
@@ -581,13 +582,13 @@ function AddPostModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={fm.title}>نشر خبر جديد</Text>
               <Text style={fm.label}>التصنيف</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:4}}>
+              <RtlScrollRow contentContainerStyle={{gap:8,paddingBottom:4}}>
                 {(Object.keys(CAT_META) as PostCategory[]).map(c=>(
                   <TouchableOpacity key={c} style={[fm.chip,cat===c&&{backgroundColor:CAT_META[c].color+"25",borderColor:CAT_META[c].color}]} onPress={()=>setCat(c)}>
                     <Text style={[fm.chipTxt,cat===c&&{color:CAT_META[c].color}]}>{c}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
               <Text style={fm.label}>العنوان *</Text>
               <TextInput style={fm.input} value={title} onChangeText={setTitle} placeholder="عنوان الخبر" placeholderTextColor={Colors.textMuted} textAlign="right" />
               <Text style={fm.label}>المحتوى *</Text>
@@ -665,13 +666,13 @@ function AddPlayerModal({ visible, initial, onClose, onSave }:{visible:boolean;i
               <Text style={fm.label}>اسم اللاعب *</Text>
               <TextInput style={fm.input} value={name} onChangeText={setName} placeholder="الاسم الكامل" placeholderTextColor={Colors.textMuted} textAlign="right" />
               <Text style={fm.label}>المركز *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:4}}>
+              <RtlScrollRow contentContainerStyle={{gap:8,paddingBottom:4}}>
                 {POSITIONS.map(p=>(
                   <TouchableOpacity key={p} style={[fm.chip,pos===p&&{backgroundColor:POS_COLOR[p]+"25",borderColor:POS_COLOR[p]}]} onPress={()=>setPos(p)}>
                     <Text style={[fm.chipTxt,pos===p&&{color:POS_COLOR[p]}]}>{p}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
               <Text style={fm.label}>النادي *</Text>
               <TextInput style={fm.input} value={club} onChangeText={setClub} placeholder="اسم النادي" placeholderTextColor={Colors.textMuted} textAlign="right" />
               <View style={{flexDirection:"row-reverse",gap:10}}>
@@ -797,13 +798,13 @@ function AddClubModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={fm.title}>إضافة نادٍ رياضي</Text>
               <Text style={fm.label}>الرياضة</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:4}}>
+              <RtlScrollRow contentContainerStyle={{gap:8,paddingBottom:4}}>
                 {sportOpts.map(([k,l])=>{const c=getSportColor(k);return(
                   <TouchableOpacity key={k} style={[fm.chip,sport===k&&{backgroundColor:c+"25",borderColor:c}]} onPress={()=>setSport(k)}>
                     <Text style={[fm.chipTxt,sport===k&&{color:c}]}>{l}</Text>
                   </TouchableOpacity>
                 );})}
-              </ScrollView>
+              </RtlScrollRow>
               <Text style={fm.label}>اسم النادي *</Text>
               <TextInput style={fm.input} value={name} onChangeText={setName} placeholder="الاسم الرسمي" placeholderTextColor={Colors.textMuted} textAlign="right" />
               <Text style={fm.label}>العنوان *</Text>
@@ -1228,7 +1229,7 @@ export default function SportsScreen() {
           {search.length>0 && <TouchableOpacity onPress={()=>setSearch("")}><Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.7)" /></TouchableOpacity>}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
+        <RtlScrollRow contentContainerStyle={s.tabsRow}>
           {TABS.map(t=>(
             <TouchableOpacity key={t.key} style={[s.tabBtn,tab===t.key&&s.tabBtnActive]}
               onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTab(t.key); }}>
@@ -1242,7 +1243,7 @@ export default function SportsScreen() {
               ):null}
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
       </ModernHeader>
 
       {/* NEWS */}
@@ -1287,13 +1288,13 @@ export default function SportsScreen() {
                   <Text style={[s.secTitle,{color:"#F0A500"}]}>اللاعبون المميزون</Text>
                 </View>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingRight:14,paddingLeft:2}}>
+              <RtlScrollRow contentContainerStyle={{paddingRight:14,paddingLeft:2}}>
                 {featuredPlayers.map(p=>(
                   <TouchableOpacity key={p.id} onPress={()=>{setSelPlayer(p);setPlayerDet(true);}}>
                     <PlayerCard player={p} onPress={()=>{setSelPlayer(p);setPlayerDet(true);}} />
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
               <View style={{marginHorizontal:14,marginTop:8,padding:10,backgroundColor:"#F0A50010",borderRadius:10,borderWidth:1,borderColor:"#F0A50030"}}>
                 <Text style={{fontFamily:"Cairo_400Regular",fontSize: 12,color:"#F0A500",textAlign:"right"}}>⭐ اللاعبون المميزون يظهرون هنا مقابل إعلان مدفوع — للاستفسار تواصل مع إدارة التطبيق</Text>
               </View>
@@ -1305,13 +1306,13 @@ export default function SportsScreen() {
                 <Text style={s.secCount}>{regularPlayers.length}</Text>
                 <Text style={s.secTitle}>سجل اللاعبين</Text>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingRight:14,paddingLeft:2}}>
+              <RtlScrollRow contentContainerStyle={{paddingRight:14,paddingLeft:2}}>
                 {filteredPlayers.filter(p=>!isFeaturedActive(p)).map(p=>(
                   <TouchableOpacity key={p.id} onPress={()=>{setSelPlayer(p);setPlayerDet(true);}}>
                     <PlayerCard player={p} onPress={()=>{setSelPlayer(p);setPlayerDet(true);}} />
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
             </>
           )}
           {players.length===0 && (

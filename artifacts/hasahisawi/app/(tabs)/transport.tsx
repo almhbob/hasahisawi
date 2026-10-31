@@ -23,6 +23,7 @@ import {
   type ZoneId, type FareMatrix,
   formatFare,
 } from "@/constants/transport-zones";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const ACCENT  = "#F97316";
 const ACCENT2 = "#FBBF24";
@@ -973,7 +974,7 @@ export default function TransportScreen() {
           ))}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsScroll}>
+        <RtlScrollRow contentContainerStyle={s.tabsScroll}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key as any)}
               style={[s.tabBtn, activeTab === t.key && s.tabBtnActive]}>
@@ -981,7 +982,7 @@ export default function TransportScreen() {
               <Text style={[s.tabLabel, activeTab === t.key && s.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
       </ModernHeader>
 
       {/* ── المحتوى ── */}
@@ -1996,7 +1997,7 @@ export default function TransportScreen() {
                     <MaterialCommunityIcons name="clock-fast" size={16} color={ACCENT} />
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>أحدث الإضافات</Text>
                   </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
+                  <RtlScrollRow contentContainerStyle={{ gap: 10}}>
                     {communityStats.recent.map((r, i) => {
                       const zm = ZONE_META_MOB[r.zone_id];
                       return (
@@ -2016,7 +2017,7 @@ export default function TransportScreen() {
                         </View>
                       );
                     })}
-                  </ScrollView>
+                  </RtlScrollRow>
                 </View>
               )}
 
@@ -2163,7 +2164,7 @@ export default function TransportScreen() {
 
                   {/* اختيار المنطقة */}
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>المنطقة *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingVertical: 2 }}>
+                  <RtlScrollRow contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
                     {[1,2,3,4,5].map(z => {
                       const zm = ZONE_META_MOB[z];
                       const sel = addZone === z;
@@ -2176,7 +2177,7 @@ export default function TransportScreen() {
                       );
                     })}
                           <OrgInviteCard />
-</ScrollView>
+</RtlScrollRow>
 
                   {/* اسم الحي */}
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 18 }}>اسم الحي أو القرية *</Text>

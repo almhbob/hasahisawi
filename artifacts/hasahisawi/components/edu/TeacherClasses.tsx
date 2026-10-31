@@ -8,6 +8,7 @@ import { paperDocument, printPaper, esc } from "@/lib/paper";
 import { gradeOf } from "@/components/edu/ShahadaCalculator";
 import { ToolHeader, Field, Btn, Card, Empty, Segmented, EDU } from "@/components/edu/ui";
 import { useTeacherData, uid, today, studentTotals, attendanceStats, type ClassRoom, type AttMark } from "@/lib/edu-store";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 type View_ = "students" | "grades" | "attendance" | "reports";
 const MARKS: { k: AttMark; t: string; c: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -159,13 +160,13 @@ function Grades({ cls, save }: { cls: ClassRoom; save: (fn: (c: ClassRoom) => Cl
         <Btn title="إضافة التقييم" icon="add" onPress={addA} color={EDU.teal} />
       </Card>
       {cls.assessments.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse" }}>
+        <RtlScrollRow contentContainerStyle={{ gap: 8}}>
           {cls.assessments.map((x) => (
             <Pressable key={x.id} onPress={() => setAId(x.id)} style={[s.chip, aId === x.id && s.chipOn]}>
               <Text style={[s.chipText, aId === x.id && { color: "#fff" }]}>{x.title} ({x.max})</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
       )}
       {!a ? <Empty icon="clipboard-outline" title="أضف تقييماً أولاً" sub="مثل: اختبار شهري من 20، امتحان نصف العام من 100." /> : cls.students.length === 0 ? <Empty icon="person-outline" title="أضف الطلاب أولاً" /> : (
         <>

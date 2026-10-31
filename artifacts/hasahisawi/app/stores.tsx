@@ -23,6 +23,7 @@ import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -666,9 +667,7 @@ function StoreDetailModal({
           <>
             {/* Categories bar */}
             {storeData && storeData.categories.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
+              <RtlScrollRow
                 contentContainerStyle={styles.catScroll}
                 style={{ flexGrow: 0 }}
               >
@@ -699,7 +698,7 @@ function StoreDetailModal({
                       </Text>
                     </TouchableOpacity>
                   ))}
-              </ScrollView>
+              </RtlScrollRow>
             )}
 
             {/* Products grid */}
@@ -1023,9 +1022,7 @@ export default function StoresScreen() {
       {activeTab === "browse" ? (
         <>
           {/* Type filter */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
+          <RtlScrollRow
             contentContainerStyle={styles.typeFilterScroll}
             style={styles.typeFilterBar}
           >
@@ -1044,7 +1041,7 @@ export default function StoresScreen() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </RtlScrollRow>
 
           {/* Search */}
           <View style={styles.searchWrap}>

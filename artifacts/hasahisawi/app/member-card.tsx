@@ -18,6 +18,7 @@ import QRCode from "react-native-qrcode-svg";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { notify, confirmAction, openExternal, copyText, uploadProfilePhoto, socialShareUrl, systemShare, type SocialTarget } from "@/lib/xplatform";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const MAP = require("@/assets/images/member-card/map.png");
 // ألوان مسبقة للشعار والخريطة: tintColor لا يظهر عند حفظ الصورة في المتصفح
@@ -570,7 +571,7 @@ export default function MemberCardScreen() {
                 <Text style={styles.panelTitle}>صورتك على البطاقة</Text>
                 {busy === "photo" ? <ActivityIndicator size="small" color="#21423A" /> : <Text style={styles.panelHint}>صورة أو رمز</Text>}
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
+              <RtlScrollRow contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
                 <TouchableOpacity onPress={uploadPhoto} disabled={!!busy} accessibilityRole="button" accessibilityLabel="رفع صورة شخصية" style={[styles.tile, styles.uploadTile, usingPhoto && styles.tileOn]}>
                   <Ionicons name="camera-outline" size={20} color="#3E3B35" />
                   <Text style={styles.tileText}>صورتي</Text>
@@ -583,7 +584,7 @@ export default function MemberCardScreen() {
                     <Text style={[styles.tileLabel, selectedPreset === p.key && { color: "#1E1E1C", fontFamily: "Cairo_600SemiBold" }]}>{p.label}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
               <Text style={styles.panelNote}>الصورة المرفوعة تصبح أيضاً صورة ملفك الشخصي.</Text>
             </View>
 

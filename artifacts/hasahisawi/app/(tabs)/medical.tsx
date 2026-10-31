@@ -21,6 +21,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { uploadPaymentProof } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import { LoadError } from "@/components/ui/LoadState";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 async function safeCall(number: string) {
   const url = `tel:${number.replace(/\s+/g, "")}`;
@@ -131,7 +132,7 @@ function MedicalJoinBanner() {
         <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: Colors.textMuted, fontFamily: "Cairo_700Bold" }]}>
           اختر الباقة المناسبة لمنشأتك:
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingHorizontal: 2 }}>
+        <RtlScrollRow contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
           {CLINIC_PLANS.map((p) => (
             <View key={p.name} style={[mj.planCard, { borderColor: p.color + "55" }]}>
               <Text style={{ fontSize: 16, textAlign: "center" }}>{p.icon}</Text>
@@ -142,7 +143,7 @@ function MedicalJoinBanner() {
               ))}
             </View>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
 
         <View style={mj.typesRow}>
           {[
@@ -503,13 +504,13 @@ function AppointmentsTab({ auth }: { auth: any }) {
             {/* الوقت */}
             <View style={aptSty.field}>
               <Text style={aptSty.fieldLabel}>الوقت <Text style={{ color: Colors.danger }}>*</Text></Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse" }}>
+              <RtlScrollRow contentContainerStyle={{ gap: 8}}>
                 {APT_TIMES.map(t => (
                   <TouchableOpacity key={t} onPress={() => setAptTime(t)} style={[aptSty.timeChip, aptTime === t && aptSty.timeChipActive]}>
                     <Text style={[aptSty.timeChipText, aptTime === t && { color: "#fff" }]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
             </View>
             {/* رقم الهاتف */}
             <View style={aptSty.field}>
@@ -724,13 +725,13 @@ function ConsultationsTab({ auth }: { auth: any }) {
   return (
     <View style={{ flex: 1 }}>
       {/* فلاتر التخصص */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8, flexDirection: "row-reverse" }}>
+      <RtlScrollRow contentContainerStyle={{ padding: 12, gap: 8}}>
         {SPEC_FILTERS.map(s => (
           <TouchableOpacity key={s} onPress={() => setFilterSpec(s)} style={[cSty.chip, filterSpec === s && cSty.chipActive]}>
             <Text style={[cSty.chipText, filterSpec === s && { color: "#fff" }]}>{s}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
 
       <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* زر طرح سؤال */}
@@ -788,13 +789,13 @@ function ConsultationsTab({ auth }: { auth: any }) {
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
             <View style={aptSty.field}>
               <Text style={aptSty.fieldLabel}>التخصص المطلوب (اختياري)</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingVertical: 4 }}>
+              <RtlScrollRow contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
                 {SPECIALTIES.map(s => (
                   <TouchableOpacity key={s} onPress={() => setSpecialty(s === specialty ? "" : s)} style={[aptSty.timeChip, specialty === s && aptSty.timeChipActive]}>
                     <Text style={[aptSty.timeChipText, specialty === s && { color: "#fff" }]}>{s}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </RtlScrollRow>
             </View>
             <View style={aptSty.field}>
               <Text style={aptSty.fieldLabel}>سؤالك <Text style={{ color: Colors.danger }}>*</Text></Text>
@@ -904,13 +905,13 @@ function SpecialistsTab() {
   return (
     <View style={{ flex: 1 }}>
       {/* فلاتر */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8, flexDirection: "row-reverse" }}>
+      <RtlScrollRow contentContainerStyle={{ padding: 12, gap: 8}}>
         {specs.map(s => (
           <TouchableOpacity key={s} onPress={() => setFilterSpec(s)} style={[cSty.chip, filterSpec === s && cSty.chipActive]}>
             <Text style={[cSty.chipText, filterSpec === s && { color: "#fff" }]}>{s}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
@@ -1125,7 +1126,7 @@ export default function MedicalScreen() {
                 value={search} onChangeText={setSearch}
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+            <RtlScrollRow style={styles.filtersRow} contentContainerStyle={[styles.filtersContent, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               {FILTER_OPTIONS.map((opt) => (
                 <AnimatedPress key={opt.key} scaleDown={0.92} onPress={() => setFilter(opt.key)}>
                   <View style={[styles.filterChip, filter === opt.key && styles.filterChipActive]}>
@@ -1133,12 +1134,12 @@ export default function MedicalScreen() {
                   </View>
                 </AnimatedPress>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
           </>
         )}
 
         {/* تبويبات القسم */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 6, paddingBottom: 2 }}>
+        <RtlScrollRow contentContainerStyle={{ gap: 6, paddingBottom: 2 }}>
           {TABS.map(tab => (
             <TouchableOpacity
               key={tab.key}
@@ -1149,7 +1150,7 @@ export default function MedicalScreen() {
               <Text style={[tabSty.tabLabel, activeTab === tab.key && tabSty.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
       </View>
 
       {/* المحتوى */}
