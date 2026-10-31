@@ -216,6 +216,7 @@ export const translations = {
     notifications: {
       title: "الإشعارات",
       noNotifications: "لا توجد إشعارات",
+      noNotificationsSub: "ستظهر هنا التنبيهات والرسائل المهمة",
       markAllRead: "تعليم الكل كمقروء",
       markRead: "تعليم كمقروء",
       delete: "حذف",

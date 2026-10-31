@@ -85,14 +85,14 @@ export default function MyFoodOrders() {
 }
 
 const st = StyleSheet.create({
-  header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "rgba(0,0,0,0.05)" },
+  header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 10, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: "rgba(0,0,0,0.05)" },
   back: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
   empty: { alignItems: "center", gap: 10, paddingVertical: 50 },
   emptyTxt: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textMuted, textAlign: "center" },
   cta: { backgroundColor: Colors.primary, borderRadius: 14, paddingHorizontal: 20, paddingVertical: 10 },
   ctaTxt: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 13.5 },
-  card: { backgroundColor: "#fff", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   row: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   biz: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   pill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 3 },

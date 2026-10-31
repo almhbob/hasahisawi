@@ -49,7 +49,7 @@ const STATUS_INFO: Record<string, { label: string; color: string; icon: keyof ty
   sending:                { label: "في الطريق",           color: "#C084FC", icon: "bicycle-outline",            step: 5 },
   completed:              { label: "مكتمل ✓",             color: "#3EFF9C", icon: "checkmark-done-outline",     step: 6 },
   rejected:               { label: "مرفوض",               color: "#EF4444", icon: "close-circle-outline",       step: 0 },
-  returned:               { label: "مُعادة للمرسل",      color: "#6B7280", icon: "return-down-back-outline",    step: 0 },
+  returned:               { label: "مُعادة للمرسل",      color: Colors.textSecondary, icon: "return-down-back-outline",    step: 0 },
 };
 const PIPELINE = ["pending_review","approved","preparing","sending","completed"];
 
@@ -662,7 +662,7 @@ export default function ZawajilScreen() {
               </View>
 
               {/* ── بيانات المرسل ── */}
-              <SectionHead icon="person-circle-outline" title="بيانات المرسل" color="#94A3B8" />
+              <SectionHead icon="person-circle-outline" title="بيانات المرسل" color={Colors.textMuted} />
               <Field label="اسمك الكريم *">
                 <TextInput style={styles.input} value={form.sender_name} onChangeText={v => setForm(p=>({...p,sender_name:v}))} placeholder="اسم المرسل" placeholderTextColor={Colors.textDisabled} textAlign="right" />
               </Field>

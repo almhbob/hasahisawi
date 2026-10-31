@@ -1,4 +1,5 @@
 import React, { Component, type ReactNode } from "react";
+import Colors from "@/constants/colors";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 type Props = { children: ReactNode; fallback?: (err: Error, reset: () => void) => ReactNode };
@@ -39,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={{ color: "#CBD5E1", textAlign: "center", marginBottom: 16, lineHeight: 22 }}>
             نعتذر عن الإزعاج. حدث خطأ في هذه الشاشة. يمكنك إعادة المحاولة الآن.
           </Text>
-          <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center", marginBottom: 16 }}>
+          <Text style={{ color: Colors.textMuted, fontSize: 13, textAlign: "center", marginBottom: 16 }}>
             {error.message}
           </Text>
           <Pressable

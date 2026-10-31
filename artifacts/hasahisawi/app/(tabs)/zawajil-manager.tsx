@@ -27,7 +27,7 @@ const STATUS: Record<string, { label: string; color: string; icon: keyof typeof 
   sending:                { label: "في الطريق",        color: "#9333EA", icon: "bicycle-outline" },
   completed:              { label: "تم التسليم",       color: "#059669", icon: "gift-outline" },
   rejected:               { label: "مرفوض",            color: "#DC2626", icon: "close-circle-outline" },
-  returned:               { label: "مُعاد",            color: "#6B7280", icon: "return-up-back-outline" },
+  returned:               { label: "مُعاد",            color: Colors.textSecondary, icon: "return-up-back-outline" },
 };
 const FILTERS = ["all", "pending_review", "approved", "preparing", "sending", "completed", "rejected"];
 const SERVICES: Record<string, { label: string; emoji: string }> = {
@@ -242,7 +242,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
       <ScrollView contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} colors={[PINK]} />}>
         {!loading && shown.length === 0 ? <Empty icon="file-tray-outline" text="لا توجد طلبات هنا" /> : null}
         {shown.map((o) => {
-          const s = STATUS[o.status] || { label: o.status, color: "#6B7280", icon: "ellipse-outline" };
+          const s = STATUS[o.status] || { label: o.status, color: Colors.textSecondary, icon: "ellipse-outline" };
           const sv = SERVICES[o.service_type] || { label: o.service_type, emoji: "🎁" };
           const isOpen = open === o.id;
           return (
@@ -292,7 +292,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
                     </>}
                     {o.status === "sending" && <>
                       <Act label="تم التسليم" icon="gift" color="#059669" onPress={() => complete(o)} />
-                      <Act label="مُعاد" icon="return-up-back" color="#6B7280" onPress={() => setStatus(o, "returned", "إعادة الطلب")} />
+                      <Act label="مُعاد" icon="return-up-back" color={Colors.textSecondary} onPress={() => setStatus(o, "returned", "إعادة الطلب")} />
                     </>}
                   </View>
                 </View>
@@ -555,24 +555,24 @@ const st = StyleSheet.create({
   centerText: { fontFamily: "Cairo_400Regular", fontSize: 13.5, lineHeight: 22, color: Colors.textSecondary, textAlign: "center" },
   primaryBtn: { backgroundColor: PINK, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
   primaryTxt: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#fff" },
-  ghostBtn: { height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: "#fff" },
+  ghostBtn: { height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg },
   ghostTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
   statsRow: { flexDirection: "row-reverse", gap: 8 },
   stat: { flex: 1, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 14, paddingVertical: 8, alignItems: "center" },
   statN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
   statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#ffffffD0" },
   tabs: { flexDirection: "row-reverse", gap: 6, paddingHorizontal: 12, paddingTop: 12 },
-  tab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border },
+  tab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
   tabOn: { backgroundColor: PINK, borderColor: PINK },
   tabTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
   badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   badgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#fff" },
   filters: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingTop: 12 },
-  chip: { paddingHorizontal: 13, height: 34, borderRadius: 17, borderWidth: 1, borderColor: Colors.border, backgroundColor: "#fff", justifyContent: "center" },
+  chip: { paddingHorizontal: 13, height: 34, borderRadius: 17, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg, justifyContent: "center" },
   chipTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
-  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 12, marginTop: 10, backgroundColor: "#fff", borderRadius: 13, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 44 },
+  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 12, marginTop: 10, backgroundColor: Colors.cardBg, borderRadius: 13, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 44 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textPrimary },
-  card: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 12 },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 12 },
   cardHead: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   svcIcon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   rowR: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
@@ -596,8 +596,8 @@ const st = StyleSheet.create({
   fabTxt: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 22 },
   overlayBottom: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
-  prompt: { backgroundColor: "#fff", borderRadius: 22, padding: 18 },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, maxHeight: "85%" },
+  prompt: { backgroundColor: Colors.cardBg, borderRadius: 22, padding: 18 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, maxHeight: "85%" },
   promptTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 12 },
   fLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 12, backgroundColor: Colors.bg, paddingHorizontal: 12, paddingVertical: Platform.OS === "web" ? 10 : 8, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },

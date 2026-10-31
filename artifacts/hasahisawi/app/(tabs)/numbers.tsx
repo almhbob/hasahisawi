@@ -680,11 +680,11 @@ const styles = StyleSheet.create({
 
   emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", gap: 8, flexWrap: "wrap" },
   emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
+  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
   emergencyChipText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
 
   scroll: { flex: 1 },
-  section: { marginBottom: 16, borderRadius: Colors.radius.lg, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, backgroundColor: "#fff", ...Colors.shadow.card },
+  section: { marginBottom: 16, borderRadius: Colors.radius.lg, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, ...Colors.shadow.card },
   sectionHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
   sectionIconWrap: { width: 36, height: 36, borderRadius: Colors.radius.sm, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, flex: 1 },

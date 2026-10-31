@@ -47,7 +47,7 @@ const SVC_CATS: Record<string, { label: string; color: string; icon: string }> =
   sim:       { label: "SIM",           color: "#1F5C8A", icon: "phone-portrait-outline" },
   roaming:   { label: "تجوال",         color: "#F97316", icon: "earth-outline"          },
   support:   { label: "الدعم",         color: "#C46A3A", icon: "headset-outline"        },
-  other:     { label: "أخرى",          color: "#6B7280", icon: "ellipsis-horizontal-outline" },
+  other:     { label: "أخرى",          color: Colors.textSecondary, icon: "ellipsis-horizontal-outline" },
 };
 
 const FALLBACK_COMPANIES = [

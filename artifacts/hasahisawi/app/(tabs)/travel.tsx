@@ -97,7 +97,7 @@ function TicketCard({
 
   const statusColors: Record<string, [string,string]> = {
     confirmed:   ["#16A34A","#DCFCE7"],
-    rescheduled: ["#D97706","#FEF3C7"],
+    rescheduled: ["#D97706",Colors.accentSoft],
     cancelled:   ["#DC2626","#FEE2E2"],
     completed:   ["#1F5C8A","#EEF2FF"],
   };
@@ -176,8 +176,8 @@ function TicketCard({
               <QRCode
                 value={`${getApiUrl()}/api/travel/verify/${booking.verify_token}`}
                 size={68}
-                backgroundColor="#ffffff"
-                color="#000000"
+                backgroundColor={Colors.cardBg}
+                color={Colors.text}
               />
             ) : (
               <QRVisual code={booking.ticket_number} />
@@ -186,7 +186,7 @@ function TicketCard({
           <View style={styles.ticketNumberBlock}>
             <Text style={styles.ticketNumberLabel}>رقم التذكرة</Text>
             <Text style={styles.ticketNumberValue}>{booking.ticket_number}</Text>
-            <Text style={{ fontSize: 11, color:"#64748B", marginTop:3 }}>امسح الكود للتحقق من صحة التذكرة</Text>
+            <Text style={{ fontSize: 11, color:Colors.textSecondary, marginTop:3 }}>امسح الكود للتحقق من صحة التذكرة</Text>
             {booking.scan_count > 0 && (
               <View style={{ flexDirection:"row", alignItems:"center", marginTop:4, gap:4 }}>
                 <Ionicons name="checkmark-circle" size={12} color="#34D399" />
@@ -667,9 +667,9 @@ function PaymentBadge({ status }: { status: string }) {
     proof_submitted:  { label: "إيصال مُرسَل",     color: "#38BDF8",  bg: "#38BDF822" },
     verified:         { label: "✓ مدفوع ومؤكد",   color: "#34D399",  bg: "#34D39922" },
     rejected:         { label: "✗ مرفوض",          color: "#F87171",  bg: "#F8717122" },
-    free:             { label: "بلا رسوم",         color: "#94A3B8",  bg: "#94A3B822" },
+    free:             { label: "بلا رسوم",         color: Colors.textMuted,  bg: "#94A3B822" },
   };
-  const m = MAP[status] ?? { label: status, color: "#94A3B8", bg: "#94A3B822" };
+  const m = MAP[status] ?? { label: status, color: Colors.textMuted, bg: "#94A3B822" };
   return (
     <View style={{ backgroundColor: m.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
       borderWidth:1, borderColor: m.color + "44", alignSelf:"flex-start" }}>
@@ -846,7 +846,7 @@ function MyTickets({ user }: { user: any }) {
               placeholderTextColor="#4B6A8A"
               keyboardType="default"
             />
-            <Text style={{ fontSize: 12, color:"#64748B", marginBottom:12 }}>
+            <Text style={{ fontSize: 12, color:Colors.textSecondary, marginBottom:12 }}>
               * أدخل رقم العملية من تطبيق البنك أو شركة الاتصالات
             </Text>
             <View style={styles.modalBtns}>
@@ -1324,7 +1324,7 @@ const styles = StyleSheet.create({
   detailValue:     { fontSize:13, color:"#fff", fontWeight:"600", flex:1 },
 
   qrSection:       { flexDirection:"row", alignItems:"center", padding:16, gap:12 },
-  qrBox:           { width:64, height:64, backgroundColor:"#fff", borderRadius:8, justifyContent:"center", alignItems:"center", padding:4 },
+  qrBox:           { width:64, height:64, backgroundColor:Colors.cardBg, borderRadius:8, justifyContent:"center", alignItems:"center", padding:4 },
   qrGrid:          { width:56, height:56, flexDirection:"row", flexWrap:"wrap" },
   qrCell:          { width:8, height:8 },
   qrFilled:        { backgroundColor:"#000" },

@@ -164,6 +164,6 @@ const st = StyleSheet.create({
   tf: { flex: 1, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: EDU.line, alignItems: "center" },
   tfText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: EDU.ink },
   addLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: EDU.ink, textAlign: "right", marginTop: 4 },
-  addBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: EDU.line },
+  addBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: EDU.line },
   addText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: EDU.ink },
 });

@@ -441,8 +441,8 @@ export default function RentalScreen() {
           </TouchableOpacity>
           {canSign && c.status === "pending" && (
             <TouchableOpacity style={[styles.actionBtn, styles.signBtn]} onPress={() => handleSign(c, isOwner ? "owner" : "renter")}>
-              <Ionicons name="pencil-outline" size={15} color="#000" />
-              <Text style={[styles.actionBtnText, { color: "#000" }]}>وقّع العقد</Text>
+              <Ionicons name="pencil-outline" size={15} color={Colors.text} />
+              <Text style={[styles.actionBtnText, { color: Colors.text }]}>وقّع العقد</Text>
             </TouchableOpacity>
           )}
           {c.from_app && !c.commission_paid && c.status === "active" && isOwner && (
@@ -623,7 +623,7 @@ export default function RentalScreen() {
             </View>
 
             <TouchableOpacity style={[styles.submitBtn, postLoading && { opacity: 0.7 }]} onPress={handlePost} disabled={postLoading}>
-              {postLoading ? <ActivityIndicator color="#000" /> : <Text style={styles.submitBtnText}>نشر الإعلان</Text>}
+              {postLoading ? <ActivityIndicator color={Colors.text} /> : <Text style={styles.submitBtnText}>نشر الإعلان</Text>}
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -692,7 +692,7 @@ export default function RentalScreen() {
               </View>
               {user ? (
                 <TouchableOpacity style={styles.contractBtn} onPress={() => { setContractListing(selected); setContractForm(f=>({...f, renter_name: user?.name||""})); setSelected(null); setShowContractForm(true); }}>
-                  <Ionicons name="document-text-outline" size={18} color="#000" />
+                  <Ionicons name="document-text-outline" size={18} color={Colors.text} />
                   <Text style={styles.contractBtnText}>إبرام عقد إيجار</Text>
                 </TouchableOpacity>
               ) : null}
@@ -774,9 +774,9 @@ export default function RentalScreen() {
               </View>
 
               <TouchableOpacity style={[styles.submitBtn, postLoading && { opacity: 0.7 }]} onPress={handleCreateContract} disabled={postLoading}>
-                {postLoading ? <ActivityIndicator color="#000" /> : (
+                {postLoading ? <ActivityIndicator color={Colors.text} /> : (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Ionicons name="document-text" size={18} color="#000" />
+                    <Ionicons name="document-text" size={18} color={Colors.text} />
                     <Text style={styles.submitBtnText}>إنشاء العقد الآن</Text>
                   </View>
                 )}
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
   searchBox:       { flex: 1, flexDirection: "row-reverse", alignItems: "center", backgroundColor: Colors.surface2, borderRadius: Colors.radius.sm, paddingHorizontal: 10, gap: 6, borderWidth: 1, borderColor: Colors.borderSubtle },
   searchInput:     { flex: 1, height: 38, color: Colors.text, fontSize: 13, textAlign: "right" },
   searchBtn:       { backgroundColor: Colors.accent, paddingHorizontal: 16, borderRadius: Colors.radius.sm, justifyContent: "center", height: 38 },
-  searchBtnText:   { color: "#000", fontWeight: "700", fontSize: 13 },
+  searchBtnText:   { color: Colors.text, fontWeight: "700", fontSize: 13 },
   notice:          { flexDirection: "row-reverse", backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.sm, padding: 10, gap: 8, marginBottom: 14, alignItems: "flex-start" },
   noticeText:      { flex: 1, color: Colors.text, fontSize: 12, lineHeight: 18, textAlign: "right" },
   card:            { backgroundColor: Colors.surface2, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSubtle, ...Colors.shadow.card },
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
   emptyText:       { fontSize: 16, fontWeight: "600", color: Colors.text },
   emptySubText:    { fontSize: 13, color: Colors.textMuted },
   emptyBtn:        { marginTop: 12, backgroundColor: Colors.accent, paddingHorizontal: 24, paddingVertical: 10, borderRadius: Colors.radius.sm },
-  emptyBtnText:    { color: "#000", fontWeight: "700" },
+  emptyBtnText:    { color: Colors.text, fontWeight: "700" },
   sectionTitle:    { fontSize: 13, fontWeight: "700", color: Colors.textMuted, marginBottom: 8, marginTop: 12, textAlign: "right" },
   input:           { backgroundColor: Colors.surface2, borderRadius: Colors.radius.sm, padding: 12, color: Colors.text, fontSize: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.borderSubtle, textAlign: "right" },
   textArea:        { height: 100, textAlignVertical: "top" },
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
   commissionNote:  { flexDirection: "row-reverse", backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.sm, padding: 12, gap: 8, marginBottom: 16, alignItems: "flex-start" },
   commissionNoteText: { flex: 1, color: Colors.text, fontSize: 13, lineHeight: 18, textAlign: "right" },
   submitBtn:       { backgroundColor: Colors.accent, borderRadius: Colors.radius.md, padding: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
-  submitBtnText:   { color: "#000", fontWeight: "700", fontSize: 16 },
+  submitBtnText:   { color: Colors.text, fontWeight: "700", fontSize: 16 },
   contractCard:    { backgroundColor: Colors.surface2, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSubtle, ...Colors.shadow.card },
   contractHeader:  { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
   contractTitle:   { fontSize: 14, fontWeight: "700", color: Colors.text, textAlign: "right" },
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
   waBtn:           { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#25D366", borderRadius: Colors.radius.sm, paddingVertical: 12 },
   callBtnText:     { color: "#fff", fontWeight: "700", fontSize: 14 },
   contractBtn:     { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.accent, borderRadius: Colors.radius.md, paddingVertical: 14, marginTop: 14 },
-  contractBtnText: { color: "#000", fontWeight: "700", fontSize: 15 },
+  contractBtnText: { color: Colors.text, fontWeight: "700", fontSize: 15 },
   witnessNote:     { flexDirection: "row-reverse", backgroundColor: Colors.accent + "10", borderRadius: Colors.radius.sm, padding: 12, gap: 8, marginTop: 14, alignItems: "flex-start" },
   witnessText:     { flex: 1, color: Colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: "right" },
   contractPreview: { backgroundColor: Colors.accent + "12", borderRadius: Colors.radius.sm, padding: 12, marginBottom: 10 },

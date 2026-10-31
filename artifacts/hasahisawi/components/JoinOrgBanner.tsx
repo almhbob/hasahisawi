@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   stepsWrap: { gap: 0 },
   stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, position: "relative", minHeight: 52 },
   stepBubble: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", marginTop: 2 },
-  stepNum:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" },
+  stepNum:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text },
   stepLine: {
     position: "absolute", left: 15, top: 34, width: 2, height: 18,
     backgroundColor: Colors.primary + "30",

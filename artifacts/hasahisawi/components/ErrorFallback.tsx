@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Colors from "@/constants/colors";
 import { reloadAppAsync } from "expo";
 import {
   StyleSheet,
@@ -89,7 +90,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         <Text style={[styles.message, { color: "#FF6B6B", fontSize: 12, marginTop: 4, textAlign: "left" }]} selectable>
           {error?.message || "Unknown error"}
         </Text>
-        <Text style={[styles.message, { color: "#888", fontSize: 11, marginTop: 2, textAlign: "left" }]} selectable>
+        <Text style={[styles.message, { color: Colors.textMuted, fontSize: 11, marginTop: 2, textAlign: "left" }]} selectable>
           {error?.stack?.split("\n").slice(0, 3).join(" | ") || ""}
         </Text>
 

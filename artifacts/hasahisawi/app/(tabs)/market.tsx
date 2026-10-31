@@ -108,7 +108,7 @@ const MERCHANT_CATS: { key: "all" | MerchantCat; label: string; emoji: string; c
   { key:"electronics", label:"إلكترونيات",    emoji:"📱", color:"#3B82F6" },
   { key:"services",    label:"خدمات عامة",    emoji:"🔧", color:"#F59E0B" },
   { key:"crafts",      label:"حرف ومصنوعات",  emoji:"🎨", color:"#1F5C8A" },
-  { key:"other",       label:"أخرى",          emoji:"📦", color:"#6B7280" },
+  { key:"other",       label:"أخرى",          emoji:"📦", color:Colors.textSecondary },
 ];
 
 const MERCHANT_TAGS = [
@@ -1898,7 +1898,7 @@ export default function MarketScreen() {
                       </Text>
                       <TouchableOpacity onPress={()=>{ setMerchantRegModal(false); setMerchantRegSuccess(false); }}
                         style={{ backgroundColor:Colors.primary, borderRadius:14, paddingVertical:13, paddingHorizontal:36, marginTop:6 }}>
-                        <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" }}>حسناً</Text>
+                        <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.text }}>حسناً</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -2976,7 +2976,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
-  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.onColor },
   // ─── Image Picker Styles ────────────────────────────────────────────────────
   imgPickerBtn: {
     borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider,

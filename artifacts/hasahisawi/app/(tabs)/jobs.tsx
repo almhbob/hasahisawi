@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   addBtn: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.cardBg,
     borderRadius: Colors.radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
   },
-  filterChipActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
+  filterChipActive: { backgroundColor: Colors.cardBg, borderColor: "#FFFFFF" },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#FFFFFF" },
   filterChipTextActive: { color: Colors.primary },
   listContent: { padding: 14, gap: 12 },
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  applyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.cardBg },
+  applyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.onColor },
 });
 
 const modalStyles = StyleSheet.create({
@@ -775,7 +775,7 @@ const modalStyles = StyleSheet.create({
     marginTop: 8,
     ...Colors.shadow.raised,
   },
-  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.onColor },
   imagePicker: { borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", minHeight: 90 },
   imagePickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 22 },
   imagePickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },

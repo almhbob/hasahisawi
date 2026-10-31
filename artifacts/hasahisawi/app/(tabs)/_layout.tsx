@@ -115,7 +115,7 @@ function FabMenuButton({ open }: { open: () => void }) {
 
       <Animated.View style={fabAnimStyle}>
         <LinearGradient
-          colors={[Colors.primary + "EE", Colors.primaryDeep]}
+          colors={[Colors.primary + "EE", "#006B4A"]}
           start={{ x: 0.2, y: 0 }}
           end={{ x: 0.8, y: 1 }}
           style={styles.fabGradient}
@@ -154,7 +154,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
 
         {/* تدرج الخلفية */}
         <LinearGradient
-          colors={[Colors.white + "FA", Colors.bg + "FA"]}
+          colors={[Colors.cardBg, Colors.bg]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -190,7 +190,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 <Ionicons
                   name={focused ? item.activeIcon : item.icon}
                   size={21}
-                  color={focused ? item.color : "#4A6A8C"}
+                  color={focused ? item.color : Colors.textMuted}
                 />
                 {isChatTab && unread > 0 && (
                   <View style={styles.tabBadge}>
@@ -236,7 +236,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
                 <Ionicons
                   name={focused ? item.activeIcon : item.icon}
                   size={21}
-                  color={focused ? item.color : "#4A6A8C"}
+                  color={focused ? item.color : Colors.textMuted}
                 />
                 {isChatTab && unread > 0 && (
                   <View style={styles.tabBadge}>

@@ -1164,7 +1164,7 @@ function PostCard({
             >
               {reactionEmoji
                 ? <Text style={{ fontSize: 18 }}>{reactionEmoji}</Text>
-                : <Ionicons name="thumbs-up-outline" size={20} color="#3F524A" />}
+                : <Ionicons name="thumbs-up-outline" size={20} color={Colors.textSecondary} />}
               <Text style={[styles.actionCount, post.my_reaction && { color: reactionColor }]}>
                 {post.likes_count > 0 ? post.likes_count : "أعجبني"}
               </Text>
@@ -1173,13 +1173,13 @@ function PostCard({
 
           {/* Comments */}
           <AnimatedPress style={styles.actionBtn} onPress={() => onComment(post)}>
-            <Ionicons name="chatbubble-outline" size={20} color="#3F524A" />
+            <Ionicons name="chatbubble-outline" size={20} color={Colors.textSecondary} />
             <Text style={styles.actionCount}>{post.comments_count > 0 ? `${post.comments_count} تعليق` : "تعليق"}</Text>
           </AnimatedPress>
 
           {/* Share */}
           <AnimatedPress style={styles.actionBtn} onPress={() => onShare(post)}>
-            <Ionicons name="share-social-outline" size={20} color="#3F524A" />
+            <Ionicons name="share-social-outline" size={20} color={Colors.textSecondary} />
           </AnimatedPress>
 
           {/* Bookmark */}
@@ -1808,7 +1808,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.30)",
   },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#fff" },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.cardBg },
   liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
 
   filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7, flexDirection: "row-reverse" },
@@ -1817,14 +1817,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
   },
-  filterText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: "#3F524A" },
+  filterText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary },
   filterTextActive: { color: "#fff", fontFamily: "Cairo_700Bold" },
 
   list: { paddingTop: 8, paddingHorizontal: 14, gap: 12 },
 
   card: {
     backgroundColor: Colors.cardBg, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6,
-    borderWidth: 1, borderColor: "#E3EAE6",
+    borderWidth: 1, borderColor: Colors.border,
   },
   pinnedCard: { borderColor: Colors.accent + "50", borderWidth: 1.5 },
   pinnedBadge: {
@@ -1838,7 +1838,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
   metaDot: { color: Colors.textMuted, fontSize: 10 },
   authorName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5E6F68" },
+  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   cardRight: { flexDirection: "row-reverse", alignItems: "center", gap: 2 },
   catBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
@@ -1851,14 +1851,14 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 16, lineHeight: 28,
     color: Colors.textPrimary, marginBottom: 4, textAlign: "right",
   },
-  cardDivider: { height: 1, backgroundColor: "#EDF2EF", marginTop: 14 },
+  cardDivider: { height: 1, backgroundColor: Colors.divider, marginTop: 14 },
   cardActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   actionBtn: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
     minHeight: 44, minWidth: 44, paddingHorizontal: 8, borderRadius: 12,
   },
   actionBtnActive: { backgroundColor: Colors.primary + "10" },
-  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#3F524A" },
+  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 
   reactionPickerWrap: {
     position: "absolute", bottom: 48, right: 0, zIndex: 100,

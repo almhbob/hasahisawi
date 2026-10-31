@@ -42,7 +42,7 @@ function ExternalPartnershipBanner() {
 
           {/* شارة "جديد" */}
           <View style={s.newBadge}>
-            <Ionicons name="sparkles" size={10} color="#000" />
+            <Ionicons name="sparkles" size={10} color={Colors.text} />
             <Text style={s.newBadgeText}>جديد</Text>
           </View>
 
@@ -53,7 +53,7 @@ function ExternalPartnershipBanner() {
                 colors={["#FFD700", "#F0C040"]}
                 style={StyleSheet.absoluteFill}
               />
-              <MaterialCommunityIcons name="handshake" size={28} color="#000" />
+              <MaterialCommunityIcons name="handshake" size={28} color={Colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.kicker}>شراكات خارج المدينة</Text>
@@ -80,7 +80,7 @@ function ExternalPartnershipBanner() {
             </View>
             <View style={s.ctaBtn}>
               <Text style={s.ctaBtnText}>تقديم طلب التعاون</Text>
-              <Ionicons name="arrow-back" size={16} color="#000" />
+              <Ionicons name="arrow-back" size={16} color={Colors.text} />
             </View>
           </View>
         </LinearGradient>
@@ -100,7 +100,7 @@ const s = StyleSheet.create({
     position: "absolute", top: 12, left: 12, flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "#FFD700", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, zIndex: 2,
   },
-  newBadgeText: { fontSize: 10, fontWeight: "800", color: "#000" },
+  newBadgeText: { fontSize: 10, fontWeight: "800", color: Colors.text },
 
   header: { flexDirection: "row", gap: 14, alignItems: "center", marginBottom: 14, marginTop: 6 },
   iconWrap: {
@@ -126,7 +126,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#FFD700", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
   },
-  ctaBtnText: { fontSize: 13, fontWeight: "800", color: "#000" },
+  ctaBtnText: { fontSize: 13, fontWeight: "800", color: Colors.text },
 });
 
 export default withRTLBlock(ExternalPartnershipBanner);

@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import Colors from "@/constants/colors";
 /**
  * client-case-chat.tsx
  * شاشة الدردشة والمستندات للعميل مع محاميه
@@ -53,7 +54,7 @@ const STATUS_AR: Record<string, { label: string; color: string }> = {
   in_progress: { label: "قيد التنفيذ",   color: PURPLE },
   completed:   { label: "مكتملة",         color: GREEN  },
   rejected:    { label: "مرفوضة",         color: RED    },
-  cancelled:   { label: "ملغية",          color: "#6B7280" },
+  cancelled:   { label: "ملغية",          color: Colors.textSecondary },
 };
 
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString("ar-SD") : "—";
@@ -210,7 +211,7 @@ function ClientCaseChat() {
     return (
       <View style={{ flex: 1, backgroundColor: BG, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color={PURPLE} size="large" />
-        <Text style={{ color: "#9CA3AF", marginTop: 12 }}>جارٍ التحميل…</Text>
+        <Text style={{ color: Colors.textMuted, marginTop: 12 }}>جارٍ التحميل…</Text>
       </View>
     );
   }
@@ -223,13 +224,13 @@ function ClientCaseChat() {
       <LinearGradient colors={["#1A0A2E", BG]} style={{ paddingTop: insets.top + 4, paddingBottom: 14, paddingHorizontal: 18 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
-            <Ionicons name="arrow-back" size={22} color="#9CA3AF" />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMuted} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }} numberOfLines={1}>
               {contract.lawyer_title} {contract.lawyer_name}
             </Text>
-            <Text style={{ color: "#9CA3AF", fontSize: 13 }} numberOfLines={1}>{contract.service_title}</Text>
+            <Text style={{ color: Colors.textMuted, fontSize: 13 }} numberOfLines={1}>{contract.service_title}</Text>
           </View>
           <View style={{ backgroundColor: statusConf.color + "22", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: statusConf.color + "55" }}>
             <Text style={{ color: statusConf.color, fontSize: 12, fontWeight: "700" }}>{statusConf.label}</Text>
@@ -258,7 +259,7 @@ function ClientCaseChat() {
             ListEmptyComponent={() => (
               <View style={{ alignItems: "center", paddingTop: 60 }}>
                 <Text style={{ fontSize: 48, marginBottom: 12 }}>💬</Text>
-                <Text style={{ color: "#6B7280", textAlign: "center" }}>
+                <Text style={{ color: Colors.textSecondary, textAlign: "center" }}>
                   ابدأ محادثتك مع محاميك هنا.{"\n"}سيرد عليك في أقرب وقت.
                 </Text>
               </View>
@@ -287,11 +288,11 @@ function ClientCaseChat() {
                         <Text style={{ fontSize: 22 }}>{fileIcon(m.file_type)}</Text>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: "#D1D5DB", fontSize: 13, fontWeight: "600" }} numberOfLines={1}>{m.file_name || "ملف مرفق"}</Text>
-                          <Text style={{ color: "#6B7280", fontSize: 11 }}>اضغط للفتح</Text>
+                          <Text style={{ color: Colors.textSecondary, fontSize: 11 }}>اضغط للفتح</Text>
                         </View>
                       </TouchableOpacity>
                     ) : null}
-                    <Text style={{ color: "#4B5563", fontSize: 11, marginTop: 4, textAlign: isClient ? "left" : "right" }}>{fmtTime(m.created_at)}</Text>
+                    <Text style={{ color: Colors.textSecondary, fontSize: 11, marginTop: 4, textAlign: isClient ? "left" : "right" }}>{fmtTime(m.created_at)}</Text>
                   </View>
                 </View>
               );
@@ -300,11 +301,11 @@ function ClientCaseChat() {
           {/* Input */}
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
             <TouchableOpacity onPress={pickAndSendFile} style={{ padding: 10, backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
-              <Ionicons name="attach-outline" size={20} color="#9CA3AF" />
+              <Ionicons name="attach-outline" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
             <TextInput
               value={msgText} onChangeText={setMsgText}
-              placeholder="اكتب رسالة لمحاميك…" placeholderTextColor="#4B5563"
+              placeholder="اكتب رسالة لمحاميك…" placeholderTextColor={Colors.textMuted}
               multiline maxLength={3000}
               style={{ flex: 1, color: "#fff", fontSize: 14, backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: BORDER, maxHeight: 120 }}
             />
@@ -323,7 +324,7 @@ function ClientCaseChat() {
           <View style={{ padding: 14, gap: 10 }}>
             <TextInput
               value={docTitle} onChangeText={setDocTitle}
-              placeholder="اسم المستند (اختياري)…" placeholderTextColor="#4B5563"
+              placeholder="اسم المستند (اختياري)…" placeholderTextColor={Colors.textMuted}
               style={{ color: "#fff", backgroundColor: CARD, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: BORDER, fontSize: 13 }}
             />
             <TouchableOpacity onPress={uploadDoc} disabled={docUploading}
@@ -342,7 +343,7 @@ function ClientCaseChat() {
             ListEmptyComponent={() => (
               <View style={{ alignItems: "center", paddingTop: 40 }}>
                 <Text style={{ fontSize: 40, marginBottom: 10 }}>📂</Text>
-                <Text style={{ color: "#6B7280" }}>لا توجد مستندات بعد</Text>
+                <Text style={{ color: Colors.textSecondary }}>لا توجد مستندات بعد</Text>
               </View>
             )}
             renderItem={({ item: d }: { item: Document }) => (
@@ -350,13 +351,13 @@ function ClientCaseChat() {
                 <Text style={{ fontSize: 28 }}>{fileIcon(d.file_type)}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: "#fff", fontWeight: "700" }} numberOfLines={1}>{d.title}</Text>
-                  <Text style={{ color: "#9CA3AF", fontSize: 12 }} numberOfLines={1}>{d.file_name}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12 }} numberOfLines={1}>{d.file_name}</Text>
                   <View style={{ flexDirection: "row", gap: 10, marginTop: 3 }}>
                     <Text style={{ color: d.uploaded_by === "lawyer" ? PURPLE : GREEN, fontSize: 11, fontWeight: "600" }}>
                       {d.uploaded_by === "lawyer" ? "📤 من المحامي" : "📥 منك"}
                     </Text>
-                    {d.file_size > 0 && <Text style={{ color: "#4B5563", fontSize: 11 }}>{fmtSize(d.file_size)}</Text>}
-                    <Text style={{ color: "#4B5563", fontSize: 11 }}>{fmt(d.created_at)}</Text>
+                    {d.file_size > 0 && <Text style={{ color: Colors.textSecondary, fontSize: 11 }}>{fmtSize(d.file_size)}</Text>}
+                    <Text style={{ color: Colors.textSecondary, fontSize: 11 }}>{fmt(d.created_at)}</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => Linking.openURL(d.file_url)} style={{ padding: 8 }}>
@@ -380,13 +381,13 @@ function ClientCaseChat() {
               ["تاريخ التقديم", fmt(contract.created_at)],
             ].map(([label, value]) => (
               <View key={label} style={{ marginBottom: 14 }}>
-                <Text style={{ color: "#6B7280", fontSize: 12, marginBottom: 2 }}>{label}</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: 2 }}>{label}</Text>
                 <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>{value}</Text>
               </View>
             ))}
             {contract.details ? (
               <View style={{ marginBottom: 14 }}>
-                <Text style={{ color: "#6B7280", fontSize: 12, marginBottom: 2 }}>تفاصيل الطلب</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: 2 }}>تفاصيل الطلب</Text>
                 <Text style={{ color: "#D1D5DB", fontSize: 13, lineHeight: 20 }}>{contract.details}</Text>
               </View>
             ) : null}

@@ -189,7 +189,7 @@ export default function AdminRequestsScreen() {
             <Act label="اتصال" color="#00966A" icon="call-outline" onPress={() => Linking.openURL(`tel:${item.phone}`)} />
             {item.status !== "active" && <Act label="اعتماد" color="#00966A" icon="checkmark-circle-outline" onPress={() => review("store", item.id, "active", "اعتماد المتجر")} />}
             {item.status === "pending" && <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => review("store", item.id, "rejected", "رفض الطلب")} />}
-            {item.status === "active" && <Act label="إيقاف" color="#6B7280" icon="pause-circle-outline" onPress={() => review("store", item.id, "suspended", "إيقاف المتجر")} />}
+            {item.status === "active" && <Act label="إيقاف" color={Colors.textSecondary} icon="pause-circle-outline" onPress={() => review("store", item.id, "suspended", "إيقاف المتجر")} />}
           </View>
         </View>
       );
@@ -208,13 +208,13 @@ export default function AdminRequestsScreen() {
             </View>
             {!!item.doc_url && (
               <Pressable onPress={() => Linking.openURL(item.doc_url)}>
-                <Image source={{ uri: item.doc_url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: "#eee" }} />
+                <Image source={{ uri: item.doc_url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: Colors.divider }} />
               </Pressable>
             )}
           </View>
           <View style={s.actions}>
             <Act label="الملف" color="#1D66D4" icon="person-outline" onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(item.user_id) } })} />
-            {!!item.doc_url && <Act label="المستند" color="#6B7280" icon="image-outline" onPress={() => Linking.openURL(item.doc_url)} />}
+            {!!item.doc_url && <Act label="المستند" color={Colors.textSecondary} icon="image-outline" onPress={() => Linking.openURL(item.doc_url)} />}
             <Act label="توثيق" color="#00966A" icon="checkmark-circle-outline" onPress={() => reviewVerif(item.id, "approved")} />
             <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => reviewVerif(item.id, "rejected")} />
           </View>
@@ -238,7 +238,7 @@ export default function AdminRequestsScreen() {
             <Act label="اتصال" color="#00966A" icon="call-outline" onPress={() => Linking.openURL(`tel:${item.phone}`)} />
             {item.status !== "approved" && <Act label="اعتماد" color="#00966A" icon="checkmark-circle-outline" onPress={() => review("wstore", item.id, "approved", "اعتماد المتجر")} />}
             {item.status === "pending" && <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => review("wstore", item.id, "rejected", "رفض الطلب")} />}
-            {item.status === "approved" && <Act label="إيقاف" color="#6B7280" icon="pause-circle-outline" onPress={() => review("wstore", item.id, "suspended", "إيقاف المتجر")} />}
+            {item.status === "approved" && <Act label="إيقاف" color={Colors.textSecondary} icon="pause-circle-outline" onPress={() => review("wstore", item.id, "suspended", "إيقاف المتجر")} />}
           </View>
         </View>
       );
@@ -298,9 +298,9 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   tabs: { flexDirection: "row-reverse", gap: 6, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 14, padding: 4 },
   tab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 8, borderRadius: 10 },
-  tabOn: { backgroundColor: "#fff" },
+  tabOn: { backgroundColor: Colors.cardBg },
   tabText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#fff" },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: "#E6ECE9" },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: "#E6ECE9" },
   cardNew: { borderColor: Colors.accent, backgroundColor: "#FFFCF2" },
   row: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 },
   icon: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.primarySoft, alignItems: "center", justifyContent: "center" },

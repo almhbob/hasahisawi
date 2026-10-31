@@ -554,7 +554,7 @@ const fm = StyleSheet.create({
   playerImgBox:{height:160,borderRadius:16,backgroundColor:Colors.bg,borderWidth:2,borderStyle:"dashed",borderColor:Colors.primary+"40",justifyContent:"center",alignItems:"center",overflow:"hidden",marginBottom:4},
   saveBtn:    {marginTop:18,borderRadius:14,overflow:"hidden"},
   saveBtnInner:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"center",gap:8,paddingVertical:15},
-  saveBtnTxt: {fontFamily:"Cairo_700Bold",fontSize:15,color:"#000"},
+  saveBtnTxt: {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.text},
 });
 
 // ─── Add Post Modal ───────────────────────────────────────────────────────────
@@ -599,7 +599,7 @@ function AddPostModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
               </TouchableOpacity>
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="send" size={18} color="#000" />
+                  <Ionicons name="send" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>نشر الخبر</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -691,7 +691,7 @@ function AddPlayerModal({ visible, initial, onClose, onSave }:{visible:boolean;i
               </View>
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="save-outline" size={18} color="#000" />
+                  <Ionicons name="save-outline" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>حفظ اللاعب</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -759,7 +759,7 @@ function AddMatchModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=
               <TextInput style={[fm.input,{height:60,textAlignVertical:"top",paddingTop:8}]} value={desc} onChangeText={setDesc} placeholder="تفاصيل إضافية..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="save-outline" size={18} color="#000" />
+                  <Ionicons name="save-outline" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>حفظ المباراة</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -820,7 +820,7 @@ function AddClubModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
               <TextInput style={[fm.input,{height:60,textAlignVertical:"top",paddingTop:8}]} value={desc} onChangeText={setDesc} placeholder="نبذة مختصرة..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="save-outline" size={18} color="#000" />
+                  <Ionicons name="save-outline" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>حفظ النادي</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -1181,7 +1181,7 @@ export default function SportsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pinBtn,{overflow:"hidden"}]} onPress={adminLogin}>
                     <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={{flex:1,alignItems:"center",justifyContent:"center"}}>
-                      <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#000"}}>دخول</Text>
+                      <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.text}}>دخول</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
@@ -1210,7 +1210,7 @@ export default function SportsScreen() {
                   else if (tab==="matches") setAddMatch(true);
                   else setAddClub(true);
                 }}>
-                  <Ionicons name="add" size={18} color="#000" />
+                  <Ionicons name="add" size={18} color={Colors.text} />
                 </TouchableOpacity>}
               </>
             ) : (
@@ -1262,7 +1262,7 @@ export default function SportsScreen() {
               <Text style={s.emptyTitle}>{loadFailed ? "تعذّر تحميل الأخبار" : "لا توجد أخبار بعد"}</Text>
               {loadFailed ? (
                 <TouchableOpacity onPress={load} style={{marginTop:12,paddingHorizontal:24,paddingVertical:10,backgroundColor:Colors.primary,borderRadius:20}}>
-                  <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#000"}}>إعادة المحاولة</Text>
+                  <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.text}}>إعادة المحاولة</Text>
                 </TouchableOpacity>
               ) : isAdmin && <Text style={s.emptySub}>اضغط + لنشر أول خبر</Text>}
             </View>
@@ -1392,7 +1392,7 @@ const s = StyleSheet.create({
   tabsRow:     {flexDirection:"row-reverse",paddingBottom:0,gap:4,paddingRight:0},
   tabBtn:      {flexDirection:"row-reverse",alignItems:"center",gap:5,paddingHorizontal:12,paddingVertical:10,borderRadius:Colors.radius.sm,position:"relative"},
   tabBtnActive:{backgroundColor:"rgba(255,255,255,0.18)"},
-  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:"#fff"},
+  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:Colors.cardBg},
   tabTxt:      {fontFamily:"Cairo_500Medium",fontSize: 13,color:"rgba(255,255,255,0.62)"},
   tabTxtActive:{fontFamily:"Cairo_700Bold",fontSize: 13,color:"#fff"},
   badge:       {borderRadius:8,paddingHorizontal:5,paddingVertical:1,minWidth:16,alignItems:"center"},

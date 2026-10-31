@@ -777,14 +777,14 @@ export default function LoginScreen() {
               style={styles.submitBtn}
             >
               {loading || otpSending
-                ? <ActivityIndicator color="#000" size="small" />
+                ? <ActivityIndicator color={Colors.text} size="small" />
                 : <>
                     <Text style={styles.submitText}>
                       {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
                     </Text>
                     <Ionicons
                       name={mode === "login" ? "arrow-back" : "person-add-outline"}
-                      size={19} color="#000"
+                      size={19} color={Colors.text}
                     />
                   </>
               }
@@ -978,10 +978,10 @@ export default function LoginScreen() {
                 style={otpS.verifyBtn}
               >
                 {otpVerifying
-                  ? <ActivityIndicator color="#000" size="small" />
+                  ? <ActivityIndicator color={Colors.text} size="small" />
                   : <>
                       <Text style={otpS.verifyText}>تأكيد الرمز وإنشاء الحساب</Text>
-                      <Ionicons name="checkmark-circle" size={20} color="#000" />
+                      <Ionicons name="checkmark-circle" size={20} color={Colors.text} />
                     </>
                 }
               </LinearGradient>
@@ -1093,7 +1093,7 @@ const styles = StyleSheet.create({
   logoWrap: {
     width: 72, height: 72,
     borderRadius: 22,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.cardBg,
     overflow: "hidden",
     borderWidth: 2, borderColor: Colors.primary + "80",
     shadowColor: Colors.primary,
@@ -1237,7 +1237,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
   },
   submitText: {
-    fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000",
+    fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text,
   },
 
   /* Biometric */
@@ -1299,7 +1299,7 @@ const styles = StyleSheet.create({
   googleIcon: { width: 22, height: 22 },
   googleIconFallback: {
     width: 22, height: 22, borderRadius: 11,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: "#DADCE0",
     alignItems: "center", justifyContent: "center",
   },
@@ -1389,7 +1389,7 @@ const otpS = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
   },
   verifyText: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000",
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text,
   },
   resendBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,

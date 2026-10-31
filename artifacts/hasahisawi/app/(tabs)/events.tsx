@@ -41,7 +41,7 @@ const EVENT_TYPES = [
   { key: "cultural",     label: "ثقافية",      icon: "color-palette-outline",    color: "#2F8A8A" },
   { key: "sports",       label: "رياضية",      icon: "football-outline",         color: "#10B981" },
   { key: "religious",    label: "دينية",       icon: "moon-outline",             color: "#5B8DB8" },
-  { key: "other",        label: "أخرى",        icon: "ellipsis-horizontal",      color: "#6B7280" },
+  { key: "other",        label: "أخرى",        icon: "ellipsis-horizontal",      color: Colors.textSecondary },
 ];
 
 // ─────────────────────────────────────────────
@@ -266,7 +266,7 @@ export default function EventsScreen() {
                   onPress={() => { setFilterType(t.key); Haptics.selectionAsync(); }}
                 >
                   <Ionicons name={t.icon as any} size={14} color={filterType === t.key ? "#000" : t.color} />
-                  <Text style={[styles.filterChipText, filterType === t.key && { color: "#000" }]}>{t.label}</Text>
+                  <Text style={[styles.filterChipText, filterType === t.key && { color: Colors.text }]}>{t.label}</Text>
                 </TouchableOpacity>
               </Animated.View>
             ))}
@@ -361,7 +361,7 @@ export default function EventsScreen() {
                   onPress={() => setForm(f => ({ ...f, type: t.key }))}
                 >
                   <Ionicons name={t.icon as any} size={16} color={form.type === t.key ? "#000" : t.color} />
-                  <Text style={[styles.typeChipText, form.type === t.key && { color: "#000" }]}>{t.label}</Text>
+                  <Text style={[styles.typeChipText, form.type === t.key && { color: Colors.text }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -384,7 +384,7 @@ export default function EventsScreen() {
                   style={[styles.toggleBtn, form.is_free === o.v && styles.toggleBtnActive]}
                   onPress={() => setForm(f => ({ ...f, is_free: o.v }))}
                 >
-                  <Text style={[styles.toggleBtnText, form.is_free === o.v && { color: "#000" }]}>{o.l}</Text>
+                  <Text style={[styles.toggleBtnText, form.is_free === o.v && { color: Colors.text }]}>{o.l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -400,8 +400,8 @@ export default function EventsScreen() {
             >
               <LinearGradient colors={[PRIMARY, "#1a9955"]} style={styles.submitGrad}>
                 {submitting
-                  ? <ActivityIndicator color="#000" />
-                  : <><Ionicons name="send-outline" size={18} color="#000" /><Text style={styles.submitText}>إرسال للمراجعة</Text></>
+                  ? <ActivityIndicator color={Colors.text} />
+                  : <><Ionicons name="send-outline" size={18} color={Colors.text} /><Text style={styles.submitText}>إرسال للمراجعة</Text></>
                 }
               </LinearGradient>
             </TouchableOpacity>
@@ -567,7 +567,7 @@ function EventDetailSheet({ event, onClose }: { event: Event; onClose: () => voi
           onPress={() => Linking.openURL(`tel:${event.contact_phone}`)}
         >
           <LinearGradient colors={[PRIMARY, "#1a9955"]} style={styles.callBtnInner}>
-            <Ionicons name="call-outline" size={20} color="#000" />
+            <Ionicons name="call-outline" size={20} color={Colors.text} />
             <Text style={styles.callBtnText}>التسجيل والاستفسار</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   // Tabs
   tabBar:        { flexDirection: "row-reverse", gap: 8 },
   tabBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
-  tabBtnActive:  { backgroundColor: "#fff", borderColor: "#fff" },
+  tabBtnActive:  { backgroundColor: Colors.cardBg, borderColor: "#fff" },
   tabLabel:      { fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: "600" },
   tabLabelActive:{ color: PRIMARY, fontWeight: "700" },
 
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
 
   submitBtn:   { margin: 16, borderRadius: Colors.radius.lg, overflow: "hidden" },
   submitGrad:  { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
-  submitText:  { fontSize: 16, fontWeight: "800", color: "#000" },
+  submitText:  { fontSize: 16, fontWeight: "800", color: Colors.text },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "#000000bb", justifyContent: "flex-end" },
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
 
   callBtn:      { marginBottom: 10, borderRadius: Colors.radius.lg, overflow: "hidden" },
   callBtnInner: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
-  callBtnText:  { fontSize: 16, fontWeight: "800", color: "#000" },
+  callBtnText:  { fontSize: 16, fontWeight: "800", color: Colors.text },
   closeBtn:     { alignItems: "center", paddingVertical: 14 },
   closeBtnText: { fontSize: 14, color: "#4a7a5a" },
 

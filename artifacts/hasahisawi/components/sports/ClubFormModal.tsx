@@ -200,7 +200,7 @@ export default function ClubFormModal({ visible, initial, token, userId, onClose
 
 const st = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: "94%", paddingHorizontal: 18, paddingTop: 8 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: "94%", paddingHorizontal: 18, paddingTop: 8 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 10 },
   headRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
@@ -216,7 +216,7 @@ const st = StyleSheet.create({
   input: { backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },
   row: { flexDirection: "row-reverse", gap: 10 },
   chips: { flexDirection: "row-reverse", gap: 8, paddingBottom: 2 },
-  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "rgba(0,0,0,0.1)", backgroundColor: "#fff" },
+  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "rgba(0,0,0,0.1)", backgroundColor: Colors.cardBg },
   chipTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary },
   palette: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   swatch: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },

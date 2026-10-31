@@ -88,9 +88,9 @@ const APT_TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00"
 // بانر انضمام المنشأة الطبية + باقات الاشتراك
 // ══════════════════════════════════════════════════════
 const CLINIC_PLANS = [
-  { name: "مجاني",  color: "#6B7280", icon: "●", price: "0",       perks: ["القائمة الأساسية", "30 موعد/شهر"] },
+  { name: "مجاني",  color: Colors.textSecondary, icon: "●", price: "0",       perks: ["القائمة الأساسية", "30 موعد/شهر"] },
   { name: "برونزي", color: "#CD7F32", icon: "◉", price: "80,000",  perks: ["تأكيد واتساب", "100 موعد/شهر"] },
-  { name: "فضي",    color: "#9CA3AF", icon: "⬡", price: "180,000", perks: ["تذكير تلقائي", "أولوية العرض", "مشرف مخصص"] },
+  { name: "فضي",    color: Colors.textMuted, icon: "⬡", price: "180,000", perks: ["تذكير تلقائي", "أولوية العرض", "مشرف مخصص"] },
   { name: "ذهبي",   color: "#F59E0B", icon: "★", price: "350,000", perks: ["تقارير شهرية", "غير محدود", "شارة مميّز"] },
 ];
 
@@ -128,7 +128,7 @@ function MedicalJoinBanner() {
         </View>
 
         {/* باقات الاشتراك */}
-        <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: "#9CA3AF", fontFamily: "Cairo_700Bold" }]}>
+        <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: Colors.textMuted, fontFamily: "Cairo_700Bold" }]}>
           اختر الباقة المناسبة لمنشأتك:
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingHorizontal: 2 }}>
@@ -1281,11 +1281,11 @@ const mj = StyleSheet.create({
   joinBtnWrap: { borderRadius: Colors.radius.md, overflow: "hidden", marginTop: 2 },
   joinBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", paddingVertical: 15, paddingHorizontal: 20, gap: 10 },
   joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
-  joinBtnIcon: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: "#fff", justifyContent: "center", alignItems: "center" },
+  joinBtnIcon: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center" },
   freeNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: -4 },
   planCard:  { width: 130, backgroundColor: "#0B1E12", borderRadius: Colors.radius.md, borderWidth: 1, padding: 10, gap: 4, alignItems: "center" },
   planName:  { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "center" },
-  planPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9CA3AF", textAlign: "center" },
+  planPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
   planPerk:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6EE7B7", textAlign: "center", width: "100%" },
 });
 

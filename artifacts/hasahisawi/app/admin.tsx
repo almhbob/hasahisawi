@@ -740,7 +740,7 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
           </View>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{sl.start_date} ← {sl.end_date}  ({sl.leave_days} يوم)</Text>
           {sl.institution_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>المؤسسة: {sl.institution_name}</Text>}
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4B5563", textAlign: "right", marginTop: 3 }}>رمز التحقق: {sl.barcode_token}</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 3 }}>رمز التحقق: {sl.barcode_token}</Text>
           {(!sl.status || sl.status === "pending") && (
             <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
               <TouchableOpacity onPress={() => updateStatus(sl.id, "flagged")} disabled={acting === sl.id}
@@ -4310,7 +4310,7 @@ export default function AdminDashboard() {
     { key: "reports_admin",    label: "البلاغات",            icon: "warning",            color: "#EF4444",      adminOnly: true },
     { key: "missing_admin",    label: "المفقودات",           icon: "search",             color: "#F97316",      adminOnly: true },
     { key: "numbers_admin",    label: "الأرقام الهامة",      icon: "call",               color: "#10B981",      adminOnly: true },
-    { key: "factories_admin",  label: "المصانع",             icon: "business-outline" as any, color: "#6B7280", adminOnly: true },
+    { key: "factories_admin",  label: "المصانع",             icon: "business-outline" as any, color: Colors.textSecondary, adminOnly: true },
     { key: "farmers_admin",    label: "السوق الزراعي",       icon: "leaf",               color: "#16A34A",      adminOnly: true },
     { key: "rentals_admin",    label: "الإيجارات",           icon: "home",               color: "#0EA5E9",      adminOnly: true },
     { key: "jobs_admin",       label: "الوظائف",             icon: "briefcase",          color: "#1F5C8A",      adminOnly: true },
@@ -4617,7 +4617,7 @@ export default function AdminDashboard() {
                           <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F59E0B", textAlign: "right", marginBottom: 4 }}>
                             ⚠ Firebase Admin SDK غير مُهيَّأ — المستخدمون لن يظهروا
                           </Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9CA3AF", textAlign: "right" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
                             لاسترجاع المستخدمين: افتح Firebase Console ← Project Settings ← Service Accounts ← Generate new private key ← انسخ المحتوى والصقه أدناه
                           </Text>
                         </View>
@@ -4641,7 +4641,7 @@ export default function AdminDashboard() {
                               multiline
                               numberOfLines={6}
                               placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  ...\n}'}
-                              placeholderTextColor="#4B5563"
+                              placeholderTextColor={Colors.textMuted}
                               style={{ backgroundColor: "#111827", borderRadius: 8, padding: 10, fontFamily: "monospace", fontSize: 12, color: "#E5E7EB", textAlign: "left", minHeight: 120, borderWidth: 1, borderColor: "#374151", marginBottom: 8 }}
                             />
                             {fbSaJsonResult && (
@@ -4678,7 +4678,7 @@ export default function AdminDashboard() {
                     >
                       {fbSyncing
                         ? <ActivityIndicator size="small" color={Colors.primary} />
-                        : <Ionicons name="sync-outline" size={17} color="#000" />}
+                        : <Ionicons name="sync-outline" size={17} color={Colors.text} />}
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: fbSyncing ? Colors.textMuted : "#000" }}>
                         {fbSyncing ? "جارٍ الاستيراد من Firebase…" : "استيراد كل الحسابات من Firebase"}
                       </Text>
@@ -4728,7 +4728,7 @@ export default function AdminDashboard() {
                 onPress={loadStats}
                 style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
               >
-                <Text style={{ color: "#000", fontFamily: "Cairo_700Bold", fontSize: 14 }}>إعادة المحاولة</Text>
+                <Text style={{ color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 14 }}>إعادة المحاولة</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -4948,8 +4948,8 @@ export default function AdminDashboard() {
           <View style={s.pageHeader}>
             <Text style={s.pageHeaderTitle}>قاعة التكريم ({honoredList.length})</Text>
             <TouchableOpacity style={[s.addBtn, { backgroundColor: "#D4AF37" }]} onPress={() => { setHonorForm(HONOR_FORM_INIT); setShowAddHonor(true); }}>
-              <Ionicons name="add" size={16} color="#000" />
-              <Text style={[s.addBtnTxt, { color: "#000" }]}>إضافة</Text>
+              <Ionicons name="add" size={16} color={Colors.text} />
+              <Text style={[s.addBtnTxt, { color: Colors.text }]}>إضافة</Text>
             </TouchableOpacity>
           </View>
 
@@ -7305,7 +7305,7 @@ export default function AdminDashboard() {
       {tab === "factories_admin" && isAdmin && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>{adminFactories.length} مصنع مسجّل</Text>
-          {loadingFactories ? <ActivityIndicator color="#6B7280" style={{ marginTop: 40 }} /> :
+          {loadingFactories ? <ActivityIndicator color={Colors.textSecondary} style={{ marginTop: 40 }} /> :
            adminFactories.length === 0 ? (
             <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد مصانع مسجّلة بعد</Text>
            ) : adminFactories.map(f => (
@@ -8111,7 +8111,7 @@ export default function AdminDashboard() {
                     </View>
                     <Text style={[s.permLabel, enabled && { color: Colors.textPrimary }]}>{sec.label}</Text>
                     <View style={[s.permCheck, { backgroundColor: enabled ? Colors.primary : "transparent", borderColor: enabled ? Colors.primary : Colors.textMuted }]}>
-                      {enabled && <Ionicons name="checkmark" size={12} color="#000" />}
+                      {enabled && <Ionicons name="checkmark" size={12} color={Colors.text} />}
                     </View>
                   </TouchableOpacity>
                 );
@@ -8294,7 +8294,7 @@ const s = StyleSheet.create({
   toggleRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", backgroundColor: Colors.bg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.divider, marginBottom: 10 },
   toggleLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   toggle: { width: 50, height: 28, borderRadius: 14, justifyContent: "center", paddingHorizontal: 3 },
-  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
+  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.cardBg },
 
   /* Modal */
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "center", alignItems: "center", padding: 20 },

@@ -114,7 +114,7 @@ const st = StyleSheet.create({
   nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 2, maxWidth: 62 },
   name: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", maxWidth: 50 },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "80%", paddingTop: 8 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "80%", paddingTop: 8 },
   handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, marginBottom: 8 },
   li: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   nameRowL: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },

@@ -591,7 +591,7 @@ function OccasionCard({ item, idx, onOpen }: {
           {/* حالة اليوم */}
           {isToday && (
             <View style={[oc.todayBadge, { backgroundColor: occ.color }]}>
-              <Animated.View style={[oc.pulse, { backgroundColor: "#fff" }]} />
+              <Animated.View style={[oc.pulse, { backgroundColor: Colors.cardBg }]} />
               <Text style={oc.todayText}>اليوم</Text>
             </View>
           )}
@@ -794,8 +794,8 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
             <TouchableOpacity style={[b.postBtn,(!text.trim()||sending)&&{opacity:0.4}]}
               onPress={post} disabled={!text.trim()||sending}>
               <LinearGradient colors={[GOLD,GOLD2]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.postBtnGrad}>
-                {sending?<ActivityIndicator size={14} color="#000"/>:(
-                  <><Ionicons name="send" size={14} color="#000"/><Text style={b.postBtnText}>نشر</Text></>
+                {sending?<ActivityIndicator size={14} color={Colors.text}/>:(
+                  <><Ionicons name="send" size={14} color={Colors.text}/><Text style={b.postBtnText}>نشر</Text></>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -827,7 +827,7 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
               <LinearGradient colors={[CARD2, CARD]} style={[b.postCard, isBig&&b.postCardFeatured]}>
                 <LinearGradient colors={[clr+"10","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.postAccent}/>
                 {isBig&&<View style={[b.featuredBadge,{backgroundColor:clr}]}>
-                  <Ionicons name="star" size={10} color="#000"/><Text style={b.featuredText}>مميّز</Text>
+                  <Ionicons name="star" size={10} color={Colors.text}/><Text style={b.featuredText}>مميّز</Text>
                 </View>}
 
                 <View style={b.postHeader}>
@@ -903,7 +903,7 @@ export default function GreetingsScreen() {
             </View>
             <TouchableOpacity onPress={()=>{setSelectedOcc(active);if(Platform.OS!=="web")Haptics.selectionAsync();}}
               style={[s.activeCTA,{backgroundColor:active.color}]}>
-              <MaterialCommunityIcons name="card-text" size={14} color="#000"/>
+              <MaterialCommunityIcons name="card-text" size={14} color={Colors.text}/>
               <Text style={s.activeCTAText}>بطاقة</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -986,7 +986,7 @@ const s = StyleSheet.create({
   activeBannerTitle:{fontFamily:"Cairo_700Bold",fontSize:16,textAlign:"right"},
   activeBannerSub:  {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.5)",textAlign:"right",marginTop:2},
   activeCTA:{flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:12,paddingVertical:8,borderRadius:Colors.radius.sm},
-  activeCTAText:{fontFamily:"Cairo_700Bold",fontSize: 13,color:"#000"},
+  activeCTAText:{fontFamily:"Cairo_700Bold",fontSize: 13,color:Colors.text},
 
   dateBox:   {flexDirection:"row-reverse",alignItems:"center",gap:12},
   dateIconWrap:{width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center"},
@@ -1117,7 +1117,7 @@ const b = StyleSheet.create({
   charCount:   {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.3)"},
   postBtn:     {borderRadius:Colors.radius.sm,overflow:"hidden"},
   postBtnGrad: {flexDirection:"row-reverse",alignItems:"center",gap:6,paddingHorizontal:16,paddingVertical:9},
-  postBtnText: {fontFamily:"Cairo_700Bold",fontSize:13,color:"#000"},
+  postBtnText: {fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.text},
 
   emptyBox:  {alignItems:"center",paddingVertical:50,gap:8},
   emptyTitle:{fontFamily:"Cairo_700Bold",fontSize:16,color:"rgba(255,255,255,0.6)"},
@@ -1127,7 +1127,7 @@ const b = StyleSheet.create({
   postCardFeatured:{borderColor:GOLD+"30"},
   postAccent:{position:"absolute",top:0,left:0,right:0,height:3},
   featuredBadge:{position:"absolute",top:12,left:12,flexDirection:"row-reverse",alignItems:"center",gap:3,paddingHorizontal:7,paddingVertical:3,borderRadius:8},
-  featuredText: {fontFamily:"Cairo_700Bold",fontSize: 11,color:"#000"},
+  featuredText: {fontFamily:"Cairo_700Bold",fontSize: 11,color:Colors.text},
 
   postHeader:{flexDirection:"row-reverse",alignItems:"center",gap:10},
   avatar:    {width:40,height:40,borderRadius:13,alignItems:"center",justifyContent:"center"},

@@ -166,11 +166,11 @@ export default function ShahadaCalculator() {
 
 const st = StyleSheet.create({
   chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D6E2DD", backgroundColor: "#fff" },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#D6E2DD", backgroundColor: Colors.cardBg },
   chipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text },
   hint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
-  row: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: "#E3ECE8", paddingHorizontal: 10, paddingVertical: 6 },
+  row: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: "#E3ECE8", paddingHorizontal: 10, paddingVertical: 6 },
   name: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text, textAlign: "right", paddingVertical: 4 },
   grade: { fontFamily: "Cairo_700Bold", fontSize: 10.5 },
   score: { width: 58, height: 38, borderRadius: 10, backgroundColor: "#F4F8F6", borderWidth: 1, borderColor: "#DCE7E2", fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text },
@@ -183,7 +183,7 @@ const st = StyleSheet.create({
   resPct: { fontFamily: "Cairo_700Bold", fontSize: 38, lineHeight: 52 },
   resGrade: { fontFamily: "Cairo_700Bold", fontSize: 16, marginTop: -4 },
   resRow: { flexDirection: "row-reverse", gap: 10, marginTop: 12, alignSelf: "stretch" },
-  stat: { flex: 1, backgroundColor: "#fff", borderRadius: 12, paddingVertical: 8, alignItems: "center" },
+  stat: { flex: 1, backgroundColor: Colors.cardBg, borderRadius: 12, paddingVertical: 8, alignItems: "center" },
   statV: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
   statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   warn: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#C2580A", marginTop: 10, textAlign: "center" },

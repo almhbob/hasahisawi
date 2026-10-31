@@ -113,7 +113,7 @@ export default function ProductFormModal({ visible, businessId, initial, token, 
 
 const st = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, maxHeight: "92%" },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, maxHeight: "92%" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right", marginBottom: 10 },
   thumb: { width: 76, height: 76, borderRadius: 14 },
   thumbX: { position: "absolute", top: 4, left: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center" },

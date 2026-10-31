@@ -133,7 +133,7 @@ export default function ClubsHub({ search }: { search?: string }) {
                       <Text style={s.followers}><Ionicons name="people" size={11} color={Colors.textMuted} /> {c.followers} متابع</Text>
                       {c.status === "pending" ? <View style={[s.pill, { backgroundColor: "#FFF4D6" }]}><Text style={[s.pillTxt, { color: "#8A6400" }]}>قيد المراجعة</Text></View> : null}
                       {c.status === "rejected" ? <View style={[s.pill, { backgroundColor: "#FDE8E8" }]}><Text style={[s.pillTxt, { color: "#B3261E" }]}>مرفوض</Text></View> : null}
-                      {c.accepts_members && c.status === "approved" ? <View style={[s.pill, { backgroundColor: "#E8F5EE" }]}><Text style={[s.pillTxt, { color: "#0B7A4E" }]}>يستقبل لاعبين</Text></View> : null}
+                      {c.accepts_members && c.status === "approved" ? <View style={[s.pill, { backgroundColor: Colors.primarySoft }]}><Text style={[s.pillTxt, { color: "#0B7A4E" }]}>يستقبل لاعبين</Text></View> : null}
                     </View>
                   </View>
                   {c.status === "approved" ? (
@@ -208,17 +208,17 @@ const s = StyleSheet.create({
   segBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 11 },
   segOn: { backgroundColor: Colors.primary },
   segTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
-  flash: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "#E8F5EE", borderRadius: 12, padding: 10, marginBottom: 10 },
+  flash: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: Colors.primarySoft, borderRadius: 12, padding: 10, marginBottom: 10 },
   flashTxt: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0B7A4E", textAlign: "right" },
   chips: { flexDirection: "row-reverse", gap: 8, paddingBottom: 12 },
-  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" },
+  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" },
   chipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   chipTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary },
-  cta: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: Colors.primary + "33", borderStyle: "dashed" },
+  cta: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: Colors.primary + "33", borderStyle: "dashed" },
   ctaIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
   ctaTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   ctaSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
-  card: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  card: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   name: { flexShrink: 1, fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   meta: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: -2 },
@@ -227,11 +227,11 @@ const s = StyleSheet.create({
   pill: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 },
   pillTxt: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   followBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, backgroundColor: Colors.primary },
-  followOn: { backgroundColor: "#E8F5EE" },
+  followOn: { backgroundColor: Colors.primarySoft },
   followTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   empty: { alignItems: "center", gap: 8, paddingVertical: 34 },
   emptyTxt: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingHorizontal: 20 },
-  tableCard: { backgroundColor: "#fff", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  tableCard: { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   tableTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   tableSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right", marginBottom: 8 },
   tr: { flexDirection: "row-reverse", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(0,0,0,0.05)", borderRadius: 8 },

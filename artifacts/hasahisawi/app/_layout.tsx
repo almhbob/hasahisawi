@@ -31,7 +31,7 @@ import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { initAppCheck } from "@/lib/firebase/app-check";
 import { ActivityIndicator, Image } from "react-native";
-import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
+import { Appearance, I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
 
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
@@ -42,6 +42,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
+import * as SystemUI from "expo-system-ui";
+import { activeScheme } from "@/constants/theme-mode";
 
 // ── ضبط حجم الخط على الموبايل ─────────────────────────────────────
 // بعض الأجهزة تكون عليها إعدادات Accessibility بحجم خط كبير جداً، وهذا كان يسبب
@@ -65,6 +67,14 @@ if (Platform.OS !== "web") {
   I18nManager.allowRTL(false);
   I18nManager.forceRTL(false);
   I18nManager.swapLeftAndRightInRTL(true);
+}
+
+// ── المظهر (فاتح/داكن) ─────────────────────────────────────────
+// الألوان تُحدَّد مرة عند فتح التطبيق (constants/theme-mode). نوحّد معها خلفية
+// النظام ومظهر عناصره الأصلية (التنبيهات، منتقي التاريخ، لوحة المفاتيح).
+SystemUI.setBackgroundColorAsync(Colors.bg).catch(() => {});
+if (Platform.OS !== "web") {
+  try { Appearance.setColorScheme(activeScheme); } catch {}
 }
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
@@ -333,7 +343,7 @@ function RootLayoutNav() {
   return (
     <>
       {/* Dark icons: most screens use the light #F7F9F8 background */}
-      <StatusBar style="dark" />
+      <StatusBar style={Colors.isDark ? "light" : "dark"} />
       <AuthGate />
       <PresenceBeat />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>

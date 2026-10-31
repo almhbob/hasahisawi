@@ -1064,8 +1064,8 @@ export default function AdminTransportScreen() {
 
               <TouchableOpacity onPress={saveFares} disabled={savingFares}
                 style={[s.saveBtn, { backgroundColor: "#FBBF24", marginBottom: 20 }]}>
-                <MaterialCommunityIcons name="content-save-outline" size={18} color="#000" />
-                <Text style={[s.saveBtnText, { color: "#000" }]}>
+                <MaterialCommunityIcons name="content-save-outline" size={18} color={Colors.text} />
+                <Text style={[s.saveBtnText, { color: Colors.text }]}>
                   {savingFares ? "جارٍ الحفظ..." : "حفظ جدول التعرفة"}
                 </Text>
               </TouchableOpacity>
@@ -1475,10 +1475,10 @@ export default function AdminTransportScreen() {
               <TouchableOpacity onPress={confirmCompleteTrip} disabled={savingComplete}
                 style={[s.saveBtn, { backgroundColor: "#2EAD6B" }]}>
                 {savingComplete
-                  ? <ActivityIndicator color="#000" />
+                  ? <ActivityIndicator color={Colors.text} />
                   : <>
-                      <Ionicons name="checkmark-circle" size={18} color="#000" />
-                      <Text style={[s.saveBtnText, { color: "#000" }]}>تأكيد إتمام الرحلة</Text>
+                      <Ionicons name="checkmark-circle" size={18} color={Colors.text} />
+                      <Text style={[s.saveBtnText, { color: Colors.text }]}>تأكيد إتمام الرحلة</Text>
                     </>}
               </TouchableOpacity>
             </Pressable>
