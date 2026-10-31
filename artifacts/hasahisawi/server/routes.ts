@@ -3,6 +3,16 @@ import { createServer, type Server } from "node:http";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+
+/**
+ * Password for accounts seeded on first start. Comes from ADMIN_BOOTSTRAP_PASSWORD;
+ * without it a random one is used, so the seeded account can only be reached by
+ * resetting its password (never by a value published in this public repository).
+ */
+function bootstrapAdminPassword(): string {
+  const configured = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  return configured && configured.length >= 12 ? configured : randomBytes(24).toString("base64url");
+}
 import multer from "multer";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -369,7 +379,7 @@ async function initDb() {
   const adminEmail = "almhbob.iii@gmail.com";
   const existingAdmin = await query("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [adminEmail]);
   if (existingAdmin.rows.length === 0) {
-    const adminHash = await bcrypt.hash("Almhbob2013#", 10);
+    const adminHash = await bcrypt.hash(bootstrapAdminPassword(), 10);
     await query(
       `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'admin')
        ON CONFLICT (email) DO NOTHING`,
@@ -470,7 +480,7 @@ async function initDb() {
     const adminEmail = "almhbob.iii@gmail.com";
     const existing = await query("SELECT id FROM users WHERE email=$1", [adminEmail]);
     if (!existing.rows[0]) {
-      const hash = await bcrypt.hash("Almhbob2013#", 10);
+      const hash = await bcrypt.hash(bootstrapAdminPassword(), 10);
       await query(
         `INSERT INTO users (name, email, password_hash, role) VALUES ($1,$2,$3,'admin')
          ON CONFLICT (email) DO UPDATE SET role='admin', password_hash=$3`,
@@ -4800,7 +4810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Seed default manager on first run
     const existing = await query(`SELECT id FROM zawajil_managers LIMIT 1`);
     if (existing.rows.length === 0) {
-      const hash = await bcrypt.hash("2026", 10);
+      const hash = await bcrypt.hash(bootstrapAdminPassword(), 10);
       await query(
         `INSERT INTO zawajil_managers (full_name, username, password_hash, email)
          VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO NOTHING`,
