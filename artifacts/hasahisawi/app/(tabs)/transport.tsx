@@ -622,26 +622,30 @@ export default function TransportScreen() {
     setIncomingLoading(true);
     try {
       const url = driverModeId ? `${apiUrl}/api/transport/driver/${driverModeId}/incoming-trips` : `${apiUrl}/api/transport/trips?status=pending`;
-      const res = await fetchWithTimeout(url);
+      const res = await fetchWithTimeout(url, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
       if (res.ok) setIncomingTrips(await res.json());
     } catch {} finally { setIncomingLoading(false); }
-  }, [apiUrl, driverModeId]);
+  }, [apiUrl, driverModeId, token]);
 
   const toggleDriverAvailabilityLite = useCallback(async (driver: Driver) => {
     const next = !driver.is_online;
     try {
       const res = await fetchWithTimeout(`${apiUrl}/api/transport/drivers/${driver.id}/online`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ is_online: next }),
       });
+      if (res.status === 401 || res.status === 403) {
+        Alert.alert("غير مصرح", token ? "هذا السائق لا يتبع حسابك. سجّل الدخول بالحساب المسجّل به السائق." : "سجّل الدخول بحساب السائق أولاً.");
+        return;
+      }
       if (res.ok) {
         setDriverModeId(next ? driver.id : null);
         setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_online: next } : d));
         if (next) loadIncomingTripsLite();
       }
     } catch { Alert.alert("خطأ", "تعذر تحديث حالة السائق"); }
-  }, [apiUrl, loadIncomingTripsLite]);
+  }, [apiUrl, token, loadIncomingTripsLite]);
 
   const acceptIncomingTripLite = useCallback(async (trip: Trip) => {
     const driver = drivers.find(d => d.id === driverModeId);

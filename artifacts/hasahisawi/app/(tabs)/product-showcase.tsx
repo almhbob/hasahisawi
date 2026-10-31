@@ -87,7 +87,7 @@ function apiNumId(id: string): number | null {
 }
 
 export default function ProductShowcaseScreen() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const gender = normalizeGender(user?.gender);
   const canSeeWomenStore = user?.role === "admin" || gender === "female";
 
@@ -218,7 +218,7 @@ export default function ProductShowcaseScreen() {
     try {
       const res = await fetchWithTimeout(`${getApiUrl()}/api/merchants`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           shop_name: shopName.trim(),
           owner_name: ownerName.trim(),
@@ -255,7 +255,7 @@ export default function ProductShowcaseScreen() {
       if (imageUri) hostedImageUri = await uploadMarketImage("products", imageUri).catch(() => imageUri);
       const res = await fetchWithTimeout(`${getApiUrl()}/api/merchant-products`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           merchant_id: merchantNumId,
           name: productName.trim(),
@@ -286,7 +286,7 @@ export default function ProductShowcaseScreen() {
       if (numId) {
         fetchWithTimeout(`${getApiUrl()}/api/merchant-products/${numId}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ price: next, old_price: product.price }),
         }, 12000).catch(() => {});
       }
@@ -341,7 +341,7 @@ export default function ProductShowcaseScreen() {
     try {
       await fetchWithTimeout(`${getApiUrl()}/api/marketplace-orders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           merchant_id: merchantNumId,
           customer_name: deliveryName.trim(),
