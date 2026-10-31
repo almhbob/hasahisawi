@@ -12,7 +12,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import NetworkBanner from "@/components/NetworkBanner";
 import AdminAlertsWatcher from "@/components/AdminAlertsWatcher";
-import LaunchSplash, { SplashArt } from "@/components/LaunchSplash";
+import LaunchSplash from "@/components/LaunchSplash";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { reloadAppAsync } from "expo";
@@ -31,7 +31,7 @@ import { FirebaseProvider } from "@/lib/firebase/context";
 import { markFirebaseRuntimeFailed } from "@/lib/firebase/auth";
 import { initAppCheck } from "@/lib/firebase/app-check";
 import { ActivityIndicator, Image } from "react-native";
-import { I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
+import { Appearance, I18nManager, Platform, View, LogBox, Text, TextInput } from "react-native";
 
 import type { Lang } from "@/lib/translations";
 import { registerForPushNotifications, addNotificationListener, setBadgeCount } from "@/lib/firebase/notifications";
@@ -42,6 +42,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
+import * as SystemUI from "expo-system-ui";
+import { activeScheme } from "@/constants/theme-mode";
 
 // ── ضبط حجم الخط على الموبايل ─────────────────────────────────────
 // بعض الأجهزة تكون عليها إعدادات Accessibility بحجم خط كبير جداً، وهذا كان يسبب
@@ -65,6 +67,14 @@ if (Platform.OS !== "web") {
   I18nManager.allowRTL(false);
   I18nManager.forceRTL(false);
   I18nManager.swapLeftAndRightInRTL(true);
+}
+
+// ── المظهر (فاتح/داكن) ─────────────────────────────────────────
+// الألوان تُحدَّد مرة عند فتح التطبيق (constants/theme-mode). نوحّد معها خلفية
+// النظام ومظهر عناصره الأصلية (التنبيهات، منتقي التاريخ، لوحة المفاتيح).
+SystemUI.setBackgroundColorAsync(Colors.bg).catch(() => {});
+if (Platform.OS !== "web") {
+  try { Appearance.setColorScheme(activeScheme); } catch {}
 }
 
 // ── تجاهل تحذيرات Firebase في LogBox ────────────────────────────
@@ -180,9 +190,14 @@ function AuthGate() {
           return;
         }
 
+        // ── متابع جديد → ملفه الشخصي ──
+        if (type === "follow" && data?.follower_id) {
+          router.push({ pathname: "/profile", params: { id: String(data.follower_id) } } as any);
+          return;
+        }
         // ── تنبيه إدارة: أي طلب جديد → مركز الطلبات ──
         if (type === "admin_alert") {
-          router.push("/admin-requests" as any);
+          router.push((data?.kind === "social_report" ? "/admin-social-reports" : "/admin-requests") as any);
           return;
         }
         // ── المطاعم: طلب جديد للمالك، وتحديث حالة للعميل ──
@@ -328,7 +343,7 @@ function RootLayoutNav() {
   return (
     <>
       {/* Dark icons: most screens use the light #F7F9F8 background */}
-      <StatusBar style="dark" />
+      <StatusBar style={Colors.isDark ? "light" : "dark"} />
       <AuthGate />
       <PresenceBeat />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
@@ -367,6 +382,9 @@ function RootLayoutNav() {
         <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="designer"                 options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="notifications"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="blocked-users"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="follows"                  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
@@ -392,8 +410,6 @@ export default function RootLayout() {
     ...Ionicons.font,
   });
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
-  // على الويب: ننتظر صحوة الخادم قبل تشغيل AuthProvider — على الموبايل لا حاجة
-  const [serverReady, setServerReady] = useState(Platform.OS !== "web");
 
   useEffect(() => {
     // الأجهزة التي كانت على وضع RTL القديم: إعادة تشغيل واحدة لتطبيق الاتجاه الصحيح فوراً
@@ -407,11 +423,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     initAppCheck().catch(() => {});
-    if (Platform.OS === "web") {
-      // لا ننتظر أكثر من 6 ثوانٍ، ولا ننتظر إطلاقاً بدون إنترنت (وضع الأوفلاين).
-      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-      if (offline) setServerReady(true);
-      else Promise.race([wakeUpServer(), new Promise((r) => setTimeout(r, 6000))]).finally(() => setServerReady(true));
+    // نوقظ الخادم في الخلفية دون أن نحجب الواجهة: التحقق من الجلسة يتحمّل بطء الخادم
+    // (لا يُنهي الجلسة إلا رد 401 صريح)، فلا داعي لإبقاء المستخدم أمام شاشة انتظار.
+    if (Platform.OS === "web" && !(typeof navigator !== "undefined" && navigator.onLine === false)) {
+      wakeUpServer().catch(() => {});
     }
   }, []);
 
@@ -437,16 +452,6 @@ export default function RootLayout() {
   // على الويب: الخطوط تُحمَّل عبر CSS — لا نحتاج لانتظارها
   const fontReady = Platform.OS === "web" ? true : (fontsLoaded || !!fontError);
   if (!fontReady || initialLang === null) return null;
-
-  // شاشة الانتظار أثناء صحوة الخادم (ثوانٍ فقط)
-  if (!serverReady) {
-    return (
-      <View style={{ flex: 1 }}>
-        <SplashArt />
-        <ActivityIndicator color="#1F5C8A" size="small" style={{ position: "absolute", bottom: 60, alignSelf: "center" }} />
-      </View>
-    );
-  }
 
   return (
     <ErrorBoundary>

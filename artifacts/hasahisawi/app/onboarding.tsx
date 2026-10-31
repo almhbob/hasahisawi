@@ -71,7 +71,7 @@ const SLIDES: Slide[] = [
     id: "disclaimer",
     icon: "information-circle",
     iconLib: "ionicons",
-    color: "#6B7280",
+    color: Colors.textSecondary,
     bg: "#6B728018",
     title: "منصة مجتمعية مستقلة",
     subtitle: "حصاحيصاوي منصة أهلية مستقلة من أبناء المدينة، وليست تابعة لأي جهة حكومية أو رسمية. المعلومات المتوفرة للإرشاد فقط.",

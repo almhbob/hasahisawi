@@ -289,7 +289,7 @@ const s = StyleSheet.create({
   },
   forcedNote: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.danger,
     textAlign: "center",
     marginTop: 14,

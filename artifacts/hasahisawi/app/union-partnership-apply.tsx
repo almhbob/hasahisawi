@@ -269,7 +269,7 @@ const s = StyleSheet.create({
     backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: UC2, textAlign: "center", marginTop: 2 },
   infoCard: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
     backgroundColor: "#0B1224", borderRadius: 18, borderWidth: 1,
@@ -296,7 +296,7 @@ const s = StyleSheet.create({
   chipActive: { backgroundColor: UC, borderColor: UC },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
   chipTextActive: { color: "#fff" },
-  hintText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
+  hintText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
   tierCard: {
     flexDirection: "row-reverse", alignItems: "center", gap: 12,
     backgroundColor: Colors.bg, borderRadius: 14, borderWidth: 1,
@@ -304,7 +304,7 @@ const s = StyleSheet.create({
   },
   tierDot: { width: 12, height: 12, borderRadius: 6 },
   tierLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" },
-  tierDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  tierDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   contractBox: {
     backgroundColor: "#0B1224", borderRadius: 18, borderWidth: 1,
     borderColor: "#1F5C8A40", padding: 16, marginBottom: 16, gap: 10,

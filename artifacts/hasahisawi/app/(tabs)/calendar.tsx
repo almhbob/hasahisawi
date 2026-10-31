@@ -357,7 +357,7 @@ const cal = StyleSheet.create({
     width: CELL_SIZE, alignItems: "center", paddingBottom: 8,
   },
   weekHeaderText: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary,
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary,
   },
   dayCell: {
     width: CELL_SIZE, height: CELL_SIZE,
@@ -409,7 +409,7 @@ const s = StyleSheet.create({
   },
   legendItem: { alignItems: "center", gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
+  legendText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   selectedCard: {
     marginHorizontal: 16, marginTop: 12,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
@@ -427,7 +427,7 @@ const s = StyleSheet.create({
   eventDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   eventInfo: { flex: 1 },
   eventName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  eventNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  eventNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   eventBadge: {
     borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0,
   },
@@ -452,13 +452,13 @@ const s = StyleSheet.create({
   listBadgeMon: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#fff", opacity: 0.9 },
   listInfo: { flex: 1, gap: 4 },
   listName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  listNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  listNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   listTypePill: { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
-  listTypeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  listTypeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   emptyWrap: { alignItems: "center", gap: 12, paddingVertical: 30 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted },
   disclaimer: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
     textAlign: "center", paddingHorizontal: 24, paddingTop: 8, paddingBottom: 4,
   },
 });

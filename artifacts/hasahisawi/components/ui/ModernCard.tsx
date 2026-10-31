@@ -47,7 +47,7 @@ export function ModernGridItem({ icon, label, onPress, color = Colors.primary, s
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.cardBg,
     borderRadius: Colors.radius.lg,
     ...Colors.shadow.card,
   },
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 6,
     width: "31%",
-    backgroundColor: "#fff",
+    backgroundColor: Colors.cardBg,
     borderRadius: Colors.radius.md,
     ...Colors.shadow.card,
   },
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   gridLabel: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12.5,
+    fontSize: 13,
     color: Colors.textPrimary,
     textAlign: "center",
   },

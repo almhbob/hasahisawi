@@ -42,7 +42,7 @@ function ExternalPartnershipBanner() {
 
           {/* شارة "جديد" */}
           <View style={s.newBadge}>
-            <Ionicons name="sparkles" size={10} color="#000" />
+            <Ionicons name="sparkles" size={10} color={Colors.text} />
             <Text style={s.newBadgeText}>جديد</Text>
           </View>
 
@@ -53,7 +53,7 @@ function ExternalPartnershipBanner() {
                 colors={["#FFD700", "#F0C040"]}
                 style={StyleSheet.absoluteFill}
               />
-              <MaterialCommunityIcons name="handshake" size={28} color="#000" />
+              <MaterialCommunityIcons name="handshake" size={28} color={Colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.kicker}>شراكات خارج المدينة</Text>
@@ -80,7 +80,7 @@ function ExternalPartnershipBanner() {
             </View>
             <View style={s.ctaBtn}>
               <Text style={s.ctaBtnText}>تقديم طلب التعاون</Text>
-              <Ionicons name="arrow-back" size={16} color="#000" />
+              <Ionicons name="arrow-back" size={16} color={Colors.text} />
             </View>
           </View>
         </LinearGradient>
@@ -100,14 +100,14 @@ const s = StyleSheet.create({
     position: "absolute", top: 12, left: 12, flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "#FFD700", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, zIndex: 2,
   },
-  newBadgeText: { fontSize: 10, fontWeight: "800", color: "#000" },
+  newBadgeText: { fontSize: 10, fontWeight: "800", color: Colors.text },
 
   header: { flexDirection: "row", gap: 14, alignItems: "center", marginBottom: 14, marginTop: 6 },
   iconWrap: {
     width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", overflow: "hidden",
     shadowColor: "#FFD700", shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4,
   },
-  kicker: { fontSize: 10, fontWeight: "700", color: "#FFD700", letterSpacing: 1, textAlign: "right", marginBottom: 3 },
+  kicker: { fontSize: 11, fontWeight: "700", color: "#FFD700", letterSpacing: 1, textAlign: "right", marginBottom: 3 },
   title: { fontSize: 14, fontWeight: "800", color: "#fff", textAlign: "right", lineHeight: 20 },
   subtitle: { fontSize: 11.5, color: "rgba(255,255,255,0.7)", marginTop: 3, textAlign: "right" },
 
@@ -116,17 +116,17 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5,
     borderRadius: 10, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1,
   },
-  sectorEmoji: { fontSize: 12 },
+  sectorEmoji: { fontSize: 13 },
   sectorLabel: { fontSize: 10.5, color: "#fff", fontWeight: "600" },
 
   ctaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   ctaInfo: { flexDirection: "row", alignItems: "center", gap: 5 },
-  ctaInfoText: { fontSize: 11, color: "#FFD700", fontWeight: "600" },
+  ctaInfoText: { fontSize: 12, color: "#FFD700", fontWeight: "600" },
   ctaBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#FFD700", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
   },
-  ctaBtnText: { fontSize: 13, fontWeight: "800", color: "#000" },
+  ctaBtnText: { fontSize: 13, fontWeight: "800", color: Colors.text },
 });
 
 export default withRTLBlock(ExternalPartnershipBanner);

@@ -474,7 +474,7 @@ function AddModal({ visible, tab, onClose, onSaved, token }: {
                     <View style={{ flexDirection: "row", gap: 4, marginTop: 6 }}>
                       {[["hour","ساعة"],["day","يوم"],["week","أسبوع"]].map(([v,l]) => (
                         <Pressable key={v} style={[styles.chip, form.rent_period===v && { backgroundColor: accentColor+"30", borderColor: accentColor }]} onPress={() => set("rent_period", v)}>
-                          <Text style={[styles.chipText, { fontSize: 10 }, form.rent_period===v && { color: accentColor }]}>{l}</Text>
+                          <Text style={[styles.chipText, { fontSize: 11 }, form.rent_period===v && { color: accentColor }]}>{l}</Text>
                         </Pressable>
                       ))}
                     </View>
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
   headerIcon: { },
   headerIconGrad: { width: 44, height: 44, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: C.text },
-  headerSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: C.sub, marginTop: 1 },
+  headerSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub, marginTop: 1 },
   addBtn:      { width: 38, height: 38, borderRadius: Colors.radius.sm, overflow: "hidden" },
   addBtnGrad:  { flex: 1, alignItems: "center", justifyContent: "center" },
 
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   // ── فلاتر ──
   filtersRow:  { paddingHorizontal: 12, gap: 6, paddingBottom: 8 },
   filterChip:  { paddingHorizontal: 12, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" },
-  filterText:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub },
+  filterText:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: C.sub },
 
   // ── بطاقات ──
   list:  { padding: 14, gap: 12, paddingBottom: 100 },
@@ -754,19 +754,19 @@ const styles = StyleSheet.create({
 
   cardHead: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   catBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 0.5 },
-  catText:  { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  catText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
 
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: C.text, lineHeight: 22 },
-  cardDesc:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub, lineHeight: 19 },
+  cardDesc:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: C.sub, lineHeight: 19 },
 
   cardMeta: { gap: 5 },
   metaRow:  { flexDirection: "row", alignItems: "center", gap: 6 },
   metaVal:  { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  metaSub:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub },
+  metaSub:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: C.sub },
 
   cardActions: { flexDirection: "row", gap: 8, marginTop: 4 },
   actionBtn:   { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.sm, borderWidth: 0.5 },
-  actionText:  { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  actionText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
 
   // ── فارغ ──
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
   row2: { flexDirection: "row", gap: 10 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: Colors.radius.md, borderWidth: 0.7, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)" },
-  chipText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: C.sub },
+  chipText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: C.sub },
   saveBtn: { borderRadius: Colors.radius.md, padding: 14, alignItems: "center", marginTop: 12 },
   saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

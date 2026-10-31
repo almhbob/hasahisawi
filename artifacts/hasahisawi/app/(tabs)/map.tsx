@@ -355,12 +355,12 @@ const s = StyleSheet.create({
   loadTxt:      { fontFamily: "Cairo_400Regular", fontSize: 14, color: MUTED },
   legend:       { backgroundColor: CARD, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 8,
                   borderTopLeftRadius: Colors.radius.lg, borderTopRightRadius: Colors.radius.lg, ...Colors.shadow.card },
-  legendTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: MUTED,
+  legendTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: MUTED,
                   paddingHorizontal: 16, marginBottom: 6 },
   legendScroll: { paddingHorizontal: 12, gap: 10 },
   legendItem:   { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot:    { width: 10, height: 10, borderRadius: 5 },
-  legendTxt:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED },
+  legendTxt:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED },
 });
 
 export default withRTLScreen(MapScreen);

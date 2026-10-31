@@ -41,7 +41,7 @@ const EVENT_TYPES = [
   { key: "cultural",     label: "ثقافية",      icon: "color-palette-outline",    color: "#2F8A8A" },
   { key: "sports",       label: "رياضية",      icon: "football-outline",         color: "#10B981" },
   { key: "religious",    label: "دينية",       icon: "moon-outline",             color: "#5B8DB8" },
-  { key: "other",        label: "أخرى",        icon: "ellipsis-horizontal",      color: "#6B7280" },
+  { key: "other",        label: "أخرى",        icon: "ellipsis-horizontal",      color: Colors.textSecondary },
 ];
 
 // ─────────────────────────────────────────────
@@ -266,7 +266,7 @@ export default function EventsScreen() {
                   onPress={() => { setFilterType(t.key); Haptics.selectionAsync(); }}
                 >
                   <Ionicons name={t.icon as any} size={14} color={filterType === t.key ? "#000" : t.color} />
-                  <Text style={[styles.filterChipText, filterType === t.key && { color: "#000" }]}>{t.label}</Text>
+                  <Text style={[styles.filterChipText, filterType === t.key && { color: Colors.text }]}>{t.label}</Text>
                 </TouchableOpacity>
               </Animated.View>
             ))}
@@ -361,7 +361,7 @@ export default function EventsScreen() {
                   onPress={() => setForm(f => ({ ...f, type: t.key }))}
                 >
                   <Ionicons name={t.icon as any} size={16} color={form.type === t.key ? "#000" : t.color} />
-                  <Text style={[styles.typeChipText, form.type === t.key && { color: "#000" }]}>{t.label}</Text>
+                  <Text style={[styles.typeChipText, form.type === t.key && { color: Colors.text }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -384,7 +384,7 @@ export default function EventsScreen() {
                   style={[styles.toggleBtn, form.is_free === o.v && styles.toggleBtnActive]}
                   onPress={() => setForm(f => ({ ...f, is_free: o.v }))}
                 >
-                  <Text style={[styles.toggleBtnText, form.is_free === o.v && { color: "#000" }]}>{o.l}</Text>
+                  <Text style={[styles.toggleBtnText, form.is_free === o.v && { color: Colors.text }]}>{o.l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -400,8 +400,8 @@ export default function EventsScreen() {
             >
               <LinearGradient colors={[PRIMARY, "#1a9955"]} style={styles.submitGrad}>
                 {submitting
-                  ? <ActivityIndicator color="#000" />
-                  : <><Ionicons name="send-outline" size={18} color="#000" /><Text style={styles.submitText}>إرسال للمراجعة</Text></>
+                  ? <ActivityIndicator color={Colors.text} />
+                  : <><Ionicons name="send-outline" size={18} color={Colors.text} /><Text style={styles.submitText}>إرسال للمراجعة</Text></>
                 }
               </LinearGradient>
             </TouchableOpacity>
@@ -567,7 +567,7 @@ function EventDetailSheet({ event, onClose }: { event: Event; onClose: () => voi
           onPress={() => Linking.openURL(`tel:${event.contact_phone}`)}
         >
           <LinearGradient colors={[PRIMARY, "#1a9955"]} style={styles.callBtnInner}>
-            <Ionicons name="call-outline" size={20} color="#000" />
+            <Ionicons name="call-outline" size={20} color={Colors.text} />
             <Text style={styles.callBtnText}>التسجيل والاستفسار</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   header:    { paddingHorizontal: 16, paddingBottom: 12, borderBottomLeftRadius: Colors.radius.xl, borderBottomRightRadius: Colors.radius.xl },
   headerRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 8 },
   headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff", textAlign: "right" },
-  headerSub:   { fontSize: 11, color: "rgba(255,255,255,0.82)", textAlign: "right", marginTop: 2 },
+  headerSub:   { fontSize: 12, color: "rgba(255,255,255,0.82)", textAlign: "right", marginTop: 2 },
   headerBadge: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   headerBadgeText: { fontSize: 22, fontWeight: "800", color: "#fff" },
   headerBadgeLabel: { fontSize: 10, color: "rgba(255,255,255,0.75)" },
@@ -691,8 +691,8 @@ const styles = StyleSheet.create({
   // Tabs
   tabBar:        { flexDirection: "row-reverse", gap: 8 },
   tabBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
-  tabBtnActive:  { backgroundColor: "#fff", borderColor: "#fff" },
-  tabLabel:      { fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: "600" },
+  tabBtnActive:  { backgroundColor: Colors.cardBg, borderColor: "#fff" },
+  tabLabel:      { fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: "600" },
   tabLabelActive:{ color: PRIMARY, fontWeight: "700" },
 
   // Search
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
   // Filter chips
   filterScroll:    { paddingHorizontal: 14, marginBottom: 12 },
   filterChip:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8 },
-  filterChipText:  { fontSize: 12, color: "#7aad8c" },
+  filterChipText:  { fontSize: 13, color: "#7aad8c" },
 
   // Events grid
   eventsGrid: { paddingHorizontal: 14, gap: 12 },
@@ -718,18 +718,18 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 16, fontWeight: "700", color: "#d0f0e0", textAlign: "right", marginBottom: 10 },
   eventMeta: { gap: 5, marginBottom: 10 },
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
-  metaText: { fontSize: 12, color: "#8aaa92", flex: 1, textAlign: "right" },
+  metaText: { fontSize: 13, color: "#8aaa92", flex: 1, textAlign: "right" },
   eventFooter: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTopWidth: 1, borderTopColor: BORDER },
   registeredRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  registeredText: { fontSize: 12, color: "#5a8a6a" },
-  capacityText: { fontSize: 12, color: "#3a5a42" },
+  registeredText: { fontSize: 13, color: "#5a8a6a" },
+  capacityText: { fontSize: 13, color: "#3a5a42" },
   detailBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
-  detailBtnText: { fontSize: 12, color: PRIMARY, fontWeight: "600" },
+  detailBtnText: { fontSize: 13, color: PRIMARY, fontWeight: "600" },
 
   // Rental
   rentalCatChip: { alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD2, marginLeft: 8, minWidth: 80 },
   rentalCatEmoji: { fontSize: 22, marginBottom: 4 },
-  rentalCatLabel: { fontSize: 11, color: "#7aad8c", fontWeight: "600" },
+  rentalCatLabel: { fontSize: 12, color: "#7aad8c", fontWeight: "600" },
 
   rentalCard:      { marginHorizontal: 14, marginBottom: 12, borderRadius: Colors.radius.lg, overflow: "hidden" },
   rentalCardInner: { flexDirection: "row-reverse", padding: 14, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: BORDER, gap: 12 },
@@ -739,16 +739,16 @@ const styles = StyleSheet.create({
   rentalCardTop:   { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
   rentalName:      { fontSize: 15, fontWeight: "700", color: "#d0f0e0", flex: 1, textAlign: "right" },
   catTag:          { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Colors.radius.sm, marginRight: 6 },
-  catTagText:      { fontSize: 10, fontWeight: "600" },
-  rentalProvider:  { fontSize: 12, color: "#6a9a72", textAlign: "right", marginBottom: 4 },
+  catTagText:      { fontSize: 11, fontWeight: "600" },
+  rentalProvider:  { fontSize: 13, color: "#6a9a72", textAlign: "right", marginBottom: 4 },
   rentalProvider2: { fontSize: 14, color: "#6a9a72", textAlign: "center", marginBottom: 12 },
-  rentalDesc:      { fontSize: 12, color: "#5a7a62", textAlign: "right", marginBottom: 8 },
+  rentalDesc:      { fontSize: 13, color: "#5a7a62", textAlign: "right", marginBottom: 8 },
   rentalPriceRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   rentalPrice:     { flexDirection: "row-reverse", alignItems: "baseline", backgroundColor: GOLD + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: Colors.radius.sm },
   rentalPriceNum:  { fontSize: 14, fontWeight: "800", color: GOLD },
-  rentalPriceUnit: { fontSize: 10, color: GOLD + "aa" },
+  rentalPriceUnit: { fontSize: 11, color: GOLD + "aa" },
   availBadge:      { backgroundColor: PRIMARY + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: Colors.radius.sm },
-  availText:       { fontSize: 11, color: PRIMARY },
+  availText:       { fontSize: 12, color: PRIMARY },
 
   // Organize
   organizeHero:  { margin: 16, borderRadius: Colors.radius.xl, padding: 24, alignItems: "center", borderWidth: 1, borderColor: PURPLE + "44" },
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
 
   submitBtn:   { margin: 16, borderRadius: Colors.radius.lg, overflow: "hidden" },
   submitGrad:  { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
-  submitText:  { fontSize: 16, fontWeight: "800", color: "#000" },
+  submitText:  { fontSize: 16, fontWeight: "800", color: Colors.text },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "#000000bb", justifyContent: "flex-end" },
@@ -784,15 +784,15 @@ const styles = StyleSheet.create({
   sheetTitle:  { fontSize: 20, fontWeight: "800", color: "#d0f0e0", textAlign: "center", marginBottom: 16 },
   sheetMetaGrid: { gap: 10, marginBottom: 16 },
   sheetMetaItem: { flexDirection: "row-reverse", alignItems: "flex-start", backgroundColor: CARD2, borderRadius: Colors.radius.md, padding: 12, borderWidth: 1, borderColor: BORDER },
-  sheetMetaLabel: { fontSize: 11, color: "#5a7a62", textAlign: "right" },
+  sheetMetaLabel: { fontSize: 12, color: "#5a7a62", textAlign: "right" },
   sheetMetaValue: { fontSize: 14, fontWeight: "600", color: "#b0d8b8", textAlign: "right" },
   sheetDescBox: { backgroundColor: CARD2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: BORDER },
-  sheetDescLabel: { fontSize: 12, color: "#5a7a62", textAlign: "right", marginBottom: 6 },
+  sheetDescLabel: { fontSize: 13, color: "#5a7a62", textAlign: "right", marginBottom: 6 },
   sheetDesc: { fontSize: 14, color: "#9abaa2", textAlign: "right", lineHeight: 22 },
 
   callBtn:      { marginBottom: 10, borderRadius: Colors.radius.lg, overflow: "hidden" },
   callBtnInner: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
-  callBtnText:  { fontSize: 16, fontWeight: "800", color: "#000" },
+  callBtnText:  { fontSize: 16, fontWeight: "800", color: Colors.text },
   closeBtn:     { alignItems: "center", paddingVertical: 14 },
   closeBtnText: { fontSize: 14, color: "#4a7a5a" },
 

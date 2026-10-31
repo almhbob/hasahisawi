@@ -500,7 +500,7 @@ function RegisterStoreView({
           />
           <View style={{ flex: 1 }}>
             <Text style={[styles.switchLabel, { color: "#3B78A6" }]}>متجر نسائي خاص 🌸</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
               سيظهر في قسم ركن المرأة ضمن البوتيكات النسائية
             </Text>
           </View>
@@ -1688,7 +1688,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   tabLabelActive: {
@@ -1782,7 +1782,7 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.textMuted,
     textAlign: "center",
   },
@@ -1939,7 +1939,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "right",
   },
@@ -1975,7 +1975,7 @@ const styles = StyleSheet.create({
   },
   miniOrderStatus: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     flex: 1,
     textAlign: "right",
@@ -1995,7 +1995,7 @@ const styles = StyleSheet.create({
   },
   miniOrderInfo: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     flex: 1,
     textAlign: "right",
@@ -2090,7 +2090,7 @@ const styles = StyleSheet.create({
   },
   productCategory: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "right",
   },
@@ -2216,7 +2216,7 @@ const styles = StyleSheet.create({
   },
   orderDate: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     flex: 1,
     textAlign: "right",
@@ -2228,7 +2228,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     textAlign: "center",
   },
   orderCustomer: {
@@ -2248,7 +2248,7 @@ const styles = StyleSheet.create({
   },
   callBtnText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.primary,
   },
   orderItems: {
@@ -2260,7 +2260,7 @@ const styles = StyleSheet.create({
   },
   orderAddress: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "right",
     flex: 1,

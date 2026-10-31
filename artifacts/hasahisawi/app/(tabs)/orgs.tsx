@@ -114,7 +114,7 @@ function SectionHeader({ title, sub, color }: { title: string; sub?: string; col
       <LinearGradient colors={[color, color + "60"]} style={{ width: 4, height: 28, borderRadius: 2 }} />
       <View>
         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary }}>{title}</Text>
-        {sub && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary }}>{sub}</Text>}
+        {sub && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary }}>{sub}</Text>}
       </View>
     </View>
   );
@@ -237,7 +237,7 @@ function OrgsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
               {([["all", "الكل"], ["charity", "جمعيات خيرية"], ["initiative", "مبادرات"], ["volunteer", "تطوع"], ["cooperative", "تعاونيات"]] as [OrgType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: Colors.primary, borderColor: Colors.primary }]} onPress={() => setFilter(k)}>
-                  <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
+                  <Text style={[s.filterChipText, filter === k && { color: Colors.text }]}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -474,7 +474,7 @@ function OrgsScreen() {
 
                   <TouchableOpacity onPress={submitVolunteer}>
                     <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.modalSubmit}>
-                      <Ionicons name="person-add-outline" size={18} color="#000" />
+                      <Ionicons name="person-add-outline" size={18} color={Colors.text} />
                       <Text style={s.modalSubmitText}>إرسال طلب الانضمام</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -494,13 +494,13 @@ const s = StyleSheet.create({
   statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 14, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.82)" },
 
   subTabRow: { flexDirection: "row", gap: 8 },
   subTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", overflow: "hidden" },
   subTabActive: { borderColor: "rgba(255,255,255,0.5)" },
   subTabActiveFill: { backgroundColor: "rgba(255,255,255,0.22)" },
-  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.75)" },
+  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
   searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8 },
@@ -516,9 +516,9 @@ const s = StyleSheet.create({
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  memberCount: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
+  memberCount: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  ratingText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
 
   expandedSection: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 14, gap: 0 },
@@ -527,7 +527,7 @@ const s = StyleSheet.create({
   goalRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 3 },
   goalDot: { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
   goalText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
-  foundedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 10 },
+  foundedText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 10 },
 
   expandBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 4 },
   expandBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
@@ -541,7 +541,7 @@ const s = StyleSheet.create({
   eventHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   eventDateBox: { width: 46, height: 46, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", borderWidth: 1 },
   eventTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  eventOrg: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  eventOrg: { fontFamily: "Cairo_500Medium", fontSize: 13 },
   eventInfo: { gap: 6 },
   eventInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   eventInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
@@ -556,9 +556,9 @@ const s = StyleSheet.create({
   campHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   campIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   campTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  campOrg: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  campOrg: { fontFamily: "Cairo_500Medium", fontSize: 13 },
   campTarget: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, alignSelf: "flex-end" },
-  campTargetText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  campTargetText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
   campDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
   campBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: Colors.radius.md, paddingVertical: 13 },
   campBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
@@ -578,7 +578,7 @@ const s = StyleSheet.create({
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   fieldInput: { borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md, backgroundColor: Colors.bg, paddingHorizontal: 14, paddingVertical: 13, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary },
   modalSubmit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.md, paddingVertical: 15 },
-  modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
+  modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
 });
 
 export default withRTLScreen(OrgsScreen);

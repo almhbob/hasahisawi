@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
@@ -364,7 +364,7 @@ function ZonePicker({
                         {preview ? (
                           <Text style={zp.zoneDesc}>{preview}{extra}</Text>
                         ) : (
-                          <Text style={[zp.zoneDesc, { color: Colors.textMuted + "80" }]}>{z.description}</Text>
+                          <Text style={[zp.zoneDesc, { color: withAlpha(Colors.textMuted, "80") }]}>{z.description}</Text>
                         )}
                       </View>
                       <View style={[zp.zoneNumBadge, { backgroundColor: z.color + "20", borderColor: z.color + "40" }]}>
@@ -1050,14 +1050,14 @@ export default function TransportScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>خريطة الأحياء التفاعلية</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 }}>
                       {allNeighborhoods.length > 0
                         ? `${allNeighborhoods.length} حياً مُسجَّلاً • أضف حيّك لخريطة المدينة`
                         : "ساهم في بناء خريطة مناطق الحصاحيصا"}
                     </Text>
                   </View>
                   <View style={{ backgroundColor: ACCENT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 }}>
-                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" }}>+ أضف</Text>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" }}>+ أضف</Text>
                   </View>
                 </View>
                 {allNeighborhoods.length > 0 && (
@@ -1068,8 +1068,8 @@ export default function TransportScreen() {
                       if (!cnt) return null;
                       return (
                         <View key={z} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: zm.color + "15", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: zm.color + "30" }}>
-                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: zm.color }}>{cnt}</Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: zm.color }}>م{z}</Text>
+                          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: zm.color }}>{cnt}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: zm.color }}>م{z}</Text>
                         </View>
                       );
                     })}
@@ -1208,7 +1208,7 @@ export default function TransportScreen() {
               </TouchableOpacity>
 
               {!termsAccepted && (
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC2626", textAlign: "center", marginTop: 6 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#DC2626", textAlign: "center", marginTop: 6 }}>
                   ✋ يجب الموافقة على الشروط القانونية أعلاه أولاً
                 </Text>
               )}
@@ -1240,12 +1240,12 @@ export default function TransportScreen() {
           <Animated.View entering={FadeInDown.springify()}>
             <View style={s.formCard}>
               <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right", fontSize: 16 }}>طلبات السائقين الواردة</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontSize: 12 }}>فعّل أحد السائقين كمتاح ثم اقبل الطلب. أول سائق يقبل الطلب يستلمه وحده.</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontSize: 13 }}>فعّل أحد السائقين كمتاح ثم اقبل الطلب. أول سائق يقبل الطلب يستلمه وحده.</Text>
               {drivers.map(d => (
                 <TouchableOpacity key={d.id} onPress={() => toggleDriverAvailabilityLite(d)} style={{ marginTop: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: d.is_online ? GREEN + "55" : Colors.border, backgroundColor: d.is_online ? GREEN + "12" : Colors.cardBg, flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
                   <MaterialCommunityIcons name={d.is_online ? "radio-tower" : "car-clock"} size={22} color={d.is_online ? GREEN : Colors.textMuted} />
-                  <View style={{ flex: 1 }}><Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" }}>{d.name}</Text><Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 11 }}>{d.vehicle_type} · {d.area || "الحصاحيصا"}</Text></View>
-                  <Text style={{ fontFamily: "Cairo_700Bold", color: d.is_online ? GREEN : Colors.textMuted, fontSize: 12 }}>{d.is_online ? "متاح" : "غير متاح"}</Text>
+                  <View style={{ flex: 1 }}><Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary, textAlign: "right" }}>{d.name}</Text><Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "right", fontSize: 12 }}>{d.vehicle_type} · {d.area || "الحصاحيصا"}</Text></View>
+                  <Text style={{ fontFamily: "Cairo_700Bold", color: d.is_online ? GREEN : Colors.textMuted, fontSize: 13 }}>{d.is_online ? "متاح" : "غير متاح"}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1285,7 +1285,7 @@ export default function TransportScreen() {
                   ].map((f, i) => (
                     <View key={i} style={{ flex: 1, backgroundColor: f.color + "15", borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, borderColor: f.color + "30" }}>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: f.color }}>{f.val}</Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 2 }}>{f.label}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{f.label}</Text>
                     </View>
                   ))}
                 </View>
@@ -1329,7 +1329,7 @@ export default function TransportScreen() {
               <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
                   <View style={{ width: 46, height: 46, borderRadius: 23,
-                    backgroundColor: driverProfile.is_online ? GREEN + "20" : Colors.divider + "80",
+                    backgroundColor: driverProfile.is_online ? GREEN + "20" : withAlpha(Colors.divider, "80"),
                     alignItems: "center", justifyContent: "center",
                     borderWidth: 1, borderColor: driverProfile.is_online ? GREEN + "50" : Colors.divider }}>
                     <MaterialCommunityIcons name="steering" size={24} color={driverProfile.is_online ? GREEN : Colors.textMuted} />
@@ -1340,7 +1340,7 @@ export default function TransportScreen() {
                     </Text>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 2 }}>
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: driverProfile.is_online ? GREEN : Colors.textMuted }} />
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: driverProfile.is_online ? GREEN : Colors.textMuted }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: driverProfile.is_online ? GREEN : Colors.textMuted }}>
                         {driverProfile.is_online ? "متاح الآن" : "غير متاح"}
                       </Text>
                     </View>
@@ -1377,7 +1377,7 @@ export default function TransportScreen() {
                 ].map((st, i) => (
                   <View key={i} style={{ flex: 1, backgroundColor: st.color + "12", borderRadius: 10, padding: 10, alignItems: "center", borderWidth: 1, borderColor: st.color + "25" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: st.color }}>{st.val}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textSecondary, marginTop: 2 }}>{st.label}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{st.label}</Text>
                   </View>
                 ))}
               </View>
@@ -1400,7 +1400,7 @@ export default function TransportScreen() {
               <View style={s.emptyCard}>
                 <MaterialCommunityIcons name="power-off" size={42} color={Colors.textMuted} />
                 <Text style={s.emptyText}>أنت غير متاح حالياً</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 4 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginTop: 4 }}>
                   اضغط "ابدأ" أعلاه لاستقبال طلبات المشاوير
                 </Text>
               </View>
@@ -1408,7 +1408,7 @@ export default function TransportScreen() {
               <View style={s.emptyCard}>
                 <MaterialCommunityIcons name="car-clock" size={42} color={Colors.textMuted} />
                 <Text style={s.emptyText}>لا توجد طلبات مفتوحة الآن</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 4 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginTop: 4 }}>
                   ستظهر الطلبات الجديدة هنا تلقائياً
                 </Text>
               </View>
@@ -1435,7 +1435,7 @@ export default function TransportScreen() {
                     </Text>
                     {trip.fare_estimate ? (
                       <View style={{ backgroundColor: ACCENT2 + "25", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: ACCENT2 }}>
+                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT2 }}>
                           {formatFare(trip.fare_estimate)}
                         </Text>
                       </View>
@@ -1464,17 +1464,17 @@ export default function TransportScreen() {
                     {(trip.user_name || trip.notes) ? (
                       <View style={{ backgroundColor: Colors.bg, borderRadius: 10, padding: 10, gap: 4 }}>
                         {trip.user_name ? (
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>
                             👤 {trip.user_name}
                           </Text>
                         ) : null}
                         {trip.notes ? (
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>
                             📝 {trip.notes}
                           </Text>
                         ) : null}
                         {trip.delivery_desc ? (
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>
                             📦 {trip.delivery_desc}
                           </Text>
                         ) : null}
@@ -1489,10 +1489,10 @@ export default function TransportScreen() {
                       style={{ borderRadius: 12, overflow: "hidden", opacity: (accepting !== null && !isAccepting) ? 0.5 : 1 }}>
                       <LinearGradient colors={[GREEN, "#22C55E"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
                         {isAccepting
-                          ? <ActivityIndicator color="#000" size="small" />
+                          ? <ActivityIndicator color={Colors.text} size="small" />
                           : <>
-                              <MaterialCommunityIcons name="check-circle-outline" size={18} color="#000" />
-                              <Text style={[s.submitBtnText, { color: "#000" }]}>قبول المشوار</Text>
+                              <MaterialCommunityIcons name="check-circle-outline" size={18} color={Colors.text} />
+                              <Text style={[s.submitBtnText, { color: Colors.text }]}>قبول المشوار</Text>
                             </>}
                       </LinearGradient>
                     </TouchableOpacity>
@@ -1585,7 +1585,7 @@ export default function TransportScreen() {
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT }}>
                       سؤال {quizCurrentQ + 1} / {DRIVER_QUIZ.length}
                     </Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted }}>
                       {Math.round(progress * 100)}%
                     </Text>
                   </View>
@@ -1643,7 +1643,7 @@ export default function TransportScreen() {
                       style={{ backgroundColor: "#FBBF2412", borderRadius: 10, padding: 12, marginTop: 6,
                         borderWidth: 1, borderColor: "#FBBF2430", flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" }}>
                       <MaterialCommunityIcons name="lightbulb-outline" size={16} color={ACCENT2} />
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 }}>
                         {q.hint}
                       </Text>
                     </Animated.View>
@@ -1725,11 +1725,11 @@ export default function TransportScreen() {
                           size={16} color={correct ? GREEN : "#E05567"}
                           style={{ marginTop: 2 }} />
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "right", marginBottom: 2 }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 2 }}>
                             س{i + 1}: {q.q.length > 60 ? q.q.slice(0, 58) + "…" : q.q}
                           </Text>
                           {!correct && (
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: GREEN, textAlign: "right" }}>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: GREEN, textAlign: "right" }}>
                               الصواب: {q.options[q.correct]}
                             </Text>
                           )}
@@ -1977,7 +1977,7 @@ export default function TransportScreen() {
                 ].map(s => (
                   <View key={s.label} style={{ flex: 1, backgroundColor: s.color + "12", borderRadius: 14, borderWidth: 1, borderColor: s.color + "25", padding: 12, alignItems: "center" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: s.color }}>{s.val}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>{s.label}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 }}>{s.label}</Text>
                   </View>
                 ))}
               </View>
@@ -1999,14 +1999,14 @@ export default function TransportScreen() {
                         <View key={i} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, minWidth: 150, borderWidth: 1, borderColor: zm?.color + "25" }}>
                           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 6 }}>
                             <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: zm?.color + "20", alignItems: "center", justifyContent: "center" }}>
-                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: zm?.color }}>م{r.zone_id}</Text>
+                              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: zm?.color }}>م{r.zone_id}</Text>
                             </View>
                             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{r.name}</Text>
                           </View>
                           {r.submitted_by ? (
                             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
                               <MaterialCommunityIcons name="account-circle" size={13} color={Colors.textMuted} />
-                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{r.submitted_by}</Text>
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{r.submitted_by}</Text>
                             </View>
                           ) : null}
                         </View>
@@ -2035,14 +2035,14 @@ export default function TransportScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" }}>{zm.name}</Text>
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
                           منطقة {z} • {zNhs.length > 0 ? `${zNhs.length} حي مُضاف` : "لا توجد أحياء بعد"}
                         </Text>
                       </View>
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
                         {zNhs.length > 0 && (
                           <View style={{ backgroundColor: zm.color + "20", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: zm.color }}>{zNhs.length}</Text>
+                            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: zm.color }}>{zNhs.length}</Text>
                           </View>
                         )}
                         <MaterialCommunityIcons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.textMuted} />
@@ -2068,7 +2068,7 @@ export default function TransportScreen() {
                               <View key={i} style={{ backgroundColor: zm.color + "12", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: zm.color + "25" }}>
                                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: zm.color }}>{n.name}</Text>
                                 {n.submitted_by ? (
-                                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
                                     ✦ {n.submitted_by}
                                   </Text>
                                 ) : null}
@@ -2088,7 +2088,7 @@ export default function TransportScreen() {
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, marginTop: 10, textAlign: "center" }}>
                   ساهم في بناء الخريطة
                 </Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
                   كل إضافة تُسهِّل على جيرانك تحديد موقعهم{"\n"}وتجعل خدمة المشاوير أدق وأسرع للجميع
                 </Text>
               </View>
@@ -2147,7 +2147,7 @@ export default function TransportScreen() {
                     </View>
                     <View>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.text }}>أضف حياً أو قرية</Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1 }}>تُراجعها الإدارة وتعتمدها للجميع</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1 }}>تُراجعها الإدارة وتعتمدها للجميع</Text>
                     </View>
                   </View>
 
@@ -2158,7 +2158,7 @@ export default function TransportScreen() {
                   ) : null}
 
                   {/* اختيار المنطقة */}
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>المنطقة *</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>المنطقة *</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingVertical: 2 }}>
                     {[1,2,3,4,5].map(z => {
                       const zm = ZONE_META_MOB[z];
@@ -2167,7 +2167,7 @@ export default function TransportScreen() {
                         <TouchableOpacity key={z} onPress={() => setAddZone(z)} activeOpacity={0.8}
                           style={{ alignItems: "center", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, borderWidth: 1.5, borderColor: sel ? zm.color : Colors.divider, backgroundColor: sel ? zm.color + "15" : "transparent", minWidth: 80 }}>
                           <MaterialCommunityIcons name={zm.icon as any} size={18} color={sel ? zm.color : Colors.textMuted} />
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: sel ? zm.color : Colors.textMuted, marginTop: 4 }}>{zm.name}</Text>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: sel ? zm.color : Colors.textMuted, marginTop: 4 }}>{zm.name}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -2175,7 +2175,7 @@ export default function TransportScreen() {
 </ScrollView>
 
                   {/* اسم الحي */}
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 18 }}>اسم الحي أو القرية *</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 18 }}>اسم الحي أو القرية *</Text>
                   <TextInput
                     value={addName}
                     onChangeText={setAddName}
@@ -2186,7 +2186,7 @@ export default function TransportScreen() {
                   />
 
                   {/* ملاحظات */}
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>ملاحظات إضافية (اختياري)</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 8, marginTop: 14 }}>ملاحظات إضافية (اختياري)</Text>
                   <TextInput
                     value={addNote}
                     onChangeText={setAddNote}
@@ -2488,7 +2488,7 @@ const cs = StyleSheet.create({
   statsRow:      { flexDirection: "row-reverse", gap: 20, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#ffffff15" },
   statItem:      { alignItems: "center" },
   statNum:       { fontFamily: "Cairo_700Bold", fontSize: 18 },
-  statLabel:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70", marginTop: 2 },
+  statLabel:     { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#ffffff70", marginTop: 2 },
   noteCard:      { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start", backgroundColor: ACCENT2 + "12", borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: ACCENT2 + "30" },
   noteText:      { fontFamily: "Cairo_400Regular", fontSize: 13, color: ACCENT2, flex: 1, textAlign: "right", lineHeight: 20 },
   secRow:        { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
@@ -2498,7 +2498,7 @@ const cs = StyleSheet.create({
   zonePreviewBadge: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   zonePreviewNum:   { fontFamily: "Cairo_700Bold", fontSize: 13 },
   zonePreviewName:  { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  zonePreviewDesc:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" },
+  zonePreviewDesc:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
   ctaCard:       { borderRadius: 16, overflow: "hidden", marginTop: 8 },
   ctaGrad:       { padding: 24, alignItems: "center" },
   ctaTitle:      { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, marginBottom: 6 },
@@ -2517,41 +2517,41 @@ const zp = StyleSheet.create({
   sheetTitle:   { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "center", marginBottom: 14 },
   zoneRow:      { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 10, marginBottom: 4 },
   zoneName:     { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  zoneDesc:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  zoneDesc:     { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   zoneNumBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
-  zoneNum:      { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  zoneNum:      { fontFamily: "Cairo_700Bold", fontSize: 12 },
 });
 
 const fe = StyleSheet.create({
   placeholder:     { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 12, padding: 16, marginVertical: 12, borderWidth: 1, borderColor: Colors.divider, borderStyle: "dashed" },
-  placeholderText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right", lineHeight: 20 },
+  placeholderText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right", lineHeight: 20 },
   card:            { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, marginVertical: 12, overflow: "hidden", borderWidth: 1, borderColor: ACCENT + "30", ...Colors.shadow.card },
   header:          { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, flexWrap: "wrap" },
   headerTitle:     { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT2 },
   routeBadge:      { flex: 1, alignItems: "flex-start" },
-  routeText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  routeText:       { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   vehicleRow:      { flexDirection: "row-reverse", padding: 10, gap: 8 },
   vehicleBtn:      { flex: 1, alignItems: "center", borderRadius: 10, padding: 10, borderWidth: 1.5, borderColor: Colors.divider, gap: 4 },
-  vehicleLabel:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
-  vehicleFare:     { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  vehicleLabel:    { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  vehicleFare:     { fontFamily: "Cairo_700Bold", fontSize: 13 },
   disclaimer:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, padding: 10, borderTopWidth: 1, borderTopColor: Colors.divider },
-  disclaimerText:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  disclaimerText:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
 });
 
 const s = StyleSheet.create({
   container:      { flex: 1, backgroundColor: Colors.bg },
   liveBadge:      { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN + "20", paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: GREEN + "40" },
   liveDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: GREEN },
-  liveText:       { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GREEN },
+  liveText:       { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: GREEN },
   quickStats:     { flexDirection: "row-reverse", justifyContent: "space-around", marginBottom: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#ffffff12" },
   quickStat:      { alignItems: "center" },
   quickStatNum:   { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  quickStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#ffffff70", marginTop: 2 },
+  quickStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#ffffff70", marginTop: 2 },
   quickStatDiv:   { width: 1, backgroundColor: "#ffffff15" },
   tabsScroll:     { paddingHorizontal: 4, paddingBottom: 10, gap: 6, flexDirection: "row-reverse" },
   tabBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: "#ffffff10", borderWidth: 1, borderColor: "#ffffff15" },
   tabBtnActive:   { backgroundColor: ACCENT, borderColor: ACCENT },
-  tabLabel:       { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  tabLabel:       { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   tabLabelActive: { color: "#fff" },
 
   sectionHeader:  { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10, marginTop: 6 },
@@ -2561,16 +2561,16 @@ const s = StyleSheet.create({
   zoneSelectCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 4, borderWidth: 1, borderColor: Colors.divider, gap: 4, ...Colors.shadow.card },
   zoneSelectRow:  { flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" },
   zoneSelectDot:  { width: 10, height: 10, borderRadius: 5, marginTop: 14 },
-  zoneSelectLabel:{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  zoneDetailInput:{ backgroundColor: Colors.bg, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 10, paddingVertical: 8, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textPrimary, marginTop: 6 },
+  zoneSelectLabel:{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  zoneDetailInput:{ backgroundColor: Colors.bg, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 10, paddingVertical: 8, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, marginTop: 6 },
   zoneDivider:    { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginVertical: 6, paddingRight: 14 },
   zoneDivLine:    { flex: 1, height: 1, backgroundColor: Colors.divider },
 
   formCard:       { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   formCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 4 },
   formCardTitle:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  formCardSub:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginBottom: 14 },
-  fieldLabel:     { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 5, marginTop: 10 },
+  formCardSub:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginBottom: 14 },
+  fieldLabel:     { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 5, marginTop: 10 },
   input:          { backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary },
   submitBtn:      { paddingVertical: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
   submitBtnText:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
@@ -2581,7 +2581,7 @@ const s = StyleSheet.create({
   howCardTitle:   { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginBottom: 14 },
   howRow:         { flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, marginBottom: 10, position: "relative" },
   howBubble:      { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  howStep:        { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  howStep:        { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   howLine:        { position: "absolute", width: 2, height: 20, backgroundColor: ACCENT + "40", right: 13, top: 30 },
   howText:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
 
@@ -2594,53 +2594,53 @@ const dc = StyleSheet.create({
   row:         { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 10 },
   avatar:      { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   name:        { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  sub:         { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  desc:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  sub:         { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  desc:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   statusBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12 },
   statusDot:   { width: 6, height: 6, borderRadius: 3 },
-  statusText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  statusText:  { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   footer:      { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
-  ratingText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary, marginRight: 4 },
-  trips:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  ratingText:  { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, marginRight: 4 },
+  trips:       { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   callBtn:     { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: GREEN + "15", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: GREEN + "40" },
-  callText:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GREEN },
+  callText:    { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: GREEN },
 });
 
 const tc = StyleSheet.create({
   card:            { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   topRow:          { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 10 },
   typeBadge:       { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  typeText:        { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT },
+  typeText:        { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ACCENT },
   statusBadge:     { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
-  statusText:      { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  statusText:      { fontFamily: "Cairo_700Bold", fontSize: 12 },
   cancelBtn:       { width: 28, height: 28, borderRadius: 14, backgroundColor: "#E0556715", alignItems: "center", justifyContent: "center" },
   routeRow:        { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 },
   zoneDot:         { width: 8, height: 8, borderRadius: 4 },
   routeText:       { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  routeFallback:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 },
+  routeFallback:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 8 },
   fareBadge:       { alignItems: "center", backgroundColor: ACCENT + "15", borderRadius: 10, padding: 8 },
-  fareLabel:       { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  fareLabel:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   fareValue:       { fontFamily: "Cairo_700Bold", fontSize: 13, color: ACCENT },
   descRow:         { flexDirection: "row-reverse", alignItems: "flex-start", gap: 6, backgroundColor: ACCENT + "0D", borderRadius: 8, padding: 8, marginBottom: 8 },
-  descText:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 },
+  descText:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 },
   driverRow:       { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: BLUE + "12", borderRadius: 10, padding: 8, marginBottom: 8 },
   driverNameText:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: BLUE, flex: 1, textAlign: "right" },
   callDriverBtn:   { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: BLUE, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  callDriverText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  callDriverText:  { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
   footerRow:       { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
-  dateText:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  driverText:      { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  dateText:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  driverText:      { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   rateBtn:         { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: ACCENT2 + "20", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  rateBtnText:     { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT2 },
-  ratedText:       { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginLeft: 4 },
+  rateBtnText:     { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ACCENT2 },
+  ratedText:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginLeft: 4 },
   ratingPanel:     { marginTop: 10, padding: 12, backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
   ratingTitle:     { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "center", marginBottom: 10 },
   starsRow:        { flexDirection: "row-reverse", justifyContent: "center", gap: 8, marginBottom: 10 },
-  ratingInput:     { backgroundColor: Colors.cardBg, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, padding: 8, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textPrimary, minHeight: 48, textAlignVertical: "top" },
+  ratingInput:     { backgroundColor: Colors.cardBg, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, padding: 8, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, minHeight: 48, textAlignVertical: "top" },
   ratingSubmit:    { flex: 1, backgroundColor: ACCENT, borderRadius: 8, padding: 9, alignItems: "center" },
   ratingSubmitText:{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   ratingCancel:    { backgroundColor: Colors.divider, borderRadius: 8, paddingHorizontal: 14, padding: 9, alignItems: "center", justifyContent: "center" },
-  ratingCancelText:{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  ratingCancelText:{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 });
 
 // ─── أنماط بطاقة التحذير القانوني (lw = legal warning) ──────────────────────
@@ -2650,18 +2650,18 @@ const lw = StyleSheet.create({
   headerRow:       { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 12 },
   iconWrap:        { width: 40, height: 40, borderRadius: 20, backgroundColor: "#DC262618", alignItems: "center", justifyContent: "center" },
   title:           { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#DC2626", textAlign: "right" },
-  subtitle:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC262699", textAlign: "right" },
+  subtitle:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#DC262699", textAlign: "right" },
   readMoreBtn:     { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "#DC262615", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
-  readMoreText:    { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#DC2626" },
+  readMoreText:    { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#DC2626" },
   divider:         { height: 1, backgroundColor: "#DC262625", marginVertical: 12 },
   ruleRow:         { flexDirection: "row-reverse", gap: 10, marginBottom: 10, alignItems: "flex-start" },
   ruleIconWrap:    { width: 28, height: 28, borderRadius: 14, backgroundColor: "#DC262614", alignItems: "center", justifyContent: "center", marginTop: 2 },
   ruleTitle:       { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#DC2626", textAlign: "right", marginBottom: 3 },
-  ruleBody:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
+  ruleBody:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
   checkRow:        { flexDirection: "row-reverse", gap: 10, alignItems: "flex-start" },
   checkbox:        { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#DC2626", alignItems: "center", justifyContent: "center", marginTop: 1, backgroundColor: "transparent" },
   checkboxChecked: { backgroundColor: "#DC2626", borderColor: "#DC2626" },
-  checkText:       { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+  checkText:       { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
 });
 
 // ─── أنماط مودال الشروط القانونية (lm = legal modal) ────────────────────────
@@ -2671,7 +2671,7 @@ const lm = StyleSheet.create({
   handle:        { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginTop: 12, marginBottom: 4 },
   headerGrad:    { flexDirection: "row-reverse", gap: 12, alignItems: "center", padding: 18 },
   headerTitle:   { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#DC2626", textAlign: "right" },
-  headerSub:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#DC262299", textAlign: "right" },
+  headerSub:     { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#DC262299", textAlign: "right" },
   article:       { paddingHorizontal: 18, paddingVertical: 10 },
   articleHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 8 },
   articleTitle:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#DC2626", textAlign: "right" },
@@ -2679,7 +2679,7 @@ const lm = StyleSheet.create({
   divider:       { height: 1, backgroundColor: Colors.divider, marginHorizontal: 18 },
   bulletRow:     { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start", marginTop: 8 },
   bullet:        { width: 6, height: 6, borderRadius: 3, backgroundColor: "#DC2626", marginTop: 7 },
-  bulletText:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+  bulletText:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
   footer:        { padding: 18, gap: 10 },
   acceptBtn:     { borderRadius: 12, overflow: "hidden" },
   acceptGrad:    { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, padding: 14 },

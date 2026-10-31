@@ -994,7 +994,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: Colors.radius.pill,
     backgroundColor: "rgba(255,255,255,0.10)",
   },
-  tabActive: { backgroundColor: "#fff" },
+  tabActive: { backgroundColor: Colors.cardBg },
   tabText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
   tabTextActive: { color: EMERALD, fontFamily: "Cairo_700Bold" },
 
@@ -1011,7 +1011,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: EMERALD + "25",
     paddingHorizontal: 16, paddingVertical: 9, marginBottom: 4,
   },
-  trustBannerText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: SUB, textAlign: "right" },
+  trustBannerText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: SUB, textAlign: "right" },
 
   // Active Ad Card
   adCard: {
@@ -1028,13 +1028,13 @@ const s = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
   },
-  adTypeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  adTypeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   remainingBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 3,
     backgroundColor: BG, borderRadius: 8, borderWidth: 1, borderColor: DIVIDER,
     paddingHorizontal: 7, paddingVertical: 3,
   },
-  remainingText: { fontFamily: "Cairo_500Medium", fontSize: 10, color: MUTED },
+  remainingText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: MUTED },
   adInstitution: { fontFamily: "Cairo_700Bold", fontSize: 14, color: TEXT, textAlign: "right" },
   adTitle:       { fontFamily: "Cairo_700Bold", fontSize: 16, color: TEXT, textAlign: "right", lineHeight: 24 },
   adDesc:        { fontFamily: "Cairo_400Regular", fontSize: 13, color: SUB, textAlign: "right", lineHeight: 20 },
@@ -1043,12 +1043,12 @@ const s = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: ACCENT + "15", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
   },
-  sponsoredText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: ACCENT },
+  sponsoredText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: ACCENT },
   linkChip: {
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: EMERALD + "15", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
   },
-  linkChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: EMERALD },
+  linkChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: EMERALD },
 
   // My Request Card
   myCard: {
@@ -1065,14 +1065,14 @@ const s = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
   },
-  statusChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  myCardDate:        { fontFamily: "Cairo_400Regular", fontSize: 10, color: MUTED },
-  myCardInstitution: { fontFamily: "Cairo_700Bold", fontSize: 12, color: TEXT, textAlign: "right" },
+  statusChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  myCardDate:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED },
+  myCardInstitution: { fontFamily: "Cairo_700Bold", fontSize: 13, color: TEXT, textAlign: "right" },
   myCardTitle:       { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: TEXT, textAlign: "right" },
   adminNoteRow:      { flexDirection: "row-reverse", gap: 4, alignItems: "flex-start" },
-  adminNoteText:     { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED, textAlign: "right" },
+  adminNoteText:     { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "right" },
   myCardFooter:      { marginTop: 2 },
-  myCardMeta:        { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED, textAlign: "right" },
+  myCardMeta:        { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "right" },
 
   // Empty
   emptyWrap: { alignItems: "center", paddingTop: 60, paddingHorizontal: 32, gap: 10 },
@@ -1103,7 +1103,7 @@ const s = StyleSheet.create({
   heroStatsRow: { flexDirection: "row-reverse", gap: 0, width: "100%", backgroundColor: EMERALD + "12", borderRadius: Colors.radius.md, padding: 12, justifyContent: "space-around" },
   heroStat:     { alignItems: "center", gap: 2 },
   heroStatVal:  { fontFamily: "Cairo_700Bold", fontSize: 18, color: TEXT },
-  heroStatLabel:{ fontFamily: "Cairo_400Regular", fontSize: 10, color: MUTED },
+  heroStatLabel:{ fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED },
 
   sectionTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 16, color: TEXT,
@@ -1123,17 +1123,17 @@ const s = StyleSheet.create({
   },
   pkgBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
   pkgDays:      { fontFamily: "Cairo_700Bold", fontSize: 36, color: TEXT, lineHeight: 44 },
-  pkgDaysLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED, marginTop: -6 },
+  pkgDaysLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, marginTop: -6 },
   pkgName:      { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: TEXT, marginTop: 4 },
   pkgPrice:     { fontFamily: "Cairo_700Bold", fontSize: 18, color: ACCENT, marginTop: 2 },
   pkgDivider:   { height: 1, backgroundColor: DIVIDER, width: "100%", marginVertical: 8 },
   pkgFeatureRow:{ flexDirection: "row-reverse", alignItems: "center", gap: 5, alignSelf: "flex-start" },
-  pkgFeature:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: SUB, textAlign: "right" },
+  pkgFeature:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: SUB, textAlign: "right" },
   pkgSelectedBadge: {
     flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 4, marginTop: 8,
   },
-  pkgSelectedText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  pkgSelectedText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 
   bigCTA: {
     flexDirection: "row-reverse", alignItems: "center", gap: 10,
@@ -1155,14 +1155,14 @@ const s = StyleSheet.create({
   },
   stepNumText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: EMERALD },
   stepTitle:   { fontFamily: "Cairo_700Bold", fontSize: 14, color: TEXT, textAlign: "right" },
-  stepDesc:    { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "right", marginTop: 3 },
+  stepDesc:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "right", marginTop: 3 },
 
   contactCard: {
     backgroundColor: CARD_BG, borderRadius: Colors.radius.lg, borderWidth: 1, borderColor: DIVIDER,
     margin: 14, padding: 18, alignItems: "center", gap: 6,
   },
   contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: TEXT },
-  contactSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED },
+  contactSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED },
   contactBtns:  { flexDirection: "row", gap: 10, marginTop: 8 },
   waBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
@@ -1184,7 +1184,7 @@ const s = StyleSheet.create({
     margin: 16, padding: 20, alignItems: "center", gap: 8,
   },
   phoneSearchTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: TEXT },
-  phoneSearchSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "center" },
+  phoneSearchSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "center" },
   phoneRow: { flexDirection: "row", gap: 8, width: "100%", marginTop: 6 },
   phoneInput: {
     flex: 1, backgroundColor: BG, borderRadius: Colors.radius.md,
@@ -1206,7 +1206,7 @@ const s = StyleSheet.create({
     padding: 28, gap: 8,
   },
   noResultsText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: TEXT },
-  noResultsSub:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "center" },
+  noResultsSub:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "center" },
 
   // Modal
   overlay: { flex: 1, backgroundColor: "#00000088", justifyContent: "flex-end" },
@@ -1243,8 +1243,8 @@ const s = StyleSheet.create({
   },
   stepDotDone:   { backgroundColor: EMERALD, borderColor: EMERALD },
   stepDotActive: { borderColor: EMERALD },
-  stepDotNum:    { fontFamily: "Cairo_700Bold", fontSize: 10, color: MUTED },
-  stepLbl:       { fontFamily: "Cairo_400Regular", fontSize: 10, color: MUTED, marginHorizontal: 4 },
+  stepDotNum:    { fontFamily: "Cairo_700Bold", fontSize: 11, color: MUTED },
+  stepLbl:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED, marginHorizontal: 4 },
   stepLblActive: { color: EMERALD, fontFamily: "Cairo_700Bold" },
   stepLine:      { width: 22, height: 2, backgroundColor: DIVIDER },
   stepLineDone:  { backgroundColor: EMERALD },
@@ -1263,7 +1263,7 @@ const s = StyleSheet.create({
     backgroundColor: BG,
   },
   imgPickerText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: MUTED },
-  imgPickerHint: { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED },
+  imgPickerHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED },
   imgBtnsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
   imgPickBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
@@ -1276,7 +1276,7 @@ const s = StyleSheet.create({
     backgroundColor: ACCENT + "10", borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: ACCENT + "30",
     padding: 12, marginBottom: 16,
   },
-  imgTipText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: SUB, textAlign: "right", lineHeight: 20 },
+  imgTipText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: SUB, textAlign: "right", lineHeight: 20 },
 
   // Form fields
   formField: { marginBottom: 12 },
@@ -1296,7 +1296,7 @@ const s = StyleSheet.create({
     borderRadius: Colors.radius.sm, borderWidth: 1.5, borderColor: DIVIDER,
     paddingHorizontal: 12, paddingVertical: 8,
   },
-  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: MUTED },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: MUTED },
 
   // Cost card
   costCard: {
@@ -1307,8 +1307,8 @@ const s = StyleSheet.create({
   costRow:      { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   costLabel:    { fontFamily: "Cairo_700Bold", fontSize: 14, color: TEXT },
   costAmount:   { fontFamily: "Cairo_700Bold", fontSize: 22, color: EMERALD },
-  costBreakdown:{ fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "right" },
-  costNote:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: MUTED, textAlign: "right", lineHeight: 18 },
+  costBreakdown:{ fontFamily: "Cairo_400Regular", fontSize: 13, color: MUTED, textAlign: "right" },
+  costNote:     { fontFamily: "Cairo_400Regular", fontSize: 12, color: MUTED, textAlign: "right", lineHeight: 18 },
 
   // Upload progress
   uploadBar: {
@@ -1319,7 +1319,7 @@ const s = StyleSheet.create({
   uploadBarText: {
     position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
     textAlign: "center", textAlignVertical: "center",
-    fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff",
+    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff",
   },
 
   // Navigation buttons
@@ -1369,7 +1369,7 @@ const s = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: EMERALD + "20", justifyContent: "center", alignItems: "center",
   },
-  nextStepNumText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: EMERALD },
+  nextStepNumText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: EMERALD },
   nextStepText:    { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: SUB, textAlign: "right" },
   successCloseBtn: {
     backgroundColor: EMERALD, borderRadius: Colors.radius.lg, marginHorizontal: 16,

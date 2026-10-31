@@ -305,9 +305,9 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                           style={s.submitBtn}
                         >
                           {loading
-                            ? <ActivityIndicator color="#000" size="small" />
+                            ? <ActivityIndicator color={Colors.text} size="small" />
                             : <>
-                                <Ionicons name="send-outline" size={18} color="#000" />
+                                <Ionicons name="send-outline" size={18} color={Colors.text} />
                                 <Text style={s.submitBtnText}>إرسال رابط الاستعادة</Text>
                               </>
                           }
@@ -491,11 +491,11 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                   style={s.submitBtn}
                 >
                   {loading
-                    ? <ActivityIndicator color="#000" size="small" />
+                    ? <ActivityIndicator color={Colors.text} size="small" />
                     : <>
                         <Ionicons
                           name={mode === "login" ? "log-in-outline" : "person-add-outline"}
-                          size={18} color="#000"
+                          size={18} color={Colors.text}
                         />
                         <Text style={s.submitBtnText}>
                           {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
@@ -602,7 +602,7 @@ const s = StyleSheet.create({
   },
   logoWrap: {
     width: 60, height: 60, borderRadius: 18,
-    backgroundColor: "#FFFFFF", overflow: "hidden",
+    backgroundColor: Colors.cardBg, overflow: "hidden",
     borderWidth: 2, borderColor: Colors.primary + "60",
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
@@ -614,7 +614,7 @@ const s = StyleSheet.create({
     textShadowColor: Colors.primary + "60", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8,
   },
   appTagline: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2,
   },
   modeChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "center",
@@ -650,7 +650,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.divider, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
   },
   optionalText: {
-    fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
   },
   fieldWrap: {
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 14,
@@ -662,7 +662,7 @@ const s = StyleSheet.create({
     paddingVertical: 13, flex: 1,
   },
   verifyHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, paddingHorizontal: 4,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.primary, paddingHorizontal: 4,
   },
 
   /* Type toggle */
@@ -698,7 +698,7 @@ const s = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
-  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
 
   /* Divider */
   dividerRow: {
@@ -723,7 +723,7 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right",
   },
   googleBtnSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1, textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1, textAlign: "right",
   },
 
   /* Guest */
@@ -737,7 +737,7 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary, textAlign: "right",
   },
   guestBtnSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1, textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1, textAlign: "right",
   },
 
   /* Forgot Password */

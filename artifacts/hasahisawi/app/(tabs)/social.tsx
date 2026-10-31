@@ -23,6 +23,7 @@ import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -41,7 +42,7 @@ import { useFocusEffect, router } from "expo-router";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork, checkConnected } from "@/lib/network";
 import { cacheGet, cacheSet, cacheAge } from "@/lib/offline-cache";
@@ -49,6 +50,9 @@ import UserAvatar from "@/components/UserAvatar";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ActiveNowRow from "@/components/social/ActiveNowRow";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ReportSheet, { ActionSheet, type ActionItem, type ReportTarget } from "@/components/social/ReportSheet";
+import { blockUser } from "@/lib/social-safety";
+import { confirmAction, notify } from "@/lib/xplatform";
 
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -84,6 +88,9 @@ type Post = {
 type Comment = {
   id: number;
   post_id: number;
+  author_id?: number | null;
+  author_avatar?: string | null;
+  author_verified?: boolean;
   author_name: string;
   content: string;
   created_at: string;
@@ -101,6 +108,8 @@ type MediaAsset = {
 const DEVICE_ID_KEY = "social_device_id";
 const USER_NAME_KEY = "social_user_name";
 const POSTS_CACHE_KEY = "social_posts";
+type Feed = "all" | "following";
+const postsCacheKey = (feed: Feed, cat: string) => feed === "following" ? `${POSTS_CACHE_KEY}_following_${cat}` : `${POSTS_CACHE_KEY}_${cat}`;
 const BOOKMARKS_KEY = "social_bookmarks";
 
 const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "شكر", "صور", "طلب"];
@@ -196,10 +205,15 @@ function apiUrl(path: string) {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function apiFetchPosts(deviceId: string, category?: string, page = 1): Promise<Post[]> {
+function authHeaders(token?: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function apiFetchPosts(deviceId: string, category?: string, page = 1, token?: string | null, feed: Feed = "all"): Promise<Post[]> {
   const params = new URLSearchParams({ device_id: deviceId, page: String(page), limit: "30" });
   if (category && category !== "الكل") params.set("category", category);
-  const res = await fetchWithTimeout(apiUrl(`/api/posts?${params}`));
+  if (feed === "following") params.set("feed", "following");
+  const res = await fetchWithTimeout(apiUrl(`/api/posts?${params}`), { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to fetch posts");
   return res.json();
 }
@@ -210,10 +224,10 @@ async function apiCreatePost(data: {
   category: string;
   image_url?: string | null;
   video_url?: string | null;
-}): Promise<Post> {
+}, token?: string | null): Promise<Post> {
   const res = await fetchWithTimeout(apiUrl("/api/posts"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify(data),
   });
   const json = await res.json();
@@ -233,19 +247,20 @@ async function apiDeletePost(id: number, token?: string | null): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete");
 }
 
-async function apiFetchComments(postId: number): Promise<Comment[]> {
-  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`));
+async function apiFetchComments(postId: number, token?: string | null): Promise<Comment[]> {
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`), { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to fetch comments");
   return res.json();
 }
 
 async function apiCreateComment(
   postId: number,
-  data: { author_name: string; content: string; parent_id?: number | null }
+  data: { author_name: string; content: string; parent_id?: number | null },
+  token?: string | null,
 ): Promise<Comment> {
   const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify(data),
   });
   const text = await res.text();
@@ -390,7 +405,7 @@ const rp = StyleSheet.create({
   },
   item: { alignItems: "center", paddingHorizontal: 6, paddingVertical: 4 },
   emoji: { fontSize: 24 },
-  label: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted, marginTop: 2 },
+  label: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 });
 
 // ─── Media Preview ────────────────────────────────────────────────────────────
@@ -461,9 +476,9 @@ const mp = StyleSheet.create({
   removeBtn: { position: "absolute", top: 8, right: 8 },
   multiWrap: { marginTop: 8, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface1, padding: 10 },
   multiHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  multiTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  multiTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   addMoreBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary + "15" },
-  addMoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  addMoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
   multiList: { gap: 8, paddingVertical: 2 },
   thumbWrap: { width: 104, height: 104, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: "#000" },
   thumbImg: { width: "100%", height: "100%" },
@@ -574,7 +589,7 @@ const pmd = StyleSheet.create({
   multiThumbs: { gap: 8, paddingHorizontal: 2 },
   postThumb: { width: 86, height: 86, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: Colors.surface1 },
   countBadge: { position: "absolute", top: 10, right: 10, flexDirection: "row", alignItems: "center", gap: 5, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: "rgba(0,0,0,0.55)" },
-  countText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
+  countText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 13 },
   viewerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", alignItems: "center", justifyContent: "center" },
   viewerClose: { position: "absolute", top: 48, right: 22, zIndex: 2, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" },
   viewerImage: { width: "100%", height: "84%" },
@@ -679,14 +694,8 @@ function AddPostModal({
                     <Text style={ms.authorAvatarLetter}>{(name || "م").charAt(0)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <TextInput
-                      style={ms.nameInput}
-                      value={name}
-                      onChangeText={setName}
-                      placeholder="اسمك (اختياري)"
-                      placeholderTextColor={Colors.textMuted}
-                      maxLength={50}
-                    />
+                    {/* يُنشر المنشور باسم الحساب دائماً حتى يرتبط بالملف الشخصي */}
+                    <Text style={ms.nameInput} numberOfLines={1}>{name}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.catRow}>
                       {CATEGORIES.map((c) => (
                         <TouchableOpacity
@@ -764,7 +773,10 @@ function AddPostModal({
 
 function CommentsModal({
   post, visible, onClose, isAdmin, isGuest, defaultName, adminToken, onCommentsLoaded,
+  currentUserId, onBlock,
 }: {
+  currentUserId?: number | null;
+  onBlock: (authorId: number, authorName: string, after?: () => void) => void;
   post: Post | null;
   visible: boolean;
   onClose: () => void;
@@ -789,7 +801,7 @@ function CommentsModal({
     if (!post) return;
     setLoading(true);
     try {
-      const data = await apiFetchComments(post.id);
+      const data = await apiFetchComments(post.id, adminToken);
       // Build thread structure
       const roots: Comment[] = [];
       const map: Record<number, Comment> = {};
@@ -827,7 +839,7 @@ function CommentsModal({
         author_name: name.trim() || "مجهول",
         content: text.trim(),
         parent_id: replyTo?.id || null,
-      });
+      }, adminToken);
       setText("");
       setReplyTo(null);
       await load();
@@ -861,19 +873,48 @@ function CommentsModal({
     ]);
   };
 
+  const [menuFor, setMenuFor] = useState<Comment | null>(null);
+  // داخل نافذة التعليقات نفسها — iOS لا يعرض نافذة فوق نافذة مفتوحة من مستوى آخر
+  const [commentReport, setCommentReport] = useState<ReportTarget>(null);
+
+  const goToAuthor = (c: Comment) => {
+    if (!c.author_id) return;
+    onClose();
+    openAuthorProfile(c.author_id);
+  };
+
+  const commentMenuItems = (c: Comment): ActionItem[] => {
+    const items: ActionItem[] = [];
+    const mine = !!currentUserId && Number(c.author_id) === Number(currentUserId);
+    if (c.author_id) items.push({ key: "profile", label: `ملف ${c.author_name}`, icon: "person-circle-outline", onPress: () => goToAuthor(c) });
+    if (!mine) items.push({ key: "report", label: "الإبلاغ عن التعليق", icon: "flag-outline", danger: true, onPress: () => setCommentReport({ type: "comment", id: c.id }) });
+    if (!mine && c.author_id) items.push({ key: "block", label: `حظر ${c.author_name}`, icon: "ban-outline", danger: true, onPress: () => onBlock(Number(c.author_id), c.author_name, load) });
+    if (isAdmin) items.push({ key: "delete", label: "حذف التعليق", icon: "trash-outline", danger: true, onPress: () => handleDeleteComment(c.id) });
+    return items;
+  };
+
   const CommentItem = ({ item, depth = 0 }: { item: Comment; depth?: number }) => (
     <View style={[cs.commentCard, depth > 0 && cs.replyCard]}>
       <View style={cs.commentHeader}>
-        <View style={[cs.commentAvatar, { backgroundColor: avatarColor(item.author_name) }]}>
-          <Text style={cs.commentAvatarLetter}>{(item.author_name || "م").charAt(0)}</Text>
-        </View>
+        <TouchableOpacity onPress={() => goToAuthor(item)} disabled={!item.author_id} activeOpacity={0.75}>
+          <UserAvatar name={item.author_name || "م"} avatarUrl={item.author_avatar} size={32} borderRadius={10} />
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={cs.commentAuthor}>{item.author_name}</Text>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+            <Text style={[cs.commentAuthor, { flexShrink: 1 }]} onPress={item.author_id ? () => goToAuthor(item) : undefined} suppressHighlighting numberOfLines={1}>{item.author_name}</Text>
+            {item.author_verified ? <VerifiedBadge size={13} /> : null}
+          </View>
           <Text style={cs.commentTime}>{timeAgo(item.created_at)}</Text>
         </View>
-        {isAdmin && (
-          <TouchableOpacity onPress={() => handleDeleteComment(item.id)} style={{ padding: 4 }}>
-            <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+        {!isGuest && (
+          <TouchableOpacity
+            onPress={() => setMenuFor(item)}
+            style={{ padding: 4 }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="خيارات التعليق"
+          >
+            <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -937,6 +978,14 @@ function CommentsModal({
               </View>
             )}
 
+            <ActionSheet
+              visible={!!menuFor}
+              title={menuFor ? `تعليق ${menuFor.author_name}` : undefined}
+              items={menuFor ? commentMenuItems(menuFor) : []}
+              onClose={() => setMenuFor(null)}
+            />
+            <ReportSheet target={commentReport} token={adminToken} onClose={() => setCommentReport(null)} />
+
             <View style={cs.replyBar}>
               <View style={[cs.commentAvatar, { backgroundColor: avatarColor(name || "م"), flexShrink: 0 }]}>
                 <Text style={cs.commentAvatarLetter}>{(name || "م").charAt(0)}</Text>
@@ -972,8 +1021,9 @@ function CommentsModal({
 // ─── Post Card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare, onBookmark, isBookmarked,
+  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare, onBookmark, isBookmarked, onMore,
 }: {
+  onMore?: (post: Post) => void;
   post: Post;
   index: number;
   isAdmin: boolean;
@@ -1072,11 +1122,21 @@ function PostCard({
               <Ionicons name={catIcon} size={10} color={catColor} />
               <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
             </View>
-            {isAdmin && (
+            {onMore ? (
+              <TouchableOpacity
+                onPress={() => onMore(post)}
+                style={styles.deleteBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="خيارات المنشور"
+              >
+                <Ionicons name="ellipsis-horizontal" size={17} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ) : isAdmin ? (
               <AnimatedPress onPress={() => onDelete(post.id)} style={styles.deleteBtn}>
                 <Ionicons name="trash-outline" size={15} color={Colors.danger} />
               </AnimatedPress>
-            )}
+            ) : null}
           </View>
         </View>
 
@@ -1102,33 +1162,35 @@ function PostCard({
               onPress={handleLikeTap}
               onLongPress={handleLikeLongPress}
             >
-              <Text style={{ fontSize: 16 }}>{reactionEmoji || "👍"}</Text>
+              {reactionEmoji
+                ? <Text style={{ fontSize: 18 }}>{reactionEmoji}</Text>
+                : <Ionicons name="thumbs-up-outline" size={20} color={Colors.textSecondary} />}
               <Text style={[styles.actionCount, post.my_reaction && { color: reactionColor }]}>
-                {post.likes_count}
+                {post.likes_count > 0 ? post.likes_count : "أعجبني"}
               </Text>
             </AnimatedPress>
           </View>
 
           {/* Comments */}
           <AnimatedPress style={styles.actionBtn} onPress={() => onComment(post)}>
-            <Ionicons name="chatbubble-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.actionCount}>{post.comments_count}</Text>
+            <Ionicons name="chatbubble-outline" size={20} color={Colors.textSecondary} />
+            <Text style={styles.actionCount}>{post.comments_count > 0 ? `${post.comments_count} تعليق` : "تعليق"}</Text>
           </AnimatedPress>
 
           {/* Share */}
           <AnimatedPress style={styles.actionBtn} onPress={() => onShare(post)}>
-            <Ionicons name="share-social-outline" size={16} color={Colors.textMuted} />
+            <Ionicons name="share-social-outline" size={20} color={Colors.textSecondary} />
           </AnimatedPress>
 
           {/* Bookmark */}
           <AnimatedPress
-            style={[styles.actionBtn, isBookmarked && { backgroundColor: Colors.accent + "15", borderColor: Colors.accent + "50" }]}
+            style={[styles.actionBtn, isBookmarked && { backgroundColor: Colors.accent + "15" }]}
             onPress={() => onBookmark(post.id)}
           >
             <Ionicons
               name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={16}
-              color={isBookmarked ? Colors.accent : Colors.textMuted}
+              size={20}
+              color={isBookmarked ? "#946B00" : "#3F524A"}
             />
           </AnimatedPress>
         </View>
@@ -1162,8 +1224,12 @@ export default function SocialScreen() {
   const [showComments, setShowComments] = useState(false);
   const [catFilter, setCatFilter] = useState("الكل");
   const [sortMode, setSortMode] = useState<"recent" | "popular">("recent");
+  const [feed, setFeed] = useState<Feed>("all");
   const [bookmarks, setBookmarks] = useState<Set<number>>(new Set());
   const [showSaved, setShowSaved] = useState(false);
+  const [menuPost, setMenuPost] = useState<Post | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget>(null);
+  const myId = auth.user?.id != null ? Number(auth.user.id) : null;
 
   const init = useCallback(async () => {
     const id = await getDeviceId();
@@ -1198,7 +1264,7 @@ export default function SocialScreen() {
 
     // أوفلاين — اعرض بيانات الـ cache مباشرةً
     if (!online && (opts?.reset || p === 1)) {
-      const cached = await cacheGet<Post[]>(`${POSTS_CACHE_KEY}_${cat}`);
+      const cached = await cacheGet<Post[]>(postsCacheKey(feed, cat));
       if (cached) {
         setPosts(cached.data);
         setFromCache(true);
@@ -1216,13 +1282,13 @@ export default function SocialScreen() {
 
     try {
       const id = deviceId || await getDeviceId();
-      const data = await apiFetchPosts(id, cat, p);
+      const data = await apiFetchPosts(id, cat, p, auth.token, feed);
       if (opts?.reset || p === 1) {
         setPosts(data);
         setPage(2);
         setFromCache(false);
         // خزّن الصفحة الأولى فقط (الأحدث) للاستخدام أوفلاين
-        if (data.length > 0) cacheSet(`${POSTS_CACHE_KEY}_${cat}`, data).catch(() => {});
+        if (data.length > 0) cacheSet(postsCacheKey(feed, cat), data).catch(() => {});
       } else {
         setPosts(prev => [...prev, ...data]);
         setPage(p + 1);
@@ -1231,7 +1297,7 @@ export default function SocialScreen() {
     } catch {
       // عند الفشل جرّب الـ cache كبديل
       if (p === 1) {
-        const cached = await cacheGet<Post[]>(`${POSTS_CACHE_KEY}_${cat}`);
+        const cached = await cacheGet<Post[]>(postsCacheKey(feed, cat));
         if (cached) {
           setPosts(cached.data);
           setFromCache(true);
@@ -1248,7 +1314,7 @@ export default function SocialScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [deviceId, catFilter, page]);
+  }, [deviceId, catFilter, page, auth.token, feed]);
 
   useEffect(() => { init(); }, []);
 
@@ -1259,7 +1325,7 @@ export default function SocialScreen() {
 
   useEffect(() => {
     if (deviceId) loadPosts({ reset: true, cat: catFilter });
-  }, [catFilter, deviceId]);
+  }, [catFilter, deviceId, feed]);
 
   // Auto-poll every 60s
   useEffect(() => {
@@ -1267,7 +1333,7 @@ export default function SocialScreen() {
       if (deviceId) loadPosts({ quiet: true, reset: true });
     }, 60000);
     return () => clearInterval(iv);
-  }, [deviceId, catFilter]);
+  }, [deviceId, catFilter, feed]);
 
   const handlePost = async (
     content: string, category: string, name: string,
@@ -1281,7 +1347,7 @@ export default function SocialScreen() {
     await AsyncStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
 
-    const newPost = await apiCreatePost({ author_name: name, content, category, image_url, video_url });
+    const newPost = await apiCreatePost({ author_name: name, content, category, image_url, video_url }, auth.token);
     // Optimistically prepend
     setPosts(prev => [newPost, ...prev]);
   };
@@ -1320,6 +1386,35 @@ export default function SocialScreen() {
         },
       },
     ]);
+  };
+
+  const handleBlock = async (authorId: number, authorName: string, after?: () => void) => {
+    const ok = await confirmAction(
+      `حظر ${authorName}؟`,
+      "لن ترى منشوراته وتعليقاته، ولن يرى منشوراتك وتعليقاتك. يمكنك إلغاء الحظر لاحقاً من الإعدادات ← المستخدمون المحظورون.",
+      "حظر", true,
+    );
+    if (!ok) return;
+    try {
+      await blockUser(authorId, auth.token);
+      setPosts(prev => prev.filter(p => Number(p.author_id) !== authorId));
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      after?.();
+      notify("تم الحظر", `لن يظهر لك محتوى ${authorName} بعد الآن.`);
+    } catch (e: any) {
+      notify("تعذّر الحظر", e?.message || "حاول مرة أخرى");
+    }
+  };
+
+  const postMenuItems = (p: Post): ActionItem[] => {
+    const items: ActionItem[] = [];
+    const mine = !!myId && Number(p.author_id) === myId;
+    if (p.author_id) items.push({ key: "profile", label: `ملف ${p.author_name}`, icon: "person-circle-outline", onPress: () => openAuthorProfile(p.author_id) });
+    items.push({ key: "share", label: "مشاركة", icon: "share-social-outline", onPress: () => handleShare(p) });
+    if (!auth.isGuest && !mine) items.push({ key: "report", label: "الإبلاغ عن المنشور", icon: "flag-outline", danger: true, onPress: () => setReportTarget({ type: "post", id: p.id }) });
+    if (!auth.isGuest && !mine && p.author_id) items.push({ key: "block", label: `حظر ${p.author_name}`, icon: "ban-outline", danger: true, onPress: () => handleBlock(Number(p.author_id), p.author_name) });
+    if (isAdmin) items.push({ key: "delete", label: "حذف المنشور", icon: "trash-outline", danger: true, onPress: () => handleDelete(p.id) });
+    return items;
   };
 
   const handleShare = async (post: Post) => {
@@ -1387,14 +1482,21 @@ export default function SocialScreen() {
       </ModernHeader>
 
       {/* Category filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-      >
+      <RtlScrollRow contentContainerStyle={styles.filters}>
+        {/* الكل / أتابعهم */}
+        {!auth.isGuest && (
+          <AnimatedPress
+            style={[styles.filterBtn, feed === "following" && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
+            onPress={() => { setFeed(f => f === "all" ? "following" : "all"); setShowSaved(false); }}
+            scaleDown={0.92}
+          >
+            <Ionicons name="people-outline" size={12} color={feed === "following" ? "#fff" : Colors.textMuted} />
+            <Text style={[styles.filterText, feed === "following" && styles.filterTextActive]}>أتابعهم</Text>
+          </AnimatedPress>
+        )}
         {/* Sort toggle */}
         <AnimatedPress
-          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: "#1F5C8A", borderColor: "#1F5C8A" }]}
+          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep }]}
           onPress={() => setSortMode(s => s === "recent" ? "popular" : "recent")}
           scaleDown={0.92}
         >
@@ -1409,7 +1511,7 @@ export default function SocialScreen() {
         </AnimatedPress>
         {/* Bookmarks filter */}
         <AnimatedPress
-          style={[styles.filterBtn, showSaved && { backgroundColor: Colors.accent, borderColor: Colors.accent }]}
+          style={[styles.filterBtn, showSaved && { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep }]}
           onPress={() => setShowSaved(s => !s)}
           scaleDown={0.92}
         >
@@ -1433,7 +1535,7 @@ export default function SocialScreen() {
             </AnimatedPress>
           );
         })}
-      </ScrollView>
+      </RtlScrollRow>
 
       <GuestGate
         title="ساحة المجتمع"
@@ -1451,10 +1553,10 @@ export default function SocialScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{item.author}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{item.time}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{item.time}</Text>
                   </View>
                   <View style={{ backgroundColor: Colors.accent + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.accent }}>{item.cat}</Text>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.accent }}>{item.cat}</Text>
                   </View>
                 </View>
                 <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 }}>{item.text}</Text>
@@ -1511,6 +1613,16 @@ export default function SocialScreen() {
                   <Text style={styles.emptyBtnText}>إعادة المحاولة</Text>
                 </TouchableOpacity>
               </View>
+            ) : feed === "following" && !showSaved ? (
+              <View style={styles.empty}>
+                <Ionicons name="people-outline" size={62} color={Colors.divider} />
+                <Text style={[styles.emptyText, { textAlign: "center", paddingHorizontal: 24 }]}>
+                  لا توجد منشورات ممن تتابعهم بعد. افتح ملف أي شخص واضغط «متابعة» لترى منشوراته هنا.
+                </Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => setFeed("all")}>
+                  <Text style={styles.emptyBtnText}>تصفح كل المنشورات</Text>
+                </TouchableOpacity>
+              </View>
             ) : showSaved ? (
               <View style={styles.empty}>
                 <Ionicons name="bookmark-outline" size={62} color={Colors.divider} />
@@ -1546,6 +1658,7 @@ export default function SocialScreen() {
               onShare={handleShare}
               onBookmark={toggleBookmark}
               isBookmarked={bookmarks.has(item.id)}
+              onMore={setMenuPost}
             />
           )}
         />
@@ -1567,12 +1680,22 @@ export default function SocialScreen() {
         isGuest={auth.isGuest}
         defaultName={userName}
         adminToken={auth.token}
+        currentUserId={myId}
+        onBlock={handleBlock}
         onCommentsLoaded={(count) => {
           if (selectedPost) {
             setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, comments_count: count } : p));
           }
         }}
       />
+
+      <ActionSheet
+        visible={!!menuPost}
+        title={menuPost ? `منشور ${menuPost.author_name}` : undefined}
+        items={menuPost ? postMenuItems(menuPost) : []}
+        onClose={() => setMenuPost(null)}
+      />
+      <ReportSheet target={reportTarget} token={auth.token} onClose={() => setReportTarget(null)} />
     </View>
   );
 }
@@ -1621,7 +1744,7 @@ const sr = StyleSheet.create({
     backgroundColor: Colors.cardBg,
   },
   name: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary,
     textAlign: "center", width: 64,
   },
 });
@@ -1685,24 +1808,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.30)",
   },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#fff" },
-  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.cardBg },
+  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
 
   filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7, flexDirection: "row-reverse" },
   filterBtn: {
-    paddingHorizontal: 13, paddingVertical: 7, borderRadius: Colors.radius.pill,
+    paddingHorizontal: 15, height: 38, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
   },
-  filterText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  filterText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary },
   filterTextActive: { color: "#fff", fontFamily: "Cairo_700Bold" },
 
   list: { paddingTop: 8, paddingHorizontal: 14, gap: 12 },
 
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16,
-    borderWidth: 1, borderColor: Colors.divider,
-    ...Colors.shadow.card,
+    backgroundColor: Colors.cardBg, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6,
+    borderWidth: 1, borderColor: Colors.border,
   },
   pinnedCard: { borderColor: Colors.accent + "50", borderWidth: 1.5 },
   pinnedBadge: {
@@ -1710,34 +1832,33 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent + "15", paddingHorizontal: 10, paddingVertical: 3,
     borderRadius: 8, alignSelf: "flex-end", marginBottom: 8,
   },
-  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accent },
+  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.accent },
 
   cardHeader: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 0, marginBottom: 12 },
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
   metaDot: { color: Colors.textMuted, fontSize: 10 },
-  authorName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  cardRight: { alignItems: "center", gap: 8 },
+  authorName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
+  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
+  cardRight: { flexDirection: "row-reverse", alignItems: "center", gap: 2 },
   catBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1,
   },
-  catText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  deleteBtn: { padding: 5 },
+  catText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
+  deleteBtn: { width: 40, height: 44, alignItems: "center", justifyContent: "center", marginLeft: -8 },
 
   cardContent: {
-    fontFamily: "Cairo_400Regular", fontSize: 15, lineHeight: 26,
+    fontFamily: "Cairo_400Regular", fontSize: 16, lineHeight: 28,
     color: Colors.textPrimary, marginBottom: 4, textAlign: "right",
   },
-  cardDivider: { height: 1, backgroundColor: Colors.divider, marginVertical: 12 },
-  cardActions: { flexDirection: "row-reverse", gap: 8, alignItems: "center" },
+  cardDivider: { height: 1, backgroundColor: Colors.divider, marginTop: 14 },
+  cardActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   actionBtn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill,
-    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
+    minHeight: 44, minWidth: 44, paddingHorizontal: 8, borderRadius: 12,
   },
-  actionBtnActive: { backgroundColor: Colors.primary + "12", borderColor: Colors.primary + "40" },
-  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  actionBtnActive: { backgroundColor: Colors.primary + "10" },
+  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 
   reactionPickerWrap: {
     position: "absolute", bottom: 48, right: 0, zIndex: 100,
@@ -1792,17 +1913,17 @@ const ms = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
-  catChipText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
+  catChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   contentInput: {
     fontFamily: "Cairo_400Regular", fontSize: 16, color: Colors.textPrimary,
     minHeight: 110, paddingVertical: 8, lineHeight: 26, textAlignVertical: "top",
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  charCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  charCount: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   progressWrap: { gap: 6 },
   progressBar: { height: 4, borderRadius: 2, backgroundColor: Colors.divider, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: Colors.primary, borderRadius: 2 },
-  progressText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
+  progressText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   mediaBar: { borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 12, gap: 0, marginTop: 4, flexDirection: "row-reverse" },
   mediaBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 10 },
   mediaBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
@@ -1818,16 +1939,16 @@ const cs = StyleSheet.create({
   snippetImg: { width: 48, height: 48, borderRadius: Colors.radius.sm },
   snippetText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, fontStyle: "italic", textAlign: "right" },
 
-  commentCard: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider + "66" },
+  commentCard: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: withAlpha(Colors.divider, "66") },
   replyCard: { marginRight: 40, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 10, borderWidth: 1, borderColor: Colors.divider },
   commentHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   commentAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   commentAvatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   commentAuthor: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  commentTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  commentTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   commentText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, lineHeight: 22, textAlign: "right", paddingRight: 40 },
   replyBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingRight: 40, marginTop: 2 },
-  replyBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
+  replyBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
 
   replyingTo: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
@@ -1857,6 +1978,6 @@ const cs = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7,
   },
   cacheBannerText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right",
   },
 });

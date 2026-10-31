@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: "center", paddingVertical: 10, gap: 2 },
   statValue: { fontFamily: "Cairo_700Bold", fontSize: 18 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
   // Card
   list: { padding: 14, gap: 12 },
@@ -886,24 +886,24 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center", flexShrink: 0,
   },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", lineHeight: 22 },
-  cardOrigin: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  cardOrigin: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   catBadge: { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start" },
   catBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
   servicesRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
-  servicesText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary, textAlign: "right", flex: 1 },
+  servicesText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, textAlign: "right", flex: 1 },
   cardFooter: { flexDirection: "row-reverse", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 4 },
   metaChip: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  metaChipText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  metaChipText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   callBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 6, marginRight: "auto",
   },
-  callBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
+  callBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
 
   // Empty / center
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider,
   },
   footerText: {
-    flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
+    flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
     textAlign: "right", lineHeight: 18,
   },
 
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, padding: 12,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  detailRowLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  detailRowLabel: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   detailRowValue: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginTop: 2 },
   membersCard: {
     borderRadius: Colors.radius.md, padding: 16, alignItems: "center", gap: 4,
@@ -986,7 +986,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + "20", borderRadius: Colors.radius.sm,
     paddingHorizontal: 10, paddingVertical: 3,
   },
-  stepPillText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
+  stepPillText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
   regForm: { padding: 16, gap: 12 },
   formSectionTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right",
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11, paddingVertical: 7, borderRadius: Colors.radius.sm,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
-  catBtnText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
+  catBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   nextBtn: {
     backgroundColor: Colors.primary, borderRadius: Colors.radius.md, paddingVertical: 14,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4,
   },
-  svcMgmtBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  svcMgmtBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   svcEmptyBtn: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     borderRadius: Colors.radius.sm, borderWidth: 1.5, borderStyle: "dashed", paddingVertical: 14,
@@ -1069,7 +1069,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5, flexShrink: 0,
   },
-  svcActionBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  svcActionBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   svcItemLeft: { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   svcItemText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textPrimary, textAlign: "right", flex: 1 },
   svcRequestRow: {
@@ -1077,7 +1077,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
   svcStatusBadge: { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 4, flexShrink: 0 },
-  svcStatusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  svcStatusText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   svcRequestName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  svcRequestAction: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  svcRequestAction: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
 });

@@ -213,7 +213,7 @@ export default function AiSupportScreen() {
             >
               {!isUser && (
                 <View style={[s.aiAvatarSmall, msg.isLocal && s.aiAvatarSmallLocal]}>
-                  <Ionicons name={msg.isLocal ? "information" : "sparkles"} size={12} color="#000" />
+                  <Ionicons name={msg.isLocal ? "information" : "sparkles"} size={12} color={Colors.text} />
                 </View>
               )}
               <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
@@ -231,7 +231,7 @@ export default function AiSupportScreen() {
           loading ? (
             <View style={s.typingRow}>
               <View style={s.aiAvatarSmall}>
-                <Ionicons name="sparkles" size={12} color="#000" />
+                <Ionicons name="sparkles" size={12} color={Colors.text} />
               </View>
               <View style={s.typingBubble}>
                 <ActivityIndicator color={Colors.primary} size="small" />
@@ -285,9 +285,9 @@ const s = StyleSheet.create({
 
   statusRow:   { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   statusDot:   { width: 7, height: 7, borderRadius: Colors.radius.pill },
-  statusDotOnline:  { backgroundColor: "#fff" },
+  statusDotOnline:  { backgroundColor: Colors.cardBg },
   statusDotOffline: { backgroundColor: "#FFE38A" },
-  statusTxt:   { fontSize: 12, fontFamily: "Cairo_400Regular" },
+  statusTxt:   { fontSize: 13, fontFamily: "Cairo_400Regular" },
   statusTxtOnline:  { color: "rgba(255,255,255,0.92)" },
   statusTxtOffline: { color: "#FFE38A" },
   refreshBtn:  { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
@@ -298,7 +298,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 12, marginBottom: 8,
     borderRadius: Colors.radius.md,
   },
-  quotaTxt:    { flex: 1, fontSize: 12, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
+  quotaTxt:    { flex: 1, fontSize: 13, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
 
   messagesList: { padding: 16, gap: 12, paddingBottom: 8 },
   msgRow:      { flexDirection: "row", alignItems: "flex-end", gap: 4 },
@@ -309,9 +309,9 @@ const s = StyleSheet.create({
   bubbleUser:  { backgroundColor: Colors.primary, borderBottomStartRadius: 4 },
   bubbleAi:    { backgroundColor: Colors.cardBg, borderBottomEndRadius: 4 },
   bubbleText:  { fontSize: 15, lineHeight: 22, fontFamily: "Cairo_400Regular", textAlign: "right" },
-  bubbleTextUser: { color: "#000" },
+  bubbleTextUser: { color: Colors.text },
   bubbleTextAi:   { color: Colors.textPrimary },
-  timeText:    { fontSize: 10, fontFamily: "Cairo_400Regular", marginTop: 4 },
+  timeText:    { fontSize: 11, fontFamily: "Cairo_400Regular", marginTop: 4 },
   timeUser:    { color: "#000000AA", textAlign: "left" },
   timeAi:      { color: Colors.textMuted, textAlign: "right" },
 

@@ -37,7 +37,7 @@ const CATEGORIES: Category[] = [
   { key: "lighting",   label: "إضاءة",      icon: "lightbulb-on",       color: GOLD2  },
   { key: "decoration", label: "ديكور",      icon: "flower",             color: "#3B78A6" },
   { key: "catering",   label: "تقديم",      icon: "food-fork-drink",    color: "#F97316" },
-  { key: "generator",  label: "مولدات",     icon: "engine",             color: "#6B7280" },
+  { key: "generator",  label: "مولدات",     icon: "engine",             color: Colors.textSecondary },
   { key: "coolers",    label: "كولرات",     icon: "air-conditioner",    color: "#38BDF8" },
   { key: "other",      label: "متنوع",      icon: "package-variant",    color: Colors.textMuted },
 ];
@@ -700,8 +700,8 @@ const h = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
     alignItems: "center", paddingVertical: 10, gap: 2,
   },
-  statLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
-  statSub:   { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.78)" },
+  statLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  statSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.78)" },
 });
 
 // شاشة
@@ -729,10 +729,10 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   shopName:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  shopOwner: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  shopArea:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  shopOwner: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  shopArea:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   availBadge: { borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  availText:  { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  availText:  { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   shopDesc: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
     paddingHorizontal: 14, paddingBottom: 8, textAlign: "right", lineHeight: 20,
@@ -746,7 +746,7 @@ const s = StyleSheet.create({
   },
   itemChipOff: { opacity: 0.5 },
   itemName:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  itemPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  itemPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   availDot:  { width: 9, height: 9, borderRadius: 5 },
   shopActions: { flexDirection: "row", gap: 10, padding: 12, paddingTop: 8 },
   actionBtn: {
@@ -772,19 +772,19 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 4,
     borderRadius: Colors.radius.sm, paddingHorizontal: 5, paddingVertical: 3,
   },
-  availPillText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  availPillText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   transportBody: { flex: 1, padding: 12 },
   transportName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   transportType: { fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "right" },
-  transportDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  transportDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   transportMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, justifyContent: "flex-end" },
   metaTag: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: BG, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  metaTagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  transportNotes: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
+  metaTagText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  transportNotes: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
 
   // أخرى
   catChip: {
@@ -792,13 +792,13 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.pill,
     paddingHorizontal: 12, paddingVertical: 6, backgroundColor: CARD,
   },
-  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
   infoBanner: {
     flexDirection: "row", alignItems: "flex-start", gap: 8,
     borderWidth: 1, borderRadius: Colors.radius.md, padding: 12,
     backgroundColor: Colors.cyber + "08", marginBottom: 12,
   },
-  infoBannerText: { fontFamily: "Cairo_400Regular", fontSize: 12, flex: 1, textAlign: "right", lineHeight: 20 },
+  infoBannerText: { fontFamily: "Cairo_400Regular", fontSize: 13, flex: 1, textAlign: "right", lineHeight: 20 },
   emptyBox: { alignItems: "center", paddingVertical: 50, gap: 8 },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textSecondary },
   emptySub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
@@ -834,7 +834,7 @@ const j = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: BG,
   },
-  vTypeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  vTypeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
   submitBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     borderRadius: Colors.radius.lg, paddingVertical: 16, marginTop: 8,

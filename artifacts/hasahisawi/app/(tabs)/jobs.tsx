@@ -490,15 +490,15 @@ export default function JobsScreen() {
                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <View style={{ flex: 1, alignItems: "flex-end" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>{item.title}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{item.company}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{item.company}</Text>
                   </View>
                   <View style={{ backgroundColor: Colors.primary + "20", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, marginRight: 10 }}>
-                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.primary }}>{item.type}</Text>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary }}>{item.type}</Text>
                   </View>
                 </View>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 8 }}>
                   <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{item.loc}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted }}>{item.loc}</Text>
                 </View>
               </View>
             ))}
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   addBtn: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.cardBg,
     borderRadius: Colors.radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
   },
-  filterChipActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
+  filterChipActive: { backgroundColor: Colors.cardBg, borderColor: "#FFFFFF" },
   filterChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#FFFFFF" },
   filterChipTextActive: { color: Colors.primary },
   listContent: { padding: 14, gap: 12 },
@@ -692,10 +692,10 @@ const styles = StyleSheet.create({
   companyName: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   tagsRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   typeTag: { borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 3 },
-  typeTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  typeTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   locationTag: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
-  locationText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  timeAgo: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  locationText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  timeAgo: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
   expandedContent: { padding: 14, gap: 12 },
   salaryRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  applyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.cardBg },
+  applyBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.onColor },
 });
 
 const modalStyles = StyleSheet.create({
@@ -775,7 +775,7 @@ const modalStyles = StyleSheet.create({
     marginTop: 8,
     ...Colors.shadow.raised,
   },
-  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.onColor },
   imagePicker: { borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider, borderStyle: "dashed", overflow: "hidden", minHeight: 90 },
   imagePickerInner: { alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 22 },
   imagePickerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },

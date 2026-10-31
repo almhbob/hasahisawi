@@ -1241,7 +1241,7 @@ const styles = StyleSheet.create({
   },
   typeFilterText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12.5,
+    fontSize: 13,
     color: Colors.primary,
   },
   typeFilterTextActive: {
@@ -1340,7 +1340,7 @@ const styles = StyleSheet.create({
   },
   typePillText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     textAlign: "right",
   },
@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
   },
   feePillText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.accentDeep,
     textAlign: "right",
   },
@@ -1389,7 +1389,7 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12.5,
+    fontSize: 13,
     color: Colors.textPrimary,
     textAlign: "right",
     width: "100%",
@@ -1419,7 +1419,7 @@ const styles = StyleSheet.create({
   },
   unavailableText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.danger,
     textAlign: "center",
   },
@@ -1498,7 +1498,7 @@ const styles = StyleSheet.create({
   },
   cartItemPrice: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 12.5,
+    fontSize: 13,
     color: Colors.accent,
     textAlign: "right",
   },
@@ -1690,7 +1690,7 @@ const styles = StyleSheet.create({
   },
   detailsBtnText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.primary,
     textAlign: "center",
   },
@@ -1769,7 +1769,7 @@ const styles = StyleSheet.create({
   },
   deliveryInfoText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     textAlign: "right",
   },
@@ -1801,7 +1801,7 @@ const styles = StyleSheet.create({
   },
   catBtnText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12.5,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "center",
   },
@@ -1842,7 +1842,7 @@ const styles = StyleSheet.create({
   },
   cartCountText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 12,
+    fontSize: 13,
     color: "#fff",
     textAlign: "center",
   },

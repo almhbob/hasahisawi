@@ -19,6 +19,8 @@ import VerifiedBadge, { VERIFIED_BLUE } from "@/components/VerifiedBadge";
 import { EditProfileModal, CertFormModal, VerifyModal } from "@/components/profile/ProfileForms";
 import { notify, confirmAction, uploadProfilePhoto, openExternal, copyText, systemShare } from "@/lib/xplatform";
 import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from "@/lib/profile-api";
+import { blockUser } from "@/lib/social-safety";
+import { fetchFollowStats, followUser, unfollowUser, type FollowStats } from "@/lib/social-follow";
 
 type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
 type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
@@ -62,6 +64,8 @@ export default function ProfileScreen() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [follow, setFollow] = useState<FollowStats | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId) { setLoading(false); return; }
@@ -75,11 +79,32 @@ export default function ProfileScreen() {
       setProfile(p);
       if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
       if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
+      fetchFollowStats(Number(profileId), token).then(setFollow).catch(() => setFollow(null));
     } catch { setFailed(true); }
     finally { setLoading(false); }
   }, [profileId, token, isOwn]);
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+
+  const toggleFollow = async () => {
+    if (!profile || !follow || followBusy) return;
+    if (!token || isGuest) { notify("تسجيل مطلوب", "سجّل الدخول لتتابع الأشخاص وترى منشوراتهم في «أتابعهم»."); return; }
+    const was = follow.i_follow;
+    setFollowBusy(true);
+    setFollow({ ...follow, i_follow: !was, followers: Math.max(0, follow.followers + (was ? -1 : 1)) });
+    try {
+      await (was ? unfollowUser(profile.id, token) : followUser(profile.id, token));
+      if (!was) haptic();
+    } catch (e: any) {
+      setFollow(follow);
+      notify("تعذّر التنفيذ", e?.message || "حاول مرة أخرى");
+    } finally { setFollowBusy(false); }
+  };
+
+  const openFollows = (kind: "followers" | "following") => {
+    if (!profile) return;
+    router.push({ pathname: "/follows" as any, params: { id: String(profile.id), kind, name: profile.name } });
+  };
 
   const haptic = () => { if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); };
 
@@ -297,8 +322,13 @@ export default function ProfileScreen() {
 
           {!lockedView && <View style={styles.stats}>
             <Stat value={profile.posts_count} label="منشور" />
-            <View style={styles.statDivider} />
-            <Stat value={profile.certificates.length} label="شهادة" />
+            {follow && (<>
+              <View style={styles.statDivider} />
+              <TouchableOpacity onPress={() => openFollows("followers")} accessibilityRole="button"><Stat value={follow.followers} label="متابِع" /></TouchableOpacity>
+              <View style={styles.statDivider} />
+              <TouchableOpacity onPress={() => openFollows("following")} accessibilityRole="button"><Stat value={follow.following} label="يتابع" /></TouchableOpacity>
+            </>)}
+            {!follow && (<><View style={styles.statDivider} /><Stat value={profile.certificates.length} label="شهادة" /></>)}
             <View style={styles.statDivider} />
             <Stat value={profile.endorsers_count} label="زكّاه" />
             {isOwn && (<><View style={styles.statDivider} /><Stat value={profile.views_30d ?? 0} label="زيارة/30 يوم" /></>)}
@@ -318,14 +348,48 @@ export default function ProfileScreen() {
               </>
             ) : (
               <>
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={17} color="#fff" />
-                  <Text style={styles.primaryBtnText}>مراسلة</Text>
+                {follow && (
+                  <TouchableOpacity
+                    style={[follow.i_follow ? styles.ghostBtn : styles.primaryBtn, { flexGrow: 1 }]}
+                    onPress={toggleFollow}
+                    disabled={followBusy}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: follow.i_follow }}
+                  >
+                    <Ionicons name={follow.i_follow ? "checkmark" : "person-add-outline"} size={17} color={follow.i_follow ? Colors.primaryDeep : "#fff"} />
+                    <Text style={follow.i_follow ? styles.ghostBtnText : styles.primaryBtnText}>
+                      {follow.i_follow ? "تتابعه" : follow.follows_me ? "تابِعه أيضاً" : "متابعة"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={follow ? styles.ghostBtn : styles.primaryBtn} onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={17} color={follow ? Colors.primaryDeep : "#fff"} />
+                  <Text style={follow ? styles.ghostBtnText : styles.primaryBtnText}>مراسلة</Text>
                 </TouchableOpacity>
-                {!lockedView && <TouchableOpacity style={styles.ghostBtn} onPress={() => openExternal(publicCvUrl(profile.id))}>
-                  <Ionicons name="document-text-outline" size={17} color={Colors.primaryDeep} />
-                  <Text style={styles.ghostBtnText}>السيرة المهنية</Text>
+                {!lockedView && <TouchableOpacity style={[styles.iconBtn, { height: 46, width: 46 }]} onPress={() => openExternal(publicCvUrl(profile.id))} accessibilityLabel="السيرة المهنية">
+                  <Ionicons name="document-text-outline" size={18} color={Colors.primaryDeep} />
                 </TouchableOpacity>}
+                {!!user && !isGuest && (
+                  <TouchableOpacity
+                    style={[styles.iconBtn, { height: 46, width: 46 }]}
+                    accessibilityLabel={`حظر ${profile.name}`}
+                    onPress={async () => {
+                      const ok = await confirmAction(
+                        `حظر ${profile.name}؟`,
+                        "لن ترى منشوراته وتعليقاته في المجتمع، ولن يرى منشوراتك وتعليقاتك. يمكنك إلغاء الحظر من الإعدادات ← المستخدمون المحظورون.",
+                        "حظر", true,
+                      );
+                      if (!ok) return;
+                      try {
+                        await blockUser(profile.id, token);
+                        notify("تم الحظر", `لن يظهر لك محتوى ${profile.name} بعد الآن.`);
+                        router.canGoBack() ? router.back() : router.replace("/(tabs)" as any);
+                      } catch (e: any) { notify("تعذّر الحظر", e?.message || "حاول مرة أخرى"); }
+                    }}
+                  >
+                    <Ionicons name="ban-outline" size={18} color={Colors.danger} />
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
@@ -463,7 +527,7 @@ export default function ProfileScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.certKind, { color: k.color }]}>{k.label}{!c.is_public && isOwn ? " · مخفية" : ""}</Text>
                     <Text style={styles.certTitle}>{c.title}</Text>
-                    {(c.issuer || c.issued_on) ? <Text style={styles.certMeta}>{[c.issuer, c.issued_on].filter(Boolean).join(" · ")}</Text> : null}
+                    {(c.issuer || c.issued_on || c.expires_on) ? <Text style={styles.certMeta}>{[c.issuer, c.issued_on, c.expires_on ? `ينتهي ${c.expires_on}` : null].filter(Boolean).join(" · ")}</Text> : null}
                     <View style={{ flexDirection: "row-reverse", gap: 12, marginTop: 2 }}>
                       {c.file_url ? <Text style={styles.link} onPress={() => c.file_type === "image" ? setPreview(c.file_url!) : openExternal(c.file_url!)}>عرض المرفق</Text> : null}
                       {c.credential_url ? <Text style={styles.link} onPress={() => openExternal(c.credential_url!)}>التحقق</Text> : null}
@@ -586,7 +650,7 @@ export default function ProfileScreen() {
               {profile.is_verified && <VerifiedBadge size={18} />}
             </View>
             {profile.headline ? <Text style={styles.headline}>{profile.headline}</Text> : null}
-            <View style={{ padding: 14, backgroundColor: "#fff", borderRadius: 18, marginTop: 12, borderWidth: 1, borderColor: Colors.border }}>
+            <View style={{ padding: 14, backgroundColor: Colors.cardBg, borderRadius: 18, marginTop: 12, borderWidth: 1, borderColor: Colors.border }}>
               <QRCode value={publicCvUrl(profile.id)} size={200} color={Colors.primaryDeep} />
             </View>
             <Text style={[styles.hint, { textAlign: "center", marginTop: 10 }]}>امسح الرمز لفتح الملف المهني</Text>
@@ -643,20 +707,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
-  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
 
   centerBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
   emptyIcon: { width: 84, height: 84, borderRadius: 28, backgroundColor: Colors.primary + "12", alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
 
-  hero: { marginHorizontal: 16, marginTop: 6, backgroundColor: "#fff", borderRadius: 24, borderWidth: 1, borderColor: Colors.border, overflow: "hidden", alignItems: "center", paddingBottom: 18 },
+  hero: { marginHorizontal: 16, marginTop: 6, backgroundColor: Colors.cardBg, borderRadius: 24, borderWidth: 1, borderColor: Colors.border, overflow: "hidden", alignItems: "center", paddingBottom: 18 },
   cover: { alignSelf: "stretch", height: 104, overflow: "hidden" },
   coverRing: { position: "absolute", width: 180, height: 180, borderRadius: 90, borderWidth: 26, borderColor: "#fff", opacity: 0.07, right: -40, top: -60 },
-  otw: { position: "absolute", top: 12, right: 12, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  otw: { position: "absolute", top: 12, right: 12, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.cardBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   otwText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: Colors.primaryDeep },
   avatarWrap: { marginTop: -54 },
-  avatarFrame: { padding: 4, borderRadius: 36, backgroundColor: "#fff" },
+  avatarFrame: { padding: 4, borderRadius: 36, backgroundColor: Colors.cardBg },
   cameraBadge: { position: "absolute", bottom: 2, left: 2, width: 32, height: 32, borderRadius: 11, backgroundColor: Colors.primary, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   onlineDot: { position: "absolute", bottom: 6, left: 6, width: 20, height: 20, borderRadius: 10, backgroundColor: "#22C55E", borderWidth: 3, borderColor: "#fff" },
   nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8, paddingHorizontal: 16 },
@@ -664,8 +728,8 @@ const styles = StyleSheet.create({
   headline: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primaryDeep, textAlign: "center", paddingHorizontal: 20 },
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap", justifyContent: "center", paddingHorizontal: 12 },
   rolePill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
-  rolePillText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
-  metaText: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textMuted },
+  rolePillText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  metaText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   locRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
   bio: { fontFamily: "Cairo_400Regular", fontSize: 14, lineHeight: 23, color: Colors.textSecondary, textAlign: "center", marginTop: 10, paddingHorizontal: 22 },
   bioEmpty: { color: Colors.textSubtle, fontStyle: "italic" },
@@ -683,25 +747,25 @@ const styles = StyleSheet.create({
   ghostBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary + "0F", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 16, height: 46, borderRadius: 14 },
   ghostBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primaryDeep },
 
-  card: { marginHorizontal: 16, marginTop: 14, backgroundColor: "#fff", borderRadius: 22, borderWidth: 1, borderColor: Colors.border, padding: 16 },
+  card: { marginHorizontal: 16, marginTop: 14, backgroundColor: Colors.cardBg, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, padding: 16 },
   cardHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 4 },
   cardTitleNoMb: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   cardCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
-  hint: { fontFamily: "Cairo_400Regular", fontSize: 12.5, lineHeight: 20, color: Colors.textMuted, textAlign: "right" },
-  link: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.primary },
+  hint: { fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 20, color: Colors.textMuted, textAlign: "right" },
+  link: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
   bar: { height: 8, borderRadius: 4, backgroundColor: Colors.bg, overflow: "hidden", marginVertical: 8, flexDirection: "row-reverse" },
   barFill: { height: 8, borderRadius: 4, backgroundColor: Colors.primary },
   chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 8 },
   missChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "0D", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  missText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primaryDeep },
+  missText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primaryDeep },
 
   ownLock: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#7C3AED12", borderWidth: 1, borderColor: "#7C3AED35", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginTop: 8 },
   ownLockTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#7C3AED" },
   lockBig: { width: 64, height: 64, borderRadius: 22, backgroundColor: Colors.primary + "14", alignItems: "center", justifyContent: "center", marginBottom: 4 },
   adminCard: { borderColor: "#F0A50060", backgroundColor: "#FFFBF0" },
   adminPill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#D97706", paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },
-  adminPillTxt: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  adminPillTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
   adminRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 6 },
   adminLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   adminVal: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
@@ -712,28 +776,28 @@ const styles = StyleSheet.create({
   skillMine: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   skillText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary },
   skillCount: { minWidth: 20, paddingHorizontal: 5, height: 20, borderRadius: 10, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center" },
-  skillCountText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.primaryDeep },
+  skillCountText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primaryDeep },
 
   addMini: { flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: Colors.primary, paddingHorizontal: 11, height: 30, borderRadius: 10 },
-  addMiniText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
+  addMiniText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   emptyCert: { alignItems: "center", gap: 4, paddingVertical: 18, borderRadius: 16, borderWidth: 1.5, borderStyle: "dashed", borderColor: Colors.primary + "50", marginTop: 6, paddingHorizontal: 16 },
   emptyCertTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.primaryDeep },
   cert: { flexDirection: "row-reverse", gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: Colors.divider, alignItems: "flex-start" },
   certThumb: { width: 58, height: 58, borderRadius: 12, backgroundColor: Colors.bg },
-  certKind: { fontFamily: "Cairo_700Bold", fontSize: 11, textAlign: "right" },
+  certKind: { fontFamily: "Cairo_700Bold", fontSize: 12, textAlign: "right" },
   certTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
-  certMeta: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textMuted, textAlign: "right" },
+  certMeta: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
 
   cvCard: { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep },
-  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: "#fff" },
-  cvBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primaryDeep },
+  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: Colors.cardBg },
+  cvBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primaryDeep },
 
   visitor: { width: 68, alignItems: "center", gap: 3 },
-  visitorName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, maxWidth: 56 },
-  visitorTime: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  visitorName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, maxWidth: 56 },
+  visitorTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
   quickGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginHorizontal: 16, marginTop: 14 },
-  quick: { width: "48%", flexGrow: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, alignItems: "flex-end", gap: 2 },
+  quick: { width: "48%", flexGrow: 1, backgroundColor: Colors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, alignItems: "flex-end", gap: 2 },
   quickIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", marginBottom: 6 },
   quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
   quickSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted },
@@ -745,9 +809,9 @@ const styles = StyleSheet.create({
   postText: { fontFamily: "Cairo_400Regular", fontSize: 14, lineHeight: 22, color: Colors.textPrimary, textAlign: "right" },
   postMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 4 },
   postStat: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
-  postTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  postTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
   overlay: { flex: 1, backgroundColor: "rgba(10,20,16,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
-  qrCard: { backgroundColor: "#fff", borderRadius: 24, padding: 20, alignItems: "center", width: "100%", maxWidth: 360 },
+  qrCard: { backgroundColor: Colors.cardBg, borderRadius: 24, padding: 20, alignItems: "center", width: "100%", maxWidth: 360 },
   previewClose: { position: "absolute", top: 50, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: "#ffffff25", alignItems: "center", justifyContent: "center" },
 });

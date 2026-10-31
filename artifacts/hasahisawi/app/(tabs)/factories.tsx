@@ -79,7 +79,7 @@ type Product = {
 };
 
 const PLAN_PACKAGES = [
-  { name: "free",     label: "مجاني",    price: "0 SDG",        color: "#6B7280", icon: "●", features: ["3 منتجات فقط", "بيانات أساسية"] },
+  { name: "free",     label: "مجاني",    price: "0 SDG",        color: Colors.textSecondary, icon: "●", features: ["3 منتجات فقط", "بيانات أساسية"] },
   { name: "basic",    label: "أساسي",   price: "50,000 SDG/شهر", color: GREEN,    icon: "◉", features: ["10 منتجات", "معلومات اتصال", "ظهور في القائمة"] },
   { name: "standard", label: "ستاندرد", price: "150,000 SDG/شهر",color:"#0EA5E9", icon: "⬡", features: ["30 منتجاً", "بطاقة ترويجية", "شارة مميزة", "أولوية عرض"] },
   { name: "premium",  label: "بريميوم", price: "300,000 SDG/شهر",color: GOLD,     icon: "★", features: ["منتجات غير محدودة", "بانر إعلاني", "شارة الراعي", "أعلى ترتيب", "صفحة مصنع كاملة"] },
@@ -161,7 +161,7 @@ function FactoryCard({ factory, onPress, index }: { factory: Factory; onPress: (
               )}
               {contractExpired && (
                 <View style={[styles.metaChip, { backgroundColor: "#EF444420" }]}>
-                  <Text style={{ fontSize: 9, color: "#EF4444" }}>⚠️ انتهى العقد</Text>
+                  <Text style={{ fontSize: 11, color: "#EF4444" }}>⚠️ انتهى العقد</Text>
                 </View>
               )}
             </View>
@@ -347,7 +347,7 @@ function PackagesModal({ visible, onClose }: { visible: boolean; onClose: () => 
         <View style={[styles.dragBar, { backgroundColor: FAC + "60" }]} />
         <View style={{ padding: 20 }}>
           <Text style={[styles.modalTitle, { marginBottom: 4 }]}>📋 باقات انضمام المصانع</Text>
-          <Text style={{ color: Colors.textMuted, fontSize: 12, marginBottom: 20 }}>اختر الباقة المناسبة لتسويق منتجاتك مباشرة للمواطنين</Text>
+          <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 20 }}>اختر الباقة المناسبة لتسويق منتجاتك مباشرة للمواطنين</Text>
         </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 0 }}>
           {PLAN_PACKAGES.map((pkg, i) => (
@@ -590,27 +590,27 @@ function FactoriesScreen() {
 const styles = StyleSheet.create({
   container:    { flex: 1 },
   pkgBtn:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", backgroundColor: "rgba(255,255,255,0.18)" },
-  pkgBtnText:   { fontSize: 11, fontFamily: "Cairo_600SemiBold", color: "#fff" },
+  pkgBtnText:   { fontSize: 12, fontFamily: "Cairo_600SemiBold", color: "#fff" },
   searchWrap:   { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", paddingHorizontal: 12, paddingVertical: 8 },
   searchInput:  { flex: 1, color: "#fff", fontFamily: "Cairo_400Regular", fontSize: 13 },
   tabBar:       { flexDirection: "row", gap: 6, marginTop: 10 },
   tabBtn:       { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.sm, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" },
   tabBtnActive: { overflow: "hidden" },
-  tabBtnActiveBg:{ backgroundColor: "#fff" },
-  tabLabel:     { fontSize: 12, fontFamily: "Cairo_600SemiBold", color: "#fff" },
+  tabBtnActiveBg:{ backgroundColor: Colors.cardBg },
+  tabLabel:     { fontSize: 13, fontFamily: "Cairo_600SemiBold", color: "#fff" },
   tabLabelActive:{ color: FAC },
   catScroll:    { marginBottom: 12 },
   catPill:      { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.border },
-  catLabel:     { fontSize: 11, fontFamily: "Cairo_500Medium", color: Colors.textMuted },
+  catLabel:     { fontSize: 12, fontFamily: "Cairo_500Medium", color: Colors.textMuted },
   scrollContent:{ padding: 16, paddingTop: 12 },
   loadingWrap:  { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText:  { color: Colors.textMuted, fontFamily: "Cairo_400Regular" },
   // sponsor banner
   sponsorBanner:{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: Colors.radius.md, borderWidth: 1, padding: 14, marginBottom: 16, overflow: "hidden", ...Colors.shadow.card },
   sponsorIcon:  { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  sponsorLabel: { fontSize: 10, color: Colors.textMuted, fontFamily: "Cairo_400Regular" },
+  sponsorLabel: { fontSize: 11, color: Colors.textMuted, fontFamily: "Cairo_400Regular" },
   sponsorName:  { fontSize: 15, fontFamily: "Cairo_700Bold" },
-  sponsorTagline:{ fontSize: 11, color: Colors.textMuted },
+  sponsorTagline:{ fontSize: 12, color: Colors.textMuted },
   sponsorBtn:   { padding: 8, borderRadius: Colors.radius.sm, borderWidth: 1 },
   // factory card
   factoryCard:       { borderRadius: Colors.radius.lg, marginBottom: 12, overflow: "hidden", backgroundColor: Colors.surface2, ...Colors.shadow.card },
@@ -618,46 +618,46 @@ const styles = StyleSheet.create({
   factoryCardGrad:   { ...StyleSheet.absoluteFillObject },
   factoryStripe:     { position: "absolute", left: 0, top: 0, bottom: 0, width: 3 },
   planRibbon:        { position: "absolute", top: 10, right: 0, paddingHorizontal: 10, paddingVertical: 3, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 },
-  planRibbonText:    { fontSize: 10, color: "#fff", fontFamily: "Cairo_700Bold" },
+  planRibbonText:    { fontSize: 11, color: "#fff", fontFamily: "Cairo_700Bold" },
   sponsorBadge:      { position: "absolute", bottom: 10, right: 10, backgroundColor: GOLD + "CC", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  sponsorBadgeText:  { fontSize: 9, color: "#000", fontFamily: "Cairo_700Bold" },
+  sponsorBadgeText:  { fontSize: 9, color: Colors.text, fontFamily: "Cairo_700Bold" },
   factoryCardContent:{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   factoryLogo:       { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   factoryLogoText:   { fontSize: 20, color: "#fff", fontFamily: "Cairo_700Bold" },
   factoryName:       { fontSize: 15, fontFamily: "Cairo_700Bold", color: Colors.text },
-  factorySub:        { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  promoTagline:      { fontSize: 11, fontFamily: "Cairo_600SemiBold", marginTop: 2 },
+  factorySub:        { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  promoTagline:      { fontSize: 12, fontFamily: "Cairo_600SemiBold", marginTop: 2 },
   promoBadgePill:    { alignSelf: "flex-start", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, marginTop: 4 },
   promoBadgeText:    { fontSize: 10, fontFamily: "Cairo_600SemiBold" },
   factoryMeta:       { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 6 },
   metaChip:          { flexDirection: "row", alignItems: "center", gap: 3 },
-  metaText:          { fontSize: 10, color: Colors.textMuted },
+  metaText:          { fontSize: 11, color: Colors.textMuted },
   // product card
   productCard:       { borderRadius: Colors.radius.md, marginBottom: 10, padding: 14, overflow: "hidden", borderWidth: 1, ...Colors.shadow.card },
   productHeader:     { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   productCat:        { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
-  productCatText:    { fontSize: 10, fontFamily: "Cairo_600SemiBold" },
+  productCatText:    { fontSize: 11, fontFamily: "Cairo_600SemiBold" },
   productFactory:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  productFactoryText:{ fontSize: 10, fontFamily: "Cairo_600SemiBold" },
+  productFactoryText:{ fontSize: 11, fontFamily: "Cairo_600SemiBold" },
   productName:       { fontSize: 15, fontFamily: "Cairo_700Bold", color: Colors.text, marginBottom: 4 },
-  productDesc:       { fontSize: 12, color: Colors.textMuted, marginBottom: 8 },
+  productDesc:       { fontSize: 13, color: Colors.textMuted, marginBottom: 8 },
   productFooter:     { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   productPrice:      { fontSize: 16, fontFamily: "Cairo_700Bold" },
-  productPriceNote:  { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
-  minOrder:          { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  productPriceNote:  { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  minOrder:          { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   stockBadge:        { alignSelf: "flex-start", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, marginTop: 6 },
-  stockText:         { fontSize: 10, fontFamily: "Cairo_600SemiBold" },
+  stockText:         { fontSize: 11, fontFamily: "Cairo_600SemiBold" },
   productActions:    { gap: 8 },
   contactBtn:        { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
-  contactBtnText:    { fontSize: 12, fontFamily: "Cairo_600SemiBold" },
+  contactBtnText:    { fontSize: 13, fontFamily: "Cairo_600SemiBold" },
   // join CTA
   joinCta:           { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: Colors.radius.lg, borderWidth: 1, padding: 16, marginTop: 8, overflow: "hidden", ...Colors.shadow.card },
   joinCtaTitle:      { fontSize: 14, fontFamily: "Cairo_700Bold" },
-  joinCtaDesc:       { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  joinCtaDesc:       { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   // empty state
   empty:             { alignItems: "center", paddingVertical: 60, gap: 10 },
   emptyTitle:        { fontSize: 16, fontFamily: "Cairo_700Bold", color: Colors.textMuted },
-  emptyDesc:         { fontSize: 12, color: Colors.textMuted, textAlign: "center", paddingHorizontal: 20 },
+  emptyDesc:         { fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingHorizontal: 20 },
   registerBtn:       { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: Colors.radius.sm },
   registerBtnText:   { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
   // modal
@@ -670,20 +670,20 @@ const styles = StyleSheet.create({
   modalTitle:    { fontSize: 17, fontFamily: "Cairo_700Bold", color: Colors.text },
   modalCloseBtn: { padding: 4 },
   planPill:      { borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
-  planPillText:  { fontSize: 10, fontFamily: "Cairo_600SemiBold" },
+  planPillText:  { fontSize: 11, fontFamily: "Cairo_600SemiBold" },
   promoTaglineBox:{ marginHorizontal: 16, marginBottom: 4, borderRadius: Colors.radius.sm, borderWidth: 1, padding: 12 },
   promoTaglineBig:{ fontSize: 15, fontFamily: "Cairo_600SemiBold", textAlign: "center" },
   modalSection:  { padding: 16, paddingTop: 8 },
   modalSectionTitle:{ fontSize: 14, fontFamily: "Cairo_700Bold", marginBottom: 10 },
   contactGrid:   { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   contactCard:   { flex: 1, minWidth: 120, alignItems: "center", gap: 6, borderWidth: 1, borderRadius: Colors.radius.md, padding: 12 },
-  contactLabel:  { fontSize: 11, color: Colors.textMuted },
+  contactLabel:  { fontSize: 12, color: Colors.textMuted },
   contactVal:    { fontSize: 13, fontFamily: "Cairo_600SemiBold" },
   statsRow:      { flexDirection: "row", gap: 10 },
   statBlock:     { flex: 1, alignItems: "center", gap: 4, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
   statBlockVal:  { fontSize: 13, fontFamily: "Cairo_700Bold" },
-  statBlockLabel:{ fontSize: 10, color: Colors.textMuted },
-  factoryDesc:   { fontSize: 12, color: Colors.textMuted, marginTop: 10, lineHeight: 20 },
+  statBlockLabel:{ fontSize: 11, color: Colors.textMuted },
+  factoryDesc:   { fontSize: 13, color: Colors.textMuted, marginTop: 10, lineHeight: 20 },
   websiteBtn:    { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, margin: 16, borderRadius: Colors.radius.md, borderWidth: 1, paddingVertical: 12 },
   websiteBtnText:{ fontSize: 14, fontFamily: "Cairo_600SemiBold" },
   // packages modal
@@ -693,10 +693,10 @@ const styles = StyleSheet.create({
   pkgBadgeText:  { fontSize: 13, fontFamily: "Cairo_700Bold" },
   pkgPrice:      { fontSize: 14, fontFamily: "Cairo_700Bold" },
   pkgFeature:    { flexDirection: "row", alignItems: "center", gap: 6 },
-  pkgFeatureText:{ fontSize: 12, color: Colors.textMuted },
+  pkgFeatureText:{ fontSize: 13, color: Colors.textMuted },
   ctaBox:        { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 18, alignItems: "center", marginTop: 8 },
   ctaTitle:      { fontSize: 17, fontFamily: "Cairo_700Bold", marginBottom: 8 },
-  ctaDesc:       { fontSize: 12, color: Colors.textMuted, textAlign: "center", marginBottom: 16 },
+  ctaDesc:       { fontSize: 13, color: Colors.textMuted, textAlign: "center", marginBottom: 16 },
   ctaBtn:        { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Colors.radius.sm },
   ctaBtnText:    { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 14 },
 });

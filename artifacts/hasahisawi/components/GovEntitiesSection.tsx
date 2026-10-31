@@ -165,8 +165,8 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   headerSub: {
-    fontSize: 11,
-    color: "#6b7280",
+    fontSize: 12,
+    color: Colors.textSecondary,
     marginTop: 1,
   },
   inviteBanner: {
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   inviteIcon: { fontSize: 18 },
   inviteText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: "#93C5FD",
     lineHeight: 18,
   },
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   entityDesc: {
-    fontSize: 11,
-    color: "#6b7280",
+    fontSize: 12,
+    color: Colors.textSecondary,
     lineHeight: 16,
   },
   statusBadge: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   contactRow: {
@@ -252,13 +252,13 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   contactBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#2EAD6B",
     fontWeight: "600",
   },
   pendingMsg: {
-    fontSize: 11,
-    color: "#6b7280",
+    fontSize: 12,
+    color: Colors.textSecondary,
     fontStyle: "italic",
     marginTop: 2,
   },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   joinCalloutText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.accent,
     fontWeight: "600",
   },

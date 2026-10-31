@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, type TextInputProps, type
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 
-export const EDU = { ink: "#12355B", teal: "#2F7D6D", gold: "#B78200", soft: "#EEF5F3", line: "#E1EAE6" };
+export const EDU = { ink: "#12355B", teal: "#2F7D6D", gold: "#B78200", soft: Colors.primarySoft, line: "#E1EAE6" };
 
 export function ToolHeader({ title, sub, onBack, right }: { title: string; sub?: string; onBack: () => void; right?: React.ReactNode }) {
   return (
@@ -32,7 +32,7 @@ export function Btn({ title, icon, onPress, color = EDU.ink, outline, style, dis
   title: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void; color?: string; outline?: boolean; style?: ViewStyle; disabled?: boolean;
 }) {
   return (
-    <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [u.btn, outline ? { borderWidth: 1.2, borderColor: color, backgroundColor: "#fff" } : { backgroundColor: color }, (pressed || disabled) && { opacity: 0.7 }, style]}>
+    <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [u.btn, outline ? { borderWidth: 1.2, borderColor: color, backgroundColor: Colors.cardBg } : { backgroundColor: color }, (pressed || disabled) && { opacity: 0.7 }, style]}>
       {icon ? <Ionicons name={icon} size={17} color={outline ? color : "#fff"} /> : null}
       <Text style={[u.btnText, outline && { color }]}>{title}</Text>
     </Pressable>
@@ -68,21 +68,21 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
 }
 
 export const u = StyleSheet.create({
-  head: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: EDU.line },
+  head: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: EDU.line },
   back: { width: 36, height: 36, borderRadius: 12, backgroundColor: EDU.soft, alignItems: "center", justifyContent: "center" },
   headTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: EDU.ink, textAlign: "right" },
   headSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
-  label: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: EDU.ink, textAlign: "right" },
-  input: { backgroundColor: "#fff", borderWidth: 1, borderColor: EDU.line, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.text },
+  label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: EDU.ink, textAlign: "right" },
+  input: { backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: EDU.line, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.text },
   btn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12 },
   btnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
-  card: { backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: EDU.line, padding: 14 },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: EDU.line, padding: 14 },
   empty: { alignItems: "center", gap: 8, paddingVertical: 36, paddingHorizontal: 20 },
   emptyIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: EDU.soft, alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: EDU.ink, textAlign: "center" },
-  emptySub: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textMuted, textAlign: "center", lineHeight: 20 },
+  emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", lineHeight: 20 },
   seg: { flexDirection: "row-reverse", backgroundColor: EDU.soft, borderRadius: 12, padding: 4, gap: 4 },
   segItem: { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: "center" },
   segOn: { backgroundColor: EDU.ink },
-  segText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: EDU.ink },
+  segText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: EDU.ink },
 });

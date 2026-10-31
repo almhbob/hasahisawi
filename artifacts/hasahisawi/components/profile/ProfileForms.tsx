@@ -178,16 +178,17 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
   visible: boolean; token: string; cert: Cert | null; onClose: () => void; onSaved: () => void;
 }) {
   const [kind, setKind] = useState<CertKind>("course");
-  const [f, setF] = useState({ title: "", issuer: "", issued_on: "", credential_id: "", credential_url: "" });
+  const [f, setF] = useState({ title: "", issuer: "", issued_on: "", expires_on: "", credential_id: "", credential_url: "" });
   const [file, setFile] = useState<{ url: string; type: "pdf" | "image"; name?: string } | null>(null);
   const [isPublic, setIsPublic] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
     setKind(cert?.kind || "course");
-    setF({ title: cert?.title || "", issuer: cert?.issuer || "", issued_on: cert?.issued_on || "", credential_id: cert?.credential_id || "", credential_url: cert?.credential_url || "" });
+    setF({ title: cert?.title || "", issuer: cert?.issuer || "", issued_on: cert?.issued_on || "", expires_on: cert?.expires_on || "", credential_id: cert?.credential_id || "", credential_url: cert?.credential_url || "" });
     setFile(cert?.file_url ? { url: cert.file_url, type: cert.file_type || "image" } : null);
     setIsPublic(cert ? cert.is_public : true);
   }, [visible, cert]);
@@ -217,6 +218,28 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
     finally { setUploading(false); }
   };
 
+  const importJson = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    const asset = picked.assets[0];
+    if (asset.size && asset.size > 1024 * 1024) { notify("الملف كبير", "الحد الأقصى للاستيراد 1 ميجابايت"); return; }
+    setImporting(true);
+    try {
+      const text = await (await fetch(asset.uri)).text();
+      if (text.length > 1024 * 1024) throw new Error("الحد الأقصى للاستيراد 1 ميجابايت");
+      const parsed = JSON.parse(text);
+      const records = Array.isArray(parsed) ? parsed : parsed?.records;
+      if (!Array.isArray(records) || records.length < 1 || records.length > 100) {
+        throw new Error("يجب أن يحتوي الملف على قائمة من 1 إلى 100 شهادة");
+      }
+      const result = await profileApi.importCerts(token, records);
+      notify("اكتمل الاستيراد", `أُضيف ${result.inserted}، وتُخطّي ${result.skipped} مكرراً. السجلات المستوردة مخفية افتراضياً.`);
+      onSaved();
+    } catch (e: any) {
+      notify("تعذّر استيراد الملف", e?.message || "تحقق من أن الملف JSON صالح");
+    } finally { setImporting(false); }
+  };
+
   const save = async () => {
     if (f.title.trim().length < 2) { notify("اسم الشهادة مطلوب", "اكتب اسم الشهادة أو الخبرة"); return; }
     setBusy(true);
@@ -231,7 +254,7 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
   const isExp = kind === "experience";
   return (
     <Sheet visible={visible} title={cert ? "تعديل الشهادة" : "إضافة شهادة أو خبرة"} onClose={onClose}
-      footer={<PrimaryButton label={cert ? "حفظ التعديل" : "إضافة إلى ملفي"} onPress={save} busy={busy || uploading} />}>
+      footer={<PrimaryButton label={cert ? "حفظ التعديل" : "إضافة إلى ملفي"} onPress={save} busy={busy || uploading || importing} />}>
       <Text style={st.section}>النوع</Text>
       <View style={st.chips}>
         {CERT_KINDS.map((k) => {
@@ -244,9 +267,19 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
           );
         })}
       </View>
+      {!cert && (
+        <View style={{ marginBottom: 12 }}>
+          <Pressable onPress={importJson} disabled={busy || uploading || importing} style={st.attach}>
+            {importing ? <ActivityIndicator color={Colors.primary} /> : <Ionicons name="cloud-upload-outline" size={19} color={Colors.primary} />}
+            <Text style={st.attachText}>استيراد قائمة JSON حتى 100 شهادة</Text>
+          </Pressable>
+          <Text style={st.switchSub}>تُضاف إلى حسابك وتبقى مخفية عن الملف العام حتى تنشرها.</Text>
+        </View>
+      )}
       <Field label={isExp ? "المسمى الوظيفي" : "اسم الشهادة"} value={f.title} max={200} onChange={(v) => setF({ ...f, title: v })} placeholder={isExp ? "مثال: محاسب أول" : "مثال: بكالوريوس هندسة مدنية"} />
       <Field label={isExp ? "جهة العمل" : "الجهة المانحة"} value={f.issuer} max={200} onChange={(v) => setF({ ...f, issuer: v })} placeholder={isExp ? "مثال: مصنع سكر الجنيد" : "مثال: جامعة الجزيرة"} />
       <Field label={isExp ? "الفترة" : "تاريخ الحصول"} value={f.issued_on} max={20} onChange={(v) => setF({ ...f, issued_on: v })} placeholder={isExp ? "2019 – 2024" : "2023"} />
+      {!isExp && <Field label="تاريخ الانتهاء (اختياري)" value={f.expires_on} max={20} onChange={(v) => setF({ ...f, expires_on: v })} placeholder="2028-03-24" />}
       {!isExp && <Field label="رقم الشهادة (اختياري)" value={f.credential_id} max={120} onChange={(v) => setF({ ...f, credential_id: v })} placeholder="للتحقق من قبل جهة العمل" />}
       {!isExp && <Field label="رابط التحقق (اختياري)" value={f.credential_url} max={500} keyboard="url" onChange={(v) => setF({ ...f, credential_url: v })} placeholder="https://" />}
 
@@ -353,17 +386,17 @@ export function VerifyModal({ visible, token, onClose, onSent }: { visible: bool
 }
 
 const st = StyleSheet.create({
-  head: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: Colors.border },
+  head: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 10, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.border },
   close: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: Colors.bg },
   headTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
-  footer: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: Colors.border },
+  footer: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.border },
   section: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right", marginTop: 8, marginBottom: 8 },
-  sectionSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  sectionSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   fieldHead: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 5 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
-  count: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSubtle },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 13, backgroundColor: "#fff", paddingHorizontal: 13, paddingVertical: Platform.OS === "web" ? 11 : 9, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
-  switchRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 12, marginBottom: 8 },
+  count: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSubtle },
+  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 13, backgroundColor: Colors.cardBg, paddingHorizontal: 13, paddingVertical: Platform.OS === "web" ? 11 : 9, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
+  switchRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 12, marginBottom: 8 },
   switchLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   switchSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
   primary: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, height: 50, borderRadius: 15 },
@@ -373,15 +406,15 @@ const st = StyleSheet.create({
   skillText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primaryDeep },
   addRow: { flexDirection: "row-reverse", gap: 8, marginBottom: 6 },
   addBtn: { width: 46, height: 46, borderRadius: 13, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
-  kindChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: "#fff" },
-  kindText: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary },
-  fileBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 10 },
+  kindChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg },
+  kindText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  fileBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 10 },
   fileThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.bg },
   fileName: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
   attach: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, height: 52, borderRadius: 14, borderWidth: 1.5, borderStyle: "dashed", borderColor: Colors.primary + "70", backgroundColor: Colors.primary + "08" },
   attachText: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.primary },
   info: { flexDirection: "row-reverse", gap: 10, backgroundColor: "#E8F4FD", borderRadius: 14, padding: 12, marginBottom: 6 },
-  infoText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12.5, lineHeight: 21, color: "#0F4C75", textAlign: "right" },
-  vk: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 12, marginBottom: 8 },
+  infoText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 21, color: "#0F4C75", textAlign: "right" },
+  vk: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 12, marginBottom: 8 },
   vkSel: { borderColor: Colors.primary, backgroundColor: Colors.primary + "08" },
 });

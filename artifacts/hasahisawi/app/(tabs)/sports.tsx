@@ -163,13 +163,13 @@ const pc = StyleSheet.create({
   body:     {padding:14},
   topRow:   {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginBottom:8},
   catBadge: {flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:8,paddingHorizontal:8,paddingVertical:3},
-  catText:  {fontFamily:"Cairo_600SemiBold",fontSize:11},
-  time:     {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
+  catText:  {fontFamily:"Cairo_600SemiBold",fontSize: 12},
+  time:     {fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted},
   title:    {fontFamily:"Cairo_700Bold",fontSize:16,color:Colors.textPrimary,textAlign:"right",marginBottom:6,lineHeight:24},
   bodyTxt:  {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textSecondary,textAlign:"right",lineHeight:20,marginBottom:10},
   footer:   {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between"},
   likeBtn:  {flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:8,paddingVertical:4,borderRadius:8,backgroundColor:Colors.bg},
-  footNum:  {fontFamily:"Cairo_500Medium",fontSize:12,color:Colors.textMuted},
+  footNum:  {fontFamily:"Cairo_500Medium",fontSize: 13,color:Colors.textMuted},
 });
 
 // ─── Post Detail Modal (comments) ────────────────────────────────────────────
@@ -250,8 +250,8 @@ const dm = StyleSheet.create({
   img:       {width:"100%",height:200},
   pad:       {padding:16},
   catRow:    {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",borderRadius:10,paddingHorizontal:12,paddingVertical:6,marginBottom:12},
-  catTxt:    {fontFamily:"Cairo_600SemiBold",fontSize:12},
-  timeTxt:   {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
+  catTxt:    {fontFamily:"Cairo_600SemiBold",fontSize: 13},
+  timeTxt:   {fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted},
   title:     {fontFamily:"Cairo_700Bold",fontSize:18,color:Colors.textPrimary,textAlign:"right",lineHeight:26,marginBottom:10},
   body:      {fontFamily:"Cairo_400Regular",fontSize:14,color:Colors.textSecondary,textAlign:"right",lineHeight:22},
   likeRow:   {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginTop:14,paddingTop:12,borderTopWidth:1,borderTopColor:Colors.divider},
@@ -261,10 +261,10 @@ const dm = StyleSheet.create({
   cmtRow:    {flexDirection:"row-reverse",gap:10,marginBottom:12,alignItems:"flex-start"},
   avatar:    {width:34,height:34,borderRadius:17,backgroundColor:Colors.primary+"20",justifyContent:"center",alignItems:"center"},
   avatarTxt: {fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.primary},
-  cmtAuthor: {fontFamily:"Cairo_600SemiBold",fontSize:12,color:Colors.textPrimary},
+  cmtAuthor: {fontFamily:"Cairo_600SemiBold",fontSize: 13,color:Colors.textPrimary},
   cmtText:   {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textSecondary,textAlign:"right",lineHeight:18},
   inputArea: {borderTopWidth:1,borderTopColor:Colors.divider,padding:12},
-  nameInput: {backgroundColor:Colors.bg,borderRadius:10,paddingHorizontal:12,paddingVertical:7,fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textPrimary,borderWidth:1,borderColor:Colors.divider,marginBottom:8},
+  nameInput: {backgroundColor:Colors.bg,borderRadius:10,paddingHorizontal:12,paddingVertical:7,fontFamily:"Cairo_400Regular",fontSize: 13,color:Colors.textPrimary,borderWidth:1,borderColor:Colors.divider,marginBottom:8},
   cmtInput:  {flex:1,backgroundColor:Colors.bg,borderRadius:14,paddingHorizontal:14,paddingVertical:10,fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textPrimary,borderWidth:1,borderColor:Colors.divider,maxHeight:80},
   sendBtn:   {width:42,height:42,borderRadius:12,backgroundColor:Colors.primary,justifyContent:"center",alignItems:"center"},
 });
@@ -311,7 +311,7 @@ const pl = StyleSheet.create({
   card:          {width:CARD_W,backgroundColor:Colors.cardBg,borderRadius:Colors.radius.lg,overflow:"hidden",borderWidth:1,borderColor:Colors.divider,marginLeft:12,...Colors.shadow.card},
   featuredCard:  {borderColor:"#F0A500",borderWidth:1.5},
   starBadge:     {position:"absolute",top:8,left:8,flexDirection:"row-reverse",alignItems:"center",gap:3,backgroundColor:"#F0A500",borderRadius:8,paddingHorizontal:6,paddingVertical:2,zIndex:10},
-  starTxt:       {fontFamily:"Cairo_700Bold",fontSize:9,color:"#fff"},
+  starTxt:       {fontFamily:"Cairo_700Bold",fontSize: 11,color:"#fff"},
   imgWrap:       {width:"100%",aspectRatio:1,position:"relative"},
   img:           {width:"100%",height:"100%"},
   imgPlaceholder:{width:"100%",height:"100%",justifyContent:"center",alignItems:"center"},
@@ -320,12 +320,12 @@ const pl = StyleSheet.create({
   info:          {padding:10,alignItems:"flex-end"},
   name:          {fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.textPrimary,textAlign:"right"},
   posBadge:      {borderRadius:6,paddingHorizontal:8,paddingVertical:2,marginTop:4},
-  posText:       {fontFamily:"Cairo_600SemiBold",fontSize:10},
-  club:          {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted,textAlign:"right",marginTop:2},
+  posText:       {fontFamily:"Cairo_600SemiBold",fontSize: 11},
+  club:          {fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted,textAlign:"right",marginTop:2},
   statsRow:      {flexDirection:"row-reverse",alignItems:"center",marginTop:8,width:"100%"},
   stat:          {flex:1,alignItems:"center"},
   statN:         {fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.textPrimary},
-  statL:         {fontFamily:"Cairo_400Regular",fontSize:9,color:Colors.textMuted,marginTop:1},
+  statL:         {fontFamily:"Cairo_400Regular",fontSize: 11,color:Colors.textMuted,marginTop:1},
   div:           {width:1,height:24,backgroundColor:Colors.divider},
 });
 
@@ -419,10 +419,10 @@ const pdl = StyleSheet.create({
   statsGrid:  {flexDirection:"row-reverse",flexWrap:"wrap",gap:10,marginTop:20,justifyContent:"flex-end",width:"100%"},
   statItem:   {alignItems:"center",backgroundColor:Colors.bg,borderRadius:14,padding:12,minWidth:62,borderWidth:1,borderColor:Colors.divider},
   statNum:    {fontFamily:"Cairo_700Bold",fontSize:22,color:Colors.textPrimary},
-  statLbl:    {fontFamily:"Cairo_400Regular",fontSize:10,color:Colors.textMuted,marginTop:2,textAlign:"center"},
+  statLbl:    {fontFamily:"Cairo_400Regular",fontSize: 11,color:Colors.textMuted,marginTop:2,textAlign:"center"},
   adminRow:   {flexDirection:"row-reverse",gap:8,marginTop:20,width:"100%"},
   aBtn:       {flex:1,flexDirection:"row-reverse",alignItems:"center",justifyContent:"center",gap:5,paddingVertical:10,borderRadius:12},
-  aBtnTxt:    {fontFamily:"Cairo_600SemiBold",fontSize:12},
+  aBtnTxt:    {fontFamily:"Cairo_600SemiBold",fontSize: 13},
 });
 
 // ─── Match Card ───────────────────────────────────────────────────────────────
@@ -469,7 +469,7 @@ const mc = StyleSheet.create({
   header: {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",padding:12,paddingBottom:8,borderBottomWidth:1,borderBottomColor:Colors.divider},
   comp:   {fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.textPrimary},
   sBadge: {borderRadius:8,paddingHorizontal:8,paddingVertical:3},
-  sTxt:   {fontFamily:"Cairo_600SemiBold",fontSize:11},
+  sTxt:   {fontFamily:"Cairo_600SemiBold",fontSize: 12},
   teams:  {flexDirection:"row-reverse",alignItems:"center",paddingHorizontal:12,paddingVertical:18,gap:8},
   team:   {flex:1,alignItems:"center",gap:6},
   tName:  {fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.textPrimary,textAlign:"center"},
@@ -477,10 +477,10 @@ const mc = StyleSheet.create({
   vs:     {alignItems:"center",gap:2},
   vsTime: {fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.primary},
   vsText: {fontFamily:"Cairo_700Bold",fontSize:16,color:Colors.primary},
-  vsDate: {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
+  vsDate: {fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted},
   foot:   {flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:12,paddingBottom:10},
-  venue:  {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
-  desc:   {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textSecondary,textAlign:"right",padding:12,paddingTop:0,lineHeight:18},
+  venue:  {fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted},
+  desc:   {fontFamily:"Cairo_400Regular",fontSize: 13,color:Colors.textSecondary,textAlign:"right",padding:12,paddingTop:0,lineHeight:18},
 });
 
 // ─── Club Card ────────────────────────────────────────────────────────────────
@@ -530,13 +530,13 @@ const cc = StyleSheet.create({
   name:    {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.textPrimary,textAlign:"right"},
   tagRow:  {flexDirection:"row-reverse",alignItems:"center",gap:8,marginTop:4},
   tag:     {flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:6,paddingHorizontal:8,paddingVertical:2},
-  tagTxt:  {fontFamily:"Cairo_500Medium",fontSize:11},
-  founded: {fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted},
+  tagTxt:  {fontFamily:"Cairo_500Medium",fontSize: 12},
+  founded: {fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted},
   details: {paddingHorizontal:14,paddingBottom:14},
   divider: {height:1,backgroundColor:Colors.divider,marginBottom:12},
   desc:    {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textSecondary,textAlign:"right",lineHeight:20,marginBottom:10},
   dRow:    {flexDirection:"row-reverse",alignItems:"center",gap:6,marginBottom:6},
-  dVal:    {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textSecondary,flex:1,textAlign:"right"},
+  dVal:    {fontFamily:"Cairo_400Regular",fontSize: 13,color:Colors.textSecondary,flex:1,textAlign:"right"},
   callBtn: {flexDirection:"row-reverse",alignItems:"center",justifyContent:"center",gap:8,marginTop:8,paddingVertical:10,borderRadius:12},
   callTxt: {fontFamily:"Cairo_700Bold",fontSize:13,color:"#fff"},
 });
@@ -549,12 +549,12 @@ const fm = StyleSheet.create({
   label:      {fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.textSecondary,textAlign:"right",marginBottom:6,marginTop:12},
   input:      {backgroundColor:Colors.bg,borderRadius:12,padding:12,fontFamily:"Cairo_400Regular",fontSize:14,color:Colors.textPrimary,borderWidth:1,borderColor:Colors.divider},
   chip:       {paddingHorizontal:14,paddingVertical:7,borderRadius:10,backgroundColor:Colors.bg,borderWidth:1,borderColor:Colors.divider},
-  chipTxt:    {fontFamily:"Cairo_500Medium",fontSize:12,color:Colors.textMuted},
+  chipTxt:    {fontFamily:"Cairo_500Medium",fontSize: 13,color:Colors.textMuted},
   imgBox:     {height:140,borderRadius:14,backgroundColor:Colors.bg,borderWidth:2,borderStyle:"dashed",borderColor:Colors.divider,justifyContent:"center",alignItems:"center",overflow:"hidden"},
   playerImgBox:{height:160,borderRadius:16,backgroundColor:Colors.bg,borderWidth:2,borderStyle:"dashed",borderColor:Colors.primary+"40",justifyContent:"center",alignItems:"center",overflow:"hidden",marginBottom:4},
   saveBtn:    {marginTop:18,borderRadius:14,overflow:"hidden"},
   saveBtnInner:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"center",gap:8,paddingVertical:15},
-  saveBtnTxt: {fontFamily:"Cairo_700Bold",fontSize:15,color:"#000"},
+  saveBtnTxt: {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.text},
 });
 
 // ─── Add Post Modal ───────────────────────────────────────────────────────────
@@ -595,11 +595,11 @@ function AddPostModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
               <Text style={fm.label}>صورة (اختياري)</Text>
               <TouchableOpacity style={fm.imgBox} onPress={pickImg}>
                 {imgUri ? <Image source={{uri:imgUri}} style={{width:"100%",height:"100%"}} resizeMode="cover" />
-                  : <><Ionicons name="image-outline" size={28} color={Colors.textMuted} /><Text style={{fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textMuted,marginTop:4}}>اضغط لاختيار صورة</Text></>}
+                  : <><Ionicons name="image-outline" size={28} color={Colors.textMuted} /><Text style={{fontFamily:"Cairo_400Regular",fontSize: 13,color:Colors.textMuted,marginTop:4}}>اضغط لاختيار صورة</Text></>}
               </TouchableOpacity>
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="send" size={18} color="#000" />
+                  <Ionicons name="send" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>نشر الخبر</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -660,7 +660,7 @@ function AddPlayerModal({ visible, initial, onClose, onSave }:{visible:boolean;i
               <Text style={fm.title}>{initial?"تعديل بيانات لاعب":"إضافة لاعب جديد"}</Text>
               <TouchableOpacity style={fm.playerImgBox} onPress={pickImg}>
                 {imgUri ? <Image source={{uri:imgUri}} style={{width:"100%",height:"100%",borderRadius:14}} resizeMode="cover" />
-                  : <><Ionicons name="camera-outline" size={32} color={Colors.primary} /><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.primary,marginTop:4}}>صورة اللاعب</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:Colors.textMuted}}>اضغط للاختيار</Text></>}
+                  : <><Ionicons name="camera-outline" size={32} color={Colors.primary} /><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.primary,marginTop:4}}>صورة اللاعب</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize: 12,color:Colors.textMuted}}>اضغط للاختيار</Text></>}
               </TouchableOpacity>
               <Text style={fm.label}>اسم اللاعب *</Text>
               <TextInput style={fm.input} value={name} onChangeText={setName} placeholder="الاسم الكامل" placeholderTextColor={Colors.textMuted} textAlign="right" />
@@ -691,7 +691,7 @@ function AddPlayerModal({ visible, initial, onClose, onSave }:{visible:boolean;i
               </View>
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="save-outline" size={18} color="#000" />
+                  <Ionicons name="save-outline" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>حفظ اللاعب</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -759,7 +759,7 @@ function AddMatchModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=
               <TextInput style={[fm.input,{height:60,textAlignVertical:"top",paddingTop:8}]} value={desc} onChangeText={setDesc} placeholder="تفاصيل إضافية..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="save-outline" size={18} color="#000" />
+                  <Ionicons name="save-outline" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>حفظ المباراة</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -820,7 +820,7 @@ function AddClubModal({ visible, onClose, onSave }:{visible:boolean;onClose:()=>
               <TextInput style={[fm.input,{height:60,textAlignVertical:"top",paddingTop:8}]} value={desc} onChangeText={setDesc} placeholder="نبذة مختصرة..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
               <TouchableOpacity style={fm.saveBtn} onPress={submit}>
                 <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={fm.saveBtnInner}>
-                  <Ionicons name="save-outline" size={18} color="#000" />
+                  <Ionicons name="save-outline" size={18} color={Colors.text} />
                   <Text style={fm.saveBtnTxt}>حفظ النادي</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -861,7 +861,7 @@ function FeatureModal({ player, visible, onClose, onConfirm }:{
                   {["3","7","14","30"].map(d=>(
                     <TouchableOpacity key={d} style={{flex:1,paddingVertical:10,borderRadius:10,backgroundColor:days===d?"#F0A500":"#F0A50015",alignItems:"center",borderWidth:1,borderColor:"#F0A50040"}} onPress={()=>setDays(d)}>
                       <Text style={{fontFamily:"Cairo_700Bold",fontSize:15,color:days===d?"#fff":"#F0A500"}}>{d}</Text>
-                      <Text style={{fontFamily:"Cairo_400Regular",fontSize:10,color:days===d?"#fff":"#F0A500"}}>يوم</Text>
+                      <Text style={{fontFamily:"Cairo_400Regular",fontSize: 11,color:days===d?"#fff":"#F0A500"}}>يوم</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1181,7 +1181,7 @@ export default function SportsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pinBtn,{overflow:"hidden"}]} onPress={adminLogin}>
                     <LinearGradient colors={[Colors.primary,Colors.primaryDim]} style={{flex:1,alignItems:"center",justifyContent:"center"}}>
-                      <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#000"}}>دخول</Text>
+                      <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.text}}>دخول</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
@@ -1210,7 +1210,7 @@ export default function SportsScreen() {
                   else if (tab==="matches") setAddMatch(true);
                   else setAddClub(true);
                 }}>
-                  <Ionicons name="add" size={18} color="#000" />
+                  <Ionicons name="add" size={18} color={Colors.text} />
                 </TouchableOpacity>}
               </>
             ) : (
@@ -1262,7 +1262,7 @@ export default function SportsScreen() {
               <Text style={s.emptyTitle}>{loadFailed ? "تعذّر تحميل الأخبار" : "لا توجد أخبار بعد"}</Text>
               {loadFailed ? (
                 <TouchableOpacity onPress={load} style={{marginTop:12,paddingHorizontal:24,paddingVertical:10,backgroundColor:Colors.primary,borderRadius:20}}>
-                  <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#000"}}>إعادة المحاولة</Text>
+                  <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:Colors.text}}>إعادة المحاولة</Text>
                 </TouchableOpacity>
               ) : isAdmin && <Text style={s.emptySub}>اضغط + لنشر أول خبر</Text>}
             </View>
@@ -1295,7 +1295,7 @@ export default function SportsScreen() {
                 ))}
               </ScrollView>
               <View style={{marginHorizontal:14,marginTop:8,padding:10,backgroundColor:"#F0A50010",borderRadius:10,borderWidth:1,borderColor:"#F0A50030"}}>
-                <Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:"#F0A500",textAlign:"right"}}>⭐ اللاعبون المميزون يظهرون هنا مقابل إعلان مدفوع — للاستفسار تواصل مع إدارة التطبيق</Text>
+                <Text style={{fontFamily:"Cairo_400Regular",fontSize: 12,color:"#F0A500",textAlign:"right"}}>⭐ اللاعبون المميزون يظهرون هنا مقابل إعلان مدفوع — للاستفسار تواصل مع إدارة التطبيق</Text>
               </View>
             </View>
           )}
@@ -1392,24 +1392,24 @@ const s = StyleSheet.create({
   tabsRow:     {flexDirection:"row-reverse",paddingBottom:0,gap:4,paddingRight:0},
   tabBtn:      {flexDirection:"row-reverse",alignItems:"center",gap:5,paddingHorizontal:12,paddingVertical:10,borderRadius:Colors.radius.sm,position:"relative"},
   tabBtnActive:{backgroundColor:"rgba(255,255,255,0.18)"},
-  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:"#fff"},
-  tabTxt:      {fontFamily:"Cairo_500Medium",fontSize:12,color:"rgba(255,255,255,0.62)"},
-  tabTxtActive:{fontFamily:"Cairo_700Bold",fontSize:12,color:"#fff"},
+  tabLine:     {position:"absolute",bottom:0,left:8,right:8,height:2,borderRadius:1,backgroundColor:Colors.cardBg},
+  tabTxt:      {fontFamily:"Cairo_500Medium",fontSize: 13,color:"rgba(255,255,255,0.62)"},
+  tabTxtActive:{fontFamily:"Cairo_700Bold",fontSize: 13,color:"#fff"},
   badge:       {borderRadius:8,paddingHorizontal:5,paddingVertical:1,minWidth:16,alignItems:"center"},
   badgeTxt:    {fontFamily:"Cairo_700Bold",fontSize:9,color:"#fff"},
   scroll:      {flex:1},
   pad:         {padding:14,paddingBottom:100},
   secHeader:   {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginBottom:12},
   secTitle:    {fontFamily:"Cairo_700Bold",fontSize:15,color:Colors.textPrimary,textAlign:"right"},
-  secCount:    {fontFamily:"Cairo_400Regular",fontSize:12,color:Colors.textMuted},
+  secCount:    {fontFamily:"Cairo_400Regular",fontSize: 13,color:Colors.textMuted},
   empty:       {alignItems:"center",paddingTop:60,gap:10},
   emptyTitle:  {fontFamily:"Cairo_600SemiBold",fontSize:17,color:Colors.textSecondary,textAlign:"center"},
   emptySub:    {fontFamily:"Cairo_400Regular",fontSize:13,color:Colors.textMuted,textAlign:"center"},
   liveBanner:  {flexDirection:"row-reverse",alignItems:"center",gap:8,backgroundColor:Colors.danger+"14",borderRadius:Colors.radius.md,padding:12,marginBottom:14,borderWidth:1,borderColor:Colors.danger+"30",...Colors.shadow.card},
   liveDot:     {width:9,height:9,borderRadius:5,backgroundColor:Colors.danger},
-  liveTxt:     {fontFamily:"Cairo_700Bold",fontSize:12,color:Colors.danger,flex:1,textAlign:"right"},
+  liveTxt:     {fontFamily:"Cairo_700Bold",fontSize: 13,color:Colors.danger,flex:1,textAlign:"right"},
   delChip:     {flexDirection:"row-reverse",alignItems:"center",gap:4,alignSelf:"flex-end",paddingHorizontal:10,paddingVertical:4,borderRadius:Colors.radius.sm,backgroundColor:Colors.danger+"12",marginBottom:8,marginTop:-6},
-  delChipTxt:  {fontFamily:"Cairo_500Medium",fontSize:11,color:Colors.danger},
+  delChipTxt:  {fontFamily:"Cairo_500Medium",fontSize: 12,color:Colors.danger},
   pinOverlay:  {flex:1,backgroundColor:"rgba(0,0,0,0.75)",justifyContent:"center",alignItems:"center",padding:24},
   pinCard:     {width:"100%",borderRadius:Colors.radius.xl,overflow:"hidden",...Colors.shadow.raised},
   pinInner:    {padding:28,alignItems:"center",borderRadius:Colors.radius.xl,borderWidth:1,borderColor:Colors.divider},

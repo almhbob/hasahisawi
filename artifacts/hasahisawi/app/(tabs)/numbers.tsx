@@ -548,7 +548,7 @@ function NumbersScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).springify()} style={{ backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.sm, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" }}>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#fff", textAlign: "right" }}>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#fff", textAlign: "right" }}>
             الأرقام متاحة للعامة — المنصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية
           </Text>
         </Animated.View>
@@ -680,16 +680,16 @@ const styles = StyleSheet.create({
 
   emergencyStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: Colors.radius.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", gap: 8, flexWrap: "wrap" },
   emergencyText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
-  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
-  emergencyChipText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  emergencyChip: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, gap: 5, borderWidth: 1, borderColor: Colors.divider },
+  emergencyChipText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
 
   scroll: { flex: 1 },
-  section: { marginBottom: 16, borderRadius: Colors.radius.lg, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, backgroundColor: "#fff", ...Colors.shadow.card },
+  section: { marginBottom: 16, borderRadius: Colors.radius.lg, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, ...Colors.shadow.card },
   sectionHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
   sectionIconWrap: { width: 36, height: 36, borderRadius: Colors.radius.sm, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, flex: 1 },
   pinBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: Colors.radius.sm, paddingHorizontal: 6, paddingVertical: 3, borderWidth: 1 },
-  pinText: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  pinText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   sectionBadge: { backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: Colors.divider },
   sectionBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   sectionBody: { backgroundColor: Colors.cardBg, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
@@ -699,9 +699,9 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   cardName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   cardNumber: { fontFamily: "Cairo_700Bold", fontSize: 17, marginTop: 2, textAlign: "right", letterSpacing: 0.5 },
-  cardNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  cardNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   callBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: Colors.radius.sm, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, gap: 3, minWidth: 52 },
-  callLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  callLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   editBtn: { backgroundColor: Colors.primary + "15", borderRadius: Colors.radius.sm, padding: 8, borderWidth: 1, borderColor: Colors.primary + "30" },
   deleteBtn: { backgroundColor: "#EF444415", borderRadius: Colors.radius.sm, padding: 8, borderWidth: 1, borderColor: "#EF444430" },
 
@@ -720,7 +720,7 @@ const modal = StyleSheet.create({
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
   input: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 10 },
   catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
-  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   colorDot: { width: 28, height: 28, borderRadius: Colors.radius.pill, marginRight: 8, borderWidth: 2, borderColor: "transparent" },
   colorDotActive: { borderColor: Colors.textPrimary, transform: [{ scale: 1.2 }] },
   iconBtn: { width: 38, height: 38, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, justifyContent: "center", alignItems: "center", marginRight: 8, backgroundColor: Colors.bg },

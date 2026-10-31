@@ -115,7 +115,7 @@ const s = StyleSheet.create({
   },
   iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#E8A900", alignItems: "center", justifyContent: "center" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#3D2E00", textAlign: "right" },
-  body: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#5C4A12", textAlign: "right", lineHeight: 19 },
-  hint: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#946B00", textAlign: "right", marginTop: 2 },
+  body: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5C4A12", textAlign: "right", lineHeight: 19 },
+  hint: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#946B00", textAlign: "right", marginTop: 2 },
   x: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#F7E3A6", alignItems: "center", justifyContent: "center" },
 });

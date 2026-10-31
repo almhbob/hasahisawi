@@ -1,3 +1,5 @@
+import { isDarkTheme, activeScheme } from "./theme-mode";
+
 // ═══════════════════════════════════════════════════════════════
 // Hasahisawi Design System — Eye-Comfortable Palette
 // أخضر الشعار + ذهبي الشعار، خلفية محايدة، تباين مريح.
@@ -13,70 +15,70 @@ type SectionColor = {
 
 // ── ألوان الشعار (مُخفَّفة قليلاً لتكون أقل إجهاداً) ──────────
 const primary      = "#00966A"; // أخضر الشعار — أهدأ بدرجة بسيطة
-const primaryDeep  = "#006B4A";
+const primaryDeep  = isDarkTheme ? "#3DD39F" : "#006B4A";
 const primaryDim   = "#008259";
 const primaryLight = "#4EC99D";
-const primarySoft  = "#EAF9F3";
-const primaryGlow  = "rgba(0,150,106,0.16)";
+const primarySoft  = isDarkTheme ? "#173A2E" : "#EAF9F3";
+const primaryGlow  = isDarkTheme ? "rgba(61,211,159,0.18)" : "rgba(0,150,106,0.16)";
 
 const accent       = "#E8A900"; // ذهبي — مُخفَّف للعين
-const accentDeep   = "#946B00"; // was #AD7E00 (3.65:1) — now 4.8:1 on white, readable as text
+const accentDeep   = isDarkTheme ? "#F2C94C" : "#946B00"; // was #AD7E00 (3.65:1) — now 4.8:1 on white, readable as text
 const accentDim    = "#CB9200";
 const accentLight  = "#F7D76A";
-const accentSoft   = "#FFF7E0";
-const accentGlow   = "rgba(232,169,0,0.18)";
+const accentSoft   = isDarkTheme ? "#3A3016" : "#FFF7E0";
+const accentGlow   = isDarkTheme ? "rgba(242,201,76,0.18)" : "rgba(232,169,0,0.18)";
 
 // ── ألوان دلالية صحيحة ────────────────────────────────────────
 // الخطر يجب أن يكون أحمر لا ذهبياً
 const dangerColor  = "#D93636";
-const dangerSoftC  = "rgba(217,54,54,0.10)";
+const dangerSoftC  = isDarkTheme ? "rgba(239,83,80,0.16)" : "rgba(217,54,54,0.10)";
 
 // ── الخلفيات — محايدة لتريح العين ────────────────────────────
 const white        = "#FFFFFF";
-const ink          = "#1A2C25"; // نص داكن دافئ
-const bg           = "#F7F9F8"; // رمادي-أخضر محايد جداً — أقل إجهاداً من الأخضر
-const bgDeep       = "#EEF3F0";
-const bgAlt        = "#FFFFFF";
+const ink          = isDarkTheme ? "#E9F2EE" : "#1A2C25"; // نص داكن دافئ
+const bg           = isDarkTheme ? "#0D1613" : "#F7F9F8"; // رمادي-أخضر محايد جداً — أقل إجهاداً من الأخضر
+const bgDeep       = isDarkTheme ? "#0A110E" : "#EEF3F0";
+const bgAlt        = isDarkTheme ? "#15211C" : "#FFFFFF";
 
 // بطاقات صلبة (solid) لوضوح أفضل — لا شفافية مُزعجة
-const surface      = "rgba(255,255,255,0.90)";
-const surface1     = "#F5F8F6";
-const surface2     = "#FFFFFF";        // cardBg — أبيض صلب واضح
-const surface3     = "#FFFFFF";
-const surface4     = "#FFFFFF";
-const cardBg       = "#FFFFFF";        // أبيض صلب لبطاقات واضحة
-const cardBgElevated = "#FFFFFF";
-const glassCard    = "rgba(255,255,255,0.80)";
-const glassStrong  = "rgba(255,255,255,0.92)";
-const glassMuted   = "rgba(255,255,255,0.50)";
-const overlay      = "rgba(20,44,37,0.40)";
+const surface      = isDarkTheme ? "rgba(21,33,28,0.92)" : "rgba(255,255,255,0.90)";
+const surface1     = isDarkTheme ? "#121D19" : "#F5F8F6";
+const surface2     = isDarkTheme ? "#15211C" : "#FFFFFF";        // cardBg — أبيض صلب واضح
+const surface3     = isDarkTheme ? "#1A2822" : "#FFFFFF";
+const surface4     = isDarkTheme ? "#1E2E27" : "#FFFFFF";
+const cardBg       = isDarkTheme ? "#15211C" : "#FFFFFF";        // أبيض صلب لبطاقات واضحة
+const cardBgElevated = isDarkTheme ? "#1A2822" : "#FFFFFF";
+const glassCard    = isDarkTheme ? "rgba(21,33,28,0.85)" : "rgba(255,255,255,0.80)";
+const glassStrong  = isDarkTheme ? "rgba(21,33,28,0.94)" : "rgba(255,255,255,0.92)";
+const glassMuted   = isDarkTheme ? "rgba(21,33,28,0.55)" : "rgba(255,255,255,0.50)";
+const overlay      = isDarkTheme ? "rgba(0,0,0,0.55)" : "rgba(20,44,37,0.40)";
 
 // ── النصوص — تدرج هادئ ────────────────────────────────────────
 const textPrimary   = ink;
-const textSecondary = "rgba(26,44,37,0.70)";
-const textMuted     = "rgba(26,44,37,0.65)"; // was 0.50 (3.0:1) — now 4.6:1 (WCAG AA)
-const textSubtle    = "rgba(26,44,37,0.35)";
-const textDisabled  = "rgba(26,44,37,0.25)";
+const textSecondary = isDarkTheme ? "rgba(233,242,238,0.78)" : "rgba(26,44,37,0.70)";
+const textMuted     = isDarkTheme ? "rgba(233,242,238,0.64)" : "rgba(26,44,37,0.65)"; // was 0.50 (3.0:1) — now 4.6:1 (WCAG AA)
+const textSubtle    = isDarkTheme ? "rgba(233,242,238,0.38)" : "rgba(26,44,37,0.35)";
+const textDisabled  = isDarkTheme ? "rgba(233,242,238,0.28)" : "rgba(26,44,37,0.25)";
 const textOnDark    = "#F4FBF8";
 
 // ── الحدود — خفيفة لا مُزعجة ─────────────────────────────────
-const divider        = "rgba(0,150,106,0.10)";
-const dividerSoft    = "rgba(0,150,106,0.06)";
-const border         = "rgba(0,150,106,0.13)";
-const borderGlow     = "rgba(0,150,106,0.22)";
+const divider        = isDarkTheme ? "rgba(255,255,255,0.08)" : "rgba(0,150,106,0.10)";
+const dividerSoft    = isDarkTheme ? "rgba(255,255,255,0.05)" : "rgba(0,150,106,0.06)";
+const border         = isDarkTheme ? "rgba(255,255,255,0.10)" : "rgba(0,150,106,0.13)";
+const borderGlow     = isDarkTheme ? "rgba(61,211,159,0.28)" : "rgba(0,150,106,0.22)";
 const borderGoldGlow = "rgba(232,169,0,0.25)";
-const borderSubtle   = "rgba(0,150,106,0.08)";
-const borderStrong   = "rgba(0,150,106,0.28)";
+const borderSubtle   = isDarkTheme ? "rgba(255,255,255,0.06)" : "rgba(0,150,106,0.08)";
+const borderStrong   = isDarkTheme ? "rgba(255,255,255,0.18)" : "rgba(0,150,106,0.28)";
 
 // ── الدلالات — ألوان صحيحة للمعنى ────────────────────────────
 const success     = primary;
-const successSoft = "rgba(0,150,106,0.12)";
+const successSoft = isDarkTheme ? "rgba(61,211,159,0.14)" : "rgba(0,150,106,0.12)";
 const danger      = dangerColor;        // أحمر حقيقي للأخطاء
 const dangerSoft  = dangerSoftC;
 const warning     = accent;
-const warningSoft = "rgba(232,169,0,0.14)";
+const warningSoft = isDarkTheme ? "rgba(242,201,76,0.14)" : "rgba(232,169,0,0.14)";
 const info        = primary;
-const infoSoft    = "rgba(0,150,106,0.10)";
+const infoSoft    = isDarkTheme ? "rgba(61,211,159,0.12)" : "rgba(0,150,106,0.10)";
 
 // ── aliases للتوافق مع الشاشات الموجودة ──────────────────────
 const cyber  = primary;
@@ -85,10 +87,10 @@ const teal   = primary;
 const indigo = primaryDeep;
 const rose   = dangerColor;
 const amber  = accent;
-const neutral = "rgba(26,44,37,0.55)";
+const neutral = isDarkTheme ? "rgba(233,242,238,0.55)" : "rgba(26,44,37,0.55)";
 const neutralDeep = ink;
-const neutralLight = "rgba(26,44,37,0.24)";
-const neutralSoft = "rgba(255,255,255,0.75)";
+const neutralLight = isDarkTheme ? "rgba(233,242,238,0.24)" : "rgba(26,44,37,0.24)";
+const neutralSoft = isDarkTheme ? "rgba(21,33,28,0.75)" : "rgba(255,255,255,0.75)";
 
 // ── أقسام التطبيق ─────────────────────────────────────────────
 const greenSection: SectionColor = {
@@ -96,7 +98,7 @@ const greenSection: SectionColor = {
   deep: primaryDeep,
   light: primaryLight,
   soft: primarySoft,
-  grad: [primary, primaryDeep],
+  grad: [primary, "#006B4A"],
 };
 
 const goldSection: SectionColor = {
@@ -104,7 +106,7 @@ const goldSection: SectionColor = {
   deep: accentDeep,
   light: accentLight,
   soft: accentSoft,
-  grad: [accent, accentDeep],
+  grad: [accent, "#946B00"],
 };
 
 const quietGreenSection: SectionColor = {
@@ -112,7 +114,7 @@ const quietGreenSection: SectionColor = {
   deep: primaryDeep,
   light: primaryLight,
   soft: "rgba(0,150,106,0.08)",
-  grad: [primaryDim, primaryDeep],
+  grad: [primaryDim, "#006B4A"],
 };
 
 const SECTIONS = {
@@ -154,14 +156,14 @@ const SECTIONS = {
 export type SectionKey = keyof typeof SECTIONS;
 
 const gradients = {
-  brand:     [primary, primaryDeep]                                   as [string, string],
+  brand:     [primary, "#006B4A"]                                   as [string, string],
   brandSoft: ["rgba(0,150,106,0.14)", "rgba(255,255,255,0.30)"]      as [string, string],
-  gold:      [accent, accentDeep]                                     as [string, string],
+  gold:      [accent, "#946B00"]                                   as [string, string],
   goldSoft:  ["rgba(232,169,0,0.18)", "rgba(255,255,255,0.40)"]      as [string, string],
-  hero:      ["#FFFFFF", primarySoft, accentSoft]                     as [string, string, string],
-  appShell:  [bg, "#FFFFFF", primarySoft]                             as [string, string, string],
-  surface:   ["rgba(255,255,255,0.95)", "rgba(255,255,255,0.70)"]    as [string, string],
-  glass:     ["rgba(255,255,255,0.88)", "rgba(255,255,255,0.45)"]    as [string, string],
+  hero:      [isDarkTheme ? "#15211C" : "#FFFFFF", primarySoft, accentSoft]                     as [string, string, string],
+  appShell:  [bg, isDarkTheme ? "#15211C" : "#FFFFFF", primarySoft]                             as [string, string, string],
+  surface:   isDarkTheme ? ["rgba(21,33,28,0.95)", "rgba(21,33,28,0.70)"] : ["rgba(255,255,255,0.95)", "rgba(255,255,255,0.70)"]    as [string, string],
+  glass:     isDarkTheme ? ["rgba(21,33,28,0.88)", "rgba(21,33,28,0.45)"] : ["rgba(255,255,255,0.88)", "rgba(255,255,255,0.45)"]    as [string, string],
   logo:      [primary, accent]                                        as [string, string],
   calm:      ["rgba(0,150,106,0.08)", "rgba(232,169,0,0.08)"]        as [string, string],
 } as const;
@@ -268,6 +270,10 @@ export default {
   gradients,
   radius,
   shadow,
+  isDark: isDarkTheme,
+  scheme: activeScheme,
+  /** نص أبيض ثابت فوق الأزرار والخلفيات الملوّنة — لا يتغير مع الوضع الداكن. */
+  onColor: "#FFFFFF",
   light: {
     text: textPrimary,
     background: bg,
@@ -276,3 +282,19 @@ export default {
     tabIconSelected: primary,
   },
 };
+
+/**
+ * يضيف شفافية للون بأمان. `لون + "80"` يعمل مع ألوان hex فقط؛ مع rgba يُنتج
+ * قيمة غير صالحة (مثل "rgba(0,150,106,0.10)80") فيتجاهلها التطبيق ولا يظهر الإطار.
+ */
+export function withAlpha(color: string, hexAlpha: string): string {
+  const a = parseInt(hexAlpha, 16) / 255;
+  const m = /^rgba?\(([^)]+)\)$/.exec(color.trim());
+  if (m) {
+    const [r, g, b, base = "1"] = m[1].split(",").map((x) => x.trim());
+    return `rgba(${r},${g},${b},${+(Number(base) * a).toFixed(3)})`;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color + hexAlpha;
+  if (/^#[0-9a-f]{3}$/i.test(color)) return "#" + color.slice(1).split("").map((c) => c + c).join("") + hexAlpha;
+  return color;
+}

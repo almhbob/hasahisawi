@@ -591,7 +591,7 @@ function OccasionCard({ item, idx, onOpen }: {
           {/* حالة اليوم */}
           {isToday && (
             <View style={[oc.todayBadge, { backgroundColor: occ.color }]}>
-              <Animated.View style={[oc.pulse, { backgroundColor: "#fff" }]} />
+              <Animated.View style={[oc.pulse, { backgroundColor: Colors.cardBg }]} />
               <Text style={oc.todayText}>اليوم</Text>
             </View>
           )}
@@ -794,8 +794,8 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
             <TouchableOpacity style={[b.postBtn,(!text.trim()||sending)&&{opacity:0.4}]}
               onPress={post} disabled={!text.trim()||sending}>
               <LinearGradient colors={[GOLD,GOLD2]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.postBtnGrad}>
-                {sending?<ActivityIndicator size={14} color="#000"/>:(
-                  <><Ionicons name="send" size={14} color="#000"/><Text style={b.postBtnText}>نشر</Text></>
+                {sending?<ActivityIndicator size={14} color={Colors.text}/>:(
+                  <><Ionicons name="send" size={14} color={Colors.text}/><Text style={b.postBtnText}>نشر</Text></>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -827,7 +827,7 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
               <LinearGradient colors={[CARD2, CARD]} style={[b.postCard, isBig&&b.postCardFeatured]}>
                 <LinearGradient colors={[clr+"10","transparent"]} start={{x:0,y:0}} end={{x:1,y:0}} style={b.postAccent}/>
                 {isBig&&<View style={[b.featuredBadge,{backgroundColor:clr}]}>
-                  <Ionicons name="star" size={10} color="#000"/><Text style={b.featuredText}>مميّز</Text>
+                  <Ionicons name="star" size={10} color={Colors.text}/><Text style={b.featuredText}>مميّز</Text>
                 </View>}
 
                 <View style={b.postHeader}>
@@ -903,7 +903,7 @@ export default function GreetingsScreen() {
             </View>
             <TouchableOpacity onPress={()=>{setSelectedOcc(active);if(Platform.OS!=="web")Haptics.selectionAsync();}}
               style={[s.activeCTA,{backgroundColor:active.color}]}>
-              <MaterialCommunityIcons name="card-text" size={14} color="#000"/>
+              <MaterialCommunityIcons name="card-text" size={14} color={Colors.text}/>
               <Text style={s.activeCTAText}>بطاقة</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -984,14 +984,14 @@ const s = StyleSheet.create({
   activeBannerLeft: {width:48,alignItems:"center"},
   activeBannerEmoji:{fontSize:36},
   activeBannerTitle:{fontFamily:"Cairo_700Bold",fontSize:16,textAlign:"right"},
-  activeBannerSub:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.5)",textAlign:"right",marginTop:2},
+  activeBannerSub:  {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.5)",textAlign:"right",marginTop:2},
   activeCTA:{flexDirection:"row-reverse",alignItems:"center",gap:4,paddingHorizontal:12,paddingVertical:8,borderRadius:Colors.radius.sm},
-  activeCTAText:{fontFamily:"Cairo_700Bold",fontSize:12,color:"#000"},
+  activeCTAText:{fontFamily:"Cairo_700Bold",fontSize: 13,color:Colors.text},
 
   dateBox:   {flexDirection:"row-reverse",alignItems:"center",gap:12},
   dateIconWrap:{width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center"},
   hijriDate: {fontFamily:"Cairo_700Bold",fontSize:15,color:GOLD,textAlign:"right"},
-  gregDate:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.4)",textAlign:"right"},
+  gregDate:  {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.4)",textAlign:"right"},
 
   tabs:      {flexDirection:"row-reverse",borderBottomWidth:1,borderBottomColor:BORDER},
   tabBtn:    {flex:1,flexDirection:"row-reverse",alignItems:"center",justifyContent:"center",gap:5,paddingVertical:13,overflow:"hidden"},
@@ -999,7 +999,7 @@ const s = StyleSheet.create({
   tabLabel:  {fontFamily:"Cairo_600SemiBold",fontSize:13,color:Colors.textMuted},
 
   hintCard:  {flexDirection:"row-reverse",alignItems:"center",gap:8,borderRadius:Colors.radius.md,padding:12,borderWidth:1,borderColor:GOLD+"20",overflow:"hidden"},
-  hintText:  {fontFamily:"Cairo_400Regular",fontSize:12,color:GOLD+"BB",flex:1,textAlign:"right",lineHeight:20},
+  hintText:  {fontFamily:"Cairo_400Regular",fontSize: 13,color:GOLD+"BB",flex:1,textAlign:"right",lineHeight:20},
 });
 
 // بطاقات المناسبات
@@ -1007,21 +1007,21 @@ const oc = StyleSheet.create({
   card:        {borderRadius:Colors.radius.xl,overflow:"hidden",borderWidth:1,borderColor:BORDER},
   topLine:     {height:2.5},
   todayBadge:  {position:"absolute",top:14,left:14,flexDirection:"row-reverse",alignItems:"center",gap:4,borderRadius:Colors.radius.sm,paddingHorizontal:8,paddingVertical:3},
-  todayText:   {fontFamily:"Cairo_700Bold",fontSize:10,color:"#fff"},
+  todayText:   {fontFamily:"Cairo_700Bold",fontSize: 11,color:"#fff"},
   pulse:       {width:5,height:5,borderRadius:2.5},
   content:     {flexDirection:"row-reverse",alignItems:"flex-start",gap:12,padding:16,paddingTop:14},
   iconBox:     {width:56,height:56,borderRadius:Colors.radius.md,alignItems:"center",justifyContent:"center",borderWidth:1},
   emoji:       {fontSize:28},
   name:        {fontFamily:"Cairo_700Bold",fontSize:15,color:"#fff",textAlign:"right"},
-  date:        {fontFamily:"Cairo_400Regular",fontSize:12,textAlign:"right",marginTop:2},
+  date:        {fontFamily:"Cairo_400Regular",fontSize: 13,textAlign:"right",marginTop:2},
   pill:        {flexDirection:"row-reverse",alignItems:"center",gap:4,borderWidth:1,borderRadius:8,paddingHorizontal:8,paddingVertical:3,marginTop:6,alignSelf:"flex-end"},
-  pillText:    {fontFamily:"Cairo_600SemiBold",fontSize:11},
+  pillText:    {fontFamily:"Cairo_600SemiBold",fontSize: 12},
   dot:         {width:5,height:5,borderRadius:2.5},
   cardIcon:    {width:38,height:38,borderRadius:Colors.radius.sm,alignItems:"center",justifyContent:"center",borderWidth:1},
   versePreview:{marginHorizontal:16,borderTopWidth:1,paddingTop:8},
-  versePreviewText:{fontFamily:"Cairo_400Regular",fontSize:11,textAlign:"right"},
+  versePreviewText:{fontFamily:"Cairo_400Regular",fontSize: 12,textAlign:"right"},
   cta:         {flexDirection:"row-reverse",alignItems:"center",gap:5,padding:14,paddingTop:6},
-  ctaText:     {fontFamily:"Cairo_600SemiBold",fontSize:12,flex:1},
+  ctaText:     {fontFamily:"Cairo_600SemiBold",fontSize: 13,flex:1},
 });
 
 // التقويم
@@ -1030,9 +1030,9 @@ const cal = StyleSheet.create({
   header:    {flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",marginBottom:14},
   navBtn:    {width:36,height:36,borderRadius:Colors.radius.sm,backgroundColor:CARD2,alignItems:"center",justifyContent:"center"},
   monthName: {fontFamily:"Cairo_700Bold",fontSize:17,color:GOLD,textAlign:"center"},
-  year:      {fontFamily:"Cairo_400Regular",fontSize:12,color:"rgba(255,255,255,0.4)",textAlign:"center"},
+  year:      {fontFamily:"Cairo_400Regular",fontSize: 13,color:"rgba(255,255,255,0.4)",textAlign:"center"},
   weekRow:   {flexDirection:"row-reverse",marginBottom:4},
-  weekDay:   {flex:1,fontFamily:"Cairo_600SemiBold",fontSize:11,color:"rgba(255,255,255,0.3)",textAlign:"center"},
+  weekDay:   {flex:1,fontFamily:"Cairo_600SemiBold",fontSize: 12,color:"rgba(255,255,255,0.3)",textAlign:"center"},
   grid:      {flexDirection:"row-reverse",flexWrap:"wrap"},
   cell:      {width:`${100/7}%` as any,aspectRatio:1,alignItems:"center",justifyContent:"center",borderRadius:8},
   todayCell: {backgroundColor:GOLD+"22",borderWidth:1.5,borderColor:GOLD},
@@ -1044,7 +1044,7 @@ const cal = StyleSheet.create({
   occRow:    {flexDirection:"row-reverse",alignItems:"center",gap:8},
   occDotSm:  {width:8,height:8,borderRadius:4},
   occName:   {fontFamily:"Cairo_500Medium",fontSize:13,color:"rgba(255,255,255,0.8)",flex:1,textAlign:"right"},
-  occDates:  {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.4)"},
+  occDates:  {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.4)"},
 });
 
 // المودال
@@ -1055,7 +1055,7 @@ const cm = StyleSheet.create({
   closeBtn: {width:40,height:40,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
   headerShareBtn:{width:40,height:40,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.07)",alignItems:"center",justifyContent:"center"},
   sheetTitle:{fontFamily:"Cairo_700Bold",fontSize:18,color:"#fff"},
-  sheetSub:  {fontFamily:"Cairo_400Regular",fontSize:12,color:"rgba(255,255,255,0.4)",textAlign:"center",marginTop:2},
+  sheetSub:  {fontFamily:"Cairo_400Regular",fontSize: 13,color:"rgba(255,255,255,0.4)",textAlign:"center",marginTop:2},
   scrollContent:{padding:20,paddingTop:4,gap:20,paddingBottom:30},
 
   // البطاقة
@@ -1073,7 +1073,7 @@ const cm = StyleSheet.create({
   cardTitle: {fontFamily:"Cairo_700Bold",fontSize:26,textAlign:"center",letterSpacing:1},
 
   verseBox:  {borderWidth:1,borderRadius:Colors.radius.md,padding:14,alignItems:"center"},
-  verseLabel:{fontFamily:"Cairo_400Regular",fontSize:11,marginBottom:5},
+  verseLabel:{fontFamily:"Cairo_400Regular",fontSize: 12,marginBottom:5},
   verseText: {fontFamily:"Cairo_400Regular",fontSize:14,textAlign:"center",lineHeight:26},
 
   greetBox:  {borderRadius:Colors.radius.md,padding:14,borderWidth:1,overflow:"hidden"},
@@ -1083,7 +1083,7 @@ const cm = StyleSheet.create({
   footerLine:{height:1},
   footerRow: {flexDirection:"row-reverse",justifyContent:"space-between",alignItems:"center"},
   stamp:     {borderWidth:1,borderRadius:Colors.radius.sm,paddingHorizontal:10,paddingVertical:5},
-  stampText: {fontFamily:"Cairo_700Bold",fontSize:12},
+  stampText: {fontFamily:"Cairo_700Bold",fontSize: 13},
   watermark: {fontFamily:"Cairo_700Bold",fontSize:13},
   bottomGlow:{position:"absolute",bottom:0,left:0,right:0,height:60},
 
@@ -1111,13 +1111,13 @@ const b = StyleSheet.create({
   composeTitle: {fontFamily:"Cairo_700Bold",fontSize:15,color:GOLD},
   tagsRow:     {gap:8,paddingBottom:4},
   tag:         {paddingHorizontal:12,paddingVertical:5,borderRadius:Colors.radius.md,backgroundColor:"rgba(255,255,255,0.05)",borderWidth:1,borderColor:BORDER},
-  tagText:     {fontFamily:"Cairo_500Medium",fontSize:12,color:"rgba(255,255,255,0.4)"},
+  tagText:     {fontFamily:"Cairo_500Medium",fontSize: 13,color:"rgba(255,255,255,0.4)"},
   composeInput:{backgroundColor:"rgba(255,255,255,0.05)",borderRadius:Colors.radius.md,borderWidth:1,borderColor:BORDER,minHeight:88,padding:14,fontFamily:"Cairo_400Regular",fontSize:14,color:"#fff"},
   composeBottom:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between"},
-  charCount:   {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.3)"},
+  charCount:   {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.3)"},
   postBtn:     {borderRadius:Colors.radius.sm,overflow:"hidden"},
   postBtnGrad: {flexDirection:"row-reverse",alignItems:"center",gap:6,paddingHorizontal:16,paddingVertical:9},
-  postBtnText: {fontFamily:"Cairo_700Bold",fontSize:13,color:"#000"},
+  postBtnText: {fontFamily:"Cairo_700Bold",fontSize:13,color:Colors.text},
 
   emptyBox:  {alignItems:"center",paddingVertical:50,gap:8},
   emptyTitle:{fontFamily:"Cairo_700Bold",fontSize:16,color:"rgba(255,255,255,0.6)"},
@@ -1127,7 +1127,7 @@ const b = StyleSheet.create({
   postCardFeatured:{borderColor:GOLD+"30"},
   postAccent:{position:"absolute",top:0,left:0,right:0,height:3},
   featuredBadge:{position:"absolute",top:12,left:12,flexDirection:"row-reverse",alignItems:"center",gap:3,paddingHorizontal:7,paddingVertical:3,borderRadius:8},
-  featuredText: {fontFamily:"Cairo_700Bold",fontSize:10,color:"#000"},
+  featuredText: {fontFamily:"Cairo_700Bold",fontSize: 11,color:Colors.text},
 
   postHeader:{flexDirection:"row-reverse",alignItems:"center",gap:10},
   avatar:    {width:40,height:40,borderRadius:13,alignItems:"center",justifyContent:"center"},
@@ -1135,8 +1135,8 @@ const b = StyleSheet.create({
   author:    {fontFamily:"Cairo_700Bold",fontSize:14,color:"#fff",textAlign:"right"},
   postMeta:  {flexDirection:"row-reverse",alignItems:"center",gap:8,marginTop:3},
   occTag:    {borderRadius:7,paddingHorizontal:7,paddingVertical:2},
-  occTagText:{fontFamily:"Cairo_600SemiBold",fontSize:11},
-  timeAgo:   {fontFamily:"Cairo_400Regular",fontSize:11,color:"rgba(255,255,255,0.3)"},
+  occTagText:{fontFamily:"Cairo_600SemiBold",fontSize: 12},
+  timeAgo:   {fontFamily:"Cairo_400Regular",fontSize: 12,color:"rgba(255,255,255,0.3)"},
   postText:  {fontFamily:"Cairo_400Regular",fontSize:13,color:"rgba(255,255,255,0.75)",textAlign:"right",lineHeight:23},
   postActions:{flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",paddingTop:4,borderTopWidth:1,borderTopColor:BORDER},
   likeBtn:   {flexDirection:"row-reverse",alignItems:"center",gap:5},

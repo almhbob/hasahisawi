@@ -102,7 +102,7 @@ export default function RestaurantScreen() {
           <View style={st.logoRing}><BizLogo b={biz} size={76} /></View>
           <Text style={st.name}>{biz.name}</Text>
           <Text style={st.sub}>{TYPE_META[biz.business_type]?.label}{biz.district ? ` · ${biz.district}` : ""}{biz.opening_hours ? ` · ${biz.opening_hours}` : ""}</Text>
-          <View style={[st.openPill, { backgroundColor: biz.accepting_orders ? "#E6F4EC" : "#EEEEEE" }]}>
+          <View style={[st.openPill, { backgroundColor: biz.accepting_orders ? Colors.primarySoft : "#EEEEEE" }]}>
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: biz.accepting_orders ? "#0E9C64" : "#8A8A8A" }} />
             <Text style={[st.openTxt, { color: biz.accepting_orders ? "#0B7A4E" : "#555" }]}>{biz.accepting_orders ? "يستقبل الطلبات الآن" : "لا يستقبل طلبات حالياً"}</Text>
           </View>
@@ -148,7 +148,7 @@ export default function RestaurantScreen() {
                       <View style={st.stepper}>
                         <TouchableOpacity onPress={() => add(p, 1)} style={[st.stepBtn, { backgroundColor: c }]} accessibilityLabel="زيادة"><Ionicons name="add" size={16} color="#fff" /></TouchableOpacity>
                         <Text style={st.stepNum}>{q}</Text>
-                        <TouchableOpacity onPress={() => add(p, -1)} style={[st.stepBtn, { backgroundColor: "#EEF1EF" }]} accessibilityLabel="إنقاص"><Ionicons name="remove" size={16} color={Colors.textPrimary} /></TouchableOpacity>
+                        <TouchableOpacity onPress={() => add(p, -1)} style={[st.stepBtn, { backgroundColor: Colors.bgDeep }]} accessibilityLabel="إنقاص"><Ionicons name="remove" size={16} color={Colors.textPrimary} /></TouchableOpacity>
                       </View>
                     ) : (
                       <TouchableOpacity onPress={() => add(p, 1)} style={[st.addBtn, { backgroundColor: c }]}><Ionicons name="add" size={15} color="#fff" /><Text style={st.addTxt}>أضف</Text></TouchableOpacity>
@@ -207,7 +207,7 @@ export default function RestaurantScreen() {
                     <View style={st.stepper}>
                       <TouchableOpacity onPress={() => add(l.p, 1)} style={[st.stepBtn, { backgroundColor: c }]}><Ionicons name="add" size={15} color="#fff" /></TouchableOpacity>
                       <Text style={st.stepNum}>{l.qty}</Text>
-                      <TouchableOpacity onPress={() => add(l.p, -1)} style={[st.stepBtn, { backgroundColor: "#EEF1EF" }]}><Ionicons name={l.qty === 1 ? "trash-outline" : "remove"} size={15} color={Colors.textPrimary} /></TouchableOpacity>
+                      <TouchableOpacity onPress={() => add(l.p, -1)} style={[st.stepBtn, { backgroundColor: Colors.bgDeep }]}><Ionicons name={l.qty === 1 ? "trash-outline" : "remove"} size={15} color={Colors.textPrimary} /></TouchableOpacity>
                     </View>
                     <Text style={st.lineName} numberOfLines={1}>{l.p.name}</Text>
                     <Text style={st.linePrice}>{fmtMoney(l.p.price * l.qty)}</Text>
@@ -258,50 +258,50 @@ export default function RestaurantScreen() {
 
 const st = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: Colors.bg },
-  muted: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 12.5, textAlign: "right" },
+  muted: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 13, textAlign: "right" },
   ghost: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: Colors.divider },
   ghostTxt: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary },
   cover: { height: 180, paddingHorizontal: 14 },
   topBar: { flexDirection: "row-reverse", justifyContent: "space-between" },
   round: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.3)", alignItems: "center", justifyContent: "center" },
   head: { alignItems: "center", paddingHorizontal: 16, marginTop: -44, gap: 4 },
-  logoRing: { padding: 4, backgroundColor: "#fff", borderRadius: 26 },
+  logoRing: { padding: 4, backgroundColor: Colors.cardBg, borderRadius: 26 },
   name: { fontFamily: "Cairo_700Bold", fontSize: 21, color: Colors.textPrimary, marginTop: 4, textAlign: "center" },
   sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   openPill: { flexDirection: "row-reverse", alignItems: "center", gap: 6, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4, marginTop: 4 },
-  openTxt: { fontFamily: "Cairo_700Bold", fontSize: 12 },
-  pending: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#8A6400", backgroundColor: "#FFF4D6", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, marginTop: 4 },
+  openTxt: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  pending: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#8A6400", backgroundColor: "#FFF4D6", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, marginTop: 4 },
   desc: { fontFamily: "Cairo_400Regular", fontSize: 13.5, lineHeight: 22, color: Colors.textSecondary, textAlign: "center", marginTop: 6 },
   facts: { flexDirection: "row-reverse", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 8 },
-  fact: { backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" },
+  fact: { backgroundColor: Colors.cardBg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" },
   factTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: Colors.textSecondary },
-  note: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 4, textAlign: "center" },
+  note: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginTop: 4, textAlign: "center" },
   actions: { flexDirection: "row-reverse", gap: 8, marginTop: 12, alignSelf: "stretch" },
-  action: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, height: 44, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },
+  action: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, height: 44, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },
   actionTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
   cats: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
-  cat: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" },
-  catTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textPrimary },
+  cat: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" },
+  catTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
   empty: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 30 },
-  item: { flexDirection: "row-reverse", gap: 12, backgroundColor: "#fff", borderRadius: 18, padding: 10, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  item: { flexDirection: "row-reverse", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 18, padding: 10, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   itemImg: { width: 96, height: 96, borderRadius: 14 },
   itemName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  itemDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 19, color: Colors.textMuted, textAlign: "right" },
+  itemDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 19, color: Colors.textMuted, textAlign: "right" },
   itemFoot: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: "auto" },
   price: { fontFamily: "Cairo_700Bold", fontSize: 15 },
   addBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  addTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
+  addTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   stepper: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   stepBtn: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   stepNum: { fontFamily: "Cairo_700Bold", fontSize: 15, minWidth: 18, textAlign: "center", color: Colors.textPrimary },
   cartBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 10, backgroundColor: "rgba(247,249,248,0.96)" },
   cartBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 12, height: 56, borderRadius: 18, paddingHorizontal: 16 },
-  cartCount: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  cartCount: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
   cartCountTxt: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   cartTxt: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" },
   cartTotal: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18 },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right", marginBottom: 6 },
   line: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(0,0,0,0.05)" },
   lineName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
@@ -310,12 +310,12 @@ const st = StyleSheet.create({
   input: { backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },
   modeRow: { flexDirection: "row-reverse", gap: 8 },
   mode: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, height: 44, borderRadius: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.1)" },
-  modeTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textPrimary },
+  modeTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
   sum: { backgroundColor: Colors.bg, borderRadius: 14, padding: 12, marginTop: 16, gap: 6 },
   sumRow: { flexDirection: "row-reverse", justifyContent: "space-between" },
   sumLbl: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   sumVal: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
-  warn: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#8A6400", textAlign: "right", marginTop: 8 },
+  warn: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#8A6400", textAlign: "right", marginTop: 8 },
   sendBtn: { marginTop: 14, height: 52, borderRadius: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
   sendTxt: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });

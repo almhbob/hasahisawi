@@ -580,7 +580,7 @@ const s = StyleSheet.create({
     backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: UC2, textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center", marginTop: 2 },
   progressBar: { height: 4, backgroundColor: Colors.borderSubtle },
   progressFill: { height: 4, backgroundColor: UC, borderRadius: 2 },
   sectionHeader: {
@@ -594,7 +594,7 @@ const s = StyleSheet.create({
   },
   sectionNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "right" },
-  sectionProgress: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  sectionProgress: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 6, marginTop: 14 },
   input: {
     backgroundColor: Colors.cardBg, borderRadius: 12, padding: 13,
@@ -631,14 +631,14 @@ const s = StyleSheet.create({
   nextText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   webErrBox: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginHorizontal: 16, marginBottom: 8,
+    backgroundColor: Colors.dangerSoft, borderRadius: 10, padding: 12, marginHorizontal: 16, marginBottom: 8,
     borderWidth: 1, borderColor: "#FECACA",
   },
   webErrText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#DC2626", flex: 1, textAlign: "right" },
   webSuccessBox: {
     alignItems: "center", justifyContent: "center", gap: 12,
     padding: 32, margin: 16,
-    backgroundColor: "#F0FDF4", borderRadius: 16, borderWidth: 1, borderColor: "#BBF7D0",
+    backgroundColor: Colors.primarySoft, borderRadius: 16, borderWidth: 1, borderColor: "#BBF7D0",
   },
   webSuccessTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#059669", textAlign: "center" },
   webSuccessMsg: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#065F46", textAlign: "center", lineHeight: 22 },

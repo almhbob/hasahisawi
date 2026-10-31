@@ -197,7 +197,7 @@ const st = StyleSheet.create({
   btn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12 },
   btnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   wa: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#BFE7DD", backgroundColor: "#F1FBF8" },
-  waText: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: "#0F766E" },
+  waText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0F766E" },
   close: { alignItems: "center", paddingVertical: 6 },
   closeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#6B7487" },
 });

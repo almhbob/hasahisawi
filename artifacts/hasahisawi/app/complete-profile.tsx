@@ -206,7 +206,7 @@ export default function CompleteProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.errorTxt}>{error}</Text>
               {countdown > 0 && (
-                <Text style={[s.errorTxt, { fontSize: 11, opacity: 0.7, marginTop: 2 }]}>
+                <Text style={[s.errorTxt, { fontSize: 12, opacity: 0.7, marginTop: 2 }]}>
                   إعادة المحاولة خلال {countdown}ث...
                 </Text>
               )}
@@ -298,14 +298,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3,
   },
   requiredTxt: {
-    fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.accent,
+    fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.accent,
   },
   lockNote: {
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
     backgroundColor: Colors.surface2, borderRadius: 8, padding: 8,
   },
   lockNoteText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
   },
 
   // Gender
@@ -358,7 +358,7 @@ const s = StyleSheet.create({
     borderColor: Colors.primary, backgroundColor: Colors.primary + "18",
   },
   suggestTxt: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
   },
 
   // Error
@@ -383,7 +383,7 @@ const s = StyleSheet.create({
   saveBtnTxt: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 
   helperTxt: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
+    fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textMuted, textAlign: "center",
     marginTop: 8, lineHeight: 18,
   },

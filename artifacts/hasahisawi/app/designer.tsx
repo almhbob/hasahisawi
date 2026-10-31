@@ -92,7 +92,7 @@ const sh = StyleSheet.create({
   wrap:    { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 16 },
   iconBox: { width: 42, height: 42, borderRadius: 13, justifyContent: "center", alignItems: "center" },
   title:   { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
-  sub:     { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 1 },
+  sub:     { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 1 },
   accent:  { width: 4, height: 36, borderRadius: 2 },
 });
 
@@ -355,21 +355,21 @@ const s = StyleSheet.create({
   verifiedBadge:  { position: "absolute", bottom: 3, right: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: GREEN, justifyContent: "center", alignItems: "center", borderWidth: 2.5, borderColor: "#040C07" },
 
   heroName:    { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FFFFFF", textAlign: "center" },
-  heroLatin:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.40)", textAlign: "center", letterSpacing: 0.5 },
+  heroLatin:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.40)", textAlign: "center", letterSpacing: 0.5 },
   titleChip:   { flexDirection: "row-reverse", alignItems: "center", gap: 7, backgroundColor: GOLD + "15", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: GOLD + "40" },
   titleChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: GOLD },
   locationRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
-  locationText:{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.42)" },
+  locationText:{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.42)" },
 
   statsBar:    { flexDirection: "row-reverse", width: "100%", backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", overflow: "hidden", marginTop: 4 },
   statItem:    { flex: 1, alignItems: "center", paddingVertical: 14 },
   statSep:     { width: 1, backgroundColor: "rgba(255,255,255,0.08)" },
   statNum:     { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFFFFF" },
-  statLbl:     { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 },
+  statLbl:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 },
 
   issuersRow:  { flexDirection: "row-reverse", flexWrap: "wrap", justifyContent: "center", gap: 7, marginTop: 6 },
   issuerBadge: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
-  issuerText:  { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  issuerText:  { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   // Body
   body: { paddingHorizontal: 16, paddingTop: 22, gap: 24 },
@@ -403,7 +403,7 @@ const s = StyleSheet.create({
   skillIcon:   { width: 32, height: 32, borderRadius: 9, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   skillBar:    { flex: 1, height: 6, backgroundColor: Colors.surface3, borderRadius: 3, overflow: "hidden" },
   skillFill:   { height: "100%", borderRadius: 3 },
-  skillPct:    { fontFamily: "Cairo_700Bold", fontSize: 11, width: 36, textAlign: "left" },
+  skillPct:    { fontFamily: "Cairo_700Bold", fontSize: 12, width: 36, textAlign: "left" },
 
   // Certs
   certsList:      { gap: 10 },
@@ -413,9 +413,9 @@ const s = StyleSheet.create({
   certTitle:      { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   certMeta:       { flexDirection: "row-reverse", gap: 8, alignItems: "center", flexWrap: "wrap" },
   certDateRow:    { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  certDate:       { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  certDate:       { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   certIssuerBadge:{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  certIssuerTxt:  { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  certIssuerTxt:  { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
   showMore:       { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, backgroundColor: GREEN + "0C", borderRadius: 14, borderWidth: 1, borderColor: GREEN + "25", marginTop: 4 },
   showMoreTxt:    { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: GREEN },
 
@@ -424,7 +424,7 @@ const s = StyleSheet.create({
   principleCard:  { backgroundColor: Colors.surface2, borderRadius: 16, padding: 16, borderTopWidth: 3, borderWidth: 1, borderColor: Colors.borderSubtle, alignItems: "flex-end", gap: 8, width: (SW - 32 - 10) / 2, flexGrow: 1 },
   principleIcon:  { width: 46, height: 46, borderRadius: 13, justifyContent: "center", alignItems: "center" },
   principleTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
-  principleText:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
+  principleText:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
 
   // Footer
   footer:       { borderRadius: 24, overflow: "hidden", borderWidth: 1, borderColor: Colors.borderSubtle },
@@ -434,5 +434,5 @@ const s = StyleSheet.create({
   footerTitle:  { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF", textAlign: "center" },
   footerSub:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.55)", textAlign: "center" },
   footerDivider:{ width: 50, height: 1, backgroundColor: "rgba(255,255,255,0.12)", marginVertical: 4 },
-  footerCopy:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.30)", textAlign: "center" },
+  footerCopy:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.30)", textAlign: "center" },
 });

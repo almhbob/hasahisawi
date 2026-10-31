@@ -769,12 +769,12 @@ const ds = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: 1, marginTop: 4,
   },
-  typeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  typeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   statsRow: { flexDirection: "row", backgroundColor: Colors.cardBg, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider },
   statCell: { flex: 1, alignItems: "center", paddingVertical: 12 },
   statVal:  { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  statLabel:{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  statLabel:{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
 
   infoCard: {
     backgroundColor: Colors.cardBg, borderRadius: 16, padding: 16,
@@ -784,7 +784,7 @@ const ds = StyleSheet.create({
   infoCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
   infoRow: { gap: 2 },
   infoLabelRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
-  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   infoVal:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
 
   savedBanner: {
@@ -804,7 +804,7 @@ const ds = StyleSheet.create({
   servicesTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
   servicesBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   servicesBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
-  servicesDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
+  servicesDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
   servicesDivider: { height: 1, backgroundColor: Colors.divider },
 
   servicesList: { gap: 8 },
@@ -820,7 +820,7 @@ const ds = StyleSheet.create({
   },
   serviceName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   serviceCatBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, alignSelf: "flex-end" },
-  serviceCat: { fontFamily: "Cairo_400Regular", fontSize: 10 },
+  serviceCat: { fontFamily: "Cairo_400Regular", fontSize: 11 },
 
   emptyServices: { alignItems: "center", paddingVertical: 24, gap: 10 },
   emptyServicesText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted },
@@ -863,14 +863,14 @@ const ls = StyleSheet.create({
   formHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   formHeaderLine: { width: 4, height: 22, borderRadius: 2, backgroundColor: Colors.primary },
   formTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
-  formNote:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
+  formNote:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
 
   errorBox: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
     backgroundColor: Colors.danger + "12", borderWidth: 1, borderColor: Colors.danger + "30",
     borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12,
   },
-  errorText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.danger, flex: 1, textAlign: "right" },
+  errorText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger, flex: 1, textAlign: "right" },
 
   fieldBlock: { gap: 6 },
   fieldLabel: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
@@ -897,7 +897,7 @@ const ls = StyleSheet.create({
     borderRadius: 12, padding: 12,
   },
   helpText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
     flex: 1, textAlign: "right", lineHeight: 20,
   },
 });
@@ -909,7 +909,7 @@ const ps = StyleSheet.create({
   },
   cardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
+  cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 20 },
   divider: { height: 1, backgroundColor: Colors.divider },
   methodRow: {
     flexDirection: "row-reverse", alignItems: "center", gap: 12,
@@ -921,7 +921,7 @@ const ps = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
   methodLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  methodSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  methodSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   accountBox: {
     backgroundColor: Colors.accent + "08", borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: Colors.accent + "25", gap: 12,
@@ -940,5 +940,5 @@ const ps = StyleSheet.create({
     backgroundColor: Colors.cyber + "10", borderRadius: 10, padding: 10,
     borderWidth: 1, borderColor: Colors.cyber + "25",
   },
-  noteText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 },
+  noteText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 18 },
 });

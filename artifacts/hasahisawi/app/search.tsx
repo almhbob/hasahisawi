@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   resultContent: { flex: 1, gap: 4 },
   resultTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  resultSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  resultSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   resultBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     borderRadius: Colors.radius.pill,
     borderWidth: 1,
   },
-  chipText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  chipText: { fontFamily: "Cairo_500Medium", fontSize: 13 },
   profileArrow: {
     width: 28, height: 28,
     justifyContent: "center", alignItems: "center",

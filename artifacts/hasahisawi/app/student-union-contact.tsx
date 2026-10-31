@@ -240,7 +240,7 @@ const s = StyleSheet.create({
     backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: UC2, textAlign: "center", marginTop: 2 },
   infoCard: {
     flexDirection: "row-reverse", alignItems: "flex-start", gap: 12,
     backgroundColor: "#0B1224", borderRadius: 18, borderWidth: 1,

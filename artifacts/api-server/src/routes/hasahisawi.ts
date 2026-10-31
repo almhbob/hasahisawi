@@ -1,4 +1,6 @@
 import { ensureProfilePlus } from "./profile-plus";
+import { ensureSocialSafety, hiddenAuthorIds } from "./social-safety";
+import { ensureSocialPlus, followeeIds } from "./social-plus";
 import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
 import { canManageZawajil, notifyZawajilManagers } from "./zawajil-admin";
 import { Router, type Request, type Response, type NextFunction } from "express";
@@ -15,6 +17,7 @@ import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider, ensur
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
+import { curriculumMaxFileMb, CLOUDINARY_RAW_LIMIT_MB } from "./curriculum-upload";
 
 const router = Router();
 
@@ -3200,7 +3203,7 @@ router.get("/prayer-times", async (req: Request, res: Response) => {
 
 router.get("/posts", async (req: Request, res: Response) => {
   try {
-    const { category, device_id, user_id, page, limit } = req.query as { category?: string; device_id?: string; user_id?: string; page?: string; limit?: string };
+    const { category, device_id, user_id, page, limit, feed } = req.query as { category?: string; device_id?: string; user_id?: string; page?: string; limit?: string; feed?: string };
     const params: unknown[] = [];
     let paramIndex = 1;
 
@@ -3212,6 +3215,21 @@ router.get("/posts", async (req: Request, res: Response) => {
     if (user_id) {
       conditions.push(`p.author_id=$${paramIndex++}`);
       params.push(Number(user_id));
+    }
+    // إخفاء منشورات من حظرهم المشاهد أو حظروه
+    const viewerForBlocks = await getSessionUser(req).catch(() => null);
+    const hidden = await hiddenAuthorIds(viewerForBlocks ? Number(viewerForBlocks.id) : null);
+    if (hidden.length) {
+      conditions.push(`(p.author_id IS NULL OR NOT (p.author_id = ANY($${paramIndex++}::int[])))`);
+      params.push(hidden);
+    }
+    // خلاصة «أتابعهم»: منشورات من يتابعهم المشاهد فقط
+    if (feed === "following") {
+      if (!viewerForBlocks) return res.json([]);
+      const ids = await followeeIds(Number(viewerForBlocks.id));
+      if (!ids.length) return res.json([]);
+      conditions.push(`p.author_id = ANY($${paramIndex++}::int[])`);
+      params.push(ids);
     }
     let whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
@@ -3226,6 +3244,7 @@ router.get("/posts", async (req: Request, res: Response) => {
     params.push(limitNum, offsetNum);
 
     await ensureProfilePlus().catch(() => {});
+    await ensureSocialPlus().catch(() => {});
     // منشورات صاحب ملف مقفل لا تُعرض في ملفه إلا له وللإدارة
     if (user_id) {
       const lk = await query(`SELECT profile_locked FROM users WHERE id=$1`, [Number(user_id)]).catch(() => ({ rows: [] as any[] }));
@@ -3244,7 +3263,8 @@ router.get("/posts", async (req: Request, res: Response) => {
         COUNT(DISTINCT c.id)::int AS comments_count,
         CASE WHEN EXISTS(
           SELECT 1 FROM social_likes dl WHERE dl.post_id=p.id AND dl.device_id=${deviceParam}
-        ) THEN true ELSE false END AS liked_by_me
+        ) THEN true ELSE false END AS liked_by_me,
+        (SELECT ml.reaction FROM social_likes ml WHERE ml.post_id=p.id AND ml.device_id=${deviceParam} LIMIT 1) AS my_reaction
       FROM social_posts p
       LEFT JOIN users u ON u.id = p.author_id
       LEFT JOIN social_likes l ON l.post_id=p.id
@@ -3285,7 +3305,8 @@ router.post("/posts", writeLimiter, async (req: Request, res: Response) => {
       `INSERT INTO social_posts (author_id, author_name, content, category, image_url, video_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [
         user?.id || null,
-        author_name || user?.name || "مجهول",
+        // صاحب الحساب ينشر باسمه دائماً — يمنع انتحال الأسماء
+        (user?.name as string) || author_name || "مجهول",
         content?.trim() || "",
         category || "عام",
         image_url || null,
@@ -3315,7 +3336,15 @@ router.delete("/posts/:id", async (req: Request, res: Response) => {
 
 router.get("/posts/:id/comments", async (req: Request, res: Response) => {
   try {
-    const result = await query(`SELECT * FROM social_comments WHERE post_id=$1 ORDER BY created_at ASC`, [req.params.id]);
+    await ensureSocialSafety().catch(() => {});
+    const viewer = await getSessionUser(req).catch(() => null);
+    const hidden = await hiddenAuthorIds(viewer ? Number(viewer.id) : null);
+    const result = await query(
+      `SELECT c.*, u.avatar_url AS author_avatar, COALESCE(u.is_verified, false) AS author_verified
+         FROM social_comments c LEFT JOIN users u ON u.id = c.author_id
+        WHERE c.post_id=$1 AND (c.author_id IS NULL OR NOT (c.author_id = ANY($2::int[])))
+        ORDER BY c.created_at ASC`,
+      [req.params.id, hidden]);
     return res.json(result.rows);
   } catch (err) {
     logger.error({ err }, "route error");
@@ -3326,7 +3355,7 @@ router.get("/posts/:id/comments", async (req: Request, res: Response) => {
 router.post("/posts/:id/comments", writeLimiter, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
-    const { content, author_name } = req.body;
+    const { content, author_name, parent_id } = req.body;
     if (!content) return res.status(400).json({ error: "المحتوى مطلوب" });
 
     const mod = await checkContent(content);
@@ -3339,9 +3368,12 @@ router.post("/posts/:id/comments", writeLimiter, async (req: Request, res: Respo
       });
     }
 
+    await ensureSocialSafety().catch(() => {});
     const result = await query(
-      `INSERT INTO social_comments (post_id, author_name, content) VALUES ($1,$2,$3) RETURNING *`,
-      [req.params.id, author_name || user?.name || "مجهول", content]
+      `INSERT INTO social_comments (post_id, author_name, content, author_id, parent_id)
+       VALUES ($1,$2,$3,$4,(SELECT id FROM social_comments WHERE id=$5 AND post_id=$1)) RETURNING *`,
+      [req.params.id, (user?.name as string) || author_name || "مجهول", content, user?.id || null,
+       Number.isInteger(Number(parent_id)) && Number(parent_id) > 0 ? Number(parent_id) : null]
     );
     return res.json(result.rows[0]);
   } catch (err) {
@@ -19248,7 +19280,6 @@ const CURRICULUM_SUBJECTS: Record<string, string[]> = {
   intermediate: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "التاريخ", "الجغرافيا", "الحاسوب", "اللغة الفرنسية"],
   secondary: ["التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "اللغة الإنجليزية", "الرياضيات الأساسية", "الرياضيات المتخصصة", "الفيزياء", "الكيمياء", "الأحياء", "التاريخ", "الجغرافيا", "الحاسوب", "علوم الحاسوب", "الفنون", "الاقتصاد", "اللغة الفرنسية"],
 };
-const CURRICULUM_MAX_FILE_MB = 500;
 
 let _curriculumReady: Promise<void> | null = null;
 function ensureCurriculumTables(): Promise<void> {
@@ -19329,7 +19360,7 @@ router.get("/curriculum/meta", async (_req: Request, res: Response) => {
     return res.json({
       stages: CURRICULUM_STAGES.map((s) => ({ ...s, grades: s.grades.map((g) => ({ ...g, count: counts[`${s.key}:${g.n}`] || 0 })) })),
       tracks: CURRICULUM_TRACKS, kinds: CURRICULUM_KINDS, subjects: CURRICULUM_SUBJECTS,
-      max_file_mb: CURRICULUM_MAX_FILE_MB,
+      max_file_mb: curriculumMaxFileMb(),
     });
   } catch (err) { logger.error({ err }, "curriculum/meta"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -19371,13 +19402,17 @@ router.post("/curriculum/upload-signature", writeLimiter, async (req: Request, r
     const user = await getSessionUser(req) as Record<string, any> | null;
     if (!user) return res.status(401).json({ error: "سجّل الدخول لرفع الملفات" });
     if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const requestedSize = Number(req.body?.size) || 0;
+    if (requestedSize > CLOUDINARY_RAW_LIMIT_MB * 1024 * 1024) {
+      return res.status(413).json({ error: "حجم الملف يتجاوز حد Cloudinary البالغ " + CLOUDINARY_RAW_LIMIT_MB + " ميجابايت" });
+    }
     const { v2: cloudinary } = await import("cloudinary");
     const cfg = cloudinary.config();
     if (!cfg.cloud_name || !cfg.api_key || !cfg.api_secret) return res.status(503).json({ error: "خدمة رفع الملفات غير مهيأة. أضف الكتاب كرابط بدلاً من ذلك." });
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = `hasahisawi/curriculum/${user.id}`;
     const signature = cloudinary.utils.api_sign_request({ timestamp, folder }, cfg.api_secret);
-    return res.json({ cloud_name: cfg.cloud_name, api_key: cfg.api_key, timestamp, folder, signature, resource_type: "raw", max_file_mb: CURRICULUM_MAX_FILE_MB });
+    return res.json({ cloud_name: cfg.cloud_name, api_key: cfg.api_key, timestamp, folder, signature, resource_type: "raw", max_file_mb: CLOUDINARY_RAW_LIMIT_MB });
   } catch (err) { logger.error({ err }, "curriculum/upload-signature"); return res.status(500).json({ error: "Server error" }); }
 });
 

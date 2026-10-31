@@ -73,7 +73,7 @@ export default function QRWebLoginScreen() {
           if (meBody.user) {
             await AsyncStorage.setItem(USER_KEY, JSON.stringify(meBody.user));
           }
-          setTimeout(() => router.replace("/(tabs)/"), 1200);
+          setTimeout(() => router.replace("/(tabs)"), 1200);
         } else if (body.status === "expired") {
           stopPolling();
           setPhase("expired");
@@ -138,7 +138,7 @@ export default function QRWebLoginScreen() {
               <QRCode
                 value={qrValue}
                 size={200}
-                backgroundColor="#fff"
+                backgroundColor={Colors.cardBg}
                 color="#020C1B"
               />
               {phase === "scanned" && (
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   title:    { color: Colors.textPrimary, fontSize: 20, fontFamily: "Cairo_700Bold", textAlign: "center" },
   subtitle: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 6, marginBottom: 28 },
   qrBox: {
-    width: 240, height: 240, backgroundColor: "#fff", borderRadius: 20,
+    width: 240, height: 240, backgroundColor: Colors.cardBg, borderRadius: 20,
     justifyContent: "center", alignItems: "center", overflow: "hidden",
     borderWidth: 3, borderColor: Colors.primary,
     shadowColor: Colors.primary, shadowOpacity: 0.4, shadowRadius: 20, elevation: 12,

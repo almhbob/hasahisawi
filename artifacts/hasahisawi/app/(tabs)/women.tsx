@@ -138,7 +138,7 @@ const sh = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   bar: { width: 4, height: 28, borderRadius: 2 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
-  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
 });
 
 const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: string }> = {
@@ -631,7 +631,7 @@ function WomenScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
               {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["handmade", "يدوية"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: "#FF4FA3", borderColor: "#FF4FA3" }]} onPress={() => setFilter(k)}>
-                  <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
+                  <Text style={[s.filterChipText, filter === k && { color: Colors.text }]}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1790,17 +1790,17 @@ const s = StyleSheet.create({
   headerTop: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   headerIcon: { width: 46, height: 46, borderRadius: Colors.radius.md, backgroundColor: "#FF4FA320", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#FF4FA340" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
 
   statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.md, padding: 14, marginBottom: 10, gap: 8 },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.82)" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.82)" },
 
   subTabRow: { flexDirection: "row", gap: 8, paddingBottom: 4, paddingHorizontal: 0 },
   subTab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 14, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", overflow: "hidden" },
   subTabActive: { borderColor: "#FF4FA360" },
-  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.75)" },
+  subTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.75)" },
 
   searchSection: { backgroundColor: Colors.cardBg },
   searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, marginHorizontal: 16, marginTop: 12, paddingHorizontal: 14, gap: 8, ...Colors.shadow.card },
@@ -1820,9 +1820,9 @@ const s = StyleSheet.create({
   cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
-  tagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
+  tagText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
   cardInfoRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  cardInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  cardInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   cardActions: { flexDirection: "row", gap: 10 },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.md, paddingVertical: 12 },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
@@ -1844,7 +1844,7 @@ const s = StyleSheet.create({
   recipeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   recipeIcon: { width: 54, height: 54, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   recipeName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  recipeTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  recipeTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   recipeBody: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.divider, gap: 8 },
   recipeSubTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, textAlign: "right" },
   ingredientRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 3 },
@@ -1852,7 +1852,7 @@ const s = StyleSheet.create({
   ingredientText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 4 },
   stepNum: { width: 24, height: 24, borderRadius: 12, justifyContent: "center", alignItems: "center", flexShrink: 0, marginTop: 2 },
-  stepNumText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#000" },
+  stepNumText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.text },
   stepText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
 });
 
@@ -1871,7 +1871,7 @@ const jm = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   joinBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FF4FA3", textAlign: "right" },
-  joinBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 1 },
+  joinBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 1 },
   joinBannerArrow: {
     width: 32, height: 32, borderRadius: Colors.radius.sm,
     backgroundColor: "#FF4FA318", alignItems: "center", justifyContent: "center",
@@ -1926,7 +1926,7 @@ const jm = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.bg,
   },
-  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
 
   // زر الإرسال
   sendBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 4 },
@@ -1972,7 +1972,7 @@ const hm = StyleSheet.create({
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
     minWidth: 84, overflow: "hidden",
   },
-  catLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  catLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
 
   emptyBanner: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 28,
@@ -2008,7 +2008,7 @@ const sp = StyleSheet.create({
     borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
   // بانرات
   addBanner: {
@@ -2017,7 +2017,7 @@ const sp = StyleSheet.create({
     borderWidth: 1.5, borderColor: "#A855F740", padding: 14, overflow: "hidden", ...Colors.shadow.card,
   },
   addBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#A855F7", textAlign: "right" },
-  addBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  addBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   reqBanner: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: "#14B8A608", borderRadius: Colors.radius.md,
@@ -2043,18 +2043,18 @@ const sp = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: "#F0A50018", paddingHorizontal: 7, paddingVertical: 3, borderRadius: Colors.radius.sm,
   },
-  featuredText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#F0A500" },
+  featuredText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#F0A500" },
   catBadge: { backgroundColor: "#A855F718", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
   catBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" },
   deliveryBadge: {
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: Colors.successSoft, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Colors.radius.sm,
   },
-  deliveryText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
-  productCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  deliveryText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
+  productCount: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   shopDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
   shopInfo: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  shopInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  shopInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   shopActions: { flexDirection: "row", gap: 8, alignItems: "center" },
   shopBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -2097,10 +2097,10 @@ const sp = StyleSheet.create({
     width: "100%", height: 90, borderRadius: Colors.radius.sm,
     backgroundColor: "#A855F710", justifyContent: "center", alignItems: "center",
   },
-  productName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, textAlign: "right" },
+  productName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   productPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
-  productOriginalPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textDecorationLine: "line-through" },
+  productOriginalPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textDecorationLine: "line-through" },
   qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#A855F710", borderRadius: Colors.radius.sm, padding: 4 },
   qtyBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center" },
   qtyText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
@@ -2108,7 +2108,7 @@ const sp = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
     backgroundColor: "#A855F7", borderRadius: Colors.radius.sm, paddingVertical: 6,
   },
-  addToCartText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  addToCartText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 
   // بانر الدفع
   checkoutBanner: {
@@ -2150,7 +2150,7 @@ const sp = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.bg,
   },
-  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
   toggleBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.md,
@@ -2224,15 +2224,15 @@ const bt = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "#A855F718", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
   },
-  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A855F7" },
   deliveryChip: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: Colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
   },
-  deliveryChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  deliveryChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
   storeDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
   storeInfoRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  storeInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  storeInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   productsBadge: {
     flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end",
     backgroundColor: "#A855F712", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm,
