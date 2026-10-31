@@ -15,6 +15,10 @@ permissions:
   pages: write
   deployments: write
 
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Build and publish web PWA
@@ -155,11 +159,19 @@ jobs:
           if git diff --cached --quiet; then
             echo "No docs changes"
           else
-            git commit -m "deploy: web PWA docs latest [auto]"
+            # نسخة البناء جانباً؛ عند تعارض النشر مع نشر آخر نعيد البناء فوق أحدث master بدل rebase يتعارض
+            rm -rf /tmp/docs-build && cp -r docs /tmp/docs-build
+            git commit -q -m "deploy: web PWA docs latest [auto]"
             for attempt in 1 2 3 4 5; do
-              git pull --rebase --autostash origin master && git push origin master && break
-              echo "Push attempt $attempt failed; retrying"
+              git push origin HEAD:master && break
+              echo "Push attempt $attempt failed; rebuilding the commit on top of the latest master"
               sleep $((attempt * 5))
+              git fetch -q origin master
+              git reset -q --hard origin/master
+              cp -r /tmp/docs-build/. docs/
+              git add -f docs/
+              git diff --cached --quiet && { echo "Already up to date"; break; }
+              git commit -q -m "deploy: web PWA docs latest [auto]"
             done
           fi
 
@@ -212,6 +224,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          # المفتاح المحفوظ قد يحمل سطراً جديداً أو مسافة من النسخ واللصق فيرفضه Cloudflare (Headers.append)
+          CLOUDFLARE_API_TOKEN="$(printf '%s' "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]"' | sed 's/^Bearer//')"
+          CLOUDFLARE_ACCOUNT_ID="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]"')"
+          export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "Cloudflare secrets are not configured — skipped Cloudflare deploy"
             exit 0
