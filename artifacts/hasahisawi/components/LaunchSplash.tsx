@@ -9,7 +9,9 @@ export const SPLASH_BG = "#F0F1E9";
 export function SplashArt() {
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: SPLASH_BG }]}>
-      <Image source={SPLASH_FULL} resizeMode="cover" style={StyleSheet.absoluteFill} />
+      {/* contain + أبعاد صريحة: على الويب كانت الصورة تُرسم بحجمها الأصلي (1284×2778)
+          فلا يظهر من الشعار إلا ركنه. الخلفية بلون الورق نفسه فلا تظهر حواف. */}
+      <Image source={SPLASH_FULL} resizeMode="contain" style={{ width: "100%", height: "100%" }} />
     </View>
   );
 }
