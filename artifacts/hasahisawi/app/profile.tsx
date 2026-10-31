@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Image, Modal, Pressable,
 } from "react-native";
@@ -69,7 +69,18 @@ export default function ProfileScreen() {
   const [vol, setVol] = useState<VolunteerSummary | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
 
+  // كل طلب يأخذ رقماً؛ ردود الطلبات الأقدم تُهمل حتى لا تظهر بيانات شخص في ملف شخص آخر
+  // عند التنقل السريع بين الملفات (من #93).
+  const requestSequence = useRef(0);
+  const lastProfileId = useRef<number | null | undefined>(undefined);
+
   const fetchProfile = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+    const current = () => requestId === requestSequence.current;
+    if (lastProfileId.current !== profileId) {
+      lastProfileId.current = profileId;
+      setProfile(null); setPosts([]); setVisitors([]); setFollow(null); setVol(null);
+    }
     if (!profileId) { setLoading(false); return; }
     setLoading(true); setFailed(false);
     try {
@@ -78,16 +89,22 @@ export default function ProfileScreen() {
         profileApi.full(profileId, token).catch((e) => { if (e?.status === 404) return null; throw e; }),
         fetch(`${getApiUrl()}/api/posts?user_id=${profileId}&limit=20`, { headers }).catch(() => null),
       ]);
+      if (!current()) return;
       setProfile(p);
-      if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
-      if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
-      fetchFollowStats(Number(profileId), token).then(setFollow).catch(() => setFollow(null));
-      volunteerApi.summary(Number(profileId)).then(setVol).catch(() => setVol(null));
-    } catch { setFailed(true); }
-    finally { setLoading(false); }
+      if (postsRes?.ok) { const d = await postsRes.json(); if (!current()) return; setPosts(Array.isArray(d) ? d : d.posts ?? []); }
+      else setPosts([]);
+      if (isOwn && token) profileApi.visitors(token).then((r) => { if (current()) setVisitors(r.visitors); }).catch(() => {});
+      fetchFollowStats(Number(profileId), token).then((f) => { if (current()) setFollow(f); }).catch(() => { if (current()) setFollow(null); });
+      volunteerApi.summary(Number(profileId)).then((v) => { if (current()) setVol(v); }).catch(() => { if (current()) setVol(null); });
+    } catch { if (current()) setFailed(true); }
+    finally { if (current()) setLoading(false); }
   }, [profileId, token, isOwn]);
 
-  useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+  useFocusEffect(useCallback(() => {
+    fetchProfile();
+    // مغادرة الشاشة تُبطل الطلبات الجارية
+    return () => { requestSequence.current += 1; };
+  }, [fetchProfile]));
 
   const toggleFollow = async () => {
     if (!profile || !follow || followBusy) return;
