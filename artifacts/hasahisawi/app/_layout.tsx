@@ -12,7 +12,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import NetworkBanner from "@/components/NetworkBanner";
 import AdminAlertsWatcher from "@/components/AdminAlertsWatcher";
-import LaunchSplash, { SplashArt } from "@/components/LaunchSplash";
+import LaunchSplash from "@/components/LaunchSplash";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { reloadAppAsync } from "expo";
@@ -392,8 +392,6 @@ export default function RootLayout() {
     ...Ionicons.font,
   });
   const [initialLang, setInitialLang] = useState<Lang | null>(null);
-  // على الويب: ننتظر صحوة الخادم قبل تشغيل AuthProvider — على الموبايل لا حاجة
-  const [serverReady, setServerReady] = useState(Platform.OS !== "web");
 
   useEffect(() => {
     // الأجهزة التي كانت على وضع RTL القديم: إعادة تشغيل واحدة لتطبيق الاتجاه الصحيح فوراً
@@ -407,11 +405,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     initAppCheck().catch(() => {});
-    if (Platform.OS === "web") {
-      // لا ننتظر أكثر من 6 ثوانٍ، ولا ننتظر إطلاقاً بدون إنترنت (وضع الأوفلاين).
-      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-      if (offline) setServerReady(true);
-      else Promise.race([wakeUpServer(), new Promise((r) => setTimeout(r, 6000))]).finally(() => setServerReady(true));
+    // نوقظ الخادم في الخلفية دون أن نحجب الواجهة: التحقق من الجلسة يتحمّل بطء الخادم
+    // (لا يُنهي الجلسة إلا رد 401 صريح)، فلا داعي لإبقاء المستخدم أمام شاشة انتظار.
+    if (Platform.OS === "web" && !(typeof navigator !== "undefined" && navigator.onLine === false)) {
+      wakeUpServer().catch(() => {});
     }
   }, []);
 
@@ -437,16 +434,6 @@ export default function RootLayout() {
   // على الويب: الخطوط تُحمَّل عبر CSS — لا نحتاج لانتظارها
   const fontReady = Platform.OS === "web" ? true : (fontsLoaded || !!fontError);
   if (!fontReady || initialLang === null) return null;
-
-  // شاشة الانتظار أثناء صحوة الخادم (ثوانٍ فقط)
-  if (!serverReady) {
-    return (
-      <View style={{ flex: 1 }}>
-        <SplashArt />
-        <ActivityIndicator color="#1F5C8A" size="small" style={{ position: "absolute", bottom: 60, alignSelf: "center" }} />
-      </View>
-    );
-  }
 
   return (
     <ErrorBoundary>
