@@ -66,6 +66,8 @@ const GROUPS: Group[] = [
       { title: "ركن المرأة",  icon: "flower-outline",     route: "/(tabs)/women",       color: "#5B8DB8", femaleOnly: true },
       { title: "قسم الرجال",  icon: "man-outline",        route: "/(tabs)/men",         color: "#38BDF8"      },
       { title: "المنظمات",    icon: "people-outline",     route: "/(tabs)/orgs",        color: Colors.primary },
+      { title: "التطوع",      icon: "heart-circle-outline", route: "/volunteer",        color: Colors.primary },
+      { title: "المسابقات",   icon: "trophy-outline",     route: "/contests",           color: Colors.accent  },
       { title: "الجاليات",    icon: "earth-outline",      route: "/(tabs)/communities", color: Colors.cyber   },
       { title: "التقييمات",   icon: "star-outline",       route: "/(tabs)/ratings",     color: Colors.accent  },
     ],

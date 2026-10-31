@@ -6,6 +6,7 @@ import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { query, sessionUser, isStaff, dbEnabled } from "../lib/shared-db";
 import { recordAdminAlert } from "./admin-alerts";
+import { ensureVolunteerDb, levelFor } from "./volunteer";
 
 const router = Router();
 const ONLINE_SEC = 120;
@@ -447,6 +448,14 @@ const SOCIAL_AR: Record<string, string> = { whatsapp: "واتساب", facebook: 
 router.get("/public/cv/:id", async (req: Request, res: Response) => {
   try {
     const p = await loadFull(Number(req.params.id), null);
+    const vol = await ensureVolunteerDb()
+      .then(() => query(
+        `SELECT COALESCE((SELECT SUM(points) FROM volunteer_points WHERE user_id=$1),0)::int AS points,
+                (SELECT COUNT(*)::int FROM volunteer_signups WHERE user_id=$1 AND status='completed') AS tasks,
+                (SELECT COALESCE(SUM(hours),0)::float FROM volunteer_signups WHERE user_id=$1 AND status='completed') AS hours`,
+        [Number(req.params.id)]))
+      .then((r) => r.rows[0] as { points: number; tasks: number; hours: number })
+      .catch(() => null);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=120");
     if (!p) return res.status(404).send(`<!doctype html><meta charset="utf-8"><body dir="rtl" style="font-family:sans-serif;padding:40px">الملف غير موجود</body>`);
@@ -498,6 +507,7 @@ ${p.open_to_work ? `<div class="otw">متاح للعمل</div>` : ""}
 ${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : ""}
 </div></div>
 ${skills ? `<div class="sec"><h2>المهارات${p.endorsers_count ? ` <span class="mu">· زكّاه ${p.endorsers_count} شخص</span>` : ""}</h2>${skills}</div>` : ""}
+${vol && vol.points > 0 ? `<div class="sec"><h2>العمل التطوعي</h2><div>${esc(levelFor(vol.points).name)} · ${vol.points} نقطة تطوعية · ${vol.tasks} مهمة منجزة${vol.hours ? ` · ${vol.hours} ساعة` : ""}</div></div>` : ""}
 ${certs ? `<div class="sec"><h2>الشهادات والخبرات</h2>${certs}</div>` : ""}
 ${links ? `<div class="sec"><h2>للتواصل</h2>${links}</div>` : ""}
 <div class="foot">الملف المهني على تطبيق حصاحيصاوي</div>

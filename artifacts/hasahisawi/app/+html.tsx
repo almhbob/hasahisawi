@@ -52,6 +52,8 @@ export default function Root({ children }: PropsWithChildren) {
 
         <style>{`
           *, *::before, *::after { box-sizing: border-box; }
+          /* مفاتيح التشغيل (Switch): في اتجاه RTL ينقلب موضع المقبض فيخرج عن المسار */
+          div:has(> input[role="switch"]) { direction: ltr; }
           html { height: 100%; margin: 0; padding: 0; }
 
           body {

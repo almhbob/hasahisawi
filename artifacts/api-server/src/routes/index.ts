@@ -19,6 +19,7 @@ import chatPlusRouter from "./chat-plus";
 import profilePlusRouter from "./profile-plus";
 import socialSafetyRouter, { ensureSocialSafety } from "./social-safety";
 import socialPlusRouter, { ensureSocialPlus } from "./social-plus";
+import volunteerRouter, { ensureVolunteerDb } from "./volunteer";
 import callsRouter from "./calls";
 import zawajilAdminRouter from "./zawajil-admin";
 
@@ -42,6 +43,7 @@ router.use(chatPlusRouter);
 router.use(profilePlusRouter);
 router.use(socialSafetyRouter);
 router.use(socialPlusRouter);
+router.use(volunteerRouter);
 router.use(callsRouter);
 router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
@@ -60,6 +62,6 @@ initTransportLiveDb().catch(console.error);
 ensureAdminAlertsDb().catch(console.error);
 ensureStoresDb().catch(console.error);
 // بعد جداول المجتمع (social_posts/social_comments) لأنها تضيف عموداً لها.
-initHasahisawiDb().then(() => Promise.all([ensureSocialSafety(), ensureSocialPlus()])).catch(console.error);
+initHasahisawiDb().then(() => Promise.all([ensureSocialSafety(), ensureSocialPlus(), ensureVolunteerDb()])).catch(console.error);
 
 export default router;
