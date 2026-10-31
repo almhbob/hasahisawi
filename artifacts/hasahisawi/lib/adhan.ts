@@ -1,5 +1,6 @@
 // الأذان — الإعدادات، الأصوات، والجدولة المحلية (تعمل والتطبيق مغلق)
 import { Platform } from "react-native";
+import { computePrayerTimes, type PrayerInput } from "@/lib/prayer-calc";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 
@@ -144,8 +145,14 @@ function fmt(t: string) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
 }
 
-/** جدولة الأذان لسبعة أيام قادمة وفق الإعدادات */
-export async function scheduleAdhan(times: Record<string, string>, s?: AdhanSettings) {
+/** جدولة الأذان لسبعة أيام قادمة وفق الإعدادات.
+ *  timesForDay (اختياري): مواقيت كل يوم على حدة بتوقيت الجهاز، لأن الأوقات تتزحزح
+ *  دقيقة كل بضعة أيام؛ بدونه تُستخدم مواقيت اليوم للأيام السبعة. */
+export async function scheduleAdhan(
+  times: Record<string, string>,
+  s?: AdhanSettings,
+  timesForDay?: (dayOffset: number) => Record<string, string> | null,
+) {
   if (Platform.OS === "web") return;
   const settings = s || (await loadAdhanSettings());
   await cancelAdhan();
@@ -154,9 +161,10 @@ export async function scheduleAdhan(times: Record<string, string>, s?: AdhanSett
   const voice = voiceById(settings.voice);
   const now = Date.now();
   for (let d = 0; d < 7; d++) {
+    const dayTimes = (timesForDay && timesForDay(d)) || times;
     for (const p of ADHAN_PRAYERS) {
       if (!settings.prayers[p.key]) continue;
-      const t = times[p.key];
+      const t = dayTimes[p.key];
       if (!t) continue;
       const [h, m] = t.split(":").map(Number);
       const at = new Date();
@@ -201,10 +209,18 @@ export async function rescheduleAdhanFromCache() {
   if (Platform.OS === "web") return;
   try {
     const raw = await AsyncStorage.getItem(PRAYER_CACHE_KEY);
-    const timings = raw ? JSON.parse(raw)?.data?.timings : null;
+    const cache = raw ? JSON.parse(raw) : null;
+    const timings = cache?.data?.timings;
     if (!timings) return;
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== "granted") return;
+    // إن حُفظت مدخلات الحساب نعيد حساب مواقيت كل يوم محلياً (أدق، وبدون إنترنت)
+    const calc = cache?.calc as Omit<PrayerInput, "date"> | undefined;
+    if (calc) {
+      const today = computePrayerTimes(calc).deviceTimings;
+      await scheduleAdhan(today, undefined, (d) => computePrayerTimes({ ...calc, date: new Date(Date.now() + d * 86400_000) }).deviceTimings);
+      return;
+    }
     await scheduleAdhan(timings);
   } catch {}
 }

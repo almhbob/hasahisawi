@@ -2,7 +2,7 @@ import { withRTLScreen } from "@/components/RTLScope";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal,
-  ActivityIndicator, Platform, Switch,
+  ActivityIndicator, Platform, Switch, Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,10 +25,15 @@ import {
   AdhanSettings, DEFAULT_ADHAN, loadAdhanSettings, saveAdhanSettings, scheduleAdhan,
   cancelAdhan, requestAdhanPermission, stopAdhanPreview, PRAYER_CACHE_KEY,
 } from "@/lib/adhan";
+import {
+  computePrayerTimes, deviceTimeZone, gregorianReadable, hijriFromDate, isMethodKey, legacyMethodKey,
+  METHOD_OPTIONS, type MethodKey, type PrayerInput,
+} from "@/lib/prayer-calc";
+import { DEFAULT_CITY, DEFAULT_COUNTRY, findCity, findCountry, PRAYER_COUNTRIES } from "@/constants/prayer-locations";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import * as Location from "expo-location";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
-const HASAHISA_LAT  = 14.0566;
-const HASAHISA_LON  = 33.4001;
 const SETTINGS_KEY  = "prayer_settings_v2";
 
 const ATHAN_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -38,19 +43,11 @@ const PRAYER_LIST = [
   { key: "Sunrise", name: "الشروق",  icon: "sunny-outline"        as const, color: "#F0A500" },
   { key: "Dhuhr",   name: "الظهر",   icon: "sunny"                as const, color: "#27AE68" },
   { key: "Asr",     name: "العصر",   icon: "partly-sunny-outline" as const, color: "#3E9CBF" },
-  { key: "Maghrib", name: "المغرب",  icon: "sunset-outline"       as const, color: "#F97316" },
+  { key: "Maghrib", name: "المغرب",  icon: "cloudy-night-outline" as const, color: "#F97316" },
   { key: "Isha",    name: "العشاء",  icon: "moon"                 as const, color: "#5B8DB8" },
 ];
 
 
-const METHODS = [
-  { id: 3,  name: "الهيئة المصرية العامة للمساحة (موصى به للسودان)" },
-  { id: 1,  name: "رابطة العالم الإسلامي" },
-  { id: 4,  name: "جامعة أم القرى، مكة المكرمة" },
-  { id: 5,  name: "جامعة العلوم الإسلامية، كراتشي" },
-  { id: 2,  name: "الجمعية الإسلامية لأمريكا الشمالية" },
-  { id: 12, name: "مؤسسة الهلال (تحري الرؤية)" },
-];
 
 const SCHOOLS = [
   { id: 0, name: "شافعي / مالكي / حنبلي (العصر: الفيء مثل الشيء)" },
@@ -67,21 +64,58 @@ const WEEKDAYS_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأ
 const WEEKDAYS_SHORT_AR = ["أح", "إث", "ثل", "أر", "خم", "جم", "سب"];
 
 // ─── أنواع ──────────────────────────────────────────────────────────────────
+type GpsLocation = { lat: number; lng: number; tz: string; label: string };
+
 type PrayerSettings = {
-  method: number;
+  method: MethodKey;
   school: number;
-  latitude: number;
-  longitude: number;
+  /** رمز الدولة ومعرّف المدينة من constants/prayer-locations */
+  country: string;
+  city: string;
+  /** إذا اختار المستخدم «موقعي الحالي» */
+  gps: GpsLocation | null;
   offsets: { Fajr: number; Dhuhr: number; Asr: number; Maghrib: number; Isha: number };
 };
 
 const DEFAULT_SETTINGS: PrayerSettings = {
-  method: 3,
+  method: "egyptian",
   school: 0,
-  latitude: HASAHISA_LAT,
-  longitude: HASAHISA_LON,
+  country: DEFAULT_COUNTRY,
+  city: DEFAULT_CITY,
+  gps: null,
   offsets: { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 },
 };
+
+/** يقبل إعدادات قديمة (method رقمي، latitude/longitude) ويحوّلها للشكل الجديد. */
+function normalizeSettings(raw: any, base: PrayerSettings = DEFAULT_SETTINGS): PrayerSettings {
+  if (!raw || typeof raw !== "object") return base;
+  const method: MethodKey = isMethodKey(raw.method) ? raw.method
+    : raw.method != null ? legacyMethodKey(raw.method) : base.method;
+  const country = findCountry(raw.country ?? base.country);
+  const city = findCity(country, raw.city ?? base.city);
+  const gps = raw.gps && Number.isFinite(raw.gps.lat) && Number.isFinite(raw.gps.lng) ? raw.gps as GpsLocation : null;
+  return {
+    method,
+    school: raw.school === 1 ? 1 : 0,
+    country: country.code,
+    city: city.id,
+    gps,
+    offsets: { ...base.offsets, ...(raw.offsets || {}) },
+  };
+}
+
+/** مدخلات الحساب + اسم المكان للعرض. */
+function locationOf(s: PrayerSettings) {
+  if (s.gps) return { lat: s.gps.lat, lng: s.gps.lng, tz: s.gps.tz, utcOffset: undefined as number | undefined, label: s.gps.label };
+  const country = findCountry(s.country);
+  const city = findCity(country, s.city);
+  return { lat: city.lat, lng: city.lng, tz: country.tz, utcOffset: country.utcOffset, label: `${city.name}، ${country.name}` };
+}
+
+function calcInput(s: PrayerSettings): Omit<PrayerInput, "date"> {
+  const loc = locationOf(s);
+  return { lat: loc.lat, lng: loc.lng, tz: loc.tz, utcOffset: loc.utcOffset, method: s.method, school: s.school, offsets: s.offsets };
+}
 
 // ─── دوال مساعدة ─────────────────────────────────────────────────────────────
 function parseTime(t: string): number {
@@ -230,6 +264,9 @@ function PrayerScreen() {
   const [gregorian, setGregorian] = useState<{ readable: string } | null>(null);
 
   const [settings, setSettings] = useState<PrayerSettings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef<PrayerSettings>(DEFAULT_SETTINGS);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const [locating, setLocating] = useState(false);
   const [editSettings, setEditSettings] = useState<PrayerSettings>(DEFAULT_SETTINGS);
 
   const [nextPrayer, setNextPrayer] = useState<{
@@ -263,6 +300,9 @@ function PrayerScreen() {
   const [adhan, setAdhan] = useState<AdhanSettings>(DEFAULT_ADHAN);
   const adhanEnabledRef = useRef(true);
   const timesRef        = useRef<Record<string, string> | null>(null);
+  /** المواقيت بتوقيت الجهاز (للعدّاد والإشعارات) وبتوقيت المدينة (للعرض) */
+  const deviceTimesRef  = useRef<Record<string, string> | null>(null);
+  const displayTimesRef = useRef<Record<string, string> | null>(null);
 
   useEffect(() => { adhanEnabledRef.current = adhan.enabled; }, [adhan.enabled]);
   useEffect(() => { timesRef.current = times; }, [times]);
@@ -289,7 +329,11 @@ function PrayerScreen() {
       const granted = await requestAdhanPermission();
       if (!granted) return;
     }
-    if (timesRef.current) scheduleAdhan(timesRef.current, next);
+    if (deviceTimesRef.current) {
+      const input = calcInput(settingsRef.current);
+      scheduleAdhan(deviceTimesRef.current, next, (d) =>
+        computePrayerTimes({ ...input, date: new Date(Date.now() + d * 86400_000) }).deviceTimings);
+    }
     else if (!next.enabled) cancelAdhan();
   }, []);
 
@@ -299,18 +343,20 @@ function PrayerScreen() {
 
   // ── تحميل الإعدادات ────────────────────────────────────────────────────────
   const loadSettings = useCallback(async () => {
+    // إعدادات الإدارة (طريقة الحساب والتعديلات) افتراضية، واختيار المستخدم المحفوظ يغلبها
+    let base = DEFAULT_SETTINGS;
     try {
       const apiBase = getApiUrl();
       if (apiBase) {
-        const res = await fetch(`${apiBase}/api/prayer-settings`, { signal: AbortSignal.timeout(4000) });
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 4000);
+        const res = await fetch(`${apiBase}/api/prayer-settings`, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
         if (res.ok) {
           const data = await res.json();
           if (data.settings) {
-            const merged: PrayerSettings = {
-              method:    data.settings.method    ?? DEFAULT_SETTINGS.method,
-              school:    data.settings.school    ?? DEFAULT_SETTINGS.school,
-              latitude:  parseFloat(data.settings.latitude)  || DEFAULT_SETTINGS.latitude,
-              longitude: parseFloat(data.settings.longitude) || DEFAULT_SETTINGS.longitude,
+            base = normalizeSettings({
+              method: data.settings.method,
+              school: data.settings.school,
               offsets: {
                 Fajr:    data.settings.fajr_offset    ?? 0,
                 Dhuhr:   data.settings.dhuhr_offset   ?? 0,
@@ -318,33 +364,25 @@ function PrayerScreen() {
                 Maghrib: data.settings.maghrib_offset ?? 0,
                 Isha:    data.settings.isha_offset    ?? 0,
               },
-            };
-            const local = await AsyncStorage.getItem(SETTINGS_KEY);
-            if (local) {
-              const parsed = JSON.parse(local);
-              setSettings({ ...merged, ...parsed });
-              setEditSettings({ ...merged, ...parsed });
-            } else {
-              setSettings(merged);
-              setEditSettings(merged);
-            }
-            return;
+            });
           }
         }
       }
     } catch {}
     try {
       const local = await AsyncStorage.getItem(SETTINGS_KEY);
-      if (local) {
-        const parsed = JSON.parse(local);
-        setSettings(parsed);
-        setEditSettings(parsed);
-      }
-    } catch {}
+      const merged = local ? normalizeSettings(JSON.parse(local), base) : base;
+      setSettings(merged);
+      setEditSettings(merged);
+    } catch {
+      setSettings(base);
+      setEditSettings(base);
+    }
   }, []);
 
   // ── حساب الصلاة القادمة ─────────────────────────────────────────────────────
-  const computeNextPrayer = useCallback((t: Record<string, string>) => {
+  const computeNextPrayer = useCallback((t: Record<string, string>, display?: Record<string, string>) => {
+    const shown = display ?? displayTimesRef.current ?? t;
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
     for (const key of ATHAN_PRAYERS) {
@@ -352,7 +390,7 @@ function PrayerScreen() {
       if (mins > nowMins) {
         const diff = (mins - nowMins) * 60 - now.getSeconds();
         const info = PRAYER_LIST.find(p => p.key === key)!;
-        setNextPrayer({ key, name: info.name, color: info.color, time: t[key], secsLeft: diff });
+        setNextPrayer({ key, name: info.name, color: info.color, time: shown[key] ?? t[key], secsLeft: diff });
         setCountdown(diff);
         return;
       }
@@ -360,92 +398,44 @@ function PrayerScreen() {
     // بعد العشاء → الفجر غداً
     const fajrMins = parseTime(t["Fajr"]);
     const diff     = ((24 * 60 - nowMins) + fajrMins) * 60 - now.getSeconds();
-    setNextPrayer({ key: "Fajr", name: "الفجر", color: "#5B8DB8", time: t["Fajr"], secsLeft: diff });
+    setNextPrayer({ key: "Fajr", name: "الفجر", color: "#5B8DB8", time: shown["Fajr"] ?? t["Fajr"], secsLeft: diff });
     setCountdown(diff);
   }, []);
 
   // ── جلب أوقات الصلاة ────────────────────────────────────────────────────────
-  const fetchTimes = useCallback(async (s: PrayerSettings) => {
+  const fetchTimes = useCallback(async (st: PrayerSettings) => {
+    // الحساب فلكي داخل الجهاز: فوري ويعمل بدون إنترنت
     setLoading(true);
     setError(null);
     try {
-      const tune = `0,${s.offsets.Fajr},0,${s.offsets.Dhuhr},${s.offsets.Asr},${s.offsets.Maghrib},0,${s.offsets.Isha},0`;
-      const now  = new Date();
-      const dd   = String(now.getDate()).padStart(2, "0");
-      const mm   = String(now.getMonth() + 1).padStart(2, "0");
-      const yyyy = now.getFullYear();
-      const dateStr = `${dd}-${mm}-${yyyy}`;
-
-      // مساعد fetch مع AbortController صريح (AbortSignal.timeout غير موثوق في RN)
-      const fetchWithTimeout = async (url: string, ms: number): Promise<Response> => {
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), ms);
-        try { return await fetch(url, { signal: ctrl.signal }); }
-        finally { clearTimeout(tid); }
-      };
-
-      // المسارات: البروكسي الخلفي أولاً (أسرع وأكثر موثوقية)، ثم aladhan مباشرة
-      const apiBase = getApiUrl();
-      const backendParams = new URLSearchParams({
-        date: dateStr, latitude: String(s.latitude), longitude: String(s.longitude),
-        method: String(s.method), school: String(s.school), tune,
-      });
-      const urls: [string, number][] = [
-        [`${apiBase}/api/prayer-times?${backendParams}`, 15000],
-        [`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${s.latitude}&longitude=${s.longitude}&method=${s.method}&school=${s.school}&tune=${tune}`, 20000],
-        [`https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=Hasahisa&country=SD&method=${s.method}&school=${s.school}`, 20000],
-      ];
-
-      let data: any = null;
-      for (const [url, ms] of urls) {
-        try {
-          const res = await fetchWithTimeout(url, ms);
-          if (!res.ok) continue;
-          const json = await res.json();
-          if (json.code === 200 && json.data?.timings?.Fajr) { data = json.data; break; }
-        } catch {}
-      }
-
-      if (!data) throw new Error("no data");
-
-      // حفظ نسخة احتياطية في التخزين المحلي
-      await AsyncStorage.setItem(PRAYER_CACHE_KEY, JSON.stringify({ data, cachedAt: Date.now() })).catch(() => {});
-
-      setTimes(data.timings);
-      setGregorian(data.date.gregorian);
-      const h = data.date.hijri;
-      setHijri({
-        day: h.day, month: parseInt(h.month.number, 10),
-        monthName: h.month.ar, year: h.year, weekday: h.weekday.ar,
-      });
-      setHijriViewMonth(parseInt(h.month.number, 10));
+      const input = calcInput(st);
+      const r = computePrayerTimes(input);
+      deviceTimesRef.current = r.deviceTimings;
+      displayTimesRef.current = r.timings;
+      setTimes(r.timings);
+      const today = new Date();
+      setGregorian({ readable: gregorianReadable(today) });
+      const h = hijriFromDate(today);
+      setHijri(h);
+      setHijriViewMonth(h.month);
       setHijriViewYear(parseInt(h.year, 10));
-      computeNextPrayer(data.timings);
+      computeNextPrayer(r.deviceTimings, r.timings);
 
-      // جدولة الإشعارات المحلية إذا كان الأذان مفعّلاً
+      // نحفظ مدخلات الحساب ليعيد التطبيق جدولة الأذان عند فتحه دون فتح هذه الشاشة
+      await AsyncStorage.setItem(PRAYER_CACHE_KEY, JSON.stringify({
+        data: { timings: r.deviceTimings, date: { gregorian: { readable: gregorianReadable(today) } } },
+        calc: input, cachedAt: Date.now(),
+      })).catch(() => {});
+
       if (adhanEnabledRef.current) {
         const granted = await requestAdhanPermission();
-        if (granted) scheduleAdhan(data.timings);
+        if (granted) {
+          scheduleAdhan(r.deviceTimings, undefined, (d) =>
+            computePrayerTimes({ ...input, date: new Date(Date.now() + d * 86400_000) }).deviceTimings);
+        }
       }
     } catch {
-      // محاولة استخدام البيانات المخزّنة مسبقاً عند فقدان الاتصال
-      try {
-        const cached = await AsyncStorage.getItem(PRAYER_CACHE_KEY);
-        if (cached) {
-          const { data } = JSON.parse(cached);
-          setTimes(data.timings);
-          setGregorian(data.date.gregorian);
-          const h = data.date.hijri;
-          setHijri({
-            day: h.day, month: parseInt(h.month.number, 10),
-            monthName: h.month.ar, year: h.year, weekday: h.weekday.ar,
-          });
-          computeNextPrayer(data.timings);
-          setError("⚠️ يعرض مواقيت آخر يوم متاح — تحقق من الاتصال لتحديثها");
-          return;
-        }
-      } catch {}
-      setError("تعذّر جلب مواقيت الآذان. تحقق من اتصالك بالإنترنت.");
+      setError("تعذّر حساب المواقيت لهذا الموقع. جرّب مدينة أخرى.");
     } finally {
       setLoading(false);
     }
@@ -458,8 +448,8 @@ function PrayerScreen() {
       setCountdown(c => {
         if (c <= 1) {
           // حلّ وقت الصلاة — أعِد حساب الصلاة القادمة فقط
-          const currentTimes = timesRef.current;
-          if (currentTimes) computeNextPrayer(currentTimes);
+          const currentTimes = deviceTimesRef.current;
+          if (currentTimes) computeNextPrayer(currentTimes, displayTimesRef.current ?? undefined);
           return 0;
         }
         return c - 1;
@@ -471,6 +461,39 @@ function PrayerScreen() {
   // ── التهيئة ───────────────────────────────────────────────────────────────
   useEffect(() => { loadSettings(); }, []);
   useEffect(() => { fetchTimes(settings); }, [settings]);
+
+  // ── «موقعي الحالي» ─────────────────────────────────────────────────────────
+  const useMyLocation = async () => {
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("الموقع", "اسمح للتطبيق بالوصول إلى موقعك لحساب المواقيت بدقة، أو اختر مدينتك من القائمة.");
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      let label = "موقعي الحالي";
+      try {
+        const [place] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        const name = place?.city || place?.subregion || place?.region;
+        if (name) label = `${name}${place?.country ? `، ${place.country}` : ""}`;
+      } catch {}
+      setEditSettings((s) => ({
+        ...s,
+        gps: { lat: +pos.coords.latitude.toFixed(4), lng: +pos.coords.longitude.toFixed(4), tz: deviceTimeZone(), label },
+      }));
+    } catch {
+      Alert.alert("الموقع", "تعذّر تحديد موقعك الآن. اختر مدينتك من القائمة.");
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  const pickCountry = (code: string) => {
+    const c = findCountry(code);
+    // طريقة الحساب تتبع الدولة تلقائياً (يمكن تغييرها بعدها)
+    setEditSettings((s) => ({ ...s, gps: null, country: c.code, city: c.cities[0].id, method: c.method }));
+  };
 
   // ── حفظ الإعدادات ──────────────────────────────────────────────────────────
   const saveSettings = async () => {
@@ -658,7 +681,8 @@ function PrayerScreen() {
               </View>
 
               <Text style={s.calcNote}>
-                طريقة الحساب: {METHODS.find(m => m.id === settings.method)?.name?.split("(")[0] ?? "—"}
+                📍 {locationOf(settings).label}{"\n"}
+                طريقة الحساب: {METHOD_OPTIONS.find(m => m.key === settings.method)?.name ?? "—"}
                 {" | "}{SCHOOLS.find(sc => sc.id === settings.school)?.name?.split("(")[0] ?? "—"}
               </Text>
             </>
@@ -906,16 +930,59 @@ function PrayerScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={ms.sectionLabel}>الموقع</Text>
+              <Pressable
+                style={[ms.optionRow, !!editSettings.gps && ms.optionRowActive]}
+                onPress={useMyLocation}
+                disabled={locating}
+              >
+                <Ionicons name="locate" size={18} color={editSettings.gps ? Colors.primary : Colors.textMuted} />
+                <Text style={[ms.optionText, !!editSettings.gps && { color: Colors.primary }]}>
+                  {locating ? "جارٍ تحديد موقعك…" : editSettings.gps ? `موقعي الحالي: ${editSettings.gps.label}` : "استخدم موقعي الحالي (أدق)"}
+                </Text>
+              </Pressable>
+
+              <Text style={ms.subLabel}>أو اختر الدولة</Text>
+              <RtlScrollRow contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+                {PRAYER_COUNTRIES.map((c) => {
+                  const on = !editSettings.gps && editSettings.country === c.code;
+                  return (
+                    <Pressable key={c.code} onPress={() => pickCountry(c.code)} style={[ms.chip, on && ms.chipOn]}>
+                      <Text style={[ms.chipText, on && ms.chipTextOn]}>{c.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </RtlScrollRow>
+
+              <Text style={ms.subLabel}>المدينة</Text>
+              <View style={ms.chipsWrap}>
+                {findCountry(editSettings.country).cities.map((city) => {
+                  const on = !editSettings.gps && editSettings.city === city.id;
+                  return (
+                    <Pressable
+                      key={city.id}
+                      onPress={() => setEditSettings((s) => ({ ...s, gps: null, city: city.id }))}
+                      style={[ms.chip, on && ms.chipOn]}
+                    >
+                      <Text style={[ms.chipText, on && ms.chipTextOn]}>{city.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               <Text style={ms.sectionLabel}>طريقة الحساب</Text>
-              {METHODS.map(m => (
-                <Pressable key={m.id}
-                  style={[ms.optionRow, editSettings.method === m.id && ms.optionRowActive]}
-                  onPress={() => setEditSettings(s => ({ ...s, method: m.id }))}
+              {METHOD_OPTIONS.map(m => (
+                <Pressable key={m.key}
+                  style={[ms.optionRow, editSettings.method === m.key && ms.optionRowActive]}
+                  onPress={() => setEditSettings(s => ({ ...s, method: m.key }))}
                 >
-                  <View style={[ms.radio, editSettings.method === m.id && ms.radioActive]}>
-                    {editSettings.method === m.id && <View style={ms.radioDot} />}
+                  <View style={[ms.radio, editSettings.method === m.key && ms.radioActive]}>
+                    {editSettings.method === m.key && <View style={ms.radioDot} />}
                   </View>
-                  <Text style={[ms.optionText, editSettings.method === m.id && { color: Colors.primary }]}>{m.name}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[ms.optionText, editSettings.method === m.key && { color: Colors.primary }]}>{m.name}</Text>
+                    <Text style={ms.optionHint}>{m.hint}</Text>
+                  </View>
                 </Pressable>
               ))}
 
@@ -1272,10 +1339,17 @@ const hc = StyleSheet.create({
 });
 
 const ms = StyleSheet.create({
+  subLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 10, marginBottom: 6 },
+  chip: { paddingHorizontal: 14, height: 38, borderRadius: 19, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  chipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  chipTextOn: { color: Colors.onColor },
+  chipsWrap: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 6 },
+  optionHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   overlay:  { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
   sheet: {
-    backgroundColor: "#0D1910",
+    backgroundColor: Colors.cardBg,
     borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl,
     maxHeight: "88%", paddingHorizontal: 20, paddingBottom: 40,
     borderTopWidth: 1, borderColor: Colors.primary + "30",
@@ -1307,7 +1381,7 @@ const ms = StyleSheet.create({
   radio:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.textMuted, alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 },
   radioActive:{ borderColor: Colors.primary },
   radioDot:   { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
-  optionText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
+  optionText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   offsetRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 10, paddingHorizontal: 14, borderRadius: Colors.radius.sm,
