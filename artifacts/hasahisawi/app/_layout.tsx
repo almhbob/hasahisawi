@@ -190,6 +190,8 @@ function AuthGate() {
           return;
         }
 
+        if (type === "volunteer") { router.push("/volunteer" as any); return; }
+        if (type === "contest" && data?.contest_id) { router.push({ pathname: "/contest", params: { id: String(data.contest_id) } } as any); return; }
         // ── متابع جديد → ملفه الشخصي ──
         if (type === "follow" && data?.follower_id) {
           router.push({ pathname: "/profile", params: { id: String(data.follower_id) } } as any);
@@ -384,6 +386,11 @@ function RootLayoutNav() {
         <Stack.Screen name="notifications"            options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="blocked-users"            options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="follows"                  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="volunteer"                options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="volunteer-admin"          options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contests"                 options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contest"                  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contests-admin"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />

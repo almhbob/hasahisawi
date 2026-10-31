@@ -19,6 +19,8 @@ import chatPlusRouter from "./chat-plus";
 import profilePlusRouter from "./profile-plus";
 import socialSafetyRouter, { ensureSocialSafety } from "./social-safety";
 import socialPlusRouter, { ensureSocialPlus } from "./social-plus";
+import volunteerRouter, { ensureVolunteerDb } from "./volunteer";
+import contestsRouter, { ensureContestsDb } from "./contests";
 import callsRouter from "./calls";
 import zawajilAdminRouter from "./zawajil-admin";
 
@@ -42,6 +44,8 @@ router.use(chatPlusRouter);
 router.use(profilePlusRouter);
 router.use(socialSafetyRouter);
 router.use(socialPlusRouter);
+router.use(volunteerRouter);
+router.use(contestsRouter);
 router.use(callsRouter);
 router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
@@ -64,6 +68,8 @@ async function initializeDatabaseSchemas() {
   // بعد جداول المجتمع (social_posts/social_comments) لأنها تضيف عموداً لها.
   await ensureSocialSafety();
   await ensureSocialPlus();
+  await ensureVolunteerDb();
+  await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();
 }

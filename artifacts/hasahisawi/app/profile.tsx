@@ -21,6 +21,7 @@ import { notify, confirmAction, uploadProfilePhoto, openExternal, copyText, syst
 import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from "@/lib/profile-api";
 import { blockUser } from "@/lib/social-safety";
 import { fetchFollowStats, followUser, unfollowUser, type FollowStats } from "@/lib/social-follow";
+import { volunteerApi, TIER_STYLE, type VolunteerSummary } from "@/lib/volunteer";
 
 type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
 type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
@@ -65,6 +66,7 @@ export default function ProfileScreen() {
   const [qrOpen, setQrOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [follow, setFollow] = useState<FollowStats | null>(null);
+  const [vol, setVol] = useState<VolunteerSummary | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
 
   const fetchProfile = useCallback(async () => {
@@ -80,6 +82,7 @@ export default function ProfileScreen() {
       if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
       if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
       fetchFollowStats(Number(profileId), token).then(setFollow).catch(() => setFollow(null));
+      volunteerApi.summary(Number(profileId)).then(setVol).catch(() => setVol(null));
     } catch { setFailed(true); }
     finally { setLoading(false); }
   }, [profileId, token, isOwn]);
@@ -467,6 +470,31 @@ export default function ProfileScreen() {
                 <Text style={styles.primaryBtnText}>طلب التوثيق</Text>
               </TouchableOpacity>
             )}
+          </Animated.View>
+        )}
+
+        {/* ── التطوع: يظهر في الملف المهني لمن جمع نقاطاً ── */}
+        {!lockedView && vol && (vol.points > 0 || isOwn) && (
+          <Animated.View entering={FadeInDown.delay(70).springify()} style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>التطوع</Text>
+              {isOwn && <TouchableOpacity onPress={() => router.push("/volunteer" as any)}><Text style={styles.link}>{vol.points > 0 ? "التفاصيل" : "ابدأ التطوع"}</Text></TouchableOpacity>}
+            </View>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+              <View style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 3, backgroundColor: TIER_STYLE[vol.level.tier].metal[0], borderColor: TIER_STYLE[vol.level.tier].metal[1], alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="ribbon" size={20} color={TIER_STYLE[vol.level.tier].ink} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitleNoMb, { fontSize: 16 }]}>{vol.level.name}</Text>
+                <Text style={styles.hint}>{vol.points} نقطة · {vol.tasks} مهمة · {vol.hours} ساعة تطوع</Text>
+              </View>
+              {vol.card && (
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, height: 26, borderRadius: 13, backgroundColor: "#0B1F3A" }}>
+                  <Ionicons name="card" size={13} color="#D4AF37" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#D4AF37" }}>بطاقة متطوع</Text>
+                </View>
+              )}
+            </View>
           </Animated.View>
         )}
 

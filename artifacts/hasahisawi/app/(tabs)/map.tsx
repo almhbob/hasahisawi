@@ -29,11 +29,11 @@ async function safeCall(number: string) {
 
 
 // ── الألوان ──────────────────────────────────────────────────────────────────
-const BG     = Colors.bg   ?? "#0A1A10";
-const CYBER  = Colors.cyber ?? "#2EAD6B";
-const CARD   = "#0F2318";
-const BORDER = "#1A3A22";
-const MUTED  = Colors.textMuted ?? "#4A7A5A";
+const BG     = Colors.bg;
+const CYBER  = Colors.primary;
+const CARD   = Colors.cardBg;
+const BORDER = Colors.border;
+const MUTED  = Colors.textMuted;
 
 // ── أنواع الفئات ─────────────────────────────────────────────────────────────
 type Category = {
@@ -64,9 +64,18 @@ type Place = {
 };
 
 // ── توليد HTML خريطة Leaflet ─────────────────────────────────────────────────
-function buildMapHtml(places: Place[], userLat?: number, userLng?: number): string {
-  const placesJson = JSON.stringify(places);
-  const userJson   = JSON.stringify(userLat != null ? { lat: userLat, lng: userLng } : null);
+// مركز الحصاحيصا الحقيقي (كان 14.6839, 33.3833 — شرق النيل قرب رفاعة)
+const CITY_CENTER = { lat: 14.7406, lng: 33.2955 };
+
+function buildMapHtml(places: Place[], userLat?: number, userLng?: number, dark = false): string {
+  // JSON داخل <script>: نمنع أي "</script>" في أسماء الأماكن من كسر الصفحة
+  const safe = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c");
+  const placesJson = safe(places);
+  const userJson   = safe(userLat != null ? { lat: userLat, lng: userLng } : null);
+  const centerJson = safe(CITY_CENTER);
+  const ui = dark
+    ? { bg: "#0D1613", card: "#15211C", border: "rgba(255,255,255,0.12)", text: "#E9F2EE", muted: "#93A69D" }
+    : { bg: "#EEF3F0", card: "#FFFFFF", border: "#E3EAE6", text: "#1A2C25", muted: "#5E6F68" };
 
   return `<!DOCTYPE html>
 <html dir="rtl">
@@ -77,23 +86,23 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
 <script>${LEAFLET_JS}</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #map { width:100%; height:100%; background:#0A1A10; }
+  html, body, #map { width:100%; height:100%; background:${ui.bg}; }
   .leaflet-popup-content-wrapper {
-    background:#0F2318; border:1px solid #1A3A22;
-    border-radius:14px; color:#fff; font-family:Cairo,Arial,sans-serif;
-    box-shadow:0 4px 24px #000a;
+    background:${ui.card}; border:1px solid ${ui.border};
+    border-radius:14px; color:${ui.text}; font-family:Cairo,Arial,sans-serif;
+    box-shadow:0 4px 24px rgba(0,0,0,0.25);
   }
-  .leaflet-popup-tip { background:#0F2318; }
-  .leaflet-popup-content { margin:12px 14px; min-width:160px; }
-  .popup-name { font-size:15px; font-weight:700; color:#fff; margin-bottom:4px; }
-  .popup-addr { font-size:12px; color:#4A7A5A; margin-bottom:8px; }
+  .leaflet-popup-tip { background:${ui.card}; }
+  .leaflet-popup-content { margin:12px 14px; min-width:160px; text-align:right; }
+  .popup-name { font-size:15px; font-weight:700; color:${ui.text}; margin-bottom:4px; }
+  .popup-addr { font-size:13px; color:${ui.muted}; margin-bottom:8px; }
   .popup-call {
-    display:inline-block; background:#2EAD6B22; border:1px solid #2EAD6B55;
-    color:#2EAD6B; padding:5px 12px; border-radius:8px; font-size:13px;
+    display:inline-block; background:#00966A1F; border:1px solid #00966A55;
+    color:#00966A; padding:6px 12px; border-radius:8px; font-size:14px;
     cursor:pointer; text-decoration:none; margin-top:2px;
   }
-  .leaflet-control-attribution { display:none!important; }
-  .leaflet-tile { filter: brightness(0.85) saturate(0.9); }
+  .leaflet-control-attribution { font-size:9px; }
+  ${dark ? ".leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.7); }" : ""}
 </style>
 </head>
 <body>
@@ -101,84 +110,112 @@ function buildMapHtml(places: Place[], userLat?: number, userLng?: number): stri
 <script>
   var places = ${placesJson};
   var user   = ${userJson};
+  var center = ${centerJson};
 
-  var map = L.map('map', {
-    center: [14.6839, 33.3833],
-    zoom: 15,
-    zoomControl: true,
+  // رسالة للتطبيق: WebView على الهاتف، أو الصفحة الأم على الويب
+  function send(msg) {
+    var data = JSON.stringify(msg);
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(data);
+    else if (window.parent && window.parent !== window) window.parent.postMessage(data, '*');
+  }
+
+  var map = L.map('map', { center: [center.lat, center.lng], zoom: 14, zoomControl: true });
+
+  // الخرائط: OpenStreetMap، ومع أي فشل في التحميل ننتقل تلقائياً إلى CARTO
+  var primary = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap',
   });
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-  }).addTo(map);
+  var fallback = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO',
+  });
+  var failures = 0, switched = false;
+  primary.on('tileerror', function() {
+    failures++;
+    if (!switched && failures >= 3) { switched = true; map.removeLayer(primary); fallback.addTo(map); }
+  });
+  primary.addTo(map);
 
   function makeIcon(color) {
     return L.divIcon({
       className: '',
-      html: '<div style="width:32px;height:32px;border-radius:50% 50% 50% 0;background:'+color+';border:3px solid #fff;box-shadow:0 2px 8px #0006;transform:rotate(-45deg)"></div>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -34],
+      html: '<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:' + color + ';border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);transform:rotate(-45deg)"></div>',
+      iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -32],
     });
   }
 
-  places.forEach(function(p) {
-    var popup = '<div class="popup-name">' + p.name + '</div>';
-    if (p.address) popup += '<div class="popup-addr">' + p.address + '</div>';
-    if (p.phone) popup += '<a class="popup-call" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'call\',phone:\''+p.phone+'\'}))">' +
-      '📞 ' + p.phone + '</a>';
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
 
-    L.marker([p.lat, p.lng], { icon: makeIcon(p.color) })
-      .addTo(map)
-      .bindPopup(popup, { maxWidth: 240 });
+  // زر الاتصال: نحفظ الرقم في data-phone ونلتقط الضغط بمستمع واحد (بدون أكواد داخل النص)
+  document.addEventListener('click', function(e) {
+    var el = e.target && e.target.closest ? e.target.closest('.popup-call') : null;
+    if (el) { e.preventDefault(); send({ type: 'call', phone: el.getAttribute('data-phone') }); }
   });
+
+  function popupHtml(p) {
+    var h = '<div class="popup-name">' + esc(p.name) + '</div>';
+    if (p.address) h += '<div class="popup-addr">' + esc(p.address) + '</div>';
+    if (p.phone) h += '<a class="popup-call" href="#" data-phone="' + esc(p.phone) + '">📞 ' + esc(p.phone) + '</a>';
+    return h;
+  }
+
+  var layer = L.layerGroup().addTo(map);
+  function draw(list) {
+    layer.clearLayers();
+    list.forEach(function(p) {
+      if (typeof p.lat !== 'number' && typeof p.lat !== 'string') return;
+      L.marker([+p.lat, +p.lng], { icon: makeIcon(p.color || '#00966A') }).addTo(layer).bindPopup(popupHtml(p), { maxWidth: 240 });
+    });
+  }
+  draw(places);
 
   if (user) {
     var userIcon = L.divIcon({
       className: '',
-      html: '<div style="width:20px;height:20px;border-radius:50%;background:#2EAD6B;border:3px solid #fff;box-shadow:0 0 0 6px #2EAD6B33"></div>',
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+      html: '<div style="width:20px;height:20px;border-radius:50%;background:#1D9BF0;border:3px solid #fff;box-shadow:0 0 0 6px rgba(29,155,240,0.25)"></div>',
+      iconSize: [20, 20], iconAnchor: [10, 10],
     });
-    L.marker([user.lat, user.lng], { icon: userIcon })
-      .addTo(map)
-      .bindPopup('<div class="popup-name">موقعك الحالي</div>');
-    map.setView([user.lat, user.lng], 15);
+    L.marker([user.lat, user.lng], { icon: userIcon }).addTo(map).bindPopup('<div class="popup-name">موقعك الحالي</div>');
   }
 
   window.filterCategory = function(cat) {
-    map.eachLayer(function(l) { if (l._popup) map.removeLayer(l); });
-    var filtered = cat === 'all' ? places : places.filter(function(p){ return p.category === cat; });
-    filtered.forEach(function(p) {
-      var popup = '<div class="popup-name">' + p.name + '</div>';
-      if (p.address) popup += '<div class="popup-addr">' + p.address + '</div>';
-      if (p.phone) popup += '<a class="popup-call" onclick="window.ReactNativeWebView.postMessage(JSON.stringify({type:\'call\',phone:\''+p.phone+'\'}))">' +
-        '📞 ' + p.phone + '</a>';
-      L.marker([p.lat, p.lng], { icon: makeIcon(p.color) })
-        .addTo(map).bindPopup(popup, { maxWidth: 240 });
-    });
+    var filtered = cat === 'all' ? places : places.filter(function(p) { return p.category === cat; });
+    draw(filtered);
     if (filtered.length > 0) {
-      var bounds = L.latLngBounds(filtered.map(function(p){ return [p.lat, p.lng]; }));
-      map.fitBounds(bounds, { padding: [40, 40] });
+      var bounds = L.latLngBounds(filtered.map(function(p) { return [+p.lat, +p.lng]; }));
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     }
   };
 
   window.goToUser = function() {
     if (user) map.setView([user.lat, user.lng], 17);
   };
+
+  // أوامر من التطبيق على الويب (iframe)
+  window.addEventListener('message', function(e) {
+    try {
+      var m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+      if (m && m.cmd === 'filter') window.filterCategory(m.cat);
+      if (m && m.cmd === 'user') window.goToUser();
+    } catch (err) {}
+  });
+  send({ type: 'ready' });
 </script>
 </body>
 </html>`;
 }
 
 // ── iframe للويب (بديل WebView) ──────────────────────────────────────────────
-function WebMapFrame({ html, onReady }: { html: string; onReady: () => void }) {
+function WebMapFrame({ html, frameRef }: { html: string; frameRef: React.MutableRefObject<any> }) {
   return React.createElement("div", {
     style: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   }, React.createElement("iframe", {
+    ref: frameRef,
     srcDoc: html,
     style: { width: "100%", height: "100%", border: "none", background: BG, display: "block" },
-    onLoad: onReady,
     title: "خريطة المدينة",
     allow: "geolocation",
   }));
@@ -188,6 +225,7 @@ function WebMapFrame({ html, onReady }: { html: string; onReady: () => void }) {
 function MapScreen() {
   const insets    = useSafeAreaInsets();
   const webRef    = useRef<WebView>(null);
+  const frameRef  = useRef<any>(null);
   const [places,  setPlaces]  = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat] = useState("all");
@@ -199,10 +237,18 @@ function MapScreen() {
   useFocusEffect(useCallback(() => {
     let active = true;
     setLoading(true);
-    fetch(`${getApiUrl()}/api/map/places`)
-      .then(r => r.json())
-      .then(data => { if (active) { setPlaces(data); setLoading(false); } })
-      .catch(() => { if (active) setLoading(false); });
+    // مهلة 12 ثانية، ونقبل قائمة فقط (رد خطأ من الخادم كان يُحفظ كأماكن فيتعطل العرض)
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 12000);
+    fetch(`${getApiUrl()}/api/map/places`, { signal: ctrl.signal })
+      .then(r => (r.ok ? r.json() : []))
+      .then(data => {
+        if (!active) return;
+        const list = Array.isArray(data) ? data.filter((p: any) => Number.isFinite(+p?.lat) && Number.isFinite(+p?.lng)) : [];
+        setPlaces(list);
+      })
+      .catch(() => {})
+      .finally(() => { clearTimeout(tid); if (active) setLoading(false); });
 
     Location.requestForegroundPermissionsAsync()
       .then(({ status }) => {
@@ -222,14 +268,29 @@ function MapScreen() {
 
   // تصفية الخريطة عند تغيير الفئة
   useEffect(() => {
-    if (mapReady && webRef.current) {
-      webRef.current.injectJavaScript(`window.filterCategory('${activeCat}'); true;`);
+    if (!mapReady) return;
+    if (Platform.OS === "web") {
+      frameRef.current?.contentWindow?.postMessage(JSON.stringify({ cmd: "filter", cat: activeCat }), "*");
+    } else {
+      webRef.current?.injectJavaScript(`window.filterCategory(${JSON.stringify(activeCat)}); true;`);
     }
   }, [activeCat, mapReady]);
+
+  // على الويب: رسائل الخريطة تصل عبر postMessage من الـ iframe
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    const onMsg = (e: MessageEvent) => {
+      if (frameRef.current && e.source !== frameRef.current.contentWindow) return;
+      handleMsg({ nativeEvent: { data: e.data } });
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
 
   const handleMsg = useCallback((event: any) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === "ready") { setMapReady(true); return; }
       if (msg.type === "call" && msg.phone) {
         Alert.alert("اتصال", `هل تريد الاتصال بـ ${msg.phone}؟`, [
           { text: "إلغاء", style: "cancel" },
@@ -244,14 +305,18 @@ function MapScreen() {
       Alert.alert("الموقع", "لم يتم تحديد موقعك بعد. تأكد من تفعيل خدمة الموقع.");
       return;
     }
-    webRef.current?.injectJavaScript("window.goToUser(); true;");
+    if (Platform.OS === "web") frameRef.current?.contentWindow?.postMessage(JSON.stringify({ cmd: "user" }), "*");
+    else webRef.current?.injectJavaScript("window.goToUser(); true;");
   };
 
   const filteredCount = activeCat === "all"
     ? places.length
     : places.filter(p => p.category === activeCat).length;
 
-  const mapHtml = buildMapHtml(places, userLoc?.lat, userLoc?.lng);
+  const mapHtml = React.useMemo(
+    () => buildMapHtml(places, userLoc?.lat, userLoc?.lng, Colors.isDark),
+    [places, userLoc?.lat, userLoc?.lng],
+  );
 
   return (
     <View style={s.root}>
@@ -295,7 +360,7 @@ function MapScreen() {
             <Text style={s.loadTxt}>تحميل الخريطة…</Text>
           </View>
         ) : Platform.OS === "web" ? (
-          <WebMapFrame html={mapHtml} onReady={() => setMapReady(true)} />
+          <WebMapFrame html={mapHtml} frameRef={frameRef} />
         ) : (
           <WebView
             ref={webRef}
@@ -309,6 +374,7 @@ function MapScreen() {
             mixedContentMode="always"
             startInLoadingState
             onLoad={() => setMapReady(true)}
+            setSupportMultipleWindows={false}
             onMessage={handleMsg}
             renderLoading={() => (
               <View style={[s.center, StyleSheet.absoluteFillObject, { backgroundColor: BG }]}>

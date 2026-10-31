@@ -75,6 +75,7 @@
     "@expo/config-plugins": "~54.0.4",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-google-signin/google-signin": "^16.1.2",
+    "adhan": "4.4.3",
     "expo": "~54.0.33",
     "expo-auth-session": "^7.0.10",
     "expo-av": "^16.0.8",

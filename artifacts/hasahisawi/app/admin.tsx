@@ -157,6 +157,8 @@ const MODERATOR_SECTIONS = [
   { key: "news",        label: "الأخبار",           icon: "radio-outline"        as const },
   { key: "education",   label: "التعليم",           icon: "school-outline"       as const },
   { key: "business",    label: "التجارة",           icon: "storefront-outline"   as const },
+  { key: "volunteer",   label: "التطوع (المهام والنقاط والبطاقات)", icon: "heart-circle-outline" as const },
+  { key: "contests",    label: "المسابقات",         icon: "trophy-outline"       as const },
 ];
 
 const AD_STATUS_META: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
