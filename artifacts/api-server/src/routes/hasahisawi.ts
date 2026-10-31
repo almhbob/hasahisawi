@@ -1,5 +1,6 @@
 import { ensureProfilePlus } from "./profile-plus";
 import { ensureSocialSafety, hiddenAuthorIds } from "./social-safety";
+import { ensureSocialPlus, followeeIds } from "./social-plus";
 import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
 import { canManageZawajil, notifyZawajilManagers } from "./zawajil-admin";
 import { Router, type Request, type Response, type NextFunction } from "express";
@@ -3201,7 +3202,7 @@ router.get("/prayer-times", async (req: Request, res: Response) => {
 
 router.get("/posts", async (req: Request, res: Response) => {
   try {
-    const { category, device_id, user_id, page, limit } = req.query as { category?: string; device_id?: string; user_id?: string; page?: string; limit?: string };
+    const { category, device_id, user_id, page, limit, feed } = req.query as { category?: string; device_id?: string; user_id?: string; page?: string; limit?: string; feed?: string };
     const params: unknown[] = [];
     let paramIndex = 1;
 
@@ -3221,6 +3222,14 @@ router.get("/posts", async (req: Request, res: Response) => {
       conditions.push(`(p.author_id IS NULL OR NOT (p.author_id = ANY($${paramIndex++}::int[])))`);
       params.push(hidden);
     }
+    // خلاصة «أتابعهم»: منشورات من يتابعهم المشاهد فقط
+    if (feed === "following") {
+      if (!viewerForBlocks) return res.json([]);
+      const ids = await followeeIds(Number(viewerForBlocks.id));
+      if (!ids.length) return res.json([]);
+      conditions.push(`p.author_id = ANY($${paramIndex++}::int[])`);
+      params.push(ids);
+    }
     let whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
     const deviceParam = `$${paramIndex++}`;
@@ -3234,6 +3243,7 @@ router.get("/posts", async (req: Request, res: Response) => {
     params.push(limitNum, offsetNum);
 
     await ensureProfilePlus().catch(() => {});
+    await ensureSocialPlus().catch(() => {});
     // منشورات صاحب ملف مقفل لا تُعرض في ملفه إلا له وللإدارة
     if (user_id) {
       const lk = await query(`SELECT profile_locked FROM users WHERE id=$1`, [Number(user_id)]).catch(() => ({ rows: [] as any[] }));
@@ -3252,7 +3262,8 @@ router.get("/posts", async (req: Request, res: Response) => {
         COUNT(DISTINCT c.id)::int AS comments_count,
         CASE WHEN EXISTS(
           SELECT 1 FROM social_likes dl WHERE dl.post_id=p.id AND dl.device_id=${deviceParam}
-        ) THEN true ELSE false END AS liked_by_me
+        ) THEN true ELSE false END AS liked_by_me,
+        (SELECT ml.reaction FROM social_likes ml WHERE ml.post_id=p.id AND ml.device_id=${deviceParam} LIMIT 1) AS my_reaction
       FROM social_posts p
       LEFT JOIN users u ON u.id = p.author_id
       LEFT JOIN social_likes l ON l.post_id=p.id

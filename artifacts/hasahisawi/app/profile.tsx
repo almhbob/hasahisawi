@@ -20,6 +20,7 @@ import { EditProfileModal, CertFormModal, VerifyModal } from "@/components/profi
 import { notify, confirmAction, uploadProfilePhoto, openExternal, copyText, systemShare } from "@/lib/xplatform";
 import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from "@/lib/profile-api";
 import { blockUser } from "@/lib/social-safety";
+import { fetchFollowStats, followUser, unfollowUser, type FollowStats } from "@/lib/social-follow";
 
 type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
 type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
@@ -63,6 +64,8 @@ export default function ProfileScreen() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [follow, setFollow] = useState<FollowStats | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId) { setLoading(false); return; }
@@ -76,11 +79,32 @@ export default function ProfileScreen() {
       setProfile(p);
       if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
       if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
+      fetchFollowStats(Number(profileId), token).then(setFollow).catch(() => setFollow(null));
     } catch { setFailed(true); }
     finally { setLoading(false); }
   }, [profileId, token, isOwn]);
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+
+  const toggleFollow = async () => {
+    if (!profile || !follow || followBusy) return;
+    if (!token || isGuest) { notify("تسجيل مطلوب", "سجّل الدخول لتتابع الأشخاص وترى منشوراتهم في «أتابعهم»."); return; }
+    const was = follow.i_follow;
+    setFollowBusy(true);
+    setFollow({ ...follow, i_follow: !was, followers: Math.max(0, follow.followers + (was ? -1 : 1)) });
+    try {
+      await (was ? unfollowUser(profile.id, token) : followUser(profile.id, token));
+      if (!was) haptic();
+    } catch (e: any) {
+      setFollow(follow);
+      notify("تعذّر التنفيذ", e?.message || "حاول مرة أخرى");
+    } finally { setFollowBusy(false); }
+  };
+
+  const openFollows = (kind: "followers" | "following") => {
+    if (!profile) return;
+    router.push({ pathname: "/follows" as any, params: { id: String(profile.id), kind, name: profile.name } });
+  };
 
   const haptic = () => { if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); };
 
@@ -298,8 +322,13 @@ export default function ProfileScreen() {
 
           {!lockedView && <View style={styles.stats}>
             <Stat value={profile.posts_count} label="منشور" />
-            <View style={styles.statDivider} />
-            <Stat value={profile.certificates.length} label="شهادة" />
+            {follow && (<>
+              <View style={styles.statDivider} />
+              <TouchableOpacity onPress={() => openFollows("followers")} accessibilityRole="button"><Stat value={follow.followers} label="متابِع" /></TouchableOpacity>
+              <View style={styles.statDivider} />
+              <TouchableOpacity onPress={() => openFollows("following")} accessibilityRole="button"><Stat value={follow.following} label="يتابع" /></TouchableOpacity>
+            </>)}
+            {!follow && (<><View style={styles.statDivider} /><Stat value={profile.certificates.length} label="شهادة" /></>)}
             <View style={styles.statDivider} />
             <Stat value={profile.endorsers_count} label="زكّاه" />
             {isOwn && (<><View style={styles.statDivider} /><Stat value={profile.views_30d ?? 0} label="زيارة/30 يوم" /></>)}
@@ -319,17 +348,30 @@ export default function ProfileScreen() {
               </>
             ) : (
               <>
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={17} color="#fff" />
-                  <Text style={styles.primaryBtnText}>مراسلة</Text>
+                {follow && (
+                  <TouchableOpacity
+                    style={[follow.i_follow ? styles.ghostBtn : styles.primaryBtn, { flexGrow: 1 }]}
+                    onPress={toggleFollow}
+                    disabled={followBusy}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: follow.i_follow }}
+                  >
+                    <Ionicons name={follow.i_follow ? "checkmark" : "person-add-outline"} size={17} color={follow.i_follow ? Colors.primaryDeep : "#fff"} />
+                    <Text style={follow.i_follow ? styles.ghostBtnText : styles.primaryBtnText}>
+                      {follow.i_follow ? "تتابعه" : follow.follows_me ? "تابِعه أيضاً" : "متابعة"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={follow ? styles.ghostBtn : styles.primaryBtn} onPress={() => router.push({ pathname: "/conversation" as any, params: { userId: String(profile.id), otherName: profile.name } })}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={17} color={follow ? Colors.primaryDeep : "#fff"} />
+                  <Text style={follow ? styles.ghostBtnText : styles.primaryBtnText}>مراسلة</Text>
                 </TouchableOpacity>
-                {!lockedView && <TouchableOpacity style={styles.ghostBtn} onPress={() => openExternal(publicCvUrl(profile.id))}>
-                  <Ionicons name="document-text-outline" size={17} color={Colors.primaryDeep} />
-                  <Text style={styles.ghostBtnText}>السيرة المهنية</Text>
+                {!lockedView && <TouchableOpacity style={[styles.iconBtn, { height: 46, width: 46 }]} onPress={() => openExternal(publicCvUrl(profile.id))} accessibilityLabel="السيرة المهنية">
+                  <Ionicons name="document-text-outline" size={18} color={Colors.primaryDeep} />
                 </TouchableOpacity>}
                 {!!user && !isGuest && (
                   <TouchableOpacity
-                    style={styles.iconBtn}
+                    style={[styles.iconBtn, { height: 46, width: 46 }]}
                     accessibilityLabel={`حظر ${profile.name}`}
                     onPress={async () => {
                       const ok = await confirmAction(

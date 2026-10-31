@@ -180,6 +180,11 @@ function AuthGate() {
           return;
         }
 
+        // ── متابع جديد → ملفه الشخصي ──
+        if (type === "follow" && data?.follower_id) {
+          router.push({ pathname: "/profile", params: { id: String(data.follower_id) } } as any);
+          return;
+        }
         // ── تنبيه إدارة: أي طلب جديد → مركز الطلبات ──
         if (type === "admin_alert") {
           router.push((data?.kind === "social_report" ? "/admin-social-reports" : "/admin-requests") as any);
@@ -368,6 +373,7 @@ function RootLayoutNav() {
         <Stack.Screen name="designer"                 options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="notifications"            options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="blocked-users"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="follows"                  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
