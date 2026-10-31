@@ -442,7 +442,7 @@ function MultiMediaPreview({ items, onRemove, onAddMore }: { items: MediaAsset[]
           </TouchableOpacity>
         )}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={mp.multiList}>
+      <RtlScrollRow contentContainerStyle={mp.multiList}>
         {items.map((item, index) => (
           <View key={item.uri + index} style={mp.thumbWrap}>
             <Image source={{ uri: item.uri }} style={mp.thumbImg} resizeMode="cover" />
@@ -451,7 +451,7 @@ function MultiMediaPreview({ items, onRemove, onAddMore }: { items: MediaAsset[]
             </TouchableOpacity>
           </View>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
     </View>
   );
 }
@@ -516,13 +516,13 @@ function PostMediaDisplay({ image_url, video_url }: { image_url?: string | null;
             <Text style={pmd.countText}>{images.length}</Text>
           </View>
         </TouchableOpacity>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={pmd.multiThumbs}>
+        <RtlScrollRow contentContainerStyle={pmd.multiThumbs}>
           {images.map((img, index) => (
             <TouchableOpacity key={img + index} activeOpacity={0.85} onPress={() => setViewer(img)} style={pmd.postThumb}>
               <Image source={{ uri: img }} style={pmd.img} resizeMode="cover" />
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </RtlScrollRow>
         <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
           <View style={pmd.viewerOverlay}>
             <TouchableOpacity style={pmd.viewerClose} onPress={() => setViewer(null)}>
@@ -696,7 +696,7 @@ function AddPostModal({
                   <View style={{ flex: 1 }}>
                     {/* يُنشر المنشور باسم الحساب دائماً حتى يرتبط بالملف الشخصي */}
                     <Text style={ms.nameInput} numberOfLines={1}>{name}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.catRow}>
+                    <RtlScrollRow contentContainerStyle={ms.catRow}>
                       {CATEGORIES.map((c) => (
                         <TouchableOpacity
                           key={c}
@@ -707,7 +707,7 @@ function AddPostModal({
                           <Text style={[ms.catChipText, category === c && { color: "#fff" }]}>{c}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </RtlScrollRow>
                   </View>
                 </View>
 
@@ -1715,9 +1715,7 @@ function StoriesRow({ posts }: { posts: Post[] }) {
   if (authors.length < 3) return null;
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
+    <RtlScrollRow
       contentContainerStyle={sr.row}
     >
       {authors.map((p, i) => {
@@ -1731,7 +1729,7 @@ function StoriesRow({ posts }: { posts: Post[] }) {
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </RtlScrollRow>
   );
 }
 

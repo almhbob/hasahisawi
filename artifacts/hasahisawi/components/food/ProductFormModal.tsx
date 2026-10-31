@@ -5,6 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { uploadFile } from "@/lib/firebase/storage";
 import { foodApi, CAT_META, CAT_KEYS, type FoodCat, type FoodProduct } from "@/lib/food-api";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 type Props = { visible: boolean; businessId: number; initial?: FoodProduct | null; token: string | null | undefined; onClose: () => void; onSaved: (p: FoodProduct) => void; onDeleted?: (id: number) => void };
 
@@ -62,7 +63,7 @@ export default function ProductFormModal({ visible, businessId, initial, token, 
           <Pressable style={st.sheet} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={st.title}>{initial ? "تعديل الصنف" : "صنف جديد"}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8 }}>
+              <RtlScrollRow contentContainerStyle={{ gap: 8 }}>
                 {images.map((u, i) => (
                   <View key={u + i}>
                     <Image source={{ uri: u }} style={st.thumb} />
@@ -74,7 +75,7 @@ export default function ProductFormModal({ visible, businessId, initial, token, 
                     {uploading ? <ActivityIndicator color={Colors.primary} /> : <><Ionicons name="camera-outline" size={22} color={Colors.primary} /><Text style={st.addThumbTxt}>صورة</Text></>}
                   </TouchableOpacity>
                 ) : null}
-              </ScrollView>
+              </RtlScrollRow>
               <Text style={st.label}>اسم الصنف *</Text>
               <TextInput style={st.input} value={name} onChangeText={setName} textAlign="right" placeholder="مثال: فول بالجبنة" placeholderTextColor={Colors.textMuted} />
               <View style={st.row}>

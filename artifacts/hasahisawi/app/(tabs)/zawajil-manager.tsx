@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import { notify, confirmAction } from "@/lib/xplatform";
 import { uploadFile } from "@/lib/firebase/storage";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const PINK = "#D6367A";
 const GRAD = ["#7A1E4B", "#B8336A", "#D6367A"] as const;
@@ -225,7 +226,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
 
   return (
     <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filters}>
+      <RtlScrollRow contentContainerStyle={st.filters}>
         {FILTERS.map((f) => {
           const on = filter === f; const c = f === "all" ? PINK : STATUS[f].color;
           return (
@@ -234,7 +235,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </RtlScrollRow>
       <View style={st.searchBox}>
         <Ionicons name="search" size={16} color={Colors.textMuted} />
         <TextInput value={q} onChangeText={setQ} placeholder="ابحث برقم الطلب أو الاسم أو الهاتف" placeholderTextColor={Colors.textSubtle} style={st.searchInput} textAlign="right" />
@@ -457,13 +458,13 @@ function AppsTab({ call, onChange }: { call: Call; onChange: () => void }) {
   const SL: Record<string, string> = { pending: "جديد", approved: "معتمد", rejected: "مرفوض" };
   return (
     <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filters}>
+      <RtlScrollRow contentContainerStyle={st.filters}>
         {[["", "الكل"], ...Object.entries(ROLES)].map(([k, l]) => (
           <TouchableOpacity key={k} onPress={() => setRole(k)} style={[st.chip, role === k && { backgroundColor: PINK, borderColor: PINK }]}>
             <Text style={[st.chipTxt, role === k && { color: "#fff" }]}>{l}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
       <ScrollView contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} colors={[PINK]} />}>
         {!loading && items.length === 0 ? <Empty icon="people-outline" text="لا توجد طلبات انضمام" /> : null}
         {items.map((a) => (

@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { notify, confirmAction, openExternal } from "@/lib/xplatform";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 type Grade = { n: number; label: string; count: number };
 type Stage = { key: string; label: string; grades: Grade[] };
@@ -210,7 +211,7 @@ export default function CurriculumScreen() {
             <Chips label="المادة" items={[{ key: "", label: "كل المواد" }, ...subjects.map((s) => ({ key: s, label: s }))]} value={subject ?? ""} onChange={(k) => setSubject(k || null)} />
 
             <Text style={styles.section}>خدمات الطلاب والمعلمين</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.servicesRow}>
+            <RtlScrollRow contentContainerStyle={styles.servicesRow}>
               {SERVICES.map((s) => {
                 const on = kind === s.kind;
                 return (
@@ -224,7 +225,7 @@ export default function CurriculumScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </RtlScrollRow>
 
             <BookList books={books} loading={loading} onDownload={download} emptyText="لا توجد ملفات هنا بعد — كن أول من يرفع كتاباً لهذا الصف." onEmptyAction={() => setTab("upload")} />
           </>
@@ -264,7 +265,7 @@ function Chips({ label, items, value, onChange }: { label: string; items: { key:
   return (
     <>
       <Text style={styles.section}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+      <RtlScrollRow contentContainerStyle={styles.chipsRow}>
         {items.map((it) => {
           const on = value === it.key;
           return (
@@ -274,7 +275,7 @@ function Chips({ label, items, value, onChange }: { label: string; items: { key:
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </RtlScrollRow>
     </>
   );
 }

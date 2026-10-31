@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import AnimatedPress from "@/components/AnimatedPress";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -756,8 +757,7 @@ export default function CommunitiesScreen() {
       </ModernHeader>
 
       {/* Filter Pills */}
-      <ScrollView
-        horizontal showsHorizontalScrollIndicator={false}
+      <RtlScrollRow
         style={styles.filtersScroll}
         contentContainerStyle={[styles.filtersRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
       >
@@ -775,7 +775,7 @@ export default function CommunitiesScreen() {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </RtlScrollRow>
 
       {/* Stats Bar */}
       {communities.length > 0 && <StatsBar communities={communities} />}

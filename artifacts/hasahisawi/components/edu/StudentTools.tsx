@@ -8,6 +8,7 @@ import { confirmAction, notify } from "@/lib/xplatform";
 import { paperDocument, printPaper, esc } from "@/lib/paper";
 import { ToolHeader, Field, Btn, Card, Empty, Segmented, EDU } from "@/components/edu/ui";
 import { useStudentData, uid, type Deck } from "@/lib/edu-store";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const DAYS = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
 const jsToIdx = (d: number) => (d + 1) % 7; // JS: 0=Sunday → our 0=Saturday
@@ -39,7 +40,7 @@ export function StudyPlanner({ onBack }: { onBack: () => void }) {
       <ToolHeader title="جدول المذاكرة الأسبوعي" sub={`${data.plan.length} حصة مذاكرة · أنجزت ${doneAll}`} onBack={onBack}
         right={data.plan.length ? <Pressable onPress={print} hitSlop={8}><Ionicons name="print-outline" size={21} color={EDU.teal} /></Pressable> : undefined} />
       <ScrollView contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, flexDirection: "row-reverse" }}>
+        <RtlScrollRow contentContainerStyle={{ gap: 6}}>
           {DAYS.map((d, i) => {
             const n = data.plan.filter((b) => b.day === i).length;
             return (
@@ -49,7 +50,7 @@ export function StudyPlanner({ onBack }: { onBack: () => void }) {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </RtlScrollRow>
         <Card style={{ gap: 8 }}>
           <View style={{ flexDirection: "row-reverse", gap: 8 }}>
             <View style={{ flex: 1 }}><Field value={subject} onChangeText={setSubject} placeholder="الفيزياء — مراجعة الفصل الثالث" /></View>

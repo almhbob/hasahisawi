@@ -469,7 +469,8 @@ export default function RootLayout() {
               <FeatureFlagsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? (initialLang === "ar" ? "rtl" : "ltr") : undefined }}>
+                  {/* الاتجاه LTR على كل المنصات (التصميم يتكفّل باليمين). كان الويب وحده RTL فتنعكس الواجهة */}
+                  <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? "ltr" : undefined }}>
                     <OfflineQueueSync />
                     <RootLayoutNav />
                     <NetworkBanner />

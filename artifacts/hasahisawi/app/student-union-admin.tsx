@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -250,7 +251,7 @@ export default function StudentUnionAdminScreen() {
           </Animated.View>
 
           {/* فلاتر */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}
+          <RtlScrollRow style={{ marginBottom: 8 }}
             contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
             {(["all", "pending", "approved", "rejected"] as const).map(f => (
               <TouchableOpacity key={f} onPress={() => setFilter(f)}
@@ -260,7 +261,7 @@ export default function StudentUnionAdminScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </RtlScrollRow>
 
           {/* القائمة */}
           {loading ? (

@@ -3,7 +3,10 @@ import type { PropsWithChildren } from "react";
 
 export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="ar" dir="rtl">
+    // الاتجاه LTR عن قصد: كل الشاشات مصممة لليمين بـ row-reverse و textAlign:"right"
+    // (كما في الهاتف حيث RTL معطّل). dir="rtl" كان يعكس الواجهة على الويب مرة ثانية
+    // فتظهر الرئيسية يساراً والعناوين يساراً. النصوص نفسها تأخذ اتجاهها تلقائياً (dir=auto).
+    <html lang="ar" dir="ltr">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />

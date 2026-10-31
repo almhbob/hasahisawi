@@ -5,6 +5,9 @@ import { router, useFocusEffect } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { reloadAppAsync } from "expo";
+import { isDarkTheme, saveThemeMode } from "@/constants/theme-mode";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
@@ -85,6 +88,19 @@ function norm(s: string) {
     .replace(/ى/g, "ي")
     .toLowerCase()
     .trim();
+}
+
+const FEATURED: { route: string; title: string; sub: string; icon: any; grad: [string, string] }[] = [
+  { route: "/volunteer", title: "بوابة المتطوعين", sub: "مهام، نقاط، مستويات وبطاقة متطوع", icon: "heart-circle", grad: ["#0E8A5F", "#064E3B"] },
+  { route: "/contests", title: "المسابقات", sub: "جوائز ومسابقات موسمية", icon: "trophy", grad: ["#B7791F", "#7C2D12"] },
+];
+
+async function toggleTheme() {
+  const needsReload = await saveThemeMode(isDarkTheme ? "light" : "dark").catch(() => false);
+  if (!needsReload) return;
+  // الألوان تُقرأ عند فتح التطبيق، فنعيد فتحه ليُطبَّق المظهر على كل الشاشات
+  if (Platform.OS === "web") { try { window.location.reload(); } catch {} return; }
+  reloadAppAsync().catch(() => {});
 }
 
 function greeting() {
@@ -217,6 +233,17 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ) : null}
 
+          {/* تبديل سريع بين الفاتح والداكن */}
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={styles.bell}
+            accessibilityRole="button"
+            accessibilityLabel={isDarkTheme ? "التبديل إلى الوضع الفاتح" : "التبديل إلى الوضع الداكن"}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name={isDarkTheme ? "sunny-outline" : "moon-outline"} size={20} color={isDarkTheme ? Colors.accent : Colors.textPrimary} />
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => router.push("/notifications" as any)}
             style={styles.bell}
@@ -263,6 +290,24 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
+              {/* المميز: بوابة المتطوعين والمسابقات */}
+              <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.featureRow}>
+                {FEATURED.map(f => (
+                  <View key={f.route} style={{ flex: 1 }}>
+                    <AnimatedPress onPress={() => router.push(f.route as any)}>
+                      <LinearGradient colors={f.grad} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={styles.feature}>
+                        <View style={styles.featureTop}>
+                          <View style={styles.featureIcon}><Ionicons name={f.icon} size={20} color="#fff" /></View>
+                          <View style={styles.featureNew}><Text style={styles.featureNewText}>جديد</Text></View>
+                        </View>
+                        <Text style={styles.featureTitle} numberOfLines={1}>{f.title}</Text>
+                        <Text style={styles.featureSub} numberOfLines={2}>{f.sub}</Text>
+                      </LinearGradient>
+                    </AnimatedPress>
+                  </View>
+                ))}
+              </Animated.View>
+
               {/* Quick access */}
               <Animated.View entering={FadeInDown.delay(110).springify()}>
                 <Text style={styles.groupTitle}>{hasUsage ? "الأكثر استخداماً لك" : "ابدأ من هنا"}</Text>
@@ -329,6 +374,14 @@ const styles = StyleSheet.create({
   cardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
   cardTitle: { flexShrink: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13, textAlign: "right" },
   cardSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10.5, textAlign: "right", marginTop: -1 },
+  featureRow: { flexDirection: "row-reverse", gap: 10, marginBottom: 22 },
+  feature: { borderRadius: 18, padding: 14, minHeight: 112, gap: 4 },
+  featureTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  featureIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  featureNew: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 8, paddingHorizontal: 7 },
+  featureNewText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 10, lineHeight: 18 },
+  featureTitle: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 15, textAlign: "right" },
+  featureSub: { fontFamily: "Cairo_400Regular", color: "rgba(255,255,255,0.85)", fontSize: 11, textAlign: "right", lineHeight: 17 },
   newBadge: { backgroundColor: Colors.accent, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 0 },
   newBadgeText: { fontFamily: "Cairo_700Bold", color: "#3A2A00", fontSize: 9, lineHeight: 15 },
 });

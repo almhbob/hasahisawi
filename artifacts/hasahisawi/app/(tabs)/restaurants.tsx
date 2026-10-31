@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import BusinessFormModal from "@/components/food/BusinessFormModal";
 import BizLogo from "@/components/food/BizLogo";
 import { foodApi, TYPE_META, bizColor, fmtMoney, type BizType, type FoodBusiness } from "@/lib/food-api";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 export default function RestaurantsScreen() {
   const { token } = useAuth();
@@ -76,16 +77,16 @@ export default function RestaurantsScreen() {
           {flash ? <View style={s.flash}><Ionicons name="checkmark-circle" size={16} color="#0B7A4E" /><Text style={s.flashTxt}>{flash}</Text></View> : null}
 
           {mine.length > 1 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8 }}>
+            <RtlScrollRow contentContainerStyle={{ gap: 8 }}>
               {mine.map((b) => (
                 <TouchableOpacity key={b.id} style={s.mineChip} onPress={() => router.push({ pathname: "/restaurant-manage", params: { id: String(b.id) } } as any)}>
                   <Text style={s.mineChipTxt}>{b.name}{b.status === "pending" ? " · قيد المراجعة" : ""}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </RtlScrollRow>
           ) : null}
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+          <RtlScrollRow contentContainerStyle={s.chips}>
             <TouchableOpacity onPress={() => setType("")} style={[s.chip, type === "" && s.chipOn]}><Text style={[s.chipTxt, type === "" && { color: "#fff" }]}>الكل</Text></TouchableOpacity>
             {(Object.keys(TYPE_META) as BizType[]).map((k) => (
               <TouchableOpacity key={k} onPress={() => setType(k)} style={[s.chip, type === k && s.chipOn]}>
@@ -93,7 +94,7 @@ export default function RestaurantsScreen() {
                 <Text style={[s.chipTxt, type === k && { color: "#fff" }]}>{TYPE_META[k].label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </RtlScrollRow>
 
           {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} /> : error ? (
             <TouchableOpacity onPress={load} style={s.empty}><Ionicons name="refresh" size={30} color={Colors.textMuted} /><Text style={s.emptyTxt}>{error} — اضغط لإعادة المحاولة</Text></TouchableOpacity>

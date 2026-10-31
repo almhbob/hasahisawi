@@ -19,6 +19,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import { uploadAdImage } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -282,7 +283,7 @@ function SpacesTab({
 
       {/* Packages */}
       <Text style={s.sectionTitle}>باقات الإعلان</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pkgsRow}>
+      <RtlScrollRow contentContainerStyle={s.pkgsRow}>
         {PACKAGES.map(pkg => (
           <View key={pkg.days} style={s.pkgStaticWrapper}>
             <View style={[s.pkgCard, pkg.badgeColor && { borderColor: pkg.badgeColor + "55" }]}>
@@ -307,7 +308,7 @@ function SpacesTab({
             </View>
           </View>
         ))}
-      </ScrollView>
+      </RtlScrollRow>
 
       {/* CTA Button */}
       <TouchableOpacity style={s.bigCTA} onPress={onBook} activeOpacity={0.88}>
@@ -676,7 +677,7 @@ function AdRequestModal({
 
                   {/* نوع الإعلان */}
                   <Text style={s.formLabel}>نوع الإعلان</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <RtlScrollRow style={{ marginBottom: 14 }}>
                     <View style={s.typeRow}>
                       {(Object.entries(AD_TYPES) as [AdType, typeof AD_TYPES[AdType]][]).map(([key, meta]) => (
                         <TouchableOpacity
@@ -689,7 +690,7 @@ function AdRequestModal({
                         </TouchableOpacity>
                       ))}
                     </View>
-                  </ScrollView>
+                  </RtlScrollRow>
 
                   {/* عنوان */}
                   <View style={s.formField}>
@@ -721,7 +722,7 @@ function AdRequestModal({
 
                   {/* الباقات */}
                   <Text style={s.formLabel}>اختر الباقة</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <RtlScrollRow style={{ marginBottom: 14 }}>
                     <View style={s.pkgsSelectRow}>
                       {PACKAGES.map(pkg => (
                         <PackageCard
@@ -733,7 +734,7 @@ function AdRequestModal({
                         />
                       ))}
                     </View>
-                  </ScrollView>
+                  </RtlScrollRow>
 
                   {/* Cost summary */}
                   <View style={s.costCard}>

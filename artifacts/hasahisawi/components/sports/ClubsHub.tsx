@@ -7,6 +7,7 @@ import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import ClubFormModal from "@/components/sports/ClubFormModal";
 import { clubsApi, SPORT_META, SPORT_KEYS, clubInitials, type Club, type ClubSport, type StandingRow } from "@/lib/sports-clubs-api";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 export function ClubLogo({ club, size = 52 }: { club: Pick<Club, "name" | "logo_url" | "primary_color" | "sport">; size?: number }) {
   const bg = club.primary_color || SPORT_META[club.sport || "football"].color;
@@ -88,7 +89,7 @@ export default function ClubsHub({ search }: { search?: string }) {
 
       {view === "clubs" ? (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+          <RtlScrollRow contentContainerStyle={s.chips}>
             <TouchableOpacity onPress={() => setSport("")} style={[s.chip, sport === "" && s.chipOn]}>
               <Text style={[s.chipTxt, sport === "" && { color: "#fff" }]}>الكل</Text>
             </TouchableOpacity>
@@ -98,7 +99,7 @@ export default function ClubsHub({ search }: { search?: string }) {
                 <Text style={[s.chipTxt, sport === k && { color: "#fff" }]}>{SPORT_META[k].label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </RtlScrollRow>
 
           <AnimatedPress onPress={openRegister}>
             <View style={s.cta}>
