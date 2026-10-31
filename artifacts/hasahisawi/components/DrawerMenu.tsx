@@ -158,6 +158,8 @@ const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string
 export default function DrawerMenu() {
   const { isOpen, close, open } = useDrawer();
   const { user, token, isGuest, logout } = useAuth();
+  const featureFlags = useFeatureFlags();
+  const isStaffUser = user?.role === "admin" || user?.role === "moderator";
   const { ride_status } = useFeatureFlags();
   const insets = useSafeAreaInsets();
   const unreadCount = useApiUnread(isGuest ? null : (token ?? null));
@@ -355,6 +357,9 @@ export default function DrawerMenu() {
           {GROUPS.map((group) => {
             // فلتر العناصر النسائية — لا تظهر للرجال
             const visibleItems = group.items.filter(item => {
+              // أقسام تخفيها الإدارة (الطاقم يراها ليديرها)
+              const secKey = item.route === "/contests" ? "contests" : item.route === "/volunteer" ? "volunteer" : null;
+              if (secKey && !isStaffUser && featureFlags.sections[secKey]?.visible === false) return false;
               if (!item.femaleOnly) return true;
               return user?.gender !== "male" || user?.role === "admin";
             });

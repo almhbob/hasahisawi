@@ -8,11 +8,13 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { contestsApi, themeOf, timeLeft, OCCASION_THEME, type Contest, type Occasion } from "@/lib/contests";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { useSectionVisible } from "@/lib/feature-flags-context";
 
 export default function ContestsScreen() {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
   const staff = user?.role === "admin" || user?.role === "moderator";
+  const sectionVisible = useSectionVisible("contests");
   const [list, setList] = useState<Contest[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [tab, setTab] = useState<"active" | "ended">("active");
@@ -52,6 +54,19 @@ export default function ContestsScreen() {
         ) : <View style={{ width: 44 }} />}
       </View>
 
+      {!sectionVisible && staff ? (
+        <View style={s.hiddenNote}>
+          <Ionicons name="eye-off-outline" size={16} color={Colors.accent} />
+          <Text style={s.hiddenNoteText}>القسم مخفي عن المستخدمين — أظهره من لوحة الإدارة ← أقسام التطبيق</Text>
+        </View>
+      ) : null}
+
+      {!sectionVisible && !staff ? (
+        <View style={s.empty}>
+          <Ionicons name="trophy-outline" size={54} color={Colors.textMuted} />
+          <Text style={s.emptyText}>قسم المسابقات غير متاح حالياً.</Text>
+        </View>
+      ) : (
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 32, gap: 14 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}
@@ -121,6 +136,7 @@ export default function ContestsScreen() {
           </View>
         )}
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -150,5 +166,7 @@ const s = StyleSheet.create({
   footText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.85)" },
   empty: { alignItems: "center", gap: 10, paddingVertical: 40, paddingHorizontal: 30 },
   emptyText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted, textAlign: "center", lineHeight: 24 },
+  hiddenNote: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 12, backgroundColor: Colors.accentSoft },
+  hiddenNoteText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.text, textAlign: "right" },
   error: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.danger, textAlign: "center" },
 });

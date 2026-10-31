@@ -8,6 +8,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { reloadAppAsync } from "expo";
 import { isDarkTheme, saveThemeMode } from "@/constants/theme-mode";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
+import { StarPattern, SectionMark } from "@/components/ui/Ornament";
+
+const CITY_PHOTO = require("@/assets/images/ferris-wheel.jpg");
+const APP_LOGO = require("@/assets/images/logo.png");
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
@@ -168,11 +173,20 @@ export default function HomeScreen() {
     return () => { alive = false; };
   }, []));
 
+  // أقسام تخفيها الإدارة من «أقسام التطبيق» (الطاقم يراها ليديرها)
+  const { sections } = useFeatureFlags();
+  const isStaff = user?.role === "admin" || user?.role === "moderator";
+  const hiddenIds = useMemo(() => new Set<string>(
+    isStaff ? [] : (["contests", "volunteer"] as const).filter(k => sections[k]?.visible === false)
+  ), [sections, isStaff]);
+  const featured = useMemo(() => FEATURED.filter(f => !hiddenIds.has(f.route.slice(1))), [hiddenIds]);
+
   const services = useMemo(() => {
     const gender = normalizeHomeGender(user?.gender);
-    if (gender === "male" && user?.role !== "admin") return SERVICES.filter(s => s.id !== "women");
-    return SERVICES;
-  }, [user?.gender, user?.role]);
+    const base = SERVICES.filter(s => !hiddenIds.has(s.id));
+    if (gender === "male" && user?.role !== "admin") return base.filter(s => s.id !== "women");
+    return base;
+  }, [user?.gender, user?.role, hiddenIds]);
 
   const top = useMemo(() => {
     const byId = new Map(services.map(s => [s.id, s]));
@@ -205,57 +219,76 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Header */}
-        <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { paddingTop: topPad }]}>
-          <TouchableOpacity
-            style={styles.headerUser}
-            activeOpacity={isGuest ? 1 : 0.8}
-            disabled={isGuest}
-            onPress={() => router.push("/profile" as any)}
-            accessibilityRole={isGuest ? undefined : "button"}
-            accessibilityLabel={isGuest ? undefined : "ملفي الشخصي"}
-          >
-            <View style={styles.avatar}>
-              {!isGuest && user?.avatar_url
-                ? <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-                : <Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text>}
+        {/* Hero: صورة الحصاحيصا + الشعار + التحية */}
+        <Animated.View entering={FadeIn.duration(400)} style={[styles.heroWrap, { marginTop: topPad }]}>
+          <View style={styles.hero}>
+            <Image source={CITY_PHOTO} style={styles.heroImg} resizeMode="cover" accessibilityLabel="عجلة الحصاحيصا على ضفة النيل" />
+            <LinearGradient colors={["rgba(3,34,24,0.55)", "rgba(3,34,24,0.10)", "rgba(3,30,21,0.90)"]} locations={[0, 0.42, 1]} style={StyleSheet.absoluteFill} />
+            <StarPattern opacity={0.16} style={{ height: 70, bottom: undefined }} />
+
+            {/* الشعار والأزرار */}
+            <View style={styles.heroTop}>
+              <View style={styles.brand}>
+                <View style={styles.logoBox}><Image source={APP_LOGO} style={styles.logo} resizeMode="contain" /></View>
+                <View>
+                  <Text style={styles.brandName}>حصاحيصاوي</Text>
+                  <Text style={styles.brandSub}>مدينة النيل والصناعة</Text>
+                </View>
+              </View>
+              <View style={styles.heroActions}>
+                {/* تبديل سريع بين الفاتح والداكن */}
+                <TouchableOpacity
+                  onPress={toggleTheme}
+                  style={styles.glassBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={isDarkTheme ? "التبديل إلى الوضع الفاتح" : "التبديل إلى الوضع الداكن"}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name={isDarkTheme ? "sunny-outline" : "moon-outline"} size={19} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push("/notifications" as any)}
+                  style={styles.glassBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={unread > 0 ? `الإشعارات، ${unread} غير مقروءة` : "الإشعارات"}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="notifications-outline" size={20} color="#fff" />
+                  {unread > 0 ? (
+                    <View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unread > 9 ? "9+" : unread}</Text></View>
+                  ) : null}
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.hello} numberOfLines={1}>{greeting()}، {displayName}</Text>
-              <Text style={styles.helloSub} numberOfLines={1}>حصاحيصاوي · خدمات مدينتك في مكان واحد</Text>
+
+            {/* التحية */}
+            <View style={styles.heroBottom}>
+              <TouchableOpacity
+                style={styles.headerUser}
+                activeOpacity={isGuest ? 1 : 0.8}
+                disabled={isGuest}
+                onPress={() => router.push("/profile" as any)}
+                accessibilityRole={isGuest ? undefined : "button"}
+                accessibilityLabel={isGuest ? undefined : "ملفي الشخصي"}
+              >
+                <View style={styles.avatar}>
+                  {!isGuest && user?.avatar_url
+                    ? <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                    : <Text style={styles.avatarText}>{displayName.trim().charAt(0) || "؟"}</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.hello} numberOfLines={1}>{greeting()}، {displayName}</Text>
+                  <Text style={styles.helloSub} numberOfLines={1}>خدمات مدينتك في مكان واحد</Text>
+                </View>
+              </TouchableOpacity>
+              {isGuest ? (
+                <TouchableOpacity style={styles.loginBtn} activeOpacity={0.85} onPress={() => { logout(); }} accessibilityRole="button" accessibilityLabel="تسجيل الدخول">
+                  <Ionicons name="log-in-outline" size={15} color="#fff" />
+                  <Text style={styles.loginBtnText}>دخول</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
-          </TouchableOpacity>
-
-          {isGuest ? (
-            <TouchableOpacity style={styles.loginBtn} activeOpacity={0.85} onPress={() => { logout(); }} accessibilityRole="button" accessibilityLabel="تسجيل الدخول">
-              <Ionicons name="log-in-outline" size={15} color="#fff" />
-              <Text style={styles.loginBtnText}>دخول</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {/* تبديل سريع بين الفاتح والداكن */}
-          <TouchableOpacity
-            onPress={toggleTheme}
-            style={styles.bell}
-            accessibilityRole="button"
-            accessibilityLabel={isDarkTheme ? "التبديل إلى الوضع الفاتح" : "التبديل إلى الوضع الداكن"}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Ionicons name={isDarkTheme ? "sunny-outline" : "moon-outline"} size={20} color={isDarkTheme ? Colors.accent : Colors.textPrimary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push("/notifications" as any)}
-            style={styles.bell}
-            accessibilityRole="button"
-            accessibilityLabel={unread > 0 ? `الإشعارات، ${unread} غير مقروءة` : "الإشعارات"}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Ionicons name="notifications-outline" size={21} color={Colors.textPrimary} />
-            {unread > 0 ? (
-              <View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unread > 9 ? "9+" : unread}</Text></View>
-            ) : null}
-          </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Search */}
@@ -291,8 +324,8 @@ export default function HomeScreen() {
           ) : (
             <>
               {/* المميز: بوابة المتطوعين والمسابقات */}
-              <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.featureRow}>
-                {FEATURED.map(f => (
+              {featured.length ? <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.featureRow}>
+                {featured.map(f => (
                   <View key={f.route} style={{ flex: 1 }}>
                     <AnimatedPress onPress={() => router.push(f.route as any)}>
                       <LinearGradient colors={f.grad} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={styles.feature}>
@@ -306,11 +339,14 @@ export default function HomeScreen() {
                     </AnimatedPress>
                   </View>
                 ))}
-              </Animated.View>
+              </Animated.View> : null}
 
               {/* Quick access */}
               <Animated.View entering={FadeInDown.delay(110).springify()}>
-                <Text style={styles.groupTitle}>{hasUsage ? "الأكثر استخداماً لك" : "ابدأ من هنا"}</Text>
+                <View style={styles.groupHead}>
+                  <SectionMark />
+                  <Text style={[styles.groupTitle, styles.headTitle]}>{hasUsage ? "الأكثر استخداماً لك" : "ابدأ من هنا"}</Text>
+                </View>
                 <View style={styles.quickRow}>
                   {top.map(s => (
                     <View key={s.id} style={{ flex: 1 }}><AnimatedPress onPress={() => open(s)}>
@@ -329,8 +365,9 @@ export default function HomeScreen() {
                 return (
                   <Animated.View key={g.key} entering={FadeInDown.delay(160 + gi * 50).springify()} style={{ marginTop: 22 }}>
                     <View style={styles.groupHead}>
-                      <Text style={styles.groupTitle}>{g.title}</Text>
-                      <Text style={styles.groupCount}>{items.length}</Text>
+                      <SectionMark />
+                      <Text style={[styles.groupTitle, styles.headTitle]}>{g.title}</Text>
+                      <Text style={[styles.groupCount, styles.headTitle]}>{items.length}</Text>
                     </View>
                     <View style={styles.grid}>{items.map(s => <ServiceRow key={s.id} item={s} onOpen={open} />)}</View>
                   </Animated.View>
@@ -346,12 +383,23 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 12 },
+  heroWrap: { marginHorizontal: 16, marginBottom: 14, borderRadius: 24, overflow: "hidden", borderWidth: 1, borderColor: "rgba(232,185,49,0.35)" },
+  hero: { height: 214, justifyContent: "space-between", padding: 14 },
+  heroImg: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
+  heroTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
+  brand: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  logoBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  logo: { width: 40, height: 40 },
+  brandName: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 16, textAlign: "right", lineHeight: 24 },
+  brandSub: { fontFamily: "Cairo_600SemiBold", color: "#F3D27A", fontSize: 11, textAlign: "right", lineHeight: 16 },
+  heroActions: { flexDirection: "row", gap: 8 },
+  glassBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.16)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", alignItems: "center", justifyContent: "center" },
+  heroBottom: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   headerUser: { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 10 },
-  avatar: { width: 44, height: 44, borderRadius: 22, overflow: "hidden", backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 46, height: 46, borderRadius: 23, overflow: "hidden", borderWidth: 2, borderColor: "#E8B931", backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
   avatarText: { fontFamily: "Cairo_700Bold", color: G_DEEP, fontSize: 18 },
-  hello: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
-  helloSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11.5, textAlign: "right", marginTop: -2 },
+  hello: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 19, textAlign: "right", textShadowColor: "rgba(0,0,0,0.35)", textShadowRadius: 6 },
+  helloSub: { fontFamily: "Cairo_400Regular", color: "rgba(255,255,255,0.85)", fontSize: 12, textAlign: "right", marginTop: -2 },
   bell: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" },
   bellBadge: { position: "absolute", top: 6, right: 6, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#D64545", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
   bellBadgeText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 9.5, lineHeight: 13 },
@@ -360,7 +408,8 @@ const styles = StyleSheet.create({
   searchBox: { marginHorizontal: 16, height: 48, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.07)", flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, gap: 8 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, paddingVertical: 0, writingDirection: "rtl" },
   body: { paddingHorizontal: 16, paddingTop: 18 },
-  groupHead: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  groupHead: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10 },
+  headTitle: { marginBottom: 0 },
   groupTitle: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 15.5, textAlign: "right", marginBottom: 10 },
   groupCount: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, fontSize: 13, marginBottom: 10 },
   emptyText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 13, textAlign: "right" },
