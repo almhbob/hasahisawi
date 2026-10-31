@@ -339,7 +339,7 @@ function LabPortal({ staff }: { staff: Staff }) {
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={dr.listTitle}>{o.patient_name}</Text>
             <View style={[dr.badge, { backgroundColor: "#1F5C8A20" }]}>
-              <Text style={{ color: "#1F5C8A", fontSize: 11, fontFamily: "Cairo_600SemiBold" }}>معلق</Text>
+              <Text style={{ color: "#1F5C8A", fontSize: 12, fontFamily: "Cairo_600SemiBold" }}>معلق</Text>
             </View>
           </View>
           <Text style={dr.listSub}>{o.tests}</Text>
@@ -367,7 +367,7 @@ function LabPortal({ staff }: { staff: Staff }) {
             {["normal", "high", "low", "critical"].map(s => (
               <TouchableOpacity key={s} onPress={() => setStatus(s)}
                 style={[dr.statusBtn, status === s && { backgroundColor: statusColor(s) + "30", borderColor: statusColor(s) }]}>
-                <Text style={[{ fontSize: 12, fontFamily: "Cairo_400Regular" }, status === s && { color: statusColor(s) }]}>{statusLabel(s)}</Text>
+                <Text style={[{ fontSize: 13, fontFamily: "Cairo_400Regular" }, status === s && { color: statusColor(s) }]}>{statusLabel(s)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -438,7 +438,7 @@ function PharmacistPortal({ staff }: { staff: Staff }) {
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <Text style={dr.listTitle}>{o.patient_name}</Text>
                 <View style={[dr.badge, { backgroundColor: sm.color + "20" }]}>
-                  <Text style={{ color: sm.color, fontSize: 11, fontFamily: "Cairo_600SemiBold" }}>{sm.label}</Text>
+                  <Text style={{ color: sm.color, fontSize: 12, fontFamily: "Cairo_600SemiBold" }}>{sm.label}</Text>
                 </View>
               </View>
               <Text style={dr.listSub}>{o.medications}</Text>
@@ -570,14 +570,14 @@ const s = StyleSheet.create({
   badgeName:      { color: Colors.textPrimary, fontSize: 14, fontFamily: "Cairo_600SemiBold", flex: 1, textAlign: "right" },
   badgeSpec:      { color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_400Regular" },
   unverifiedBadge:{ backgroundColor: "#F59E0B20", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  unverifiedTxt:  { color: "#F59E0B", fontSize: 10, fontFamily: "Cairo_600SemiBold" },
+  unverifiedTxt:  { color: "#F59E0B", fontSize: 11, fontFamily: "Cairo_600SemiBold" },
 });
 
 const dr = StyleSheet.create({
   tabRow: { flexDirection: "row-reverse", borderBottomWidth: 1, borderBottomColor: "rgba(37,99,235,0.12)" },
   tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10 },
   tabActive: { borderBottomWidth: 2, borderBottomColor: Colors.primary },
-  tabTxt: { color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_600SemiBold" },
+  tabTxt: { color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_600SemiBold" },
   card: { backgroundColor: "rgba(10,31,54,0.80)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(37,99,235,0.15)" },
   cardTitle: { color: Colors.textPrimary, fontSize: 15, fontFamily: "Cairo_700Bold", textAlign: "right", marginBottom: 10 },
   input: {
@@ -585,21 +585,21 @@ const dr = StyleSheet.create({
     borderColor: "rgba(37,99,235,0.20)", paddingHorizontal: 12, paddingVertical: 10,
     color: Colors.textPrimary, fontSize: 14, fontFamily: "Cairo_400Regular",
   },
-  fieldLabel: { color: Colors.textSecondary, fontSize: 12, fontFamily: "Cairo_600SemiBold", textAlign: "right", marginBottom: 4 },
+  fieldLabel: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_600SemiBold", textAlign: "right", marginBottom: 4 },
   submitBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, alignItems: "center", marginTop: 12 },
   submitTxt: { color: "#fff", fontSize: 14, fontFamily: "Cairo_600SemiBold" },
   sectionTitle: { color: Colors.textPrimary, fontSize: 15, fontFamily: "Cairo_700Bold", textAlign: "right" },
   empty: { color: Colors.textMuted, fontSize: 14, fontFamily: "Cairo_400Regular", textAlign: "center", paddingVertical: 20 },
   listCard: { backgroundColor: "rgba(10,31,54,0.80)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "rgba(37,99,235,0.12)" },
   listTitle: { color: Colors.textPrimary, fontSize: 14, fontFamily: "Cairo_600SemiBold", textAlign: "right" },
-  listSub:   { color: Colors.textSecondary, fontSize: 12, fontFamily: "Cairo_400Regular", textAlign: "right", marginTop: 2 },
-  listDetail:{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", textAlign: "right", marginTop: 2 },
+  listSub:   { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_400Regular", textAlign: "right", marginTop: 2 },
+  listDetail:{ color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_400Regular", textAlign: "right", marginTop: 2 },
   patientRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, marginTop: 4, backgroundColor: "rgba(37,99,235,0.05)" },
   patientRowSel: { backgroundColor: "rgba(37,99,235,0.15)", borderWidth: 1, borderColor: Colors.primary },
   patientName: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Cairo_600SemiBold", flex: 1, textAlign: "right" },
-  patientPhone:{ color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_400Regular" },
+  patientPhone:{ color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_400Regular" },
   selectedBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "#22C55E15", borderRadius: 8, padding: 8, marginTop: 6 },
-  selectedTxt: { color: "#22C55E", fontSize: 12, fontFamily: "Cairo_600SemiBold", flex: 1, textAlign: "right" },
+  selectedTxt: { color: "#22C55E", fontSize: 13, fontFamily: "Cairo_600SemiBold", flex: 1, textAlign: "right" },
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   statusBtn: { borderRadius: 8, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 10, paddingVertical: 5 },
 });
@@ -611,7 +611,7 @@ const reg = StyleSheet.create({
   typeRow:{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   typeBtn:{ flexDirection: "row-reverse", alignItems: "center", gap: 6, borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   typeTxt:{ color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_600SemiBold" },
-  label:  { color: Colors.textSecondary, fontSize: 12, fontFamily: "Cairo_600SemiBold", textAlign: "right", marginBottom: 4 },
+  label:  { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_600SemiBold", textAlign: "right", marginBottom: 4 },
   field:  { marginTop: 8 },
   input: {
     backgroundColor: "rgba(37,99,235,0.08)", borderRadius: 10, borderWidth: 1,

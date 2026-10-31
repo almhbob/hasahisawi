@@ -141,7 +141,7 @@ const s = StyleSheet.create({
   tabTextOn: { color: "#fff" },
   row: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: Colors.border },
   name: { flexShrink: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.text, textAlign: "right" },
-  headline: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  headline: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   followBtn: { minWidth: 84, height: 34, borderRadius: 10, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
   followingBtn: { backgroundColor: "transparent", borderWidth: 1, borderColor: Colors.primary },
   followText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },

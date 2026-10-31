@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   },
   methodCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + "10" },
   methodText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
-  methodSub:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  methodSub:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
 
   card:     { backgroundColor: Colors.cardBg, borderRadius: 20, borderWidth: 1, borderColor: Colors.divider, padding: 24, gap: 16 },
   doneCard: { alignItems: "center" },
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
 
   strengthRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   strengthBar:  { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.divider },
-  strengthLabel:{ fontFamily: "Cairo_500Medium", fontSize: 11, minWidth: 36, textAlign: "right" },
+  strengthLabel:{ fontFamily: "Cairo_500Medium", fontSize: 12, minWidth: 36, textAlign: "right" },
 
   btnWrap: { marginTop: 4 },
   btn:     { height: 52, borderRadius: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.primary + "22",
     alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.primary + "44",
   },
-  foundLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.primary, textAlign: "right", marginBottom: 2 },
+  foundLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "right", marginBottom: 2 },
   foundName:  { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
 
   tipBox: {
@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent + "12", borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: Colors.accent + "33", alignItems: "flex-start",
   },
-  tipText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
+  tipText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
 
   successCircle: { width: 130, height: 130, borderRadius: 65, alignItems: "center", justifyContent: "center" },
   successTitle:  { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center" },

@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 // ملاحظة: تم إزالة expo-av عمداً.
@@ -517,7 +517,7 @@ function PrayerScreen() {
       {/* آية اليوم */}
       <Animated.View entering={FadeIn.duration(600)} style={s.verseCard}>
         <LinearGradient
-          colors={["rgba(129,140,248,0.12)", "rgba(10,15,12,0.6)"]}
+          colors={["#EAF9F3", "#FFFFFF", "#FFF7E0"]}
           style={StyleSheet.absoluteFill as any}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         />
@@ -985,18 +985,18 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center", justifyContent: "center",
   },
-  fmtBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  fmtBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
 
   // ── آية اليوم ──
   verseCard: {
     marginHorizontal: 16, marginTop: 10, marginBottom: 2,
     borderRadius: Colors.radius.lg, padding: 16,
-    borderWidth: 1, borderColor: "rgba(129,140,248,0.22)",
+    borderWidth: 1, borderColor: "#D7EFE5",
     overflow: "hidden", gap: 6,
   },
   verseLabel: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 11,
-    color: "#5B8DB8", textAlign: "right",
+    fontFamily: "Cairo_600SemiBold", fontSize: 12,
+    color: "#006B4A", textAlign: "right",
   },
   verseText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 17,
@@ -1004,8 +1004,8 @@ const s = StyleSheet.create({
     lineHeight: 32,
   },
   verseSurah: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
-    color: "#5B8DB880", textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: "#5E6F68", textAlign: "right",
   },
 
   // ── شريط التبويبات القابل للتمرير ──
@@ -1029,7 +1029,7 @@ const s = StyleSheet.create({
     borderRadius: Colors.radius.md, backgroundColor: Colors.cardBg,
     borderWidth: 1, borderColor: Colors.divider, alignItems: "center",
   },
-  adhkarCatText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  adhkarCatText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
   dhikrList: { marginHorizontal: 16, marginTop: 4, gap: 8 },
   dhikrCard: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16,
@@ -1044,7 +1044,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.primary + "35",
     alignItems: "center", justifyContent: "center", paddingHorizontal: 6,
   },
-  dhikrCountText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.primary },
+  dhikrCountText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary },
   dhikrTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 14,
     color: Colors.textPrimary, flex: 1, textAlign: "right",
@@ -1057,8 +1057,8 @@ const s = StyleSheet.create({
   dhikrRefRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
-  dhikrRef: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  dhikrHint: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  dhikrRef: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  dhikrHint: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
   dhikrProgress: {
     height: 4, backgroundColor: Colors.divider, borderRadius: 2, overflow: "hidden",
   },
@@ -1137,7 +1137,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "#F59E0B40",
   },
   cacheWarningText: {
-    fontFamily: "Cairo_500Medium", fontSize: 12,
+    fontFamily: "Cairo_500Medium", fontSize: 13,
     color: "#F59E0B", flex: 1, textAlign: "right",
   },
 
@@ -1151,7 +1151,7 @@ const s = StyleSheet.create({
   },
   dateBarRight:  { gap: 2 },
   dateHijri:     { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  dateGregorian: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  dateGregorian: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   moonIcon: {
     width: 44, height: 44, borderRadius: Colors.radius.md,
     backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center",
@@ -1195,7 +1195,7 @@ const s = StyleSheet.create({
   },
   toggleWrapOn: { backgroundColor: Colors.primary + "0D", borderColor: Colors.primary + "50" },
   toggleLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textMuted },
-  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
 
   // ── قائمة الصلوات ──
   prayerList: { marginHorizontal: 16, marginTop: 8, gap: 6 },
@@ -1212,11 +1212,11 @@ const s = StyleSheet.create({
   prayerInfo:    { flex: 1, gap: 2 },
   bellBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.divider, marginStart: 6 },
   prayerName:    { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  prayerSub:     { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" },
+  prayerSub:     { fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
   prayerTime:    { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textSecondary },
 
   calcNote: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
     textAlign: "center", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4,
   },
 
@@ -1253,7 +1253,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider,
   },
   hijriInfoText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
     flex: 1, textAlign: "right", lineHeight: 20,
   },
 });
@@ -1263,7 +1263,7 @@ const CELL_SIZE = (Platform.OS === "web" ? 400 : 360) / 7;
 const hc = StyleSheet.create({
   weekRow:       { flexDirection: "row" },
   weekHeader:    { width: CELL_SIZE, alignItems: "center", paddingBottom: 6 },
-  weekHeaderText:{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  weekHeaderText:{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   cell:          { width: CELL_SIZE, height: CELL_SIZE, alignItems: "center", justifyContent: "center", borderRadius: Colors.radius.sm },
   cellToday:     { backgroundColor: Colors.primary },
   cellHoliday:   { backgroundColor: Colors.accent + "1A" },
@@ -1281,7 +1281,7 @@ const ms = StyleSheet.create({
     borderTopWidth: 1, borderColor: Colors.primary + "30",
   },
   handle: {
-    width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.textMuted + "50",
+    width: 40, height: 4, borderRadius: 2, backgroundColor: withAlpha(Colors.textMuted, "50"),
     alignSelf: "center", marginTop: 12, marginBottom: 4,
   },
   sheetHeader: {
@@ -1294,7 +1294,7 @@ const ms = StyleSheet.create({
     marginTop: 16, marginBottom: 6, textAlign: "right",
   },
   sectionSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
     marginTop: -4, marginBottom: 6, textAlign: "right",
   },
   optionRow: {
@@ -1307,7 +1307,7 @@ const ms = StyleSheet.create({
   radio:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.textMuted, alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 },
   radioActive:{ borderColor: Colors.primary },
   radioDot:   { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
-  optionText: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: Colors.textSecondary, flex: 1, textAlign: "right" },
+  optionText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   offsetRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 10, paddingHorizontal: 14, borderRadius: Colors.radius.sm,

@@ -42,7 +42,7 @@ function StatusBadge({ status }: { status: string }) {
   const [label, color] = map[status] || [status, "#9CA3AF"];
   return (
     <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: color + "20" }}>
-      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color }}>{label}</Text>
+      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color }}>{label}</Text>
     </View>
   );
 }
@@ -394,7 +394,7 @@ export default function MedicalPatientHubScreen() {
                         {rx.follow_up_date && (
                           <View style={s.followUp}>
                             <Ionicons name="calendar-outline" size={14} color="#F59E0B" />
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F59E0B" }}>موعد المتابعة: {rx.follow_up_date}</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F59E0B" }}>موعد المتابعة: {rx.follow_up_date}</Text>
                           </View>
                         )}
                         <View style={{ flexDirection: "row-reverse", gap: 8, padding: 12, paddingTop: 0 }}>
@@ -470,11 +470,11 @@ const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF18", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: MED2, textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: MED2, textAlign: "center", marginTop: 2 },
   tabRow: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 10, gap: 3, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabBtnActive: { borderBottomColor: MED },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
+  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   badge: { position: "absolute", top: -5, right: -7, backgroundColor: "#EF4444", borderRadius: 8, minWidth: 15, height: 15, alignItems: "center", justifyContent: "center" },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60 },
@@ -482,17 +482,17 @@ const s = StyleSheet.create({
   cardRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12, padding: 14 },
   cardIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" },
-  cardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  cardSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   resultGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, paddingHorizontal: 14, paddingBottom: 10 },
   resultCell: { flex: 1, minWidth: "45%", backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 8 },
-  resultName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  resultName: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   resultVal: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right", marginTop: 2 },
   pdfBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: "#173F5F", borderRadius: 10, flex: 1 },
   pdfBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   medList: { paddingHorizontal: 14, paddingBottom: 8, gap: 6 },
   medItem: { flexDirection: "row-reverse", gap: 8, alignItems: "flex-start" },
   medName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.text, textAlign: "right" },
-  medSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  medSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   followUp: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginHorizontal: 14, marginBottom: 8, backgroundColor: "#FEF9C3", padding: 8, borderRadius: 10 },
   dispenseBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, margin: 12, marginTop: 0, backgroundColor: MED + "18", padding: 10, borderRadius: 10 },
 });

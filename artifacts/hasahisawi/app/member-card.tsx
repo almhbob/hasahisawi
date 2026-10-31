@@ -164,7 +164,7 @@ export function CardFront({ card, width, sealId = "seal-front" }: { card: Member
             <Text style={[styles.en, { fontSize: 8.5 * s, letterSpacing: 4 * s, color: t.accent }]}>HASAHISAWI</Text>
           </View>
           <View style={{ alignItems: "flex-start" }}>
-            <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12 * s, color: t.text }}>{card.tier_label}</Text>
+            <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13 * s, color: t.text }}>{card.tier_label}</Text>
             <Text style={[styles.en, { fontSize: 8.5 * s, letterSpacing: 3 * s, color: t.accent }]}>{card.tier_en}</Text>
           </View>
         </View>
@@ -173,13 +173,13 @@ export function CardFront({ card, width, sealId = "seal-front" }: { card: Member
           <View style={{ flex: 1, minWidth: 0, gap: 12 * s }}>
             <View>
               <Text numberOfLines={1} style={{ fontFamily: "Cairo_600SemiBold", fontSize: 21 * s, color: t.text, textAlign: "right" }}>{card.name}</Text>
-              <Text numberOfLines={1} style={{ fontFamily: "Cairo_400Regular", fontSize: 11 * s, color: t.muted, textAlign: "right" }}>{card.role_label}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: "Cairo_400Regular", fontSize: 12 * s, color: t.muted, textAlign: "right" }}>{card.role_label}</Text>
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 8 * s }}>
               {[["رقم العضوية", card.number, true], ["منذ", String(card.member_since), true], ["الحالة", card.verified ? (card.tier === "female" ? "موثّقة" : "موثّق") : "سارية", false]].map(([k, v, mono], i) => (
                 <View key={i} style={{ flex: 1 }}>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 8.5 * s, color: t.muted, textAlign: "right" }}>{k as string}</Text>
-                  <Text numberOfLines={1} style={mono ? [styles.mono, { fontSize: 10 * s, color: t.text }] : { fontFamily: "Cairo_500Medium", fontSize: 11 * s, color: t.accent, textAlign: "right" }}>{v as string}</Text>
+                  <Text numberOfLines={1} style={mono ? [styles.mono, { fontSize: 11 * s, color: t.text }] : { fontFamily: "Cairo_500Medium", fontSize: 12 * s, color: t.accent, textAlign: "right" }}>{v as string}</Text>
                 </View>
               ))}
             </View>
@@ -218,7 +218,7 @@ function CardBack({ card, width }: { card: MemberCard; width: number }) {
         <View style={{ width: 5 * s, height: 5 * s, borderRadius: 3 * s, backgroundColor: t.accent }} />
       </View>
       <View style={{ position: "absolute", left: 313 * s, top: 193 * s }}>
-        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10 * s, color: t.accent }}>الحصاحيصا</Text>
+        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11 * s, color: t.accent }}>الحصاحيصا</Text>
         <Text style={[styles.mono, { fontSize: 7.5 * s, color: t.muted, textAlign: "left" }]}>14.75°N 33.30°E</Text>
       </View>
       <View style={{ flex: 1, flexDirection: "row-reverse", padding: 24 * s, gap: 22 * s }}>
@@ -676,15 +676,15 @@ const styles = StyleSheet.create({
   panel: { width: "100%", maxWidth: 428, marginTop: 16, padding: 16, borderRadius: 16, backgroundColor: "#FFFFFF", gap: 10 },
   panelHead: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   panelTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#1E1E1C" },
-  panelHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#8A8478" },
-  panelEn: { fontFamily: "Cairo_600SemiBold", fontSize: 9, letterSpacing: 3, color: "#8A8478" },
+  panelHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#8A8478" },
+  panelEn: { fontFamily: "Cairo_600SemiBold", fontSize: 11, letterSpacing: 3, color: "#8A8478" },
   panelBody: { fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 22, color: "#5C5A54", textAlign: "right" },
   panelNote: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "#8A8478", textAlign: "right" },
   tile: { width: 58, height: 72, borderRadius: 10 },
   tileOn: { borderWidth: 2, borderColor: "#21423A" },
   uploadTile: { borderWidth: 1, borderStyle: "dashed", borderColor: "#8A8478", backgroundColor: "#FAF9F6", alignItems: "center", justifyContent: "center", gap: 2 },
-  tileText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "#3E3B35" },
-  tileLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B675F", textAlign: "center", marginTop: 4 },
+  tileText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#3E3B35" },
+  tileLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B675F", textAlign: "center", marginTop: 4 },
   rotateBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, minHeight: 44 },
   rotateText: { fontFamily: "Cairo_600SemiBold", color: "#21423A", fontSize: 13 },
   stateBox: { width: "100%", maxWidth: 428, alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 44, marginTop: 20, borderRadius: 20, backgroundColor: "#FFFFFF" },
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
   viewerSegBtn: { paddingHorizontal: 14, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   viewerSegOn: { backgroundColor: "#E9E3D3" },
   viewerSegText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#E9E3D3" },
-  viewerHint: { position: "absolute", bottom: 14, fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(241,238,230,0.55)", textAlign: "center", paddingHorizontal: 20 },
+  viewerHint: { position: "absolute", bottom: 14, fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(241,238,230,0.55)", textAlign: "center", paddingHorizontal: 20 },
   viewerTools: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 12, alignSelf: "center", width: "100%" },
   viewerZoom: { minWidth: 64, height: 44, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   viewerZoomText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F1EEE6" },
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
   socialIcon: { width: 50, height: 50, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   socialLabel: { fontFamily: "Cairo_500Medium", fontSize: 11.5, color: "#3E3B35" },
   copyRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#F3F1EC", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  copyText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 12, color: "#21423A", textAlign: "right" },
+  copyText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 13, color: "#21423A", textAlign: "right" },
   closeRow: { alignItems: "center", paddingVertical: 4 },
   closeText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#6B675E" },
   modalBg: { flex: 1, backgroundColor: "rgba(15,15,14,0.72)", alignItems: "center", justifyContent: "center", padding: 20 },

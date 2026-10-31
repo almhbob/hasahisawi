@@ -487,9 +487,9 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 5,
     backgroundColor: GOLD, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Colors.radius.pill,
   },
-  sectionChipText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#1A0F00" },
+  sectionChipText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1A0F00" },
   tapHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: GOLD_DIM,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: GOLD_DIM,
     textAlign: "center", marginTop: 8, marginBottom: 4, opacity: 0.7,
   },
   noCurrentCard: {
@@ -509,7 +509,7 @@ const s = StyleSheet.create({
     backgroundColor: GOLD + "22", borderRadius: Colors.radius.pill,
     paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: GOLD + "35",
   },
-  prevCountText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: GOLD },
+  prevCountText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: GOLD },
 
   /* مجموعة سنوية */
   yearGroup: { marginBottom: 8 },
@@ -523,7 +523,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 3,
     borderWidth: 1, borderColor: GOLD_DIM + "40",
   },
-  yearText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: GOLD_DIM },
+  yearText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: GOLD_DIM },
 
   /* لود المزيد */
   loadMoreRow: {
@@ -537,7 +537,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 20,
   },
-  endText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: GOLD_DIM, opacity: 0.7 },
+  endText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: GOLD_DIM, opacity: 0.7 },
 
   /* فارغ */
   emptyWrap: { alignItems: "center", gap: 12, paddingTop: 80 },
@@ -583,10 +583,10 @@ const fc = StyleSheet.create({
     borderWidth: 1, borderColor: GOLD + "40",
   },
   currentBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: GOLD },
-  title: { fontFamily: "Cairo_500Medium", fontSize: 12, color: GOLD_LITE },
-  role:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  title: { fontFamily: "Cairo_500Medium", fontSize: 13, color: GOLD_LITE },
+  role:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   dateRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 2 },
-  date:  { fontFamily: "Cairo_400Regular", fontSize: 10, color: GOLD_DIM },
+  date:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: GOLD_DIM },
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -614,7 +614,7 @@ const dm = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 5,
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: Colors.radius.pill,
   },
-  currentChipText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1A0F00" },
+  currentChipText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1A0F00" },
   body: { paddingHorizontal: 20, paddingTop: 20, gap: 18 },
   nameSection: { alignItems: "center", gap: 8 },
   name: {
@@ -633,7 +633,7 @@ const dm = StyleSheet.create({
   periodLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: GOLD },
   periodDates: { flexDirection: "row-reverse", alignItems: "center", gap: 0 },
   periodDate: { flex: 1, alignItems: "center", gap: 4 },
-  periodDateLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  periodDateLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   periodDateVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: GOLD_LITE, textAlign: "center" },
   periodSep: { paddingHorizontal: 8 },
   tributeCard: {

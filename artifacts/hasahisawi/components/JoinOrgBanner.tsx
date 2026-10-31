@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: "center" },
   statNum:  { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel:{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
+  statLabel:{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
 
   // ── قسم عام
   section: { padding: 16 },
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
   },
-  orgTypeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  orgTypeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
 
   // ── مزايا
   benefitRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, marginBottom: 4, textAlign: "center" },
-  ctaSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginBottom: 16, textAlign: "center" },
+  ctaSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginBottom: 16, textAlign: "center" },
 
   joinFormBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
 
   freeNote: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted,
     marginTop: 12, textAlign: "center",
   },
 });

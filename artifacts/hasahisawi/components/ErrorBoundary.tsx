@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={{ color: "#CBD5E1", textAlign: "center", marginBottom: 16, lineHeight: 22 }}>
             نعتذر عن الإزعاج. حدث خطأ في هذه الشاشة. يمكنك إعادة المحاولة الآن.
           </Text>
-          <Text style={{ color: "#94A3B8", fontSize: 12, textAlign: "center", marginBottom: 16 }}>
+          <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center", marginBottom: 16 }}>
             {error.message}
           </Text>
           <Pressable

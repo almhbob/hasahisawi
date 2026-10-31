@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12.5,
+    fontSize: 13,
     color: "rgba(255,255,255,0.82)",
     textAlign: "right",
     lineHeight: 18,

@@ -132,7 +132,7 @@ export default function MedicalRecordSetupScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" }}>الملف الطبي</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: MED2, marginTop: 1 }}>معلوماتك الصحية وجهة الاتصال الطارئ</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: MED2, marginTop: 1 }}>معلوماتك الصحية وجهة الاتصال الطارئ</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -325,7 +325,7 @@ const inputStyle: any = {
 
 const labelStyle: any = {
   fontFamily: "Cairo_600SemiBold",
-  fontSize: 12,
+  fontSize: 13,
   color: "#94A3B8",
   textAlign: "right",
   marginBottom: 6,

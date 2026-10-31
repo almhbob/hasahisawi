@@ -23,5 +23,5 @@ export default function VerifiedBadge({ size = 16, label, compact = true }: { si
 
 const st = StyleSheet.create({
   pill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: VERIFIED_BLUE, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },
-  text: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  text: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 });

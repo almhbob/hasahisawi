@@ -383,9 +383,9 @@ const card = StyleSheet.create({
   name: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right" },
   statusRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 3 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
-  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  expiryText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  entityText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
+  expiryText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  entityText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   editBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
     borderTopWidth: 1, borderTopColor: Colors.borderSubtle,
@@ -397,7 +397,7 @@ const card = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 6,
     backgroundColor: "#F59E0B18", paddingVertical: 8, paddingHorizontal: 14,
   },
-  warnText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#F59E0B", flex: 1, textAlign: "right" },
+  warnText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#F59E0B", flex: 1, textAlign: "right" },
 });
 
 const s = StyleSheet.create({
@@ -407,7 +407,7 @@ const s = StyleSheet.create({
   },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9DBBD6", textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9DBBD6", textAlign: "center", marginTop: 2 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, marginTop: 12 },
   groupHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 10 },

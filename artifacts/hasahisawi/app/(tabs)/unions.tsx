@@ -152,7 +152,7 @@ function StudentUnionTab() {
                   <View style={stuStyles.activeDot} />
                   <Text style={stuStyles.activeText}>نشط</Text>
                 </View>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                   تأسس عام 2010
                 </Text>
               </View>
@@ -971,10 +971,10 @@ function UnionsScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                         <Text style={{ fontSize: 16 }}>{icon}</Text>
                         <View style={[styles.statusBadge, { borderColor: UC + "44", backgroundColor: UC + "18" }]}>
-                          <Text style={[styles.statusText, { color: UC, fontSize: 11 }]}>{TYPE_LABELS[p.type] || p.type}</Text>
+                          <Text style={[styles.statusText, { color: UC, fontSize: 12 }]}>{TYPE_LABELS[p.type] || p.type}</Text>
                         </View>
                       </View>
-                      {p.union_short_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: UC + "bb" }}>{p.union_short_name}</Text>}
+                      {p.union_short_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: UC + "bb" }}>{p.union_short_name}</Text>}
                     </View>
                     <Text style={styles.annTitle}>{p.title}</Text>
                     {p.description && <Text style={styles.annBody}>{p.description}</Text>}
@@ -989,14 +989,14 @@ function UnionsScreen() {
                       <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}
                         onPress={() => Linking.openURL(`tel:${p.contact}`)}>
                         <Ionicons name="call-outline" size={13} color={Colors.primary} />
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>{p.contact}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary }}>{p.contact}</Text>
                       </Pressable>
                     )}
                     {p.link && (
                       <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
                         onPress={() => Linking.openURL(p.link!)}>
                         <Ionicons name="link-outline" size={13} color="#0EA5E9" />
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#0EA5E9" }}>رابط التسجيل</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0EA5E9" }}>رابط التسجيل</Text>
                       </Pressable>
                     )}
                   </View>
@@ -1061,10 +1061,10 @@ function UnionsScreen() {
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
                           <View style={[styles.statusBadge, { borderColor: cc + "44", backgroundColor: cc + "18" }]}>
-                            <Text style={[styles.statusText, { color: cc, fontSize: 11 }]}>{CAT_LABELS[l.category] || l.category}</Text>
+                            <Text style={[styles.statusText, { color: cc, fontSize: 12 }]}>{CAT_LABELS[l.category] || l.category}</Text>
                           </View>
-                          {l.union_short_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: UC + "bb" }}>{l.union_short_name}</Text>}
-                          {l.version && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#7A8E86" }}>v{l.version}</Text>}
+                          {l.union_short_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: UC + "bb" }}>{l.union_short_name}</Text>}
+                          {l.version && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#7A8E86" }}>v{l.version}</Text>}
                         </View>
                         <Text style={styles.annTitle}>{l.title}</Text>
                         {l.effective_date && (
@@ -1229,12 +1229,12 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   headerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: UC + "20", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "40" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#1A2C25" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62" },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#4E6F62" },
 
   tabRow: { flexDirection: "row", gap: 6, paddingHorizontal: 14, marginBottom: 12 },
   tabBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 7, borderRadius: Colors.radius.sm, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
   tabBtnActive: { backgroundColor: "rgba(255,255,255,0.28)", borderColor: "rgba(255,255,255,0.55)" },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.82)" },
+  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.82)" },
   tabLabelActive: { color: "#fff" },
 
   // Union card
@@ -1244,25 +1244,25 @@ const styles = StyleSheet.create({
   unionInitial: { width: 48, height: 48, borderRadius: Colors.radius.pill, backgroundColor: UC + "30", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: UC + "50", flexShrink: 0 },
   unionInitialText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: UC },
   unionName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1A2C25" },
-  unionField: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC3 },
-  unionDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62", lineHeight: 18 },
+  unionField: { fontFamily: "Cairo_400Regular", fontSize: 13, color: UC3 },
+  unionDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#4E6F62", lineHeight: 18 },
   unionStats: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
   statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, backgroundColor: UC + "15" },
-  statChipText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: UC3 },
+  statChipText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC3 },
   unionActions: { flexDirection: "row", gap: 8 },
   uBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
-  uBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  uBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
 
   // Announcement
   annCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: "#E1EAE6", ...Colors.shadow.card },
   annCardPinned: { borderColor: GOLD + "50", backgroundColor: GOLD + "08" },
   pinnedBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 },
-  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: GOLD },
+  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: GOLD },
   annTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1A2C25", marginBottom: 4 },
-  annUnion: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC, marginBottom: 4 },
+  annUnion: { fontFamily: "Cairo_400Regular", fontSize: 13, color: UC, marginBottom: 4 },
   annBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5E7A6E", lineHeight: 20, marginBottom: 6 },
-  annDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#7A8E86" },
-  annLink: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: UC, marginTop: 4 },
+  annDate: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8E86" },
+  annLink: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC, marginTop: 4 },
 
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1A2C25", marginBottom: 10, paddingRight: 4 },
   emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 14 },
@@ -1286,7 +1286,7 @@ const styles = StyleSheet.create({
   infoVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#1A2C25", flex: 1 },
   annInModal: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: UC },
   annInModalTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1A2C25", marginBottom: 4 },
-  annInModalBody: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62" },
+  annInModalBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#4E6F62" },
   modalBtns: { flexDirection: "row", gap: 10, marginTop: 16 },
   modalJoinBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: UC, paddingVertical: 13, borderRadius: Colors.radius.md },
   modalJoinText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
@@ -1319,12 +1319,12 @@ const styles = StyleSheet.create({
   stepDone: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   stepLine: { flex: 1, height: 2, backgroundColor: "#E1EAE6", maxWidth: 40 },
   stepLineDone: { backgroundColor: Colors.primary },
-  stepNum: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#7A8E86" },
+  stepNum: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#7A8E86" },
   stepNumActive: { color: UC },
   stepLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC, textAlign: "center", marginBottom: 18 },
 
   prevUnionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFFFFF", borderRadius: Colors.radius.sm, padding: 10, marginBottom: 6 },
-  prevUnionLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5E7A6E", flex: 1 },
+  prevUnionLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5E7A6E", flex: 1 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, marginBottom: 12 },
   addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC },
   addBox: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 14, gap: 8, marginBottom: 12, borderWidth: 1, borderColor: UC + "30" },
@@ -1334,14 +1334,14 @@ const styles = StyleSheet.create({
   addCancel: { flex: 1, backgroundColor: "#E1EAE6", paddingVertical: 8, borderRadius: Colors.radius.sm, alignItems: "center" },
   addCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#4E6F62" },
   listItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
-  listItemText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5E7A6E", flex: 1 },
+  listItemText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5E7A6E", flex: 1 },
   smallAddBtn: { backgroundColor: UC, width: 40, borderRadius: Colors.radius.sm, alignItems: "center", justifyContent: "center" },
 
   summaryBox: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.md, padding: 16, marginTop: 16, borderWidth: 1, borderColor: UC + "40", ...Colors.shadow.card },
   summaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: UC, marginBottom: 10 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5, borderBottomWidth: 1, borderColor: "#E1EAE6" },
-  summaryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#4E6F62" },
-  summaryVal: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#1A2C25", flex: 1, textAlign: "right" },
+  summaryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#4E6F62" },
+  summaryVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#1A2C25", flex: 1, textAlign: "right" },
 
   formNavBtns: { flexDirection: "row", gap: 12, marginTop: 24 },
   prevBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: UC + "50", backgroundColor: UC + "10" },
@@ -1363,16 +1363,16 @@ const styles = StyleSheet.create({
   myCard: { backgroundColor: "#FFFFFF", borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, borderColor: "#E1EAE6", ...Colors.shadow.card },
   myCardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 },
   myCardUnion: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1A2C25" },
-  myCardDate: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8E86", marginTop: 2 },
+  myCardDate: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#7A8E86", marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, borderWidth: 1 },
-  statusText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  statusText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
   membershipNoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, padding: 8, backgroundColor: Colors.primary + "15", borderRadius: Colors.radius.sm },
   membershipNoText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
-  rejectionReason: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", marginBottom: 8 },
+  rejectionReason: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#EF4444", marginBottom: 8 },
   myCardInfo: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   miniInfo: { backgroundColor: "#F4F8F6", paddingHorizontal: 10, paddingVertical: 5, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#E1EAE6" },
-  miniLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#7A8E86" },
-  miniVal: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5E7A6E" },
+  miniLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#7A8E86" },
+  miniVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#5E7A6E" },
 });
 
 // ── أنماط تبويب اتحاد الطلاب ──────────────────────────────────────
@@ -1398,14 +1398,14 @@ const stuStyles = StyleSheet.create({
     borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)",
   },
   heroTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
-  heroSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 },
+  heroSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 3 },
   activeBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
     backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 4,
   },
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#4ADE80" },
-  activeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  activeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
   statsRow: {
     flexDirection: "row",
     borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.15)",
@@ -1417,7 +1417,7 @@ const stuStyles = StyleSheet.create({
     borderLeftColor: "rgba(255,255,255,0.2)", borderRightColor: "rgba(255,255,255,0.2)",
   },
   statVal: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  statLbl: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.75)" },
+  statLbl: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.75)" },
 
   sectionTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1A2C25",
@@ -1434,7 +1434,7 @@ const stuStyles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   featureLabel: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 12,
+    fontFamily: "Cairo_600SemiBold", fontSize: 13,
     color: "#1A2C25", textAlign: "right", lineHeight: 18,
   },
   featureArrow: {
@@ -1448,7 +1448,7 @@ const stuStyles = StyleSheet.create({
     ...Colors.shadow.raised,
   },
   joinBtnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
-  joinBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 2 },
+  joinBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 },
 
   committeesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   committeeChip: {
@@ -1456,7 +1456,7 @@ const stuStyles = StyleSheet.create({
     backgroundColor: SU + "15", borderRadius: 20, borderWidth: 1, borderColor: SU + "35",
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  committeeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9DBBD6" },
+  committeeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9DBBD6" },
 
   contactBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 14,
@@ -1469,12 +1469,12 @@ const stuStyles = StyleSheet.create({
     borderWidth: 1, borderColor: "#2F8A8A30",
   },
   contactTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1A2C25" },
-  contactSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4E6F62", marginTop: 2 },
+  contactSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#4E6F62", marginTop: 2 },
   portalBtn: { borderRadius: Colors.radius.xl, overflow: "hidden", ...Colors.shadow.raised },
   portalGradient: { flexDirection: "row-reverse", alignItems: "center", gap: 14, padding: 16 },
   portalIconWrap: { width: 48, height: 48, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   portalTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
-  portalSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 },
+  portalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 });
 
 export default withRTLScreen(UnionsScreen);

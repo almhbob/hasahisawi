@@ -614,7 +614,7 @@ const s = StyleSheet.create({
     textShadowColor: Colors.primary + "60", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8,
   },
   appTagline: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 2,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2,
   },
   modeChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "center",
@@ -650,7 +650,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.divider, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
   },
   optionalText: {
-    fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
   },
   fieldWrap: {
     borderWidth: 1.5, borderColor: Colors.divider, borderRadius: 14,
@@ -662,7 +662,7 @@ const s = StyleSheet.create({
     paddingVertical: 13, flex: 1,
   },
   verifyHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, paddingHorizontal: 4,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.primary, paddingHorizontal: 4,
   },
 
   /* Type toggle */
@@ -723,7 +723,7 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right",
   },
   googleBtnSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1, textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1, textAlign: "right",
   },
 
   /* Guest */
@@ -737,7 +737,7 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary, textAlign: "right",
   },
   guestBtnSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 1, textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 1, textAlign: "right",
   },
 
   /* Forgot Password */

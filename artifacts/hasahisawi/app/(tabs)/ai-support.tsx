@@ -287,7 +287,7 @@ const s = StyleSheet.create({
   statusDot:   { width: 7, height: 7, borderRadius: Colors.radius.pill },
   statusDotOnline:  { backgroundColor: "#fff" },
   statusDotOffline: { backgroundColor: "#FFE38A" },
-  statusTxt:   { fontSize: 12, fontFamily: "Cairo_400Regular" },
+  statusTxt:   { fontSize: 13, fontFamily: "Cairo_400Regular" },
   statusTxtOnline:  { color: "rgba(255,255,255,0.92)" },
   statusTxtOffline: { color: "#FFE38A" },
   refreshBtn:  { width: 36, height: 36, borderRadius: Colors.radius.pill, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
@@ -298,7 +298,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, marginHorizontal: 12, marginBottom: 8,
     borderRadius: Colors.radius.md,
   },
-  quotaTxt:    { flex: 1, fontSize: 12, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
+  quotaTxt:    { flex: 1, fontSize: 13, fontFamily: "Cairo_400Regular", color: "#F5A623", lineHeight: 18 },
 
   messagesList: { padding: 16, gap: 12, paddingBottom: 8 },
   msgRow:      { flexDirection: "row", alignItems: "flex-end", gap: 4 },
@@ -311,7 +311,7 @@ const s = StyleSheet.create({
   bubbleText:  { fontSize: 15, lineHeight: 22, fontFamily: "Cairo_400Regular", textAlign: "right" },
   bubbleTextUser: { color: "#000" },
   bubbleTextAi:   { color: Colors.textPrimary },
-  timeText:    { fontSize: 10, fontFamily: "Cairo_400Regular", marginTop: 4 },
+  timeText:    { fontSize: 11, fontFamily: "Cairo_400Regular", marginTop: 4 },
   timeUser:    { color: "#000000AA", textAlign: "left" },
   timeAi:      { color: Colors.textMuted, textAlign: "right" },
 

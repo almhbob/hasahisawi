@@ -34,7 +34,7 @@ function StatusBadge({ expired }: { expired: boolean }) {
   const label = expired ? "منتهية" : "سارية";
   return (
     <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: color + "20" }}>
-      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color }}>{label}</Text>
+      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color }}>{label}</Text>
     </View>
   );
 }
@@ -199,7 +199,7 @@ export default function SickLeaveScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" }}>الإجازات المرضية</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: MED, marginTop: 1 }}>مدعومة برمز تحقق إلكتروني</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: MED, marginTop: 1 }}>مدعومة برمز تحقق إلكتروني</Text>
           </View>
           {isDoctor && (
             <TouchableOpacity onPress={() => setShowForm(true)} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: MED + "30", alignItems: "center", justifyContent: "center" }}>
@@ -231,7 +231,7 @@ export default function SickLeaveScreen() {
               {LEAVE_TYPES.map(lt => (
                 <TouchableOpacity key={lt.key} onPress={() => setLeaveType(lt.key)}
                   style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: leaveType === lt.key ? lt.color : "#FFFFFF10", alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: leaveType === lt.key ? "#fff" : "#94A3B8" }}>{lt.label}</Text>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: leaveType === lt.key ? "#fff" : "#94A3B8" }}>{lt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -243,12 +243,12 @@ export default function SickLeaveScreen() {
               style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", textAlign: "right", marginBottom: 10, minHeight: 60 }} />
             <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 14 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "right", marginBottom: 4 }}>من</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "right", marginBottom: 4 }}>من</Text>
                 <TextInput value={startDate} onChangeText={setStartDate} placeholder="2025-01-01" placeholderTextColor="#4B5563"
                   style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", textAlign: "center" }} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "right", marginBottom: 4 }}>إلى</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "right", marginBottom: 4 }}>إلى</Text>
                 <TextInput value={endDate} onChangeText={setEndDate} placeholder="2025-01-07" placeholderTextColor="#4B5563"
                   style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", textAlign: "center" }} />
               </View>
@@ -301,41 +301,41 @@ export default function SickLeaveScreen() {
                         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>{typeLabel(sl.leave_type)}</Text>
                         <StatusBadge expired={isExpired} />
                       </View>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#94A3B8", marginTop: 2 }}>
                         الطبيب: {sl.doctor_name || "—"} • {sl.facility_name || ""}
                       </Text>
                     </View>
                     <View style={{ alignItems: "flex-start" }}>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: isExpired ? "#6B7280" : color }}>{sl.leave_days}</Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7280" }}>يوم</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7280" }}>يوم</Text>
                     </View>
                   </View>
 
                   {/* Dates */}
                   <View style={{ flexDirection: "row-reverse", paddingHorizontal: 14, paddingBottom: 12, gap: 16 }}>
                     <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 8 }}>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "center" }}>من</Text>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff", textAlign: "center", marginTop: 2 }}>{sl.start_date}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "center" }}>من</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", textAlign: "center", marginTop: 2 }}>{sl.start_date}</Text>
                     </View>
                     <View style={{ width: 24, alignItems: "center", justifyContent: "center" }}>
                       <Ionicons name="arrow-back" size={16} color="#4B5563" />
                     </View>
                     <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 8 }}>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "center" }}>إلى</Text>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff", textAlign: "center", marginTop: 2 }}>{sl.end_date}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "center" }}>إلى</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", textAlign: "center", marginTop: 2 }}>{sl.end_date}</Text>
                     </View>
                   </View>
 
                   {sl.institution_name && (
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingBottom: 10 }}>
                       <Ionicons name="business-outline" size={15} color="#94A3B8" />
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8" }}>{sl.institution_name}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#94A3B8" }}>{sl.institution_name}</Text>
                     </View>
                   )}
 
                   {/* Barcode token */}
                   <View style={{ marginHorizontal: 14, marginBottom: 12, backgroundColor: "#FFFFFF06", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF10", padding: 10, alignItems: "center" }}>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7280", marginBottom: 4 }}>رمز التحقق</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", marginBottom: 4 }}>رمز التحقق</Text>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: isExpired ? "#6B7280" : color, letterSpacing: 2 }}>{sl.barcode_token}</Text>
                   </View>
 
