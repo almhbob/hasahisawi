@@ -35,7 +35,7 @@ export const TASK_CATEGORIES: Record<string, { label: string; icon: string; colo
   health: { label: "صحة", icon: "medkit-outline", color: "#E05567" },
   education: { label: "تعليم", icon: "school-outline", color: "#2563EB" },
   social: { label: "خدمة مجتمع", icon: "people-outline", color: "#00966A" },
-  events: { label: "فعاليات", icon: "calendar-outline", color: "#9333EA" },
+  events: { label: "فعاليات", icon: "calendar-outline", color: "#B7791F" },
   relief: { label: "إغاثة", icon: "heart-outline", color: "#DC2626" },
   other: { label: "أخرى", icon: "ellipsis-horizontal-circle-outline", color: "#64748B" },
 };

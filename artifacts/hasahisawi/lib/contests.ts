@@ -20,14 +20,15 @@ export type ContestDetail = Contest & {
 export type Occasion = { key: string; name: string; title: string; description: string; date: string; daysAway: number };
 
 /** هوية بصرية لكل مناسبة: ألوان التدرج، أيقونة، ونص الترويسة. */
+// ألوان هوية حصاحيصاوي: أخضر التطبيق وذهبه، وألوان علم السودان للمناسبات الوطنية — بلا بنفسجي/نيلي
 export const OCCASION_THEME: Record<string, { grad: [string, string]; accent: string; icon: string; label: string }> = {
-  ramadan: { grad: ["#1E1B4B", "#3730A3"], accent: "#FBBF24", icon: "moon", label: "رمضان كريم" },
-  eid_fitr: { grad: ["#065F46", "#047857"], accent: "#FCD34D", icon: "gift", label: "عيد فطر مبارك" },
-  eid_adha: { grad: ["#0F766E", "#115E59"], accent: "#FDE68A", icon: "star", label: "عيد أضحى مبارك" },
-  hijri_new_year: { grad: ["#312E81", "#1E3A8A"], accent: "#C7D2FE", icon: "calendar", label: "عام هجري سعيد" },
-  mawlid: { grad: ["#14532D", "#166534"], accent: "#BBF7D0", icon: "sparkles", label: "المولد النبوي الشريف" },
-  isra_miraj: { grad: ["#4C1D95", "#5B21B6"], accent: "#DDD6FE", icon: "planet", label: "الإسراء والمعراج" },
-  independence: { grad: ["#111827", "#7F1D1D"], accent: "#22C55E", icon: "flag", label: "عيد الاستقلال المجيد" },
+  ramadan: { grad: ["#0B3B2C", "#0F5C43"], accent: "#E8A900", icon: "moon", label: "رمضان كريم" },
+  eid_fitr: { grad: ["#00966A", "#006B4A"], accent: "#FCD34D", icon: "gift", label: "عيد فطر مبارك" },
+  eid_adha: { grad: ["#7A5512", "#A8771C"], accent: "#FFF1C2", icon: "star", label: "عيد أضحى مبارك" },
+  hijri_new_year: { grad: ["#123A2C", "#1D5A44"], accent: "#F2C94C", icon: "calendar", label: "عام هجري سعيد" },
+  mawlid: { grad: ["#0E5132", "#14773F"], accent: "#FDE68A", icon: "sparkles", label: "المولد النبوي الشريف" },
+  isra_miraj: { grad: ["#3D2A0E", "#6B4A16"], accent: "#F5D27A", icon: "planet", label: "الإسراء والمعراج" },
+  independence: { grad: ["#A50F1C", "#1A1A1A"], accent: "#22C55E", icon: "flag", label: "عيد الاستقلال المجيد" },
   sponsored: { grad: ["#00966A", "#006B4A"], accent: "#E8A900", icon: "trophy", label: "مسابقة برعاية" },
 };
 

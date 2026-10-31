@@ -163,12 +163,23 @@ function cleanContest(b: any) {
   };
 }
 
+/** القسم مخفي من لوحة الإدارة (أقسام التطبيق)؟ الطاقم يراه دائماً ليديره. */
+async function sectionHiddenFor(me: Awaited<ReturnType<typeof sessionUser>>): Promise<boolean> {
+  if (await canManageSection(me, "contests")) return false;
+  try {
+    const r = await query(`SELECT is_visible FROM section_configurations WHERE section_key='contests'`);
+    return r.rows[0]?.is_visible === false;
+  } catch { return false; }
+}
+const HIDDEN_MSG = "قسم المسابقات غير متاح حالياً";
+
 router.get("/contests/occasions", (_req: Request, res: Response) => res.json(upcomingOccasions()));
 
 router.get("/contests", async (req: Request, res: Response) => {
   try {
     await ensureContestsDb();
     const me = await sessionUser(req);
+    if (await sectionHiddenFor(me)) return res.json([]);
     const r = await query(
       `SELECT c.*, (SELECT COUNT(*)::int FROM contest_entries e WHERE e.contest_id=c.id) AS entries_count,
               EXISTS (SELECT 1 FROM contest_entries e WHERE e.contest_id=c.id AND e.user_id=$1) AS entered,
@@ -185,6 +196,7 @@ router.get("/contests/:id", async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const c = (await query(`SELECT c.*, (SELECT COUNT(*)::int FROM contest_entries e WHERE e.contest_id=c.id) AS entries_count FROM contests c WHERE id=$1`, [id])).rows[0];
     if (!c) return res.status(404).json({ error: "المسابقة غير موجودة" });
+    if (await sectionHiddenFor(me)) return res.status(404).json({ error: HIDDEN_MSG });
     const manage = await canManageSection(me, "contests");
     const state = effectiveStatus(c);
     // الإجابات الصحيحة لا تُرسل للمتسابقين قبل انتهاء المسابقة
@@ -252,6 +264,7 @@ router.post("/contests/:id/enter", async (req: Request, res: Response) => {
   try {
     const me = await sessionUser(req);
     if (!me) return res.status(401).json({ error: "سجّل الدخول للمشاركة" });
+    if (await sectionHiddenFor(me)) return res.status(404).json({ error: HIDDEN_MSG });
     await ensureContestsDb();
     const id = Number(req.params.id);
     const c = (await query(`SELECT * FROM contests WHERE id=$1`, [id])).rows[0];
