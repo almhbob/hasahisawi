@@ -43,7 +43,7 @@ const TYPE_CONFIG: Record<OrgType, { label: string; icon: string; color: string;
   media:       { label: "وسيلة إعلامية",     icon: "broadcast",          color: "#F59E0B", emoji: "📡" },
   supplier:    { label: "مورّد / تجاري",     icon: "truck-delivery",     color: "#2F8A8A", emoji: "🚛" },
   research:    { label: "مركز أبحاث",        icon: "microscope",         color: "#C46A3A", emoji: "🔬" },
-  other:       { label: "أخرى",              icon: "domain",             color: "#64748B", emoji: "✨" },
+  other:       { label: "أخرى",              icon: "domain",             color: Colors.textSecondary, emoji: "✨" },
 };
 
 const TYPE_KEYS = Object.keys(TYPE_CONFIG) as OrgType[];
@@ -121,13 +121,13 @@ function ExternalPartnershipScreen() {
               style={s.ctaCard}
             >
               <View style={s.ctaIconWrap}>
-                <MaterialCommunityIcons name="file-document-edit" size={32} color="#000" />
+                <MaterialCommunityIcons name="file-document-edit" size={32} color={Colors.text} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.ctaTitle}>تقديم طلب تعاون جديد</Text>
                 <Text style={s.ctaDesc}>املأ النموذج وسيتم التواصل معكم خلال 48 ساعة من فريق المنصة</Text>
               </View>
-              <Ionicons name="arrow-back-circle" size={32} color="#000" />
+              <Ionicons name="arrow-back-circle" size={32} color={Colors.text} />
             </LinearGradient>
           </AnimatedPress>
         </Animated.View>
@@ -166,7 +166,7 @@ function ExternalPartnershipScreen() {
             style={[s.filterChip, filter === "all" && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
             onPress={() => setFilter("all")}
           >
-            <Text style={[s.filterChipText, filter === "all" && { color: "#000" }]}>الكل</Text>
+            <Text style={[s.filterChipText, filter === "all" && { color: Colors.text }]}>الكل</Text>
           </TouchableOpacity>
           {TYPE_KEYS.map(k => {
             const cfg = TYPE_CONFIG[k];
@@ -208,7 +208,7 @@ function ExternalPartnershipScreen() {
                   <LinearGradient colors={[cfg.color + "10", "transparent"]} style={StyleSheet.absoluteFill} />
                   {p.is_featured && (
                     <View style={s.featuredBadge}>
-                      <Ionicons name="star" size={11} color="#000" />
+                      <Ionicons name="star" size={11} color={Colors.text} />
                       <Text style={s.featuredText}>شريك مميز</Text>
                     </View>
                   )}
@@ -474,10 +474,10 @@ function ApplicationFormModal({
           ) : (
             <TouchableOpacity style={m.nextBtn} onPress={submit} disabled={submitting}>
               <LinearGradient colors={["#FFD700", "#F0C040"]} style={StyleSheet.absoluteFill} />
-              {submitting ? <ActivityIndicator color="#000" /> : (
+              {submitting ? <ActivityIndicator color={Colors.text} /> : (
                 <>
-                  <Text style={[m.nextBtnText, { color: "#000" }]}>إرسال الطلب</Text>
-                  <Ionicons name="paper-plane" size={18} color="#000" />
+                  <Text style={[m.nextBtnText, { color: Colors.text }]}>إرسال الطلب</Text>
+                  <Ionicons name="paper-plane" size={18} color={Colors.text} />
                 </>
               )}
             </TouchableOpacity>
@@ -528,7 +528,7 @@ const s = StyleSheet.create({
 
   ctaCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 18, gap: 14, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   ctaIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.12)", alignItems: "center", justifyContent: "center" },
-  ctaTitle: { fontSize: 16, fontWeight: "800", color: "#000", textAlign: "right" },
+  ctaTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, textAlign: "right" },
   ctaDesc: { fontSize: 12, color: "rgba(0,0,0,0.7)", marginTop: 3, textAlign: "right", lineHeight: 16 },
 
   infoCard: { marginTop: 16, padding: 14, borderRadius: 16, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.borderGlow },
@@ -551,7 +551,7 @@ const s = StyleSheet.create({
 
   partnerCard: { borderRadius: 16, padding: 14, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden" },
   featuredBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#FFD700", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, zIndex: 2 },
-  featuredText: { fontSize: 11, fontWeight: "800", color: "#000" },
+  featuredText: { fontSize: 11, fontWeight: "800", color: Colors.text },
   partnerHeader: { flexDirection: "row", gap: 12, marginBottom: 10 },
   partnerIconCircle: { width: 56, height: 56, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   partnerName: { fontSize: 15, fontWeight: "800", color: Colors.text, textAlign: "right", marginBottom: 6 },

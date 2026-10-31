@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Colors from "@/constants/colors";
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, Platform,
@@ -159,7 +160,7 @@ export default function MedicalRecordSetupScreen() {
                 value={height}
                 onChangeText={setHeight}
                 placeholder="مثال: 175"
-                placeholderTextColor="#4B5563"
+                placeholderTextColor={Colors.textMuted}
                 keyboardType="numeric"
                 style={inputStyle}
               />
@@ -170,7 +171,7 @@ export default function MedicalRecordSetupScreen() {
                 value={weight}
                 onChangeText={setWeight}
                 placeholder="مثال: 70"
-                placeholderTextColor="#4B5563"
+                placeholderTextColor={Colors.textMuted}
                 keyboardType="numeric"
                 style={inputStyle}
               />
@@ -185,7 +186,7 @@ export default function MedicalRecordSetupScreen() {
             value={allergies}
             onChangeText={setAllergies}
             placeholder="مثال: حساسية من البنسلين، الفول السوداني..."
-            placeholderTextColor="#4B5563"
+            placeholderTextColor={Colors.textMuted}
             multiline
             numberOfLines={3}
             style={[inputStyle, { textAlignVertical: "top", minHeight: 72, marginTop: 8 }]}
@@ -199,7 +200,7 @@ export default function MedicalRecordSetupScreen() {
             value={chronicConditions}
             onChangeText={setChronicConditions}
             placeholder="مثال: السكري، ضغط الدم، الربو..."
-            placeholderTextColor="#4B5563"
+            placeholderTextColor={Colors.textMuted}
             multiline
             numberOfLines={3}
             style={[inputStyle, { textAlignVertical: "top", minHeight: 72, marginTop: 8 }]}
@@ -213,7 +214,7 @@ export default function MedicalRecordSetupScreen() {
             value={currentMeds}
             onChangeText={setCurrentMeds}
             placeholder="الأدوية التي تتناولها بانتظام..."
-            placeholderTextColor="#4B5563"
+            placeholderTextColor={Colors.textMuted}
             multiline
             numberOfLines={3}
             style={[inputStyle, { textAlignVertical: "top", minHeight: 72, marginTop: 8 }]}
@@ -230,7 +231,7 @@ export default function MedicalRecordSetupScreen() {
                 value={emergencyName}
                 onChangeText={setEmergencyName}
                 placeholder="اسم الشخص الذي يُتصل به عند الطوارئ"
-                placeholderTextColor="#4B5563"
+                placeholderTextColor={Colors.textMuted}
                 style={inputStyle}
               />
             </View>
@@ -240,7 +241,7 @@ export default function MedicalRecordSetupScreen() {
                 value={emergencyPhone}
                 onChangeText={setEmergencyPhone}
                 placeholder="05XXXXXXXX"
-                placeholderTextColor="#4B5563"
+                placeholderTextColor={Colors.textMuted}
                 keyboardType="phone-pad"
                 style={inputStyle}
               />
@@ -251,7 +252,7 @@ export default function MedicalRecordSetupScreen() {
                 value={emergencyRelation}
                 onChangeText={setEmergencyRelation}
                 placeholder="مثال: الأب، الأم، الزوج..."
-                placeholderTextColor="#4B5563"
+                placeholderTextColor={Colors.textMuted}
                 style={inputStyle}
               />
             </View>
@@ -260,12 +261,12 @@ export default function MedicalRecordSetupScreen() {
 
         {/* ملاحظات إضافية */}
         <Animated.View entering={FadeInDown.delay(350)} style={sectionStyle}>
-          <SectionHeader icon="document-text-outline" label="ملاحظات طبية إضافية" color="#94A3B8" />
+          <SectionHeader icon="document-text-outline" label="ملاحظات طبية إضافية" color={Colors.textMuted} />
           <TextInput
             value={notes}
             onChangeText={setNotes}
             placeholder="أي معلومات إضافية تودّ إبلاغ الطاقم الطبي بها..."
-            placeholderTextColor="#4B5563"
+            placeholderTextColor={Colors.textMuted}
             multiline
             numberOfLines={4}
             style={[inputStyle, { textAlignVertical: "top", minHeight: 88, marginTop: 8 }]}
@@ -326,7 +327,7 @@ const inputStyle: any = {
 const labelStyle: any = {
   fontFamily: "Cairo_600SemiBold",
   fontSize: 13,
-  color: "#94A3B8",
+  color: Colors.textMuted,
   textAlign: "right",
   marginBottom: 6,
 };

@@ -88,7 +88,7 @@ export default function ReportScreen() {
             يجب إنشاء حساب للإبلاغ عن المفقودات والتواصل مع المجتمع.
           </Text>
           <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 }}>
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.cardBg }}>العودة</Text>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.onColor }}>العودة</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   catBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   catBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
-  catBtnTextActive: { color: Colors.cardBg },
+  catBtnTextActive: { color: Colors.onColor },
   submitBtn: {
     backgroundColor: Colors.primary, borderRadius: 18,
     paddingVertical: 16, flexDirection: "row-reverse",
@@ -265,5 +265,5 @@ const styles = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
   },
-  submitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  submitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.onColor },
 });

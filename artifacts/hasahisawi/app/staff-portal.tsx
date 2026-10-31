@@ -410,7 +410,7 @@ function PharmacistPortal({ staff }: { staff: Staff }) {
 
   const STATUS_MAP: Record<string, { label: string; color: string; canDispense?: boolean }> = {
     pending:   { label: "معلق",    color: "#F59E0B", canDispense: true },
-    delivered: { label: "سُلِّم", color: "#6B7280" },
+    delivered: { label: "سُلِّم", color: Colors.textSecondary },
     cancelled: { label: "ملغي",   color: "#EF4444" },
   };
 

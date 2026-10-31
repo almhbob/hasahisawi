@@ -1489,10 +1489,10 @@ export default function TransportScreen() {
                       style={{ borderRadius: 12, overflow: "hidden", opacity: (accepting !== null && !isAccepting) ? 0.5 : 1 }}>
                       <LinearGradient colors={[GREEN, "#22C55E"]} start={{ x:0,y:0 }} end={{ x:1,y:0 }} style={s.submitBtn}>
                         {isAccepting
-                          ? <ActivityIndicator color="#000" size="small" />
+                          ? <ActivityIndicator color={Colors.text} size="small" />
                           : <>
-                              <MaterialCommunityIcons name="check-circle-outline" size={18} color="#000" />
-                              <Text style={[s.submitBtnText, { color: "#000" }]}>قبول المشوار</Text>
+                              <MaterialCommunityIcons name="check-circle-outline" size={18} color={Colors.text} />
+                              <Text style={[s.submitBtnText, { color: Colors.text }]}>قبول المشوار</Text>
                             </>}
                       </LinearGradient>
                     </TouchableOpacity>

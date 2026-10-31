@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 12,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     marginTop: 1,
   },
   inviteBanner: {
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   },
   entityDesc: {
     fontSize: 12,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     lineHeight: 16,
   },
   statusBadge: {
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   pendingMsg: {
     fontSize: 12,
-    color: "#6b7280",
+    color: Colors.textSecondary,
     fontStyle: "italic",
     marginTop: 2,
   },

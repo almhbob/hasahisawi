@@ -517,7 +517,7 @@ function PrayerScreen() {
       {/* آية اليوم */}
       <Animated.View entering={FadeIn.duration(600)} style={s.verseCard}>
         <LinearGradient
-          colors={["#EAF9F3", "#FFFFFF", "#FFF7E0"]}
+          colors={[Colors.primarySoft, Colors.cardBg, Colors.accentSoft]}
           style={StyleSheet.absoluteFill as any}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         />
@@ -991,12 +991,12 @@ const s = StyleSheet.create({
   verseCard: {
     marginHorizontal: 16, marginTop: 10, marginBottom: 2,
     borderRadius: Colors.radius.lg, padding: 16,
-    borderWidth: 1, borderColor: "#D7EFE5",
+    borderWidth: 1, borderColor: Colors.border,
     overflow: "hidden", gap: 6,
   },
   verseLabel: {
     fontFamily: "Cairo_600SemiBold", fontSize: 12,
-    color: "#006B4A", textAlign: "right",
+    color: Colors.primaryDeep, textAlign: "right",
   },
   verseText: {
     fontFamily: "Cairo_600SemiBold", fontSize: 17,
@@ -1005,7 +1005,7 @@ const s = StyleSheet.create({
   },
   verseSurah: {
     fontFamily: "Cairo_400Regular", fontSize: 13,
-    color: "#5E6F68", textAlign: "right",
+    color: Colors.textSecondary, textAlign: "right",
   },
 
   // ── شريط التبويبات القابل للتمرير ──

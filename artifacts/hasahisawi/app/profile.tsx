@@ -650,7 +650,7 @@ export default function ProfileScreen() {
               {profile.is_verified && <VerifiedBadge size={18} />}
             </View>
             {profile.headline ? <Text style={styles.headline}>{profile.headline}</Text> : null}
-            <View style={{ padding: 14, backgroundColor: "#fff", borderRadius: 18, marginTop: 12, borderWidth: 1, borderColor: Colors.border }}>
+            <View style={{ padding: 14, backgroundColor: Colors.cardBg, borderRadius: 18, marginTop: 12, borderWidth: 1, borderColor: Colors.border }}>
               <QRCode value={publicCvUrl(profile.id)} size={200} color={Colors.primaryDeep} />
             </View>
             <Text style={[styles.hint, { textAlign: "center", marginTop: 10 }]}>امسح الرمز لفتح الملف المهني</Text>
@@ -707,20 +707,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
-  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
 
   centerBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
   emptyIcon: { width: 84, height: 84, borderRadius: 28, backgroundColor: Colors.primary + "12", alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
 
-  hero: { marginHorizontal: 16, marginTop: 6, backgroundColor: "#fff", borderRadius: 24, borderWidth: 1, borderColor: Colors.border, overflow: "hidden", alignItems: "center", paddingBottom: 18 },
+  hero: { marginHorizontal: 16, marginTop: 6, backgroundColor: Colors.cardBg, borderRadius: 24, borderWidth: 1, borderColor: Colors.border, overflow: "hidden", alignItems: "center", paddingBottom: 18 },
   cover: { alignSelf: "stretch", height: 104, overflow: "hidden" },
   coverRing: { position: "absolute", width: 180, height: 180, borderRadius: 90, borderWidth: 26, borderColor: "#fff", opacity: 0.07, right: -40, top: -60 },
-  otw: { position: "absolute", top: 12, right: 12, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  otw: { position: "absolute", top: 12, right: 12, flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.cardBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   otwText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: Colors.primaryDeep },
   avatarWrap: { marginTop: -54 },
-  avatarFrame: { padding: 4, borderRadius: 36, backgroundColor: "#fff" },
+  avatarFrame: { padding: 4, borderRadius: 36, backgroundColor: Colors.cardBg },
   cameraBadge: { position: "absolute", bottom: 2, left: 2, width: 32, height: 32, borderRadius: 11, backgroundColor: Colors.primary, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   onlineDot: { position: "absolute", bottom: 6, left: 6, width: 20, height: 20, borderRadius: 10, backgroundColor: "#22C55E", borderWidth: 3, borderColor: "#fff" },
   nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8, paddingHorizontal: 16 },
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   ghostBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary + "0F", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 16, height: 46, borderRadius: 14 },
   ghostBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primaryDeep },
 
-  card: { marginHorizontal: 16, marginTop: 14, backgroundColor: "#fff", borderRadius: 22, borderWidth: 1, borderColor: Colors.border, padding: 16 },
+  card: { marginHorizontal: 16, marginTop: 14, backgroundColor: Colors.cardBg, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, padding: 16 },
   cardHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", marginBottom: 4 },
   cardTitleNoMb: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
   certMeta: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
 
   cvCard: { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep },
-  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: "#fff" },
+  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: Colors.cardBg },
   cvBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primaryDeep },
 
   visitor: { width: 68, alignItems: "center", gap: 3 },
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   visitorTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
   quickGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginHorizontal: 16, marginTop: 14 },
-  quick: { width: "48%", flexGrow: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, alignItems: "flex-end", gap: 2 },
+  quick: { width: "48%", flexGrow: 1, backgroundColor: Colors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, alignItems: "flex-end", gap: 2 },
   quickIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", marginBottom: 6 },
   quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
   quickSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted },
@@ -812,6 +812,6 @@ const styles = StyleSheet.create({
   postTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
   overlay: { flex: 1, backgroundColor: "rgba(10,20,16,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
-  qrCard: { backgroundColor: "#fff", borderRadius: 24, padding: 20, alignItems: "center", width: "100%", maxWidth: 360 },
+  qrCard: { backgroundColor: Colors.cardBg, borderRadius: 24, padding: 20, alignItems: "center", width: "100%", maxWidth: 360 },
   previewClose: { position: "absolute", top: 50, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: "#ffffff25", alignItems: "center", justifyContent: "center" },
 });

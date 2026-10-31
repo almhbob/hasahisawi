@@ -79,7 +79,7 @@ type Product = {
 };
 
 const PLAN_PACKAGES = [
-  { name: "free",     label: "مجاني",    price: "0 SDG",        color: "#6B7280", icon: "●", features: ["3 منتجات فقط", "بيانات أساسية"] },
+  { name: "free",     label: "مجاني",    price: "0 SDG",        color: Colors.textSecondary, icon: "●", features: ["3 منتجات فقط", "بيانات أساسية"] },
   { name: "basic",    label: "أساسي",   price: "50,000 SDG/شهر", color: GREEN,    icon: "◉", features: ["10 منتجات", "معلومات اتصال", "ظهور في القائمة"] },
   { name: "standard", label: "ستاندرد", price: "150,000 SDG/شهر",color:"#0EA5E9", icon: "⬡", features: ["30 منتجاً", "بطاقة ترويجية", "شارة مميزة", "أولوية عرض"] },
   { name: "premium",  label: "بريميوم", price: "300,000 SDG/شهر",color: GOLD,     icon: "★", features: ["منتجات غير محدودة", "بانر إعلاني", "شارة الراعي", "أعلى ترتيب", "صفحة مصنع كاملة"] },
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   tabBar:       { flexDirection: "row", gap: 6, marginTop: 10 },
   tabBtn:       { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: Colors.radius.sm, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" },
   tabBtnActive: { overflow: "hidden" },
-  tabBtnActiveBg:{ backgroundColor: "#fff" },
+  tabBtnActiveBg:{ backgroundColor: Colors.cardBg },
   tabLabel:     { fontSize: 13, fontFamily: "Cairo_600SemiBold", color: "#fff" },
   tabLabelActive:{ color: FAC },
   catScroll:    { marginBottom: 12 },
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   planRibbon:        { position: "absolute", top: 10, right: 0, paddingHorizontal: 10, paddingVertical: 3, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 },
   planRibbonText:    { fontSize: 11, color: "#fff", fontFamily: "Cairo_700Bold" },
   sponsorBadge:      { position: "absolute", bottom: 10, right: 10, backgroundColor: GOLD + "CC", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  sponsorBadgeText:  { fontSize: 9, color: "#000", fontFamily: "Cairo_700Bold" },
+  sponsorBadgeText:  { fontSize: 9, color: Colors.text, fontFamily: "Cairo_700Bold" },
   factoryCardContent:{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   factoryLogo:       { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   factoryLogoText:   { fontSize: 20, color: "#fff", fontFamily: "Cairo_700Bold" },

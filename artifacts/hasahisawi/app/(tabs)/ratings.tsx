@@ -406,7 +406,7 @@ function RatingsScreen() {
               style={[s.catChip, catFilter === cat && { backgroundColor: cfg.color, borderColor: cfg.color }]}
               onPress={() => setCatFilter(cat)}
             >
-              <Text style={[s.catChipText, catFilter === cat && { color: "#000" }]}>{cat}</Text>
+              <Text style={[s.catChipText, catFilter === cat && { color: Colors.text }]}>{cat}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -650,7 +650,7 @@ function RatingsScreen() {
                     style={[s.catChip, addForm.category === cat && { backgroundColor: cfg.color, borderColor: cfg.color }]}
                     onPress={() => setAddForm((p) => ({ ...p, category: cat }))}
                   >
-                    <Text style={[s.catChipText, addForm.category === cat && { color: "#000" }]}>{cat}</Text>
+                    <Text style={[s.catChipText, addForm.category === cat && { color: Colors.text }]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

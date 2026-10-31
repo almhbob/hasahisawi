@@ -930,7 +930,7 @@ function InstFormModal({ visible, initial, onClose, onSave }: {
 
                 <AnimatedPress style={imf.saveBtn} onPress={handleSave}>
                   <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={imf.saveBtnInner}>
-                    <Ionicons name="save-outline" size={18} color="#000" />
+                    <Ionicons name="save-outline" size={18} color={Colors.text} />
                     <Text style={imf.saveBtnText}>حفظ</Text>
                   </LinearGradient>
                 </AnimatedPress>
@@ -959,7 +959,7 @@ const imf = StyleSheet.create({
   svcCheckText:{ fontFamily:"Cairo_500Medium", fontSize: 13, color:Colors.textSecondary },
   saveBtn:    { marginTop:20, borderRadius:14, overflow:"hidden" },
   saveBtnInner:{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:8, paddingVertical:14 },
-  saveBtnText:{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" },
+  saveBtnText:{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.text },
 });
 
 // ─── Join Request Form ────────────────────────────────────────────────────────
@@ -1048,8 +1048,8 @@ function JoinRequestForm({ onSubmit, onCancel }: { onSubmit: (r:JoinRequest)=>vo
           </AnimatedPress>
           <AnimatedPress style={[jf.btn, { flex:2, overflow:"hidden", borderRadius:14 }]} onPress={handleSubmit}>
             <LinearGradient colors={[Colors.accent, Colors.accentDim]} style={jf.btnInner}>
-              <Ionicons name="send" size={16} color="#000" />
-              <Text style={[jf.btnText, { color: "#000" }]}>إرسال الطلب</Text>
+              <Ionicons name="send" size={16} color={Colors.text} />
+              <Text style={[jf.btnText, { color: Colors.text }]}>إرسال الطلب</Text>
             </LinearGradient>
           </AnimatedPress>
         </View>
@@ -1234,7 +1234,7 @@ function RegStep2({ data, setData }: { data: RegistrationData; setData: (d: Part
       </FormField>
       <TouchableOpacity style={ff.switchRow} onPress={() => setData({ has_special_needs: !data.has_special_needs })}>
         <View style={[ff.toggle, data.has_special_needs && { backgroundColor: Colors.primary }]}>
-          {data.has_special_needs && <Ionicons name="checkmark" size={12} color="#000" />}
+          {data.has_special_needs && <Ionicons name="checkmark" size={12} color={Colors.text} />}
         </View>
         <Text style={ff.switchLabel}>الطالب لديه احتياجات خاصة</Text>
       </TouchableOpacity>
@@ -1384,8 +1384,8 @@ function RegistrationModal({ visible, onClose, institutions }: {
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setStep((step+1) as FormStep);
                     }}>
-                    <Text style={[fm.navBtnText, { color: "#000" }]}>التالي</Text>
-                    <Ionicons name="chevron-back" size={16} color="#000" />
+                    <Text style={[fm.navBtnText, { color: Colors.text }]}>التالي</Text>
+                    <Ionicons name="chevron-back" size={16} color={Colors.text} />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={[fm.navBtn, { backgroundColor: Colors.primary, flex:1, opacity: submitting?0.7:1 }]}
@@ -1394,10 +1394,10 @@ function RegistrationModal({ visible, onClose, institutions }: {
                       if (err) { Alert.alert("تنبيه", err); return; }
                       submit();
                     }} disabled={submitting}>
-                    {submitting ? <Text style={[fm.navBtnText, { color:"#000" }]}>جارٍ الإرسال...</Text> : (
+                    {submitting ? <Text style={[fm.navBtnText, { color:Colors.text }]}>جارٍ الإرسال...</Text> : (
                       <>
-                        <Ionicons name="send" size={16} color="#000" />
-                        <Text style={[fm.navBtnText, { color:"#000" }]}>إرسال الطلب</Text>
+                        <Ionicons name="send" size={16} color={Colors.text} />
+                        <Text style={[fm.navBtnText, { color:Colors.text }]}>إرسال الطلب</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -1419,8 +1419,8 @@ function RegistrationModal({ visible, onClose, institutions }: {
                 </View>
                 <View style={{ gap:10, width:"100%", marginTop:8 }}>
                   <TouchableOpacity style={[fm.navBtn, { backgroundColor: Colors.primary }]} onPress={reset}>
-                    <Ionicons name="add-circle-outline" size={16} color="#000" />
-                    <Text style={[fm.navBtnText, { color:"#000" }]}>تسجيل طالب آخر</Text>
+                    <Ionicons name="add-circle-outline" size={16} color={Colors.text} />
+                    <Text style={[fm.navBtnText, { color:Colors.text }]}>تسجيل طالب آخر</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[fm.navBtn, fm.navBtnOutline]} onPress={close}>
                     <Text style={[fm.navBtnText, { color: Colors.textSecondary }]}>إغلاق</Text>
@@ -1602,14 +1602,14 @@ function TransferModal({ visible, onClose, institutions }: {
                 {step < 3 ? (
                   <TouchableOpacity style={[fm.navBtn, { backgroundColor:Colors.accent, flex:1 }]}
                     onPress={()=>{ const e=validateStep(); if(e){Alert.alert("تنبيه",e);return;} setStep((step+1) as FormStep); }}>
-                    <Text style={[fm.navBtnText,{color:"#000"}]}>التالي</Text>
-                    <Ionicons name="chevron-back" size={16} color="#000" />
+                    <Text style={[fm.navBtnText,{color:Colors.text}]}>التالي</Text>
+                    <Ionicons name="chevron-back" size={16} color={Colors.text} />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={[fm.navBtn,{backgroundColor:Colors.accent,flex:1,opacity:submitting?0.7:1}]}
                     onPress={()=>{ const e=validateStep(); if(e){Alert.alert("تنبيه",e);return;} submit(); }} disabled={submitting}>
-                    <Ionicons name="send" size={16} color="#000" />
-                    <Text style={[fm.navBtnText,{color:"#000"}]}>{submitting?"جارٍ الإرسال...":"إرسال طلب النقل"}</Text>
+                    <Ionicons name="send" size={16} color={Colors.text} />
+                    <Text style={[fm.navBtnText,{color:Colors.text}]}>{submitting?"جارٍ الإرسال...":"إرسال طلب النقل"}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1713,7 +1713,7 @@ function InquiryModal({ visible, onClose }: { visible: boolean; onClose: () => v
 
           <View style={iq.searchRow}>
             <TouchableOpacity style={iq.searchBtn} onPress={search} disabled={loading}>
-              <Ionicons name="search" size={18} color="#000" />
+              <Ionicons name="search" size={18} color={Colors.text} />
             </TouchableOpacity>
             <TextInput
               style={iq.searchInput}
@@ -1862,7 +1862,7 @@ const LIB_CATS: { key: "all" | LibraryCat; label: string; icon: string; color: s
   { key:"printing",   label:"طباعة وتصوير",   icon:"print-outline",         color:"#10B981" },
   { key:"uniforms",   label:"مستلزمات مدرسية",icon:"shirt-outline",          color:"#1F5C8A" },
   { key:"tutoring",   label:"دروس خصوصية",    icon:"people-outline",         color:"#EF4444" },
-  { key:"other",      label:"أخرى",            icon:"ellipsis-horizontal-outline", color:"#6B7280" },
+  { key:"other",      label:"أخرى",            icon:"ellipsis-horizontal-outline", color:Colors.textSecondary },
 ];
 
 const LIB_CAT_LABELS: Record<string, string> = {
@@ -2150,7 +2150,7 @@ export default function StudentScreen() {
                 </AnimatedPress>
                 <AnimatedPress style={[s.pinBtn, { overflow:"hidden" }]} onPress={handleAdminLogin}>
                   <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.pinBtnGrad}>
-                    <Text style={[s.pinBtnText, { color:"#000" }]}>دخول</Text>
+                    <Text style={[s.pinBtnText, { color:Colors.text }]}>دخول</Text>
                   </LinearGradient>
                 </AnimatedPress>
               </View>
@@ -2209,7 +2209,7 @@ export default function StudentScreen() {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActiveTab(tab.key);
               }}>
-              {activeTab===tab.key && <View style={[s.tabActiveLine, { backgroundColor:"#fff" }]} />}
+              {activeTab===tab.key && <View style={[s.tabActiveLine, { backgroundColor:Colors.cardBg }]} />}
               <Ionicons name={tab.icon as any} size={16} color={activeTab===tab.key ? "#fff" : "rgba(255,255,255,0.62)"} />
               <Text style={[s.tabBtnText, activeTab===tab.key && s.tabBtnTextActive]}>{tab.label}</Text>
               {tab.key==="admin" && !isAdmin && <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.62)" />}
@@ -2405,7 +2405,7 @@ export default function StudentScreen() {
                     </View>
                   )}
                   <View style={[fo.cta, { backgroundColor: c.color, borderColor: c.color }]}>
-                    <Ionicons name="arrow-back" size={16} color="#000" />
+                    <Ionicons name="arrow-back" size={16} color={Colors.text} />
                     <Text style={fo.ctaText}>{c.icon==="search-outline" ? "استعلام الآن" : "ابدأ الآن"}</Text>
                   </View>
                 </LinearGradient>
@@ -2494,7 +2494,7 @@ export default function StudentScreen() {
                         </Text>
                         <TouchableOpacity onPress={()=>{ setLibRegModal(false); setLibRegSuccess(false); }}
                           style={{ backgroundColor:Colors.primary, borderRadius:14, paddingVertical:12, paddingHorizontal:32, marginTop:8 }}>
-                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" }}>حسناً</Text>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.text }}>حسناً</Text>
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -2559,7 +2559,7 @@ export default function StudentScreen() {
                         <TouchableOpacity onPress={submitLibraryReg} disabled={libSubmitting}
                           style={{ borderRadius:14, overflow:"hidden", marginBottom:8 }}>
                           <LinearGradient colors={[Colors.primary, Colors.primary+"CC"]} style={{ paddingVertical:14, alignItems:"center" }}>
-                            <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" }}>
+                            <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.text }}>
                               {libSubmitting ? "جارٍ الإرسال..." : "إرسال طلب التسجيل"}
                             </Text>
                           </LinearGradient>
@@ -2583,8 +2583,8 @@ export default function StudentScreen() {
               </View>
               <TouchableOpacity onPress={()=>{ setLibRegSuccess(false); setLibRegModal(true); }}
                 style={{ backgroundColor:Colors.primary, borderRadius:12, paddingHorizontal:14, paddingVertical:10, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
-                <Ionicons name="add" size={18} color="#000" />
-                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:"#000" }}>تسجيل</Text>
+                <Ionicons name="add" size={18} color={Colors.text} />
+                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:Colors.text }}>تسجيل</Text>
               </TouchableOpacity>
             </View>
             {/* Category chips */}
@@ -2623,7 +2623,7 @@ export default function StudentScreen() {
                 </Text>
                 <TouchableOpacity onPress={()=>{ setLibRegSuccess(false); setLibRegModal(true); }}
                   style={{ marginTop:20, backgroundColor:Colors.primary, borderRadius:14, paddingVertical:12, paddingHorizontal:28 }}>
-                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:"#000" }}>سجّل مكتبتك الآن</Text>
+                  <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.text }}>سجّل مكتبتك الآن</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -3013,7 +3013,7 @@ export default function StudentScreen() {
               </Animated.View>
               <AnimatedPress style={s.addBtn} onPress={()=>{ setEditInst(undefined); setFormVisible(true); }}>
                 <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.addBtnInner}>
-                  <Ionicons name="add-circle-outline" size={22} color="#000" />
+                  <Ionicons name="add-circle-outline" size={22} color={Colors.text} />
                   <Text style={s.addBtnText}>إضافة مؤسسة جديدة</Text>
                 </LinearGradient>
               </AnimatedPress>
@@ -3064,7 +3064,7 @@ const fo = StyleSheet.create({
   stepText:    { fontFamily:"Cairo_500Medium", fontSize: 12, color:Colors.textSecondary },
 
   cta:         { flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:8, borderRadius:14, paddingVertical:12 },
-  ctaText:     { fontFamily:"Cairo_700Bold", fontSize:14, color:"#000" },
+  ctaText:     { fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.text },
 
   guideBox:    { backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:16, marginBottom:16, borderWidth:1, borderColor:Colors.divider, ...Colors.shadow.card },
   guideTitle:  { fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary, textAlign:"right", marginBottom:10 },
@@ -3145,7 +3145,7 @@ const s = StyleSheet.create({
   successSub:  { fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textSecondary, textAlign:"center", lineHeight:22, marginBottom:20 },
   successBtn:  { width:"100%", borderRadius:14, overflow:"hidden" },
   successBtnInner:{ paddingVertical:14, alignItems:"center" },
-  successBtnText:{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#000" },
+  successBtnText:{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.text },
 
   adminSubTabs:{ flexDirection:"row-reverse", gap:4, paddingHorizontal:16, paddingVertical:10, borderBottomWidth:1, borderBottomColor:Colors.divider, backgroundColor:Colors.cardBg },
   adminSubTab: { flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:5, paddingVertical:8, borderRadius:10 },
@@ -3168,7 +3168,7 @@ const s = StyleSheet.create({
   addBannerText:{ fontFamily:"Cairo_600SemiBold", fontSize:14, color:Colors.textPrimary, textAlign:"right", flex:1 },
   addBtn:      { borderRadius:16, overflow:"hidden", marginBottom:20 },
   addBtnInner: { flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:8, paddingVertical:16 },
-  addBtnText:  { fontFamily:"Cairo_700Bold", fontSize:16, color:"#000" },
+  addBtnText:  { fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.text },
   statsGrid:   { flexDirection:"row-reverse", flexWrap:"wrap", gap:12 },
   statCard:    { width:"30%", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:14, alignItems:"center", borderWidth:1, borderColor:Colors.divider, ...Colors.shadow.card },
   statValue:   { fontFamily:"Cairo_700Bold", fontSize:24 },

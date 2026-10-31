@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 9,
     flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-start",
   },
-  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.cardBg },
+  addBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.onColor },
   filters: {
     flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16,
     paddingVertical: 10, backgroundColor: Colors.cardBg,

@@ -128,7 +128,7 @@ const FACILITIES: BookingFacility[] = [
     id: "g4", name: "المحكمة العامة",
     category: "government", subcategory: "قضاء",
     address: "مبنى المحكمة، الحصاحيصا", phone: "+249912345693",
-    icon: "scale-balance", color: "#6B7280",
+    icon: "scale-balance", color: Colors.textSecondary,
     services: ["حضور جلسة", "تقديم دعوى", "طلب وثائق قانونية", "توثيق عقود"],
     workDays: "السبت - الخميس", hours: "8ص - 2م",
   },
@@ -336,7 +336,7 @@ function AppointmentsScreen() {
               <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={StyleSheet.absoluteFill} />
             )}
             <Ionicons name="add-circle-outline" size={16} color={tab === "book" ? "#000" : "rgba(255,255,255,0.85)"} />
-            <Text style={[s.tabBtnText, tab === "book" && { color: "#000" }]}>حجز جديد</Text>
+            <Text style={[s.tabBtnText, tab === "book" && { color: Colors.text }]}>حجز جديد</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.tabBtn, tab === "my" && s.tabBtnActive]}
@@ -353,7 +353,7 @@ function AppointmentsScreen() {
                 </View>
               )}
             </View>
-            <Text style={[s.tabBtnText, tab === "my" && { color: "#000" }]}>مواعيدي</Text>
+            <Text style={[s.tabBtnText, tab === "my" && { color: Colors.text }]}>مواعيدي</Text>
           </TouchableOpacity>
         </View>
       </ModernHeader>
@@ -423,8 +423,8 @@ function AppointmentsScreen() {
                   </AnimatedPress>
 
                   <View style={[s.infoBox, { backgroundColor: "#6B728012", borderColor: "#6B728030" }]}>
-                    <Ionicons name="information-circle-outline" size={18} color="#6B7280" />
-                    <Text style={[s.infoText, { color: "#6B7280" }]}>حصاحيصاوي منصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية. البيانات للإرشاد فقط.</Text>
+                    <Ionicons name="information-circle-outline" size={18} color={Colors.textSecondary} />
+                    <Text style={[s.infoText, { color: Colors.textSecondary }]}>حصاحيصاوي منصة مجتمعية مستقلة وغير تابعة لأي جهة حكومية. البيانات للإرشاد فقط.</Text>
                   </View>
                 </>
               )}
@@ -523,7 +523,7 @@ function AppointmentsScreen() {
                       onPress={() => setDate(d.value)}
                     >
                       {date === d.value && <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={StyleSheet.absoluteFill} />}
-                      <Text style={[s.dateChipText, date === d.value && { color: "#000" }]}>{d.label}</Text>
+                      <Text style={[s.dateChipText, date === d.value && { color: Colors.text }]}>{d.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -540,7 +540,7 @@ function AppointmentsScreen() {
                         onPress={() => setTime(t)}
                       >
                         {time === t && <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={StyleSheet.absoluteFill} />}
-                        <Text style={[s.timeChipText, time === t && { color: "#000" }]}>{t}</Text>
+                        <Text style={[s.timeChipText, time === t && { color: Colors.text }]}>{t}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -552,7 +552,7 @@ function AppointmentsScreen() {
                   <TouchableOpacity onPress={() => setStep("info")}>
                     <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.nextBtn}>
                       <Text style={s.nextBtnText}>التالي — بيانات المريض</Text>
-                      <Ionicons name="arrow-forward" size={18} color="#000" />
+                      <Ionicons name="arrow-forward" size={18} color={Colors.text} />
                     </LinearGradient>
                   </TouchableOpacity>
                 </Animated.View>
@@ -609,7 +609,7 @@ function AppointmentsScreen() {
               <TouchableOpacity onPress={() => { if (patientName && phone) setStep("confirm"); else Alert.alert("تنبيه", "يرجى ملء الحقول المطلوبة"); }}>
                 <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.nextBtn}>
                   <Text style={s.nextBtnText}>التالي — مراجعة الحجز</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#000" />
+                  <Ionicons name="arrow-forward" size={18} color={Colors.text} />
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
@@ -650,7 +650,7 @@ function AppointmentsScreen() {
 
               <TouchableOpacity onPress={confirmBooking}>
                 <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.confirmBtn}>
-                  <Ionicons name="checkmark-circle" size={22} color="#000" />
+                  <Ionicons name="checkmark-circle" size={22} color={Colors.text} />
                   <Text style={s.confirmBtnText}>تأكيد الحجز</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -670,7 +670,7 @@ function AppointmentsScreen() {
                 style={[s.filterChip, apptFilter === k && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
                 onPress={() => setApptFilter(k)}
               >
-                <Text style={[s.filterChipText, apptFilter === k && { color: "#000" }]}>{label}</Text>
+                <Text style={[s.filterChipText, apptFilter === k && { color: Colors.text }]}>{label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -830,7 +830,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
     borderRadius: Colors.radius.lg, paddingVertical: 16, marginTop: 8,
   },
-  nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
+  nextBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
 
   // Fields
   fieldBlock: { gap: 6 },
@@ -853,7 +853,7 @@ const s = StyleSheet.create({
     borderRadius: Colors.radius.lg, paddingVertical: 17,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
-  confirmBtnText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#000" },
+  confirmBtnText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.text },
 
   // Filter bar
   filterBar: { maxHeight: 56 },
@@ -878,7 +878,7 @@ const s = StyleSheet.create({
   emptySub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center" },
   emptyBtn: { marginTop: 8 },
   emptyBtnGrad: { borderRadius: Colors.radius.lg, paddingHorizontal: 28, paddingVertical: 14 },
-  emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#000" },
+  emptyBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text },
 });
 
 export default withRTLScreen(AppointmentsScreen);

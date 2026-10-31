@@ -143,7 +143,7 @@ export default function BusinessFormModal({ visible, initial, token, onClose, on
 
 const st = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: "94%", paddingHorizontal: 18, paddingTop: 8 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: "94%", paddingHorizontal: 18, paddingTop: 8 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 10 },
   head: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },

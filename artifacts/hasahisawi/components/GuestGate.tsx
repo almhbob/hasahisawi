@@ -110,7 +110,7 @@ export default function GuestGate({ children, preview, title, features }: Props)
               end={{ x: 1, y: 0 }}
               style={styles.registerGradient}
             >
-              <Ionicons name="person-add-outline" size={20} color="#000" />
+              <Ionicons name="person-add-outline" size={20} color={Colors.text} />
               <Text style={styles.registerText}>
                 {tr("إنشاء حساب مجاني", "Create Free Account")}
               </Text>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   registerText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: "#000",
+    color: Colors.text,
   },
 
   /* رابط الدخول */

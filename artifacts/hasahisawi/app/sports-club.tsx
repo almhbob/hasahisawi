@@ -158,7 +158,7 @@ export default function SportsClubScreen() {
           {/* Actions */}
           {club.status === "approved" ? (
             <View style={st.actions}>
-              <TouchableOpacity onPress={follow} style={[st.primaryBtn, { backgroundColor: club.is_following ? "#E8F5EE" : accent }]}>
+              <TouchableOpacity onPress={follow} style={[st.primaryBtn, { backgroundColor: club.is_following ? Colors.primarySoft : accent }]}>
                 <Ionicons name={club.is_following ? "checkmark" : "add"} size={18} color={club.is_following ? Colors.primary : "#fff"} />
                 <Text style={[st.primaryTxt, club.is_following && { color: Colors.primary }]}>{club.is_following ? "تتابع النادي" : "تابع النادي"}</Text>
               </TouchableOpacity>
@@ -198,7 +198,7 @@ export default function SportsClubScreen() {
               {data.can_moderate ? (
                 <View style={st.manageRow}>
                   {club.status !== "approved" ? (
-                    <TouchableOpacity onPress={() => moderate({ status: "approved" }, "تم نشر النادي")} style={[st.manageBtn, { backgroundColor: "#E8F5EE" }]}>
+                    <TouchableOpacity onPress={() => moderate({ status: "approved" }, "تم نشر النادي")} style={[st.manageBtn, { backgroundColor: Colors.primarySoft }]}>
                       <Ionicons name="checkmark-done" size={16} color="#0B7A4E" /><Text style={[st.manageTxt, { color: "#0B7A4E" }]}>موافقة ونشر</Text>
                     </TouchableOpacity>
                   ) : (
@@ -356,7 +356,7 @@ export default function SportsClubScreen() {
                     {r.phone ? <TouchableOpacity onPress={() => Linking.openURL(`tel:${r.phone}`)} style={st.manageBtn}><Ionicons name="call-outline" size={15} color={Colors.primary} /><Text style={st.manageTxt}>اتصال</Text></TouchableOpacity> : null}
                     {r.status === "pending" ? (
                       <>
-                        <TouchableOpacity onPress={() => decide(r.id, "accepted")} style={[st.manageBtn, { backgroundColor: "#E8F5EE" }]}><Text style={[st.manageTxt, { color: "#0B7A4E" }]}>قبول</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={() => decide(r.id, "accepted")} style={[st.manageBtn, { backgroundColor: Colors.primarySoft }]}><Text style={[st.manageTxt, { color: "#0B7A4E" }]}>قبول</Text></TouchableOpacity>
                         <TouchableOpacity onPress={() => decide(r.id, "rejected")} style={st.manageBtn}><Text style={[st.manageTxt, { color: "#B3261E" }]}>رفض</Text></TouchableOpacity>
                       </>
                     ) : null}
@@ -381,13 +381,13 @@ const st = StyleSheet.create({
   topBar: { flexDirection: "row-reverse", justifyContent: "space-between" },
   roundBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.3)", alignItems: "center", justifyContent: "center" },
   identity: { alignItems: "center", paddingHorizontal: 16, marginTop: -48 },
-  logoRing: { padding: 4, borderRadius: 30, backgroundColor: "#fff" },
+  logoRing: { padding: 4, borderRadius: 30, backgroundColor: Colors.cardBg },
   nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 },
   name: { fontFamily: "Cairo_700Bold", fontSize: 21, color: Colors.textPrimary, textAlign: "center" },
   sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   statusPill: { marginTop: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4 },
   statusTxt: { fontFamily: "Cairo_700Bold", fontSize: 13 },
-  stats: { flexDirection: "row-reverse", alignSelf: "stretch", backgroundColor: "#fff", borderRadius: 16, paddingVertical: 12, marginTop: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  stats: { flexDirection: "row-reverse", alignSelf: "stretch", backgroundColor: Colors.cardBg, borderRadius: 16, paddingVertical: 12, marginTop: 14, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   stat: { flex: 1, alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   statLbl: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
@@ -396,8 +396,8 @@ const st = StyleSheet.create({
   primaryTxt: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   secondaryBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5 },
   secondaryTxt: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  iconBtn: { width: 46, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },
-  manage: { alignSelf: "stretch", backgroundColor: "#fff", borderRadius: 16, padding: 12, marginTop: 12, borderWidth: 1, borderColor: Colors.primary + "30" },
+  iconBtn: { width: 46, borderRadius: 14, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },
+  manage: { alignSelf: "stretch", backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12, marginTop: 12, borderWidth: 1, borderColor: Colors.primary + "30" },
   manageTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right", marginBottom: 8 },
   manageRow: { flexDirection: "row-reverse", gap: 8, flexWrap: "wrap", marginBottom: 6 },
   manageBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.bg },
@@ -407,7 +407,7 @@ const st = StyleSheet.create({
   tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2.5, borderBottomColor: "transparent" },
   tabTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textMuted },
   desc: { fontFamily: "Cairo_400Regular", fontSize: 13.5, lineHeight: 23, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right", marginBottom: 8 },
   perf: { flexDirection: "row-reverse" },
   perfNum: { fontFamily: "Cairo_700Bold", fontSize: 20 },
@@ -418,11 +418,11 @@ const st = StyleSheet.create({
   achRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, paddingVertical: 4 },
   achTxt: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   emptyTxt: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 28, lineHeight: 22 },
-  playerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#fff", borderRadius: 14, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  playerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   playerImg: { width: 44, height: 44, borderRadius: 22 },
   playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   playerStat: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  matchCard: { backgroundColor: "#fff", borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  matchCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   matchMeta: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "center", marginBottom: 6 },
   matchRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   matchTeam: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
@@ -430,7 +430,7 @@ const st = StyleSheet.create({
   scoreTxt: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   postImg: { width: "100%", height: 160, borderRadius: 12, marginBottom: 10 },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18 },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18 },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right", marginBottom: 6 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 5, marginTop: 10 },
   input: { backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, borderWidth: 1, borderColor: "rgba(0,0,0,0.07)" },

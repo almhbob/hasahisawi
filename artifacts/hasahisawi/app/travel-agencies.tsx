@@ -411,7 +411,7 @@ function AgencyCard({ agency: a, onWA }: { agency: Agency; onWA: (w: string) => 
 
       {a.is_featured && (
         <View style={[ac.featuredBadge, { backgroundColor: "#F59E0B" }]}>
-          <Ionicons name="star" size={10} color="#000" />
+          <Ionicons name="star" size={10} color={Colors.text} />
           <Text style={ac.featuredText}>مميز</Text>
         </View>
       )}
@@ -630,7 +630,7 @@ function JoinFormModal({
                 مدعو — {prefill?.agency_name || "وكالتكم"}
               </Text>
               <View style={{ backgroundColor: "#F59E0B", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#000" }}>دعوة رسمية</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.text }}>دعوة رسمية</Text>
               </View>
             </View>
           )}
@@ -881,7 +881,7 @@ const s = StyleSheet.create({
   intlChips:  { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   intlChip:   { backgroundColor: "rgba(96,165,250,0.15)", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(96,165,250,0.25)" },
   intlChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#93C5FD" },
-  intlBtn:    { backgroundColor: "#fff", borderRadius: 12, paddingVertical: 11, paddingHorizontal: 20, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
+  intlBtn:    { backgroundColor: Colors.cardBg, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 20, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
   intlBtnText:{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1D4ED8" },
 
   bookingProductCard: { width: 188, minHeight: 142, borderRadius: 18, borderWidth: 1, padding: 15, gap: 8, overflow: "hidden" },
@@ -918,7 +918,7 @@ const fc = StyleSheet.create({
 const ac = StyleSheet.create({
   card:        { backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, padding: 16, gap: 10, overflow: "hidden" },
   featuredBadge: { position: "absolute", top: 10, left: 12, flexDirection: "row-reverse", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  featuredText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#000" },
+  featuredText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.text },
   topRow:      { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
   typeIcon:    { width: 48, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center", borderWidth: 1 },
   name:        { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },

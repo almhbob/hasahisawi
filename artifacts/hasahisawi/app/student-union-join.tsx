@@ -631,14 +631,14 @@ const s = StyleSheet.create({
   nextText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   webErrBox: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginHorizontal: 16, marginBottom: 8,
+    backgroundColor: Colors.dangerSoft, borderRadius: 10, padding: 12, marginHorizontal: 16, marginBottom: 8,
     borderWidth: 1, borderColor: "#FECACA",
   },
   webErrText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#DC2626", flex: 1, textAlign: "right" },
   webSuccessBox: {
     alignItems: "center", justifyContent: "center", gap: 12,
     padding: 32, margin: 16,
-    backgroundColor: "#F0FDF4", borderRadius: 16, borderWidth: 1, borderColor: "#BBF7D0",
+    backgroundColor: Colors.primarySoft, borderRadius: 16, borderWidth: 1, borderColor: "#BBF7D0",
   },
   webSuccessTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#059669", textAlign: "center" },
   webSuccessMsg: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#065F46", textAlign: "center", lineHeight: 22 },

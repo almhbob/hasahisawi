@@ -11,6 +11,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
+import { reloadAppAsync } from "expo";
+import { initialThemeMode, saveThemeMode, type ThemeMode } from "@/constants/theme-mode";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors, { withAlpha } from "@/constants/colors";
 import { PLATFORM } from "@/constants/platform";
@@ -2052,6 +2054,9 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          {/* ─── المظهر ─── */}
+          <ThemeModeCard />
+
           {/* ─── معلومات قانونية ─── */}
           <View style={legalSty.card}>
             <View style={legalSty.headerRow}>
@@ -3301,7 +3306,7 @@ export default function SettingsScreen() {
                 <Text style={sub_s.devDesc}>نشر التطبيق على App Store — يتطلب اشتراك Apple Developer ($99/سنة)</Text>
               </View>
               <View style={[sub_s.devBadge, { backgroundColor: "#FFFFFF15" }]}>
-                <Text style={[sub_s.devBadgeText, { color: "#999" }]}>مستقبلي</Text>
+                <Text style={[sub_s.devBadgeText, { color: Colors.textMuted }]}>مستقبلي</Text>
               </View>
             </View>
 
@@ -3538,7 +3543,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", justifyContent: "center",
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
-  loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.onColor },
   pinHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   loginToggleRow: {
     flexDirection: "row-reverse", backgroundColor: Colors.bg, borderRadius: 14,
@@ -3696,13 +3701,13 @@ const ms = StyleSheet.create({
     justifyContent: "center", paddingHorizontal: 3,
   },
   toggleOn: { backgroundColor: Colors.success },
-  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff", alignSelf: "flex-end" },
+  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.cardBg, alignSelf: "flex-end" },
   toggleThumbOn: { alignSelf: "flex-start" },
   saveBtn: {
     borderRadius: Colors.radius.md, paddingVertical: 14, alignItems: "center", marginTop: 4,
     ...Colors.shadow.card,
   },
-  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
+  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.onColor },
 
   // ── Landmarks styles ──
   lmCard: {
@@ -4274,4 +4279,81 @@ const devModalSty = StyleSheet.create({
     backgroundColor: "rgba(37,99,235,0.12)", borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 3,
   },
+});
+
+// ── المظهر: فاتح / داكن / تلقائي ─────────────────────────────────
+const THEME_OPTIONS: { key: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: "light", label: "فاتح", icon: "sunny-outline" },
+  { key: "dark", label: "داكن", icon: "moon-outline" },
+  { key: "system", label: "تلقائي", icon: "phone-portrait-outline" },
+];
+
+function ThemeModeCard() {
+  const [mode, setMode] = React.useState<ThemeMode>(initialThemeMode);
+  const pick = async (m: ThemeMode) => {
+    if (m === mode) return;
+    setMode(m);
+    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    const needsReload = await saveThemeMode(m).catch(() => false);
+    if (!needsReload) return;
+    // الألوان تُقرأ عند فتح التطبيق، فنعيد فتحه ليُطبَّق المظهر على كل الشاشات
+    setTimeout(() => {
+      if (Platform.OS === "web") { try { window.location.reload(); } catch {} return; }
+      reloadAppAsync().catch(() =>
+        Alert.alert("تم الحفظ", "سيُطبَّق المظهر الجديد عند إعادة فتح التطبيق."));
+    }, 250);
+  };
+  return (
+    <View style={themeSty.card}>
+      <View style={themeSty.headerRow}>
+        <View style={themeSty.iconBox}>
+          <Ionicons name="contrast-outline" size={22} color={Colors.primary} />
+        </View>
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={themeSty.title}>المظهر</Text>
+          <Text style={themeSty.sub}>«تلقائي» يتبع إعداد الهاتف</Text>
+        </View>
+      </View>
+      <View style={themeSty.segment} accessibilityRole="radiogroup">
+        {THEME_OPTIONS.map((o) => {
+          const on = mode === o.key;
+          return (
+            <TouchableOpacity
+              key={o.key}
+              style={[themeSty.option, on && themeSty.optionOn]}
+              onPress={() => pick(o.key)}
+              activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`المظهر: ${o.label}`}
+            >
+              <Ionicons name={o.icon} size={18} color={on ? Colors.onColor : Colors.textSecondary} />
+              <Text style={[themeSty.optionText, on && { color: Colors.onColor }]}>{o.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const themeSty = StyleSheet.create({
+  card: {
+    alignSelf: "stretch", marginBottom: 16, padding: 16, borderRadius: 20,
+    backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border,
+  },
+  headerRow: { flexDirection: "row-reverse", alignItems: "center", marginBottom: 14 },
+  iconBox: {
+    width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.primarySoft,
+  },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
+  segment: { flexDirection: "row-reverse", gap: 8, backgroundColor: Colors.bg, borderRadius: 14, padding: 4 },
+  option: {
+    flex: 1, height: 44, borderRadius: 11, flexDirection: "row-reverse",
+    alignItems: "center", justifyContent: "center", gap: 6,
+  },
+  optionOn: { backgroundColor: Colors.primary },
+  optionText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
 });

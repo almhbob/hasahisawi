@@ -33,7 +33,7 @@ type Section = {
 };
 
 const CONTRACT_META: Record<ContractStatus, { label: string; color: string; icon: string }> = {
-  none:    { label: "بدون عقد",    color: "#9CA3AF", icon: "ellipse-outline" },
+  none:    { label: "بدون عقد",    color: Colors.textMuted, icon: "ellipse-outline" },
   pending: { label: "قيد التفاوض", color: "#F59E0B", icon: "time-outline" },
   signed:  { label: "عقد ساري",    color: "#22C55E", icon: "checkmark-circle" },
   expired: { label: "انتهى العقد", color: "#EF4444", icon: "close-circle" },

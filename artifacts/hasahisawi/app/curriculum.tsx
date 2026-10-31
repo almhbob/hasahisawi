@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
-  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
   center: { paddingVertical: 40, alignItems: "center" },
 
   hero: { marginHorizontal: 16, borderRadius: 22, padding: 18, alignItems: "flex-end", gap: 6 },
@@ -531,30 +531,30 @@ const styles = StyleSheet.create({
   heroSub: { fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 21, color: "#DCE9F5", textAlign: "right" },
 
   tabs: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, marginTop: 14, flexWrap: "wrap" },
-  tab: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 13, height: 38, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border },
+  tab: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 13, height: 38, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
   tabOn: { backgroundColor: BLUE, borderColor: BLUE },
   tabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   tabTextOn: { color: "#fff" },
 
-  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 14, backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 46 },
+  searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 14, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 46 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, paddingVertical: 0 },
 
   section: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
   stageGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, paddingHorizontal: 16 },
-  stageCard: { width: "47%", flexGrow: 1, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1.5, borderColor: Colors.border, padding: 12, alignItems: "flex-end", gap: 2 },
+  stageCard: { width: "47%", flexGrow: 1, backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1.5, borderColor: Colors.border, padding: 12, alignItems: "flex-end", gap: 2 },
   stageIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   stageLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
   stageCount: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted },
 
   chipsRow: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16 },
-  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 13, height: 36, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border },
+  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 13, height: 36, borderRadius: 18, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
   chipOn: { backgroundColor: BLUE, borderColor: BLUE },
   chipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   chipTextOn: { color: "#fff", fontFamily: "Cairo_600SemiBold" },
   chipBadge: { fontFamily: "Cairo_700Bold", fontSize: 11, color: BLUE },
 
   servicesRow: { flexDirection: "row-reverse", gap: 10, paddingHorizontal: 16 },
-  service: { width: 150, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 12, gap: 3 },
+  service: { width: 150, backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 12, gap: 3 },
   serviceOn: { backgroundColor: BLUE, borderColor: BLUE },
   serviceTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   serviceWho: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, color: BLUE },
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", gap: 10, paddingVertical: 30, paddingHorizontal: 30 },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textMuted, textAlign: "center", lineHeight: 22 },
 
-  book: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 },
+  book: { backgroundColor: Colors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 },
   bookRow: { flexDirection: "row-reverse", gap: 12 },
   bookIcon: { width: 52, height: 64, borderRadius: 10, backgroundColor: BLUE + "12", borderWidth: 1, borderColor: BLUE + "30", alignItems: "center", justifyContent: "center", gap: 2 },
   bookFmt: { fontFamily: "Cairo_700Bold", fontSize: 11, color: BLUE },
@@ -588,11 +588,11 @@ const styles = StyleSheet.create({
   ghostBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, borderWidth: 1, borderColor: BLUE + "40", backgroundColor: BLUE + "0D", paddingHorizontal: 14, height: 40, borderRadius: 12 },
   ghostBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: BLUE },
 
-  signInBox: { margin: 16, backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: Colors.border, padding: 22, alignItems: "center", gap: 10 },
+  signInBox: { margin: 16, backgroundColor: Colors.cardBg, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, padding: 22, alignItems: "center", gap: 10 },
   signInTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "center" },
   signInText: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
 
-  form: { margin: 16, backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: Colors.border, padding: 16 },
+  form: { margin: 16, backgroundColor: Colors.cardBg, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, padding: 16 },
   formTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   formHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 14, marginBottom: 7 },

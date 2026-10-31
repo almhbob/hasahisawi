@@ -37,7 +37,7 @@ const CATEGORIES: Category[] = [
   { key: "lighting",   label: "إضاءة",      icon: "lightbulb-on",       color: GOLD2  },
   { key: "decoration", label: "ديكور",      icon: "flower",             color: "#3B78A6" },
   { key: "catering",   label: "تقديم",      icon: "food-fork-drink",    color: "#F97316" },
-  { key: "generator",  label: "مولدات",     icon: "engine",             color: "#6B7280" },
+  { key: "generator",  label: "مولدات",     icon: "engine",             color: Colors.textSecondary },
   { key: "coolers",    label: "كولرات",     icon: "air-conditioner",    color: "#38BDF8" },
   { key: "other",      label: "متنوع",      icon: "package-variant",    color: Colors.textMuted },
 ];

@@ -72,7 +72,7 @@ const USAGE_KEY = "hsh_home_usage_v1";
 
 const G = Colors.primary;
 const G_DEEP = Colors.primaryDeep;
-const G_TINT = "#E8F5EE";
+const G_TINT = Colors.primarySoft;
 
 // Arabic-aware normalisation so «أ/إ/آ → ا», «ة → ه», «ى → ي» all match
 function norm(s: string) {
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
   avatarText: { fontFamily: "Cairo_700Bold", color: G_DEEP, fontSize: 18 },
   hello: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 17, textAlign: "right" },
   helloSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 11.5, textAlign: "right", marginTop: -2 },
-  bell: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" },
+  bell: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" },
   bellBadge: { position: "absolute", top: 6, right: 6, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#D64545", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
   bellBadgeText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 9.5, lineHeight: 13 },
   loginBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 12, height: 34, backgroundColor: G },
   loginBtnText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 13 },
-  searchBox: { marginHorizontal: 16, height: 48, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.07)", flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, gap: 8 },
+  searchBox: { marginHorizontal: 16, height: 48, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.07)", flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, gap: 8 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, paddingVertical: 0, writingDirection: "rtl" },
   body: { paddingHorizontal: 16, paddingTop: 18 },
   groupHead: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
@@ -318,12 +318,12 @@ const styles = StyleSheet.create({
   groupCount: { fontFamily: "Cairo_600SemiBold", color: Colors.textMuted, fontSize: 13, marginBottom: 10 },
   emptyText: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 13, textAlign: "right" },
   quickRow: { flexDirection: "row-reverse", gap: 10 },
-  quick: { alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  quick: { alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   quickIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: G, alignItems: "center", justifyContent: "center" },
   quickText: { fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13 },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   cardWrap: { width: "48.4%" },
-  card: { flexDirection: "row-reverse", alignItems: "center", gap: 10, minHeight: 66, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
+  card: { flexDirection: "row-reverse", alignItems: "center", gap: 10, minHeight: 66, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
   cardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
   cardTitle: { flexShrink: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13, textAlign: "right" },
   cardSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10.5, textAlign: "right", marginTop: -1 },

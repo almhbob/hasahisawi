@@ -631,7 +631,7 @@ function WomenScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
               {([["all", "الكل"], ["salon", "كوفيرات"], ["sewing", "خياطة"], ["handmade", "يدوية"], ["health", "صحة"], ["cooking", "مطبخ"], ["childcare", "أطفال"]] as [ServiceType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: "#FF4FA3", borderColor: "#FF4FA3" }]} onPress={() => setFilter(k)}>
-                  <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
+                  <Text style={[s.filterChipText, filter === k && { color: Colors.text }]}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1852,7 +1852,7 @@ const s = StyleSheet.create({
   ingredientText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 4 },
   stepNum: { width: 24, height: 24, borderRadius: 12, justifyContent: "center", alignItems: "center", flexShrink: 0, marginTop: 2 },
-  stepNumText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#000" },
+  stepNumText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.text },
   stepText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
 });
 

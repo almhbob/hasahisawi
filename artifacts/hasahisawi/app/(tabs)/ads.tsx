@@ -994,7 +994,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: Colors.radius.pill,
     backgroundColor: "rgba(255,255,255,0.10)",
   },
-  tabActive: { backgroundColor: "#fff" },
+  tabActive: { backgroundColor: Colors.cardBg },
   tabText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.85)" },
   tabTextActive: { color: EMERALD, fontFamily: "Cairo_700Bold" },
 

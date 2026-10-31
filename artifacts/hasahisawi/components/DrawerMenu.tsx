@@ -149,7 +149,7 @@ const GROUPS: Group[] = [
 
 const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string; border: string }> = {
   available:    { label: "متاح",   color: Colors.primaryDeep, bg: Colors.primary + "18", border: Colors.primary + "45" },
-  soon:         { label: "قريباً", color: "#946B00", bg: "#FFF7E0", border: "#E8A90055" },
+  soon:         { label: "قريباً", color: "#946B00", bg: Colors.accentSoft, border: "#E8A90055" },
   maintenance:  { label: "صيانة",  color: "#B42323", bg: "#FDECEC", border: "#D9363640" },
 };
 
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     width: 34, height: 34, borderRadius: 11,
-    backgroundColor: Colors.bgDeep ?? "#EEF3F0",
+    backgroundColor: Colors.bgDeep ?? Colors.bgDeep,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.cardBg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 14, paddingVertical: 13,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.cardBg,
   },
   avatar: {
     width: 44, height: 44, borderRadius: 14,
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   soonChip: {
-    backgroundColor: "#FFF7E0",
+    backgroundColor: Colors.accentSoft,
     borderWidth: 1,
     borderColor: "#E8A90055",
     borderRadius: 8,

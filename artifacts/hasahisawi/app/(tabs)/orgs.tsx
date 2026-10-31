@@ -237,7 +237,7 @@ function OrgsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
               {([["all", "الكل"], ["charity", "جمعيات خيرية"], ["initiative", "مبادرات"], ["volunteer", "تطوع"], ["cooperative", "تعاونيات"]] as [OrgType | "all", string][]).map(([k, label]) => (
                 <TouchableOpacity key={k} style={[s.filterChip, filter === k && { backgroundColor: Colors.primary, borderColor: Colors.primary }]} onPress={() => setFilter(k)}>
-                  <Text style={[s.filterChipText, filter === k && { color: "#000" }]}>{label}</Text>
+                  <Text style={[s.filterChipText, filter === k && { color: Colors.text }]}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -474,7 +474,7 @@ function OrgsScreen() {
 
                   <TouchableOpacity onPress={submitVolunteer}>
                     <LinearGradient colors={[Colors.primary, Colors.primaryDim]} style={s.modalSubmit}>
-                      <Ionicons name="person-add-outline" size={18} color="#000" />
+                      <Ionicons name="person-add-outline" size={18} color={Colors.text} />
                       <Text style={s.modalSubmitText}>إرسال طلب الانضمام</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -578,7 +578,7 @@ const s = StyleSheet.create({
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   fieldInput: { borderWidth: 1.5, borderColor: Colors.divider, borderRadius: Colors.radius.md, backgroundColor: Colors.bg, paddingHorizontal: 14, paddingVertical: 13, fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary },
   modalSubmit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.md, paddingVertical: 15 },
-  modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
+  modalSubmitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
 });
 
 export default withRTLScreen(OrgsScreen);

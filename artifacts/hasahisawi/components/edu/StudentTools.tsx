@@ -59,7 +59,7 @@ export function StudyPlanner({ onBack }: { onBack: () => void }) {
         </Card>
         {blocks.length === 0 ? <Empty icon="calendar-outline" title={`لا توجد مذاكرة يوم ${DAYS[day]}`} sub="وزّع موادك على أيام الأسبوع وعلّم ما أنجزته." /> :
           blocks.map((b) => (
-            <View key={b.id} style={[st.block, b.done && { backgroundColor: "#EFF8F4", borderColor: "#BFE3D3" }]}>
+            <View key={b.id} style={[st.block, b.done && { backgroundColor: Colors.primarySoft, borderColor: "#BFE3D3" }]}>
               <Pressable hitSlop={8} onPress={() => update((d) => ({ ...d, plan: d.plan.map((x) => (x.id === b.id ? { ...x, done: !x.done } : x)) }))}>
                 <Ionicons name={b.done ? "checkmark-circle" : "ellipse-outline"} size={24} color={b.done ? "#0E8A5F" : Colors.textMuted} />
               </Pressable>
@@ -171,16 +171,16 @@ export function Flashcards({ onBack }: { onBack: () => void }) {
 }
 
 const st = StyleSheet.create({
-  day: { minWidth: 76, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: EDU.line, alignItems: "center" },
+  day: { minWidth: 76, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: EDU.line, alignItems: "center" },
   dayOn: { backgroundColor: EDU.ink, borderColor: EDU.ink },
   dayText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: EDU.ink },
   dayN: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: Colors.textMuted },
-  block: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: EDU.line, padding: 10 },
+  block: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: EDU.line, padding: 10 },
   time: { fontFamily: "Cairo_700Bold", fontSize: 13, color: EDU.teal, minWidth: 40, textAlign: "center" },
   subj: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.text, textAlign: "right" },
   ans: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   progress: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
-  flash: { minHeight: 230, borderRadius: 22, backgroundColor: "#fff", borderWidth: 1.5, borderColor: EDU.line, padding: 22, alignItems: "center", justifyContent: "center", gap: 10,
+  flash: { minHeight: 230, borderRadius: 22, backgroundColor: Colors.cardBg, borderWidth: 1.5, borderColor: EDU.line, padding: 22, alignItems: "center", justifyContent: "center", gap: 10,
     shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   flashLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: EDU.teal },
   flashText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: EDU.ink, textAlign: "center", lineHeight: 34 },

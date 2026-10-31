@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import Colors from "@/constants/colors";
 /**
  * lawyer-portal.tsx
  * بوابة المحامي الشاملة — لوحة التحكم، القضايا، الدردشة، المستندات، الإعدادات
@@ -78,7 +79,7 @@ const STATUS_CONF: Record<string, { ar: string; color: string; icon: string }> =
   in_progress: { ar: "قيد التنفيذ",   color: PURPLE, icon: "git-branch-outline" },
   completed:   { ar: "مكتملة",         color: GREEN,  icon: "checkmark-done-outline" },
   rejected:    { ar: "مرفوضة",         color: RED,    icon: "close-circle-outline" },
-  cancelled:   { ar: "ملغية",          color: "#6B7280", icon: "ban-outline" },
+  cancelled:   { ar: "ملغية",          color: Colors.textSecondary, icon: "ban-outline" },
 };
 
 const NEXT_STATUS: Record<string, { status: string; ar: string; color: string }[]> = {
@@ -115,14 +116,14 @@ function Row({ children, style }: any) {
   return <View style={[{ flexDirection: "row", alignItems: "center" }, style]}>{children}</View>;
 }
 function SectionTitle({ text }: { text: string }) {
-  return <Text style={{ color: "#9CA3AF", fontSize: 12, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10, marginTop: 20 }}>{text}</Text>;
+  return <Text style={{ color: Colors.textMuted, fontSize: 12, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10, marginTop: 20 }}>{text}</Text>;
 }
 function StatCard({ icon, value, label, color, sub }: { icon: string; value: string | number; label: string; color: string; sub?: string }) {
   return (
     <View style={{ backgroundColor: CARD, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BORDER, flex: 1, minWidth: 130 }}>
       <Text style={{ fontSize: 22, marginBottom: 4 }}>{icon}</Text>
       <Text style={{ fontSize: 24, fontWeight: "800", color }}>{value}</Text>
-      <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: Colors.textMuted, marginTop: 2 }}>{label}</Text>
       {sub ? <Text style={{ fontSize: 11, color: color + "99", marginTop: 2 }}>{sub}</Text> : null}
     </View>
   );
@@ -139,10 +140,10 @@ function CaseBadge({ status }: { status: string }) {
 function Input({ label, value, onChangeText, placeholder, multiline, keyboardType, maxLength }: any) {
   return (
     <View style={{ marginBottom: 14 }}>
-      <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 6, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: Colors.textMuted, marginBottom: 6, fontWeight: "600" }}>{label}</Text>
       <TextInput
         value={value} onChangeText={onChangeText} placeholder={placeholder}
-        placeholderTextColor="#4B5563" multiline={multiline}
+        placeholderTextColor={Colors.textMuted} multiline={multiline}
         keyboardType={keyboardType} maxLength={maxLength}
         style={[styles.input, multiline && { height: 90, textAlignVertical: "top" }]}
       />
@@ -230,7 +231,7 @@ function LegalFormsTab({ token }: { token: string }) {
         </View>
       ) : innerTab === "browse" ? (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#9CA3AF", textAlign: "right", marginBottom: 14, lineHeight: 20 }}>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 14, lineHeight: 20 }}>
             اختر استمارة لاقتراح تعديل عليها. سيُرسَل الاقتراح للمشرف للمراجعة والاعتماد.
           </Text>
           {forms.map(f => (
@@ -242,7 +243,7 @@ function LegalFormsTab({ token }: { token: string }) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" }}>{f.title}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "right", marginTop: 2 }}>{f.category}{f.is_official ? " • رسمية" : ""}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 2 }}>{f.category}{f.is_official ? " • رسمية" : ""}</Text>
                 </View>
                 {selected?.id === f.id && <Ionicons name="checkmark-circle" size={20} color={PURPLE} />}
               </View>
@@ -252,9 +253,9 @@ function LegalFormsTab({ token }: { token: string }) {
           {selected && (
             <View style={{ backgroundColor: "#15263A", borderRadius: 16, borderWidth: 1, borderColor: PURPLE + "40", padding: 16, marginTop: 8 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right", marginBottom: 10 }}>اقتراح تعديل: {selected.title}</Text>
-              <TextInput value={suggText} onChangeText={setSuggText} placeholder="اكتب ملاحظتك أو التعديل المقترح..." placeholderTextColor="#4B5563" multiline
+              <TextInput value={suggText} onChangeText={setSuggText} placeholder="اكتب ملاحظتك أو التعديل المقترح..." placeholderTextColor={Colors.textMuted} multiline
                 style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", textAlign: "right", minHeight: 80, marginBottom: 10 }} />
-              <TextInput value={proposedContent} onChangeText={setProposed} placeholder="النص المقترح البديل (اختياري)" placeholderTextColor="#4B5563" multiline
+              <TextInput value={proposedContent} onChangeText={setProposed} placeholder="النص المقترح البديل (اختياري)" placeholderTextColor={Colors.textMuted} multiline
                 style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", textAlign: "right", minHeight: 60, marginBottom: 14 }} />
               <TouchableOpacity onPress={submitSuggestion} disabled={submitting}
                 style={{ backgroundColor: PURPLE, borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
@@ -271,7 +272,7 @@ function LegalFormsTab({ token }: { token: string }) {
                 <Ionicons name="document-text-outline" size={36} color={PURPLE} />
               </View>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>لا توجد اقتراحات بعد</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "center" }}>ستظهر هنا اقتراحاتك المُرسَلة للمشرف</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center" }}>ستظهر هنا اقتراحاتك المُرسَلة للمشرف</Text>
             </View>
           ) : suggestions.map(s => (
             <View key={s.id} style={{ backgroundColor: "#15263A", borderRadius: 14, borderWidth: 1, borderColor: (STATUS_COLORS[s.status] || "#1E1E3A") + "44", padding: 14, marginBottom: 12 }}>
@@ -281,13 +282,13 @@ function LegalFormsTab({ token }: { token: string }) {
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: STATUS_COLORS[s.status] || "#6B7280" }}>{STATUS_LABELS[s.status] || s.status}</Text>
                 </View>
               </View>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#9CA3AF", textAlign: "right", lineHeight: 18 }}>{s.suggestion_text}</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 18 }}>{s.suggestion_text}</Text>
               {s.admin_notes && (
                 <View style={{ backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 10, marginTop: 8 }}>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#D1D5DB", textAlign: "right" }}>ملاحظة المشرف: {s.admin_notes}</Text>
                 </View>
               )}
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#4B5563", textAlign: "right", marginTop: 6 }}>{new Date(s.created_at).toLocaleDateString("ar-EG")}</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", marginTop: 6 }}>{new Date(s.created_at).toLocaleDateString("ar-EG")}</Text>
             </View>
           ))}
         </ScrollView>
@@ -524,7 +525,7 @@ function LawyerPortal() {
     return (
       <View style={{ flex: 1, backgroundColor: BG, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color={PURPLE} />
-        <Text style={{ color: "#9CA3AF", marginTop: 12, fontSize: 14 }}>جارٍ تحميل بوابتك…</Text>
+        <Text style={{ color: Colors.textMuted, marginTop: 12, fontSize: 14 }}>جارٍ تحميل بوابتك…</Text>
       </View>
     );
   }
@@ -534,7 +535,7 @@ function LawyerPortal() {
       <View style={{ flex: 1, backgroundColor: BG, alignItems: "center", justifyContent: "center", padding: 32 }}>
         <Text style={{ fontSize: 60, marginBottom: 20 }}>⚖️</Text>
         <Text style={{ color: "#fff", fontSize: 22, fontWeight: "800", textAlign: "center", marginBottom: 12 }}>بوابة المحامين</Text>
-        <Text style={{ color: "#9CA3AF", fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 32 }}>
+        <Text style={{ color: Colors.textMuted, fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 32 }}>
           هذه المنطقة مخصصة للمحامين المعتمدين فقط.{"\n"}يرجى تسجيل الدخول وتقديم طلب الانضمام من قسم الخدمات القانونية.
         </Text>
         <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: PURPLE, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 }}>
@@ -553,7 +554,7 @@ function LawyerPortal() {
       <LinearGradient colors={["#1A0A2E", BG]} style={{ paddingTop: insets.top + 4, paddingBottom: 12, paddingHorizontal: 18 }}>
         <Row style={{ justifyContent: "space-between" }}>
           <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
-            <Ionicons name="arrow-back" size={22} color="#9CA3AF" />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMuted} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginHorizontal: 12 }}>
             <Text style={{ color: "#fff", fontSize: 16, fontWeight: "800" }} numberOfLines={1}>{profile?.full_name}</Text>
@@ -618,7 +619,7 @@ function LawyerPortal() {
               <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" }}>
                 <View style={{ backgroundColor: CARD, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 }}>
                   <Text style={{ color: "#fff", fontWeight: "800", fontSize: 17, marginBottom: 16 }}>تغيير حالة القضية</Text>
-                  <Text style={{ color: "#9CA3AF", fontSize: 13, marginBottom: 8 }}>الحالة الحالية: {STATUS_CONF[selectedCase.status]?.ar}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 8 }}>الحالة الحالية: {STATUS_CONF[selectedCase.status]?.ar}</Text>
                   {(NEXT_STATUS[selectedCase.status] || []).map(ns => (
                     <TouchableOpacity key={ns.status} onPress={() => changeStatus(ns.status)}
                       style={{ backgroundColor: ns.color + "22", borderWidth: 1, borderColor: ns.color, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -626,10 +627,10 @@ function LawyerPortal() {
                       <Text style={{ color: ns.color, fontWeight: "700", fontSize: 15 }}>{ns.ar}</Text>
                     </TouchableOpacity>
                   ))}
-                  <Text style={{ color: "#9CA3AF", fontSize: 13, marginTop: 8, marginBottom: 6 }}>ملاحظة (اختياري):</Text>
-                  <TextInput value={statusNote} onChangeText={setStatusNote} placeholder="اكتب ملاحظة للعميل…" placeholderTextColor="#4B5563" style={[styles.input, { marginBottom: 12 }]} />
+                  <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 8, marginBottom: 6 }}>ملاحظة (اختياري):</Text>
+                  <TextInput value={statusNote} onChangeText={setStatusNote} placeholder="اكتب ملاحظة للعميل…" placeholderTextColor={Colors.textMuted} style={[styles.input, { marginBottom: 12 }]} />
                   <TouchableOpacity onPress={() => setStatusModal(false)} style={{ padding: 14, borderWidth: 1, borderColor: BORDER, borderRadius: 12, alignItems: "center" }}>
-                    <Text style={{ color: "#9CA3AF", fontWeight: "600" }}>إلغاء</Text>
+                    <Text style={{ color: Colors.textMuted, fontWeight: "600" }}>إلغاء</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -649,7 +650,7 @@ function LawyerPortal() {
                       {docUploading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>اختر ملفاً وارفعه</Text>}
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setDocModal(false)} style={{ padding: 14, alignItems: "center" }}>
-                      <Text style={{ color: "#9CA3AF" }}>إلغاء</Text>
+                      <Text style={{ color: Colors.textMuted }}>إلغاء</Text>
                     </TouchableOpacity>
                   </View>
                 </KeyboardAvoidingView>
@@ -715,8 +716,8 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
           <Text style={{ fontSize: 28 }}>{profile?.plan_icon || "🔓"}</Text>
           <View style={{ flex: 1, marginHorizontal: 14 }}>
             <Text style={{ color: "#fff", fontWeight: "800", fontSize: 17 }}>{profile?.plan_name_ar || "مجاني"}</Text>
-            {profile?.sub_expires && <Text style={{ color: "#9CA3AF", fontSize: 13, marginTop: 2 }}>ينتهي: {fmt(profile.sub_expires)}</Text>}
-            {profile?.commission_pct > 0 && <Text style={{ color: "#9CA3AF", fontSize: 13 }}>العمولة: {profile.commission_pct}%</Text>}
+            {profile?.sub_expires && <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 2 }}>ينتهي: {fmt(profile.sub_expires)}</Text>}
+            {profile?.commission_pct > 0 && <Text style={{ color: Colors.textMuted, fontSize: 13 }}>العمولة: {profile.commission_pct}%</Text>}
           </View>
           <View style={{ alignItems: "flex-end" }}>
             {profile?.is_verified && <Row style={{ backgroundColor: GREEN + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, gap: 4 }}><Ionicons name="shield-checkmark" size={12} color={GREEN} /><Text style={{ color: GREEN, fontSize: 12, fontWeight: "700" }}>موثّق</Text></Row>}
@@ -749,7 +750,7 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
                     <Ionicons key={s} name={s <= Math.round(profile.avg_rating) ? "star" : "star-outline"} size={16} color={s <= Math.round(profile.avg_rating) ? GOLD : "#4B5563"} />
                   ))}
                 </Row>
-                <Text style={{ color: "#9CA3AF", fontSize: 13, marginTop: 2 }}>{profile.review_count} تقييم</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 2 }}>{profile.review_count} تقييم</Text>
               </View>
             </Row>
           </View>
@@ -766,8 +767,8 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
                 <Text style={{ color: "#fff", fontWeight: "700", flex: 1 }} numberOfLines={1}>{c.client_name}</Text>
                 <CaseBadge status={c.status} />
               </Row>
-              <Text style={{ color: "#9CA3AF", fontSize: 13 }} numberOfLines={1}>{c.service_title}</Text>
-              <Text style={{ color: "#6B7280", fontSize: 12, marginTop: 4 }}>{fmt(c.created_at)} · #{c.contract_no}</Text>
+              <Text style={{ color: Colors.textMuted, fontSize: 13 }} numberOfLines={1}>{c.service_title}</Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 4 }}>{fmt(c.created_at)} · #{c.contract_no}</Text>
             </View>
           ))}
         </>
@@ -787,8 +788,8 @@ function CasesTab({ cases, loading, filter, setFilter, search, setSearch, onSear
       {/* Search */}
       <View style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: "row", backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER, alignItems: "center", paddingHorizontal: 12, gap: 8 }}>
-          <Ionicons name="search-outline" size={16} color="#6B7280" />
-          <TextInput value={search} onChangeText={setSearch} onSubmitEditing={onSearch} placeholder="بحث في القضايا…" placeholderTextColor="#4B5563" returnKeyType="search" style={{ flex: 1, color: "#fff", fontSize: 13, paddingVertical: 10 }} />
+          <Ionicons name="search-outline" size={16} color={Colors.textSecondary} />
+          <TextInput value={search} onChangeText={setSearch} onSubmitEditing={onSearch} placeholder="بحث في القضايا…" placeholderTextColor={Colors.textMuted} returnKeyType="search" style={{ flex: 1, color: "#fff", fontSize: 13, paddingVertical: 10 }} />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <Row style={{ gap: 8 }}>
@@ -813,7 +814,7 @@ function CasesTab({ cases, loading, filter, setFilter, search, setSearch, onSear
       ) : cases.length === 0 ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 48, marginBottom: 12 }}>📂</Text>
-          <Text style={{ color: "#6B7280", fontSize: 15 }}>لا توجد قضايا</Text>
+          <Text style={{ color: Colors.textSecondary, fontSize: 15 }}>لا توجد قضايا</Text>
         </View>
       ) : (
         <FlatList
@@ -825,20 +826,20 @@ function CasesTab({ cases, loading, filter, setFilter, search, setSearch, onSear
               <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }} numberOfLines={1}>{c.client_name}</Text>
-                  <Text style={{ color: "#9CA3AF", fontSize: 13, marginTop: 2 }} numberOfLines={1}>{c.service_title}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 2 }} numberOfLines={1}>{c.service_title}</Text>
                 </View>
                 <CaseBadge status={c.status} />
               </Row>
               <Row style={{ justifyContent: "space-between" }}>
-                <Text style={{ color: "#6B7280", fontSize: 12 }}>📅 {fmt(c.created_at)} · #{c.contract_no}</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>📅 {fmt(c.created_at)} · #{c.contract_no}</Text>
                 <Row style={{ gap: 10 }}>
                   {c.unread_count > 0 && (
                     <View style={{ backgroundColor: RED, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
                       <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>{c.unread_count}</Text>
                     </View>
                   )}
-                  {c.doc_count > 0 && <Row style={{ gap: 3 }}><Ionicons name="document-attach-outline" size={12} color="#6B7280" /><Text style={{ color: "#6B7280", fontSize: 12 }}>{c.doc_count}</Text></Row>}
-                  {c.msg_count > 0 && <Row style={{ gap: 3 }}><Ionicons name="chatbubble-outline" size={12} color="#6B7280" /><Text style={{ color: "#6B7280", fontSize: 12 }}>{c.msg_count}</Text></Row>}
+                  {c.doc_count > 0 && <Row style={{ gap: 3 }}><Ionicons name="document-attach-outline" size={12} color={Colors.textSecondary} /><Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{c.doc_count}</Text></Row>}
+                  {c.msg_count > 0 && <Row style={{ gap: 3 }}><Ionicons name="chatbubble-outline" size={12} color={Colors.textSecondary} /><Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{c.msg_count}</Text></Row>}
                 </Row>
               </Row>
             </TouchableOpacity>
@@ -857,14 +858,14 @@ function ChatListTab({ cases, loading, onOpen }: any) {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ padding: 14, paddingBottom: 0 }}>
-        <Text style={{ color: "#9CA3AF", fontSize: 13 }}>{active.length} محادثة نشطة</Text>
+        <Text style={{ color: Colors.textMuted, fontSize: 13 }}>{active.length} محادثة نشطة</Text>
       </View>
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={PURPLE} /></View>
       ) : active.length === 0 ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 48, marginBottom: 12 }}>💬</Text>
-          <Text style={{ color: "#6B7280" }}>لا توجد محادثات نشطة</Text>
+          <Text style={{ color: Colors.textSecondary }}>لا توجد محادثات نشطة</Text>
         </View>
       ) : (
         <FlatList
@@ -885,8 +886,8 @@ function ChatListTab({ cases, loading, onOpen }: any) {
                     </View>
                   )}
                 </Row>
-                <Text style={{ color: "#9CA3AF", fontSize: 13, marginTop: 2 }} numberOfLines={1}>{c.service_title}</Text>
-                <Text style={{ color: "#4B5563", fontSize: 12, marginTop: 2 }}>📅 {fmt(c.updated_at)}</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 2 }} numberOfLines={1}>{c.service_title}</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>📅 {fmt(c.updated_at)}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -904,14 +905,14 @@ function DocsListTab({ cases, loading, onOpen }: any) {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ padding: 14, paddingBottom: 0 }}>
-        <Text style={{ color: "#9CA3AF", fontSize: 13 }}>{withDocs.length} قضية تحتوي مستندات</Text>
+        <Text style={{ color: Colors.textMuted, fontSize: 13 }}>{withDocs.length} قضية تحتوي مستندات</Text>
       </View>
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={PURPLE} /></View>
       ) : withDocs.length === 0 ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 48, marginBottom: 12 }}>📎</Text>
-          <Text style={{ color: "#6B7280" }}>لا توجد مستندات مرفوعة بعد</Text>
+          <Text style={{ color: Colors.textSecondary }}>لا توجد مستندات مرفوعة بعد</Text>
         </View>
       ) : (
         <FlatList
@@ -925,13 +926,13 @@ function DocsListTab({ cases, loading, onOpen }: any) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: "#fff", fontWeight: "700" }}>{c.client_name}</Text>
-                <Text style={{ color: "#9CA3AF", fontSize: 13 }}>{c.service_title}</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 13 }}>{c.service_title}</Text>
                 <Row style={{ gap: 4, marginTop: 4 }}>
                   <Ionicons name="document-attach-outline" size={12} color={BLUE} />
                   <Text style={{ color: BLUE, fontSize: 13, fontWeight: "600" }}>{c.doc_count} مستند</Text>
                 </Row>
               </View>
-              <Ionicons name="chevron-back" size={18} color="#6B7280" />
+              <Ionicons name="chevron-back" size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
         />
@@ -995,7 +996,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
         {section === "services" && (
           <>
             <SectionTitle text="خدماتي المقدّمة" />
-            <Text style={{ color: "#9CA3AF", fontSize: 13, marginBottom: 16, lineHeight: 18 }}>
+            <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 16, lineHeight: 18 }}>
               أضف الخدمات القانونية التي تقدّمها (عقود، مرافعات، استشارات، توثيق…).{"\n"}تظهر هذه الخدمات للعملاء في ملفك الشخصي.
             </Text>
             {services.map((svc: Service, idx: number) => (
@@ -1040,14 +1041,14 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
                 <Text style={{ fontSize: 24 }}>🔒</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>بياناتك محفوظة في الخادم</Text>
-                  <Text style={{ color: "#9CA3AF", fontSize: 13, marginTop: 4, lineHeight: 18 }}>
+                  <Text style={{ color: Colors.textMuted, fontSize: 13, marginTop: 4, lineHeight: 18 }}>
                     جميع قضاياك ومستنداتك ومحادثاتك مخزّنة بأمان في الخادم. يمكنك تنزيل نسخة PDF شاملة لأرشفتها محلياً.
                   </Text>
                 </View>
               </Row>
             </View>
 
-            <Text style={{ color: "#9CA3AF", fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
+            <Text style={{ color: Colors.textMuted, fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
               يحتوي ملف PDF على:{"\n"}
               📋 بياناتك الشخصية والمهنية{"\n"}
               ⚖️ قائمة جميع قضاياك ({profile.total_contracts} قضية){"\n"}
@@ -1076,7 +1077,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
               ].map(n => (
                 <Row key={n} style={{ gap: 8, marginBottom: 8 }}>
                   <Ionicons name="alert-circle-outline" size={14} color={GOLD} />
-                  <Text style={{ color: "#9CA3AF", fontSize: 13, flex: 1 }}>{n}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 13, flex: 1 }}>{n}</Text>
                 </Row>
               ))}
             </View>
@@ -1111,11 +1112,11 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
       <LinearGradient colors={["#1A0A2E", BG]} style={{ paddingTop: insets.top + 4, paddingBottom: 14, paddingHorizontal: 18 }}>
         <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
           <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
-            <Ionicons name="arrow-back" size={22} color="#9CA3AF" />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMuted} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginHorizontal: 10 }}>
             <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }} numberOfLines={1}>{c.client_name}</Text>
-            <Text style={{ color: "#9CA3AF", fontSize: 13 }} numberOfLines={1}>{c.service_title}</Text>
+            <Text style={{ color: Colors.textMuted, fontSize: 13 }} numberOfLines={1}>{c.service_title}</Text>
           </View>
           <TouchableOpacity onPress={onStatusModal} style={{ padding: 8 }}>
             <CaseBadge status={c.status} />
@@ -1146,13 +1147,13 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
               ["تاريخ مفضّل",  c.preferred_date ? fmt(c.preferred_date) : "—"],
             ].map(([label, value]) => (
               <View key={label} style={{ marginBottom: 12 }}>
-                <Text style={{ color: "#6B7280", fontSize: 12, marginBottom: 2 }}>{label}</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: 2 }}>{label}</Text>
                 <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>{value}</Text>
               </View>
             ))}
             {c.details ? (
               <View style={{ marginBottom: 12 }}>
-                <Text style={{ color: "#6B7280", fontSize: 12, marginBottom: 2 }}>تفاصيل الطلب</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: 2 }}>تفاصيل الطلب</Text>
                 <Text style={{ color: "#D1D5DB", fontSize: 13, lineHeight: 20 }}>{c.details}</Text>
               </View>
             ) : null}
@@ -1205,7 +1206,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
               ListEmptyComponent={() => (
                 <View style={{ alignItems: "center", paddingTop: 60 }}>
                   <Text style={{ fontSize: 48, marginBottom: 12 }}>💬</Text>
-                  <Text style={{ color: "#6B7280" }}>ابدأ المحادثة مع عميلك</Text>
+                  <Text style={{ color: Colors.textSecondary }}>ابدأ المحادثة مع عميلك</Text>
                 </View>
               )}
               renderItem={({ item: m }: { item: Message }) => {
@@ -1231,11 +1232,11 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
                           <Text style={{ fontSize: 22 }}>{fileIcon(m.file_type)}</Text>
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: "#D1D5DB", fontSize: 13, fontWeight: "600" }} numberOfLines={1}>{m.file_name || "ملف مرفق"}</Text>
-                            <Text style={{ color: "#6B7280", fontSize: 11 }}>اضغط للفتح</Text>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 11 }}>اضغط للفتح</Text>
                           </View>
                         </TouchableOpacity>
                       ) : null}
-                      <Text style={{ color: "#4B5563", fontSize: 11, marginTop: 4, textAlign: isLawyer ? "left" : "right" }}>{fmtTime(m.created_at)}</Text>
+                      <Text style={{ color: Colors.textSecondary, fontSize: 11, marginTop: 4, textAlign: isLawyer ? "left" : "right" }}>{fmtTime(m.created_at)}</Text>
                     </View>
                   </View>
                 );
@@ -1245,11 +1246,11 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
           {/* Input */}
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: "#0B1724" }}>
             <TouchableOpacity onPress={onSendWithFile} style={{ padding: 10, backgroundColor: CARD, borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
-              <Ionicons name="attach-outline" size={20} color="#9CA3AF" />
+              <Ionicons name="attach-outline" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
             <TextInput
               value={msgText} onChangeText={setMsgText}
-              placeholder="اكتب رسالة…" placeholderTextColor="#4B5563"
+              placeholder="اكتب رسالة…" placeholderTextColor={Colors.textMuted}
               multiline maxLength={3000}
               style={{ flex: 1, color: "#fff", fontSize: 14, backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: BORDER, maxHeight: 120 }}
             />
@@ -1275,7 +1276,7 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
             docs.length === 0 ? (
               <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
                 <Text style={{ fontSize: 48, marginBottom: 12 }}>📂</Text>
-                <Text style={{ color: "#6B7280" }}>لا توجد مستندات بعد</Text>
+                <Text style={{ color: Colors.textSecondary }}>لا توجد مستندات بعد</Text>
               </View>
             ) : (
               <FlatList
@@ -1288,15 +1289,15 @@ function CaseDetailScreen({ c, messages, docs, loading, msgText, setMsgText, sen
                         <Text style={{ fontSize: 28 }}>{fileIcon(d.file_type)}</Text>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: "#fff", fontWeight: "700" }} numberOfLines={1}>{d.title}</Text>
-                          <Text style={{ color: "#9CA3AF", fontSize: 12, marginTop: 2 }}>{d.file_name}</Text>
+                          <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>{d.file_name}</Text>
                           <Row style={{ gap: 8, marginTop: 3 }}>
-                            <Text style={{ color: "#4B5563", fontSize: 11 }}>{d.file_size > 0 ? fmtSize(d.file_size) : ""}</Text>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 11 }}>{d.file_size > 0 ? fmtSize(d.file_size) : ""}</Text>
                             <Text style={{ color: d.uploaded_by === "lawyer" ? PURPLE : GREEN, fontSize: 11, fontWeight: "600" }}>
                               {d.uploaded_by === "lawyer" ? "📤 أنت" : "📥 العميل"}
                             </Text>
-                            <Text style={{ color: "#4B5563", fontSize: 11 }}>{fmt(d.created_at)}</Text>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 11 }}>{fmt(d.created_at)}</Text>
                           </Row>
-                          {d.notes ? <Text style={{ color: "#6B7280", fontSize: 12, marginTop: 4 }}>{d.notes}</Text> : null}
+                          {d.notes ? <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 4 }}>{d.notes}</Text> : null}
                         </View>
                       </Row>
                       <View style={{ gap: 8 }}>

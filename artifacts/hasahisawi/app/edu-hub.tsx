@@ -104,11 +104,11 @@ export default function EduHub() {
 
 const st = StyleSheet.create({
   stats: { flexDirection: "row-reverse", gap: 8 },
-  stat: { flex: 1, backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: EDU.line, paddingVertical: 10, alignItems: "center" },
+  stat: { flex: 1, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: EDU.line, paddingVertical: 10, alignItems: "center" },
   statV: { fontFamily: "Cairo_700Bold", fontSize: 18, color: EDU.ink },
   statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
-  tile: { width: "48%", flexGrow: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: EDU.line, padding: 14, gap: 6, minHeight: 150 },
+  tile: { width: "48%", flexGrow: 1, backgroundColor: Colors.cardBg, borderRadius: 18, borderWidth: 1, borderColor: EDU.line, padding: 14, gap: 6, minHeight: 150 },
   tileIcon: { width: 50, height: 50, borderRadius: 16, alignItems: "center", justifyContent: "center", alignSelf: "flex-end" },
   tileTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: EDU.ink, textAlign: "right", marginTop: 4 },
   tileSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", lineHeight: 19 },

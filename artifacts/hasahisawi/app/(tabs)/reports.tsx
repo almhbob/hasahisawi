@@ -588,7 +588,7 @@ function ReportsScreen() {
       {!gov_reports_enabled && !auth.isGuest && (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 16 }}>
           <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#6B728018", borderWidth: 1, borderColor: "#6B728030", alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name="time-outline" size={38} color="#6B7280" />
+            <Ionicons name="time-outline" size={38} color={Colors.textSecondary} />
           </View>
           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" }}>
             الخدمة غير متاحة مؤقتاً
@@ -597,7 +597,7 @@ function ReportsScreen() {
             خدمة التبليغ عن المشاكل معلّقة مؤقتاً.{"\n"}نعتذر عن الإزعاج وسيعود التطبيق قريباً.
           </Text>
           <View style={{ backgroundColor: "#6B728012", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: "#6B728025", width: "100%" }}>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "center", lineHeight: 20 }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 20 }}>
               حصاحيصاوي منصة مجتمعية مستقلة غير تابعة لأي جهة حكومية
             </Text>
           </View>
@@ -785,14 +785,14 @@ function ReportsScreen() {
                     style={[s.issueChip, selectedIssue === issue && { backgroundColor: selectedAgency.color, borderColor: selectedAgency.color }]}
                     onPress={() => setSelectedIssue(issue)}
                   >
-                    <Text style={[s.issueChipText, selectedIssue === issue && { color: "#000" }]}>{issue}</Text>
+                    <Text style={[s.issueChipText, selectedIssue === issue && { color: Colors.text }]}>{issue}</Text>
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity
                   style={[s.issueChip, s.issueChipOther, selectedIssue === "أخرى" && { backgroundColor: selectedAgency.color, borderColor: selectedAgency.color }]}
                   onPress={() => setSelectedIssue("أخرى")}
                 >
-                  <Text style={[s.issueChipText, selectedIssue === "أخرى" && { color: "#000" }]}>أخرى...</Text>
+                  <Text style={[s.issueChipText, selectedIssue === "أخرى" && { color: Colors.text }]}>أخرى...</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1009,7 +1009,7 @@ function ReportsScreen() {
                   style={[s.filterChip, statusFilter === k && { backgroundColor: cfg?.color ?? Colors.danger, borderColor: cfg?.color ?? Colors.danger }]}
                   onPress={() => setStatusFilter(k)}
                 >
-                  <Text style={[s.filterChipText, statusFilter === k && { color: "#000" }]}>{label}</Text>
+                  <Text style={[s.filterChipText, statusFilter === k && { color: Colors.text }]}>{label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -1284,7 +1284,7 @@ const s = StyleSheet.create({
   tabRow: { flexDirection: "row", gap: 10 },
   tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.20)" },
   tabBtnActive: { borderColor: "#fff" },
-  tabBtnActiveFill: { backgroundColor: "#fff" },
+  tabBtnActiveFill: { backgroundColor: Colors.cardBg },
   tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.85)" },
   badge: { position: "absolute", top: -5, right: -8, backgroundColor: Colors.accentDeep, borderRadius: 8, width: 16, height: 16, justifyContent: "center", alignItems: "center" },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
@@ -1356,7 +1356,7 @@ const s = StyleSheet.create({
   urgentToggleTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   urgentToggleSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: Colors.divider, justifyContent: "center", paddingHorizontal: 2 },
-  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
+  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.cardBg },
 
   selectIssueTip: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center" },
   selectIssueTipText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },

@@ -305,9 +305,9 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                           style={s.submitBtn}
                         >
                           {loading
-                            ? <ActivityIndicator color="#000" size="small" />
+                            ? <ActivityIndicator color={Colors.text} size="small" />
                             : <>
-                                <Ionicons name="send-outline" size={18} color="#000" />
+                                <Ionicons name="send-outline" size={18} color={Colors.text} />
                                 <Text style={s.submitBtnText}>إرسال رابط الاستعادة</Text>
                               </>
                           }
@@ -491,11 +491,11 @@ export default function AuthModal({ visible, onClose }: { visible: boolean; onCl
                   style={s.submitBtn}
                 >
                   {loading
-                    ? <ActivityIndicator color="#000" size="small" />
+                    ? <ActivityIndicator color={Colors.text} size="small" />
                     : <>
                         <Ionicons
                           name={mode === "login" ? "log-in-outline" : "person-add-outline"}
-                          size={18} color="#000"
+                          size={18} color={Colors.text}
                         />
                         <Text style={s.submitBtnText}>
                           {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
@@ -602,7 +602,7 @@ const s = StyleSheet.create({
   },
   logoWrap: {
     width: 60, height: 60, borderRadius: 18,
-    backgroundColor: "#FFFFFF", overflow: "hidden",
+    backgroundColor: Colors.cardBg, overflow: "hidden",
     borderWidth: 2, borderColor: Colors.primary + "60",
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
@@ -698,7 +698,7 @@ const s = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
-  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text },
 
   /* Divider */
   dividerRow: {
