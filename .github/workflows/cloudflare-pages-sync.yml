@@ -214,7 +214,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | LC_ALL=C tr -cd 'A-Fa-f0-9')"
           export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
           # تشخيص دون كشف القيم: الطول وصلاحية المفتاح
-          echo "token length: ${#CLOUDFLARE_API_TOKEN} (expected 40) · account id length: ${#CLOUDFLARE_ACCOUNT_ID} (expected 32)"
+          echo "token length: ${#CLOUDFLARE_API_TOKEN} (40, or 53 for new cfut_ tokens) · account id length: ${#CLOUDFLARE_ACCOUNT_ID} (expected 32)"
           if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
             curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify \
               | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{const j=JSON.parse(d);console.log("token verify:",j.success?"VALID status="+(j.result&&j.result.status):"INVALID "+JSON.stringify(j.errors))}catch{console.log("token verify: no response")}})' || true
@@ -223,6 +223,6 @@ jobs:
             echo "Cloudflare API secrets are not configured. cf-dist was committed for Cloudflare Git integration."
             exit 0
           fi
-          if ! npx wrangler@3 pages deploy cf-dist --project-name=hasahisawi --branch=master; then
+          if ! npx wrangler@4 pages deploy cf-dist --project-name=hasahisawi --branch=master; then
             echo "::warning title=Cloudflare deploy skipped::Cloudflare rejected the API token (renew CLOUDFLARE_API_TOKEN with 'Cloudflare Pages: Edit' permission). GitHub Pages deploy is unaffected."
           fi
