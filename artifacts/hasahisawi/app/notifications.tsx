@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
   markAllText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.primary,
   },
   centered: {
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   },
   cardTime: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     textAlign: "center",
   },

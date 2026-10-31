@@ -496,10 +496,10 @@ export default function LostItemsScreen() {
                   </View>
                   <View style={{ flex: 1, alignItems: "flex-end" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{item.name}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{item.loc} • {item.time}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{item.loc} • {item.time}</Text>
                   </View>
                   <View style={{ backgroundColor: (item.status === "lost" ? Colors.danger : Colors.primary) + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm }}>
-                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: item.status === "lost" ? Colors.danger : Colors.primary }}>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: item.status === "lost" ? Colors.danger : Colors.primary }}>
                       {item.status === "lost" ? "مفقود" : "موجود"}
                     </Text>
                   </View>
@@ -620,21 +620,21 @@ const styles = StyleSheet.create({
   foundBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.success },
   catRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   catTag: { borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 2 },
-  catTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  timeText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  catTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  timeText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   descText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 19 },
   locationRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
-  locationText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right" },
-  reporterText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  locationText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right" },
+  reporterText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
   cardActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
   actionsRight: { flexDirection: "row-reverse", gap: 8 },
   actionsLeft: { flexDirection: "row", gap: 12, alignItems: "center" },
   foundBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.success + "15", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5 },
-  foundBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.success },
+  foundBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.success },
   shareBtn: { width: 30, height: 30, justifyContent: "center", alignItems: "center" },
   contactBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5 },
-  contactBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary },
+  contactBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.primary },
 });
 
 const addModal = StyleSheet.create({
@@ -644,7 +644,7 @@ const addModal = StyleSheet.create({
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 },
   input: { backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, marginBottom: 12 },
   catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, marginRight: 8, backgroundColor: Colors.bg },
-  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  catChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   actions: { flexDirection: "row", gap: 12, marginTop: 12 },
   cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, alignItems: "center" },
   cancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },

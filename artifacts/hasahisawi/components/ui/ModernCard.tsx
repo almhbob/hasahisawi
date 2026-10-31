@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   gridLabel: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12.5,
+    fontSize: 13,
     color: Colors.textPrimary,
     textAlign: "center",
   },

@@ -134,12 +134,12 @@ function RatingBars({ reviews }: { reviews: Review[] }) {
     <View style={{ gap: 5 }}>
       {counts.map(({ s, count }) => (
         <View key={s} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, width: 14, textAlign: "right" }}>{s}</Text>
+          <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted, width: 14, textAlign: "right" }}>{s}</Text>
           <Ionicons name="star" size={11} color={Colors.accent} />
           <View style={{ flex: 1, height: 7, backgroundColor: Colors.cardBg, borderRadius: 4, overflow: "hidden" }}>
             <View style={{ width: `${(count / total) * 100}%`, height: "100%", backgroundColor: Colors.accent, borderRadius: 4 }} />
           </View>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, width: 22, textAlign: "left" }}>{count}</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, width: 22, textAlign: "left" }}>{count}</Text>
         </View>
       ))}
     </View>
@@ -685,18 +685,18 @@ const s = StyleSheet.create({
   statsRow: { flexDirection: "row", justifyContent: "space-around" },
   statItem: { alignItems: "center" },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.78)", marginTop: 1 },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.78)", marginTop: 1 },
 
   tabRow: { flexDirection: "row", gap: 8 },
   tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 6, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.75)" },
+  tabBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.75)" },
 
   filterSection: { backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary },
 
   catChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: Colors.radius.pill, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
-  catChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
+  catChipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
 
   card: { borderRadius: Colors.radius.lg, borderWidth: 1, padding: 14, overflow: "hidden", backgroundColor: Colors.cardBg, ...Colors.shadow.card },
   rankBadge: { position: "absolute", top: 10, left: 10, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1 },
@@ -704,15 +704,15 @@ const s = StyleSheet.create({
   cardBody: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   cardIcon: { width: 48, height: 48, borderRadius: Colors.radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  cardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2, textAlign: "right" },
+  cardSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2, textAlign: "right" },
   cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" },
   catBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   catBadgeText: { fontFamily: "Cairo_500Medium", fontSize: 11 },
   distRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  distText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  distText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   cardRating: { alignItems: "center", gap: 3, minWidth: 56 },
   cardAvg: { fontFamily: "Cairo_700Bold", fontSize: 20 },
-  cardReviews: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  cardReviews: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
 
   emptyAddBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Colors.radius.md, marginTop: 8 },
   emptyAddText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
@@ -739,7 +739,7 @@ const s = StyleSheet.create({
   reviewerIcon: { width: 30, height: 30, borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
   reviewerName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   reviewComment: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, lineHeight: 21, textAlign: "right" },
-  reviewDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" },
+  reviewDate: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "left" },
 
   detailFooter: { padding: 16, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.cardBg },
   rateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: Colors.radius.lg },

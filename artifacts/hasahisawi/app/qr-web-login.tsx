@@ -73,7 +73,7 @@ export default function QRWebLoginScreen() {
           if (meBody.user) {
             await AsyncStorage.setItem(USER_KEY, JSON.stringify(meBody.user));
           }
-          setTimeout(() => router.replace("/(tabs)/"), 1200);
+          setTimeout(() => router.replace("/(tabs)"), 1200);
         } else if (body.status === "expired") {
           stopPolling();
           setPhase("expired");

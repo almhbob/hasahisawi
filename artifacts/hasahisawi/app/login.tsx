@@ -521,7 +521,7 @@ export default function LoginScreen() {
             </Field>
           )}
           {mode === "register" && (
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: -10, marginBottom: 4, textAlign: "right" }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: -10, marginBottom: 4, textAlign: "right" }}>
               مثال: محمد أحمد عبد الله
             </Text>
           )}
@@ -902,22 +902,22 @@ export default function LoginScreen() {
                 style={{ backgroundColor: "rgba(37,99,235,0.15)", borderWidth: 1.5, borderColor: Colors.primary + "60", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 4 }}
                 onPress={() => setOtpCode(devOtp)}
               >
-                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_600SemiBold", textAlign: "center", marginBottom: 4 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_600SemiBold", textAlign: "center", marginBottom: 4 }}>
                   رمز التحقق الخاص بك
                 </Text>
                 <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 28, textAlign: "center", letterSpacing: 8 }}>
                   {devOtp}
                 </Text>
-                <Text style={{ color: Colors.textMuted, fontSize: 10, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 4 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 4 }}>
                   اضغط لتعبئته تلقائياً
                 </Text>
               </Pressable>
             ) : otpSentVia === "none" ? (
               <View style={{ backgroundColor: "rgba(245,158,11,0.12)", borderWidth: 1, borderColor: "rgba(245,158,11,0.35)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 4 }}>
-                <Text style={{ color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "center" }}>
+                <Text style={{ color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "center" }}>
                   تعذّر إرسال الرمز تلقائياً
                 </Text>
-                <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "center", marginTop: 2 }}>
+                <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "center", marginTop: 2 }}>
                   تواصل مع الدعم لتلقّي رمزك
                 </Text>
               </View>
@@ -1181,7 +1181,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   optionalTag: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
     backgroundColor: Colors.divider, borderRadius: 6,
     paddingHorizontal: 7, paddingVertical: 2,
   },
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   guestSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
     marginTop: 2, textAlign: "right",
   },
   guestArrow: {
@@ -1412,13 +1412,13 @@ const s2 = StyleSheet.create({
   fieldWrap: { marginBottom: 12 },
   fieldHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
-  optional: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  optional: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   dateRow: { flexDirection: "row-reverse", gap: 8 },
   dateBox: {
     backgroundColor: Colors.cardBg, borderRadius: 14,
     borderWidth: 1.5, borderColor: Colors.divider, padding: 8,
   },
-  dateLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center", marginBottom: 4 },
+  dateLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center", marginBottom: 4 },
   dateInput: {
     fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textPrimary,
     height: 38, textAlignVertical: "center",

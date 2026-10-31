@@ -23,6 +23,7 @@ import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ModernHeader from "@/components/ui/ModernHeader";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -41,7 +42,7 @@ import { useFocusEffect, router } from "expo-router";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { uploadPostImage, uploadPostVideo } from "@/lib/firebase/storage";
 import { requireNetwork, checkConnected } from "@/lib/network";
 import { cacheGet, cacheSet, cacheAge } from "@/lib/offline-cache";
@@ -404,7 +405,7 @@ const rp = StyleSheet.create({
   },
   item: { alignItems: "center", paddingHorizontal: 6, paddingVertical: 4 },
   emoji: { fontSize: 24 },
-  label: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted, marginTop: 2 },
+  label: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 });
 
 // ─── Media Preview ────────────────────────────────────────────────────────────
@@ -475,9 +476,9 @@ const mp = StyleSheet.create({
   removeBtn: { position: "absolute", top: 8, right: 8 },
   multiWrap: { marginTop: 8, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.surface1, padding: 10 },
   multiHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  multiTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+  multiTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
   addMoreBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: Colors.radius.pill, backgroundColor: Colors.primary + "15" },
-  addMoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary },
+  addMoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
   multiList: { gap: 8, paddingVertical: 2 },
   thumbWrap: { width: 104, height: 104, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: "#000" },
   thumbImg: { width: "100%", height: "100%" },
@@ -588,7 +589,7 @@ const pmd = StyleSheet.create({
   multiThumbs: { gap: 8, paddingHorizontal: 2 },
   postThumb: { width: 86, height: 86, borderRadius: Colors.radius.md, overflow: "hidden", backgroundColor: Colors.surface1 },
   countBadge: { position: "absolute", top: 10, right: 10, flexDirection: "row", alignItems: "center", gap: 5, borderRadius: Colors.radius.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: "rgba(0,0,0,0.55)" },
-  countText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 12 },
+  countText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 13 },
   viewerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", alignItems: "center", justifyContent: "center" },
   viewerClose: { position: "absolute", top: 48, right: 22, zIndex: 2, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" },
   viewerImage: { width: "100%", height: "84%" },
@@ -1161,33 +1162,35 @@ function PostCard({
               onPress={handleLikeTap}
               onLongPress={handleLikeLongPress}
             >
-              <Text style={{ fontSize: 16 }}>{reactionEmoji || "👍"}</Text>
+              {reactionEmoji
+                ? <Text style={{ fontSize: 18 }}>{reactionEmoji}</Text>
+                : <Ionicons name="thumbs-up-outline" size={20} color="#3F524A" />}
               <Text style={[styles.actionCount, post.my_reaction && { color: reactionColor }]}>
-                {post.likes_count}
+                {post.likes_count > 0 ? post.likes_count : "أعجبني"}
               </Text>
             </AnimatedPress>
           </View>
 
           {/* Comments */}
           <AnimatedPress style={styles.actionBtn} onPress={() => onComment(post)}>
-            <Ionicons name="chatbubble-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.actionCount}>{post.comments_count}</Text>
+            <Ionicons name="chatbubble-outline" size={20} color="#3F524A" />
+            <Text style={styles.actionCount}>{post.comments_count > 0 ? `${post.comments_count} تعليق` : "تعليق"}</Text>
           </AnimatedPress>
 
           {/* Share */}
           <AnimatedPress style={styles.actionBtn} onPress={() => onShare(post)}>
-            <Ionicons name="share-social-outline" size={16} color={Colors.textMuted} />
+            <Ionicons name="share-social-outline" size={20} color="#3F524A" />
           </AnimatedPress>
 
           {/* Bookmark */}
           <AnimatedPress
-            style={[styles.actionBtn, isBookmarked && { backgroundColor: Colors.accent + "15", borderColor: Colors.accent + "50" }]}
+            style={[styles.actionBtn, isBookmarked && { backgroundColor: Colors.accent + "15" }]}
             onPress={() => onBookmark(post.id)}
           >
             <Ionicons
               name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={16}
-              color={isBookmarked ? Colors.accent : Colors.textMuted}
+              size={20}
+              color={isBookmarked ? "#946B00" : "#3F524A"}
             />
           </AnimatedPress>
         </View>
@@ -1479,11 +1482,7 @@ export default function SocialScreen() {
       </ModernHeader>
 
       {/* Category filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-      >
+      <RtlScrollRow contentContainerStyle={styles.filters}>
         {/* الكل / أتابعهم */}
         {!auth.isGuest && (
           <AnimatedPress
@@ -1497,7 +1496,7 @@ export default function SocialScreen() {
         )}
         {/* Sort toggle */}
         <AnimatedPress
-          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: "#1F5C8A", borderColor: "#1F5C8A" }]}
+          style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep }]}
           onPress={() => setSortMode(s => s === "recent" ? "popular" : "recent")}
           scaleDown={0.92}
         >
@@ -1512,7 +1511,7 @@ export default function SocialScreen() {
         </AnimatedPress>
         {/* Bookmarks filter */}
         <AnimatedPress
-          style={[styles.filterBtn, showSaved && { backgroundColor: Colors.accent, borderColor: Colors.accent }]}
+          style={[styles.filterBtn, showSaved && { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep }]}
           onPress={() => setShowSaved(s => !s)}
           scaleDown={0.92}
         >
@@ -1536,7 +1535,7 @@ export default function SocialScreen() {
             </AnimatedPress>
           );
         })}
-      </ScrollView>
+      </RtlScrollRow>
 
       <GuestGate
         title="ساحة المجتمع"
@@ -1554,10 +1553,10 @@ export default function SocialScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{item.author}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{item.time}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{item.time}</Text>
                   </View>
                   <View style={{ backgroundColor: Colors.accent + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.accent }}>{item.cat}</Text>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.accent }}>{item.cat}</Text>
                   </View>
                 </View>
                 <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 }}>{item.text}</Text>
@@ -1745,7 +1744,7 @@ const sr = StyleSheet.create({
     backgroundColor: Colors.cardBg,
   },
   name: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary,
     textAlign: "center", width: 64,
   },
 });
@@ -1810,23 +1809,22 @@ const styles = StyleSheet.create({
     borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "rgba(255,255,255,0.30)",
   },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#fff" },
-  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  liveText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
 
   filters: { paddingHorizontal: 14, paddingVertical: 10, gap: 7, flexDirection: "row-reverse" },
   filterBtn: {
-    paddingHorizontal: 13, paddingVertical: 7, borderRadius: Colors.radius.pill,
+    paddingHorizontal: 15, height: 38, borderRadius: Colors.radius.pill,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
   },
-  filterText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
+  filterText: { fontFamily: "Cairo_500Medium", fontSize: 14, color: "#3F524A" },
   filterTextActive: { color: "#fff", fontFamily: "Cairo_700Bold" },
 
   list: { paddingTop: 8, paddingHorizontal: 14, gap: 12 },
 
   card: {
-    backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16,
-    borderWidth: 1, borderColor: Colors.divider,
-    ...Colors.shadow.card,
+    backgroundColor: Colors.cardBg, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6,
+    borderWidth: 1, borderColor: "#E3EAE6",
   },
   pinnedCard: { borderColor: Colors.accent + "50", borderWidth: 1.5 },
   pinnedBadge: {
@@ -1834,34 +1832,33 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent + "15", paddingHorizontal: 10, paddingVertical: 3,
     borderRadius: 8, alignSelf: "flex-end", marginBottom: 8,
   },
-  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.accent },
+  pinnedText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.accent },
 
   cardHeader: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 0, marginBottom: 12 },
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 2 },
   metaDot: { color: Colors.textMuted, fontSize: 10 },
-  authorName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  cardRight: { alignItems: "center", gap: 8 },
+  authorName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
+  cardTime: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5E6F68" },
+  cardRight: { flexDirection: "row-reverse", alignItems: "center", gap: 2 },
   catBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1,
   },
-  catText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  deleteBtn: { padding: 5 },
+  catText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
+  deleteBtn: { width: 40, height: 44, alignItems: "center", justifyContent: "center", marginLeft: -8 },
 
   cardContent: {
-    fontFamily: "Cairo_400Regular", fontSize: 15, lineHeight: 26,
+    fontFamily: "Cairo_400Regular", fontSize: 16, lineHeight: 28,
     color: Colors.textPrimary, marginBottom: 4, textAlign: "right",
   },
-  cardDivider: { height: 1, backgroundColor: Colors.divider, marginVertical: 12 },
-  cardActions: { flexDirection: "row-reverse", gap: 8, alignItems: "center" },
+  cardDivider: { height: 1, backgroundColor: "#EDF2EF", marginTop: 14 },
+  cardActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   actionBtn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill,
-    backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider,
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
+    minHeight: 44, minWidth: 44, paddingHorizontal: 8, borderRadius: 12,
   },
-  actionBtnActive: { backgroundColor: Colors.primary + "12", borderColor: Colors.primary + "40" },
-  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  actionBtnActive: { backgroundColor: Colors.primary + "10" },
+  actionCount: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#3F524A" },
 
   reactionPickerWrap: {
     position: "absolute", bottom: 48, right: 0, zIndex: 100,
@@ -1916,17 +1913,17 @@ const ms = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
-  catChipText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
+  catChipText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   contentInput: {
     fontFamily: "Cairo_400Regular", fontSize: 16, color: Colors.textPrimary,
     minHeight: 110, paddingVertical: 8, lineHeight: 26, textAlignVertical: "top",
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
-  charCount: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  charCount: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   progressWrap: { gap: 6 },
   progressBar: { height: 4, borderRadius: 2, backgroundColor: Colors.divider, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: Colors.primary, borderRadius: 2 },
-  progressText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
+  progressText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
   mediaBar: { borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 12, gap: 0, marginTop: 4, flexDirection: "row-reverse" },
   mediaBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 10 },
   mediaBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
@@ -1942,16 +1939,16 @@ const cs = StyleSheet.create({
   snippetImg: { width: 48, height: 48, borderRadius: Colors.radius.sm },
   snippetText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, fontStyle: "italic", textAlign: "right" },
 
-  commentCard: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider + "66" },
+  commentCard: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: withAlpha(Colors.divider, "66") },
   replyCard: { marginRight: 40, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 10, borderWidth: 1, borderColor: Colors.divider },
   commentHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   commentAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   commentAvatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   commentAuthor: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  commentTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  commentTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   commentText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, lineHeight: 22, textAlign: "right", paddingRight: 40 },
   replyBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingRight: 40, marginTop: 2 },
-  replyBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
+  replyBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
 
   replyingTo: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
@@ -1981,6 +1978,6 @@ const cs = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7,
   },
   cacheBannerText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1, textAlign: "right",
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right",
   },
 });

@@ -276,3 +276,19 @@ export default {
     tabIconSelected: primary,
   },
 };
+
+/**
+ * يضيف شفافية للون بأمان. `لون + "80"` يعمل مع ألوان hex فقط؛ مع rgba يُنتج
+ * قيمة غير صالحة (مثل "rgba(0,150,106,0.10)80") فيتجاهلها التطبيق ولا يظهر الإطار.
+ */
+export function withAlpha(color: string, hexAlpha: string): string {
+  const a = parseInt(hexAlpha, 16) / 255;
+  const m = /^rgba?\(([^)]+)\)$/.exec(color.trim());
+  if (m) {
+    const [r, g, b, base = "1"] = m[1].split(",").map((x) => x.trim());
+    return `rgba(${r},${g},${b},${+(Number(base) * a).toFixed(3)})`;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color + hexAlpha;
+  if (/^#[0-9a-f]{3}$/i.test(color)) return "#" + color.slice(1).split("").map((c) => c + c).join("") + hexAlpha;
+  return color;
+}

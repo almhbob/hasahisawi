@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary, // was rgba(74,106,140,0.85) — 3.9:1; now 5.5:1
   },
   activeBar: {
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 11,
+    fontSize: 12,
     color: "#fff",
     textAlign: "center",
   },
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   fabLabel: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
   },
 });

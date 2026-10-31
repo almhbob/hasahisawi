@@ -260,7 +260,7 @@ const s = StyleSheet.create({
   },
   badgeText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 11,
+    fontSize: 12,
     color: "#1A0F00",
     letterSpacing: 0.5,
   },
@@ -295,7 +295,7 @@ const s = StyleSheet.create({
   },
   role: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "center",
     marginTop: 2,
@@ -363,7 +363,7 @@ const s = StyleSheet.create({
   },
   daysText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
     color: GOLD,
   },
   hallLabel: {
@@ -373,7 +373,7 @@ const s = StyleSheet.create({
   },
   hallText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 12,
+    fontSize: 13,
     color: GOLD,
     letterSpacing: 0.3,
   },
@@ -381,7 +381,7 @@ const s = StyleSheet.create({
   /* Date range */
   dateRange: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.textMuted,
     textAlign: "center",
     opacity: 0.7,

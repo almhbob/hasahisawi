@@ -24,7 +24,7 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
@@ -1945,7 +1945,7 @@ export default function MarketScreen() {
                               backgroundColor: merchantForm.category===cat.key ? cat.color+"20" : Colors.cardBg,
                               borderWidth:1, borderColor: merchantForm.category===cat.key ? cat.color : Colors.divider }}>
                             <Text style={{ fontSize:14 }}>{cat.emoji}</Text>
-                            <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: merchantForm.category===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
+                            <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color: merchantForm.category===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -1962,7 +1962,7 @@ export default function MarketScreen() {
                               style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:8,
                                 backgroundColor: on ? "#1F5C8A20" : Colors.cardBg,
                                 borderWidth:1, borderColor: on ? "#1F5C8A60" : Colors.divider }}>
-                              <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color: on ? "#1F5C8A" : Colors.textMuted }}>{tag}</Text>
+                              <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 12, color: on ? "#1F5C8A" : Colors.textMuted }}>{tag}</Text>
                             </TouchableOpacity>
                           );
                         })}
@@ -2005,7 +2005,7 @@ export default function MarketScreen() {
               <TouchableOpacity onPress={()=>{ setMerchantRegSuccess(false); setMerchantRegModal(true); }}
                 style={{ backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:10, flexDirection:"row-reverse", alignItems:"center", gap:5 }}>
                 <Ionicons name="add" size={18} color="#fff" />
-                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>سجّل</Text>
+                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:"#fff" }}>سجّل</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap:8, flexDirection:"row-reverse", paddingHorizontal:16, paddingBottom:10 }}>
@@ -2014,8 +2014,8 @@ export default function MarketScreen() {
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
                     backgroundColor: merchantCat===cat.key ? cat.color+"20" : Colors.cardBg,
                     borderWidth:1, borderColor: merchantCat===cat.key ? cat.color+"60" : Colors.divider }}>
-                  <Text style={{ fontSize:12 }}>{cat.emoji}</Text>
-                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: merchantCat===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
+                  <Text style={{ fontSize: 13 }}>{cat.emoji}</Text>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color: merchantCat===cat.key ? cat.color : Colors.textMuted }}>{cat.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -2053,7 +2053,7 @@ export default function MarketScreen() {
                       {m.is_featured && (
                         <View style={{ backgroundColor:cat.color+"18", paddingHorizontal:14, paddingVertical:6, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                           <MaterialCommunityIcons name="star-circle" size={14} color={cat.color} />
-                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color:cat.color }}>محل مميّز</Text>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 12, color:cat.color }}>محل مميّز</Text>
                         </View>
                       )}
                       <View style={{ padding:16 }}>
@@ -2067,10 +2067,10 @@ export default function MarketScreen() {
                               <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary }}>{m.shop_name}</Text>
                               {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={16} color="#1F5C8A" />}
                             </View>
-                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textSecondary, textAlign:"right", marginTop:2 }}>{m.owner_name}</Text>
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textSecondary, textAlign:"right", marginTop:2 }}>{m.owner_name}</Text>
                             <View style={{ flexDirection:"row-reverse", gap:6, marginTop:4, flexWrap:"wrap" }}>
                               <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, backgroundColor:cat.color+"15", borderWidth:1, borderColor:cat.color+"30" }}>
-                                <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:cat.color }}>{cat.emoji} {cat.label}</Text>
+                                <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:cat.color }}>{cat.emoji} {cat.label}</Text>
                               </View>
                             </View>
                           </View>
@@ -2085,13 +2085,13 @@ export default function MarketScreen() {
                             {m.address ? (
                               <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                                 <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
-                                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, flex:1, textAlign:"right" }}>{m.address}</Text>
+                                <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted, flex:1, textAlign:"right" }}>{m.address}</Text>
                               </View>
                             ) : null}
                             {m.working_hours ? (
                               <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                                 <Ionicons name="time-outline" size={13} color={Colors.textMuted} />
-                                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, flex:1, textAlign:"right" }}>{m.working_hours}</Text>
+                                <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted, flex:1, textAlign:"right" }}>{m.working_hours}</Text>
                               </View>
                             ) : null}
                           </View>
@@ -2102,7 +2102,7 @@ export default function MarketScreen() {
                           <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:6, marginBottom:12 }}>
                             {m.tags.slice(0,5).map((tag:string)=>(
                               <View key={tag} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
-                                <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:Colors.textSecondary }}>{tag}</Text>
+                                <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:Colors.textSecondary }}>{tag}</Text>
                               </View>
                             ))}
                           </View>
@@ -2169,7 +2169,7 @@ export default function MarketScreen() {
                           </View>
                           <View>
                             <Text style={{ fontFamily:"Cairo_700Bold", fontSize:17, color:Colors.textPrimary }}>تسجيل متجر هواتف</Text>
-                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }}>ستتم المراجعة خلال 24 ساعة</Text>
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted }}>ستتم المراجعة خلال 24 ساعة</Text>
                           </View>
                         </View>
                         <TouchableOpacity onPress={()=>setPhoneRegModal(false)}>
@@ -2216,7 +2216,7 @@ export default function MarketScreen() {
                                 ...pf, specialties: on ? pf.specialties.filter(s=>s!==sp) : [...pf.specialties, sp]
                               }))} style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
                                 backgroundColor: on?"#1F5C8A20":Colors.cardBg, borderWidth:1, borderColor: on?"#1F5C8A60":Colors.divider }}>
-                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: on?"#1F5C8A":Colors.textMuted }}>{sp}</Text>
+                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color: on?"#1F5C8A":Colors.textMuted }}>{sp}</Text>
                               </TouchableOpacity>
                             );
                           })}
@@ -2260,7 +2260,7 @@ export default function MarketScreen() {
                           </View>
                           <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4, marginTop:2 }}>
                             <View style={{ width:8,height:8,borderRadius:4,backgroundColor: myShop?.is_approved?"#10B981":"#F59E0B" }} />
-                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }}>
+                            <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted }}>
                               {myShop?.is_approved?"متجر مفعّل":"في انتظار موافقة الإدارة"}
                             </Text>
                           </View>
@@ -2280,7 +2280,7 @@ export default function MarketScreen() {
                         <View key={stat.label} style={{ flex:1, backgroundColor:Colors.bg, borderRadius:14, padding:12, alignItems:"center", borderWidth:1, borderColor:Colors.divider }}>
                           <MaterialCommunityIcons name={stat.icon as any} size={20} color={stat.color} style={{ marginBottom:4 }} />
                           <Text style={{ fontFamily:"Cairo_700Bold", fontSize:18, color:Colors.textPrimary }}>{stat.val}</Text>
-                          <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted }}>{stat.label}</Text>
+                          <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 12, color:Colors.textMuted }}>{stat.label}</Text>
                         </View>
                       ))}
                     </View>
@@ -2318,10 +2318,10 @@ export default function MarketScreen() {
                                 <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                                   <Text style={{ fontFamily:"Cairo_700Bold", fontSize:14, color:Colors.textPrimary }}>{p.name}</Text>
                                   <View style={{ paddingHorizontal:7, paddingVertical:2, borderRadius:6, backgroundColor:cond.color+"20" }}>
-                                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:cond.color }}>{cond.label}</Text>
+                                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 11, color:cond.color }}>{cond.label}</Text>
                                   </View>
                                 </View>
-                                {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right" }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
+                                {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted, textAlign:"right" }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
                                 <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
                                   <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#1F5C8A" }}>
                                     {p.price ? `${p.price.toLocaleString()} ج.س` : "غير محدد"}
@@ -2434,7 +2434,7 @@ export default function MarketScreen() {
                         <TouchableOpacity key={cl} onPress={()=>setProdForm(f=>({...f,color:f.color===cl?"":cl}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
                             backgroundColor: prodForm.color===cl?"#1F5C8A20":Colors.cardBg, borderWidth:1, borderColor: prodForm.color===cl?"#1F5C8A60":Colors.divider }}>
-                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: prodForm.color===cl?"#1F5C8A":Colors.textMuted }}>{cl}</Text>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color: prodForm.color===cl?"#1F5C8A":Colors.textMuted }}>{cl}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -2445,7 +2445,7 @@ export default function MarketScreen() {
                         <TouchableOpacity key={s} onPress={()=>setProdForm(f=>({...f,storage:f.storage===s?"":s}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
                             backgroundColor: prodForm.storage===s?"#10B98120":Colors.cardBg, borderWidth:1, borderColor: prodForm.storage===s?"#10B98160":Colors.divider }}>
-                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color: prodForm.storage===s?"#10B981":Colors.textMuted }}>{s}</Text>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize: 13, color: prodForm.storage===s?"#10B981":Colors.textMuted }}>{s}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -2456,7 +2456,7 @@ export default function MarketScreen() {
                         <TouchableOpacity key={r} onPress={()=>setProdForm(f=>({...f,ram:f.ram===r?"":r}))}
                           style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:10,
                             backgroundColor: prodForm.ram===r?"#3B82F620":Colors.cardBg, borderWidth:1, borderColor: prodForm.ram===r?"#3B82F660":Colors.divider }}>
-                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color: prodForm.ram===r?"#3B82F6":Colors.textMuted }}>{r}</Text>
+                          <Text style={{ fontFamily:"Cairo_700Bold", fontSize: 13, color: prodForm.ram===r?"#3B82F6":Colors.textMuted }}>{r}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -2513,7 +2513,7 @@ export default function MarketScreen() {
                               <View style={{ flexDirection:"row-reverse", gap:4, flexWrap:"wrap", marginTop:4 }}>
                                 {selectedShop.specialties?.slice(0,3).map(sp=>(
                                   <View key={sp} style={{ paddingHorizontal:8, paddingVertical:2, borderRadius:6, backgroundColor:"#1F5C8A15" }}>
-                                    <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#1F5C8A" }}>{sp}</Text>
+                                    <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:"#1F5C8A" }}>{sp}</Text>
                                   </View>
                                 ))}
                               </View>
@@ -2562,7 +2562,7 @@ export default function MarketScreen() {
                               style={{ paddingHorizontal:14, paddingVertical:7, borderRadius:20,
                                 backgroundColor: productsCond===c.key?c.color+"20":Colors.cardBg,
                                 borderWidth:1, borderColor: productsCond===c.key?c.color+"60":Colors.divider }}>
-                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: productsCond===c.key?c.color:Colors.textMuted }}>{c.label}</Text>
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color: productsCond===c.key?c.color:Colors.textMuted }}>{c.label}</Text>
                             </TouchableOpacity>
                           ))}
                         </ScrollView>
@@ -2588,7 +2588,7 @@ export default function MarketScreen() {
                                   style={{ width:"47%", backgroundColor:Colors.cardBg, borderRadius:18, borderWidth:1, borderColor: p.is_featured?"#1F5C8A50":Colors.divider, overflow:"hidden" }}>
                                   {p.is_featured && (
                                     <View style={{ backgroundColor:"#1F5C8A18", paddingVertical:4, alignItems:"center" }}>
-                                      <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:"#1F5C8A" }}>⭐ مميّز</Text>
+                                      <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 11, color:"#1F5C8A" }}>⭐ مميّز</Text>
                                     </View>
                                   )}
                                   <View style={{ padding:12 }}>
@@ -2601,25 +2601,25 @@ export default function MarketScreen() {
                                     {/* Condition badge */}
                                     <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
                                       <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:cond.color+"20" }}>
-                                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color:cond.color }}>{cond.label}</Text>
+                                        <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 11, color:cond.color }}>{cond.label}</Text>
                                       </View>
                                     </View>
                                     {/* Name */}
                                     <Text style={{ fontFamily:"Cairo_700Bold", fontSize:13, color:Colors.textPrimary, textAlign:"right", marginBottom:2 }} numberOfLines={2}>{p.name}</Text>
-                                    {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right", marginBottom:6 }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
+                                    {p.brand && <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 12, color:Colors.textMuted, textAlign:"right", marginBottom:6 }}>{p.brand}{p.model?" · "+p.model:""}</Text>}
                                     {/* Specs chips */}
                                     <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:4, marginBottom:8 }}>
-                                      {p.storage && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize:9, color:Colors.textSecondary }}>{p.storage}</Text></View>}
-                                      {p.ram && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize:9, color:Colors.textSecondary }}>{p.ram} RAM</Text></View>}
-                                      {p.color && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize:9, color:Colors.textSecondary }}>{p.color}</Text></View>}
+                                      {p.storage && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:Colors.textSecondary }}>{p.storage}</Text></View>}
+                                      {p.ram && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:Colors.textSecondary }}>{p.ram} RAM</Text></View>}
+                                      {p.color && <View style={{ paddingHorizontal:6, paddingVertical:2, borderRadius:6, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}><Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:Colors.textSecondary }}>{p.color}</Text></View>}
                                     </View>
                                     {/* Price */}
                                     <View style={{ flexDirection:"row-reverse", alignItems:"baseline", gap:6 }}>
                                       {p.price ? (
                                         <>
                                           <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:"#1F5C8A" }}>{p.price.toLocaleString()}</Text>
-                                          <Text style={{ fontFamily:"Cairo_500Medium", fontSize:11, color:Colors.textMuted }}>ج.س</Text>
-                                          {hasDiscount && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:10, color:Colors.textMuted, textDecorationLine:"line-through" }}>{p.original_price?.toLocaleString()}</Text>}
+                                          <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 12, color:Colors.textMuted }}>ج.س</Text>
+                                          {hasDiscount && <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 11, color:Colors.textMuted, textDecorationLine:"line-through" }}>{p.original_price?.toLocaleString()}</Text>}
                                         </>
                                       ) : (
                                         <Text style={{ fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textMuted }}>السعر عند التواصل</Text>
@@ -2654,13 +2654,13 @@ export default function MarketScreen() {
                 <TouchableOpacity onPress={()=>{ loadMyPhoneShop(); setMyShopVisible(true); }}
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
                   <MaterialCommunityIcons name="store-cog-outline" size={18} color="#fff" />
-                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>متجري</Text>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:"#fff" }}>متجري</Text>
                 </TouchableOpacity>
               ) : !auth.isGuest ? (
                 <TouchableOpacity onPress={()=>{ setPhoneRegSuccess(false); setPhoneRegModal(true); }}
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#1F5C8A", borderRadius:12, paddingHorizontal:14, paddingVertical:10 }}>
                   <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#fff" }}>سجّل</Text>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:"#fff" }}>سجّل</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -2671,8 +2671,8 @@ export default function MarketScreen() {
                   style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:7, borderRadius:20,
                     backgroundColor: phoneBrand===brand.key?"#1F5C8A20":Colors.cardBg,
                     borderWidth:1, borderColor: phoneBrand===brand.key?"#1F5C8A60":Colors.divider }}>
-                  <Text style={{ fontSize:12 }}>{brand.emoji}</Text>
-                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color: phoneBrand===brand.key?"#1F5C8A":Colors.textMuted }}>{brand.label}</Text>
+                  <Text style={{ fontSize: 13 }}>{brand.emoji}</Text>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color: phoneBrand===brand.key?"#1F5C8A":Colors.textMuted }}>{brand.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -2711,7 +2711,7 @@ export default function MarketScreen() {
                       {shop.is_featured && (
                         <View style={{ backgroundColor:"#1F5C8A18", paddingVertical:6, paddingHorizontal:14, flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                           <MaterialCommunityIcons name="star-circle" size={14} color="#1F5C8A" />
-                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color:"#1F5C8A" }}>متجر مميّز</Text>
+                          <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 12, color:"#1F5C8A" }}>متجر مميّز</Text>
                         </View>
                       )}
                       <View style={{ padding:16 }}>
@@ -2730,7 +2730,7 @@ export default function MarketScreen() {
                             <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:4, marginTop:6 }}>
                               {shop.specialties?.slice(0,4).map(sp=>(
                                 <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#1F5C8A12", borderWidth:1, borderColor:"#1F5C8A25" }}>
-                                  <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#1F5C8A" }}>{sp}</Text>
+                                  <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:"#1F5C8A" }}>{sp}</Text>
                                 </View>
                               ))}
                             </View>
@@ -2743,13 +2743,13 @@ export default function MarketScreen() {
                           {shop.address && (
                             <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4 }}>
                               <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
-                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }} numberOfLines={1}>{shop.address}</Text>
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted }} numberOfLines={1}>{shop.address}</Text>
                             </View>
                           )}
                           {shop.working_hours && (
                             <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:4 }}>
                               <Ionicons name="time-outline" size={13} color={Colors.textMuted} />
-                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted }} numberOfLines={1}>{shop.working_hours}</Text>
+                              <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted }} numberOfLines={1}>{shop.working_hours}</Text>
                             </View>
                           )}
                         </View>
@@ -2757,7 +2757,7 @@ export default function MarketScreen() {
                         <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between" }}>
                           <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
                             <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:"#1F5C8A15", borderWidth:1, borderColor:"#1F5C8A30" }}>
-                              <Text style={{ fontFamily:"Cairo_700Bold", fontSize:12, color:"#1F5C8A" }}>
+                              <Text style={{ fontFamily:"Cairo_700Bold", fontSize: 13, color:"#1F5C8A" }}>
                                 {shop.product_count} منتج
                               </Text>
                             </View>
@@ -2767,12 +2767,12 @@ export default function MarketScreen() {
                               <TouchableOpacity onPress={e=>{ e.stopPropagation?.(); require("react-native").Linking.openURL(`tel:${shop.phone}`); }}
                                 style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:10, backgroundColor:"#10B98115", borderWidth:1, borderColor:"#10B98130" }}>
                                 <Ionicons name="call-outline" size={14} color="#10B981" />
-                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#10B981" }}>اتصال</Text>
+                                <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:"#10B981" }}>اتصال</Text>
                               </TouchableOpacity>
                             )}
                             <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:5, paddingHorizontal:12, paddingVertical:8, borderRadius:10, backgroundColor:"#1F5C8A15", borderWidth:1, borderColor:"#1F5C8A30" }}>
                               <MaterialCommunityIcons name="cellphone" size={14} color="#1F5C8A" />
-                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:"#1F5C8A" }}>عرض المنتجات</Text>
+                              <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:"#1F5C8A" }}>عرض المنتجات</Text>
                             </View>
                           </View>
                         </View>
@@ -2860,14 +2860,14 @@ const styles = StyleSheet.create({
   cardTitleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   cardName: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   soldBadge: {
-    backgroundColor: Colors.textMuted + "22", borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2,
+    backgroundColor: withAlpha(Colors.textMuted, "22"), borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 2,
   },
   soldBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted },
-  sellerName: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.accent },
+  sellerName: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.accent },
   condRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   condBadge: { borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 2 },
   condBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  timeSmall: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  timeSmall: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   cardDesc: {
     fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textSecondary, textAlign: "right", lineHeight: 19,
@@ -2884,15 +2884,15 @@ const styles = StyleSheet.create({
   },
   priceText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary },
   soldBtn: {
-    backgroundColor: Colors.textMuted + "18", borderRadius: Colors.radius.sm,
+    backgroundColor: withAlpha(Colors.textMuted, "18"), borderRadius: Colors.radius.sm,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  soldBtnText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary },
+  soldBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
   callBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     backgroundColor: Colors.primary + "12", borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 4,
   },
-  callBtnText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary },
+  callBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.primary },
   // Owner badge
   ownerRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, flexWrap: "wrap" },
   ownerBadge: {
@@ -2902,7 +2902,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.primary + "25",
   },
   ownerBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.primary },
-  ownerName: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
+  ownerName: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   // Auction-specific
   auctionAccentBar: {
     position: "absolute", top: 0, bottom: 0, left: 0,
@@ -2913,7 +2913,7 @@ const styles = StyleSheet.create({
     borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 4,
     borderWidth: 1, borderColor: Colors.divider,
   },
-  interestedText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  interestedText: { fontFamily: "Cairo_500Medium", fontSize: 13 },
   interestedBadge: {
     borderRadius: Colors.radius.sm, minWidth: 18, height: 18,
     justifyContent: "center", alignItems: "center", paddingHorizontal: 4,
@@ -2932,7 +2932,7 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
   dalalaBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.violet },
-  dalalaBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  dalalaBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   // Modal
   overlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end",
@@ -2968,7 +2968,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.md,
     borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg,
   },
-  catPickText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary },
+  catPickText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   saveBtn: {
     backgroundColor: Colors.primary, borderRadius: Colors.radius.md, paddingVertical: 15,
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
@@ -3016,7 +3016,7 @@ const styles = StyleSheet.create({
     borderRadius: Colors.radius.sm, paddingHorizontal: 8, paddingVertical: 3,
     borderWidth: 1,
   },
-  carpSpecText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  carpSpecText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   carpLocBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 3,
     backgroundColor: Colors.bg, borderRadius: Colors.radius.sm,
@@ -3024,9 +3024,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider,
     maxWidth: 160,
   },
-  carpLocText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  carpLocText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   carpStarsRow: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
-  carpOwnerName: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textSecondary, marginStart: 6 },
+  carpOwnerName: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary, marginStart: 6 },
   carpBody: { paddingHorizontal: 14, paddingVertical: 12, gap: 5 },
   carpProductName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
   carpFooter: {
@@ -3034,15 +3034,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10,
   },
   carpPriceWrap: { alignItems: "flex-end" },
-  carpPriceFrom: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  carpPriceFrom: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   carpPriceValue: { fontFamily: "Cairo_700Bold", fontSize: 16 },
-  carpPriceCurrency: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  carpPriceCurrency: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   carpQuoteBtn: {
     flexDirection: "row-reverse", alignItems: "center", gap: 4,
     borderRadius: Colors.radius.sm, paddingHorizontal: 9, paddingVertical: 4,
     borderWidth: 1,
   },
-  carpQuoteText: { fontFamily: "Cairo_500Medium", fontSize: 12 },
+  carpQuoteText: { fontFamily: "Cairo_500Medium", fontSize: 13 },
   // Carpentry Banner
   carpBanner: {
     backgroundColor: "#7D4E2D12",
@@ -3056,7 +3056,7 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
   carpBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#7D4E2D" },
-  carpBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  carpBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   // Stars input
   carpStarsInput: { gap: 6, paddingVertical: 4 },
 });

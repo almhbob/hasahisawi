@@ -490,15 +490,15 @@ export default function JobsScreen() {
                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <View style={{ flex: 1, alignItems: "flex-end" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>{item.title}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{item.company}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{item.company}</Text>
                   </View>
                   <View style={{ backgroundColor: Colors.primary + "20", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, marginRight: 10 }}>
-                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.primary }}>{item.type}</Text>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.primary }}>{item.type}</Text>
                   </View>
                 </View>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 8 }}>
                   <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{item.loc}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted }}>{item.loc}</Text>
                 </View>
               </View>
             ))}
@@ -692,10 +692,10 @@ const styles = StyleSheet.create({
   companyName: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
   tagsRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
   typeTag: { borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 3 },
-  typeTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  typeTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   locationTag: { flexDirection: "row-reverse", alignItems: "center", gap: 3 },
-  locationText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  timeAgo: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  locationText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  timeAgo: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   cardDivider: { height: 1, backgroundColor: Colors.divider, marginHorizontal: 14 },
   expandedContent: { padding: 14, gap: 12 },
   salaryRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },

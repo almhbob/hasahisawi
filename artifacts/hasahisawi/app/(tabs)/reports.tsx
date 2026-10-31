@@ -597,7 +597,7 @@ function ReportsScreen() {
             خدمة التبليغ عن المشاكل معلّقة مؤقتاً.{"\n"}نعتذر عن الإزعاج وسيعود التطبيق قريباً.
           </Text>
           <View style={{ backgroundColor: "#6B728012", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: "#6B728025", width: "100%" }}>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", textAlign: "center", lineHeight: 20 }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "center", lineHeight: 20 }}>
               حصاحيصاوي منصة مجتمعية مستقلة غير تابعة لأي جهة حكومية
             </Text>
           </View>
@@ -621,7 +621,7 @@ function ReportsScreen() {
                   </View>
                   <View style={{ flex: 1, alignItems: "flex-end" }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>{item.label}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{item.agency}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted }}>{item.agency}</Text>
                   </View>
                   <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
                 </View>
@@ -1277,7 +1277,7 @@ const s = StyleSheet.create({
   headerTop: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   headerIcon: { width: 46, height: 46, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.82)" },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.82)" },
   resetBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
   resetText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
 
@@ -1291,7 +1291,7 @@ const s = StyleSheet.create({
 
   progressRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 8 },
   progressStep: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.cardBg, borderWidth: 2, borderColor: Colors.divider, justifyContent: "center", alignItems: "center" },
-  progressStepNum: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.textMuted },
+  progressStepNum: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textMuted },
   progressLine: { flex: 1, height: 2, backgroundColor: Colors.divider, maxWidth: 80 },
 
   stepTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, flex: 1, textAlign: "right" },
@@ -1301,7 +1301,7 @@ const s = StyleSheet.create({
   // Emergency strip
   emergencyStrip: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: Colors.danger + "40" },
   emergencyTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.danger, textAlign: "right" },
-  emergencySub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  emergencySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   emergencyCallBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
   emergencyCallText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
@@ -1316,13 +1316,13 @@ const s = StyleSheet.create({
   // Agency card
   agencyCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, gap: 12, overflow: "hidden", ...Colors.shadow.card },
   urgentTag: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end", backgroundColor: Colors.danger + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.danger + "30" },
-  urgentTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.danger },
+  urgentTagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.danger },
   agencyCardInner: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   agencyIcon: { width: 54, height: 54, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   agencyName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  agencyDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginTop: 4 },
+  agencyDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginTop: 4 },
   agencyMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
-  agencyMetaText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  agencyMetaText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   catDot: { width: 4, height: 4, borderRadius: 2 },
   agencyActions: { flexDirection: "row", gap: 10 },
   directCallBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.sm, paddingVertical: 9, borderWidth: 1 },
@@ -1334,7 +1334,7 @@ const s = StyleSheet.create({
   agencyBanner: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden", ...Colors.shadow.card },
   agencyBannerIcon: { width: 44, height: 44, borderRadius: Colors.radius.sm, justifyContent: "center", alignItems: "center" },
   agencyBannerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  agencyBannerHours: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  agencyBannerHours: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
 
   sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
 
@@ -1354,7 +1354,7 @@ const s = StyleSheet.create({
   // Urgent toggle
   urgentToggle: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: Colors.radius.md, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   urgentToggleTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  urgentToggleSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  urgentToggleSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: Colors.divider, justifyContent: "center", paddingHorizontal: 2 },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
 
@@ -1372,7 +1372,7 @@ const s = StyleSheet.create({
   summaryDivider: { height: 1, backgroundColor: Colors.divider },
 
   privacyNote: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center" },
-  privacyNoteText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  privacyNoteText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
 
   submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: Colors.radius.lg, paddingVertical: 17, ...Colors.shadow.raised },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff" },
@@ -1386,7 +1386,7 @@ const s = StyleSheet.create({
   reportCard: { borderRadius: Colors.radius.lg, padding: 16, borderWidth: 1, backgroundColor: Colors.cardBg, gap: 8, overflow: "hidden", ...Colors.shadow.card },
   reportHeader: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "flex-end" },
   reportStatus: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  reportStatusText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  reportStatusText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   urgentBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.danger + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.danger + "30" },
   urgentBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.danger },
   reportAgency: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
@@ -1429,7 +1429,7 @@ const s = StyleSheet.create({
   uploadBarText: {
     position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
     textAlign: "center", textAlignVertical: "center",
-    fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textPrimary,
+    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary,
   },
   imgBtnsRow: { flexDirection: "row", gap: 10 },
   imgPickBtn: {
@@ -1446,7 +1446,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 13,
   },
   gpsBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" },
-  gpsBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  gpsBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   locSuccessCard: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, borderWidth: 1.5,
@@ -1457,7 +1457,7 @@ const s = StyleSheet.create({
     justifyContent: "center", alignItems: "center", flexShrink: 0,
   },
   locSuccessTitle: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  locSuccessCoords: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  locSuccessCoords: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
 
   // Report card image & map link
   reportCardImage: {
@@ -1469,7 +1469,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8,
     backgroundColor: Colors.bg, marginTop: 6, alignSelf: "flex-end",
   },
-  mapLinkText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, flex: 1, textAlign: "right" },
+  mapLinkText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, flex: 1, textAlign: "right" },
 });
 
 // ── styles مقترحات وشكاوى ──
@@ -1491,8 +1491,8 @@ const fb = StyleSheet.create({
     flexDirection: "row", alignItems: "center", borderRadius: Colors.radius.sm,
     paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1,
   },
-  typePillText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  dateText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginLeft: "auto" as any },
+  typePillText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  dateText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginLeft: "auto" as any },
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   cardBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
 

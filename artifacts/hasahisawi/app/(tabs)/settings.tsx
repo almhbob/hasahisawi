@@ -12,7 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { PLATFORM } from "@/constants/platform";
 import type { LostItem } from "./missing";
 import type { Job } from "./jobs";
@@ -930,7 +930,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
           <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
             {TYPES.map(tp => (
               <TouchableOpacity key={tp} onPress={() => setNewType(tp)} style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: newType === tp ? Colors.primary : Colors.divider, backgroundColor: newType === tp ? Colors.primary + "15" : "transparent" }}>
-                <Text style={{ color: newType === tp ? Colors.primary : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 12 }}>{t("notifications", `types.${tp}`)}</Text>
+                <Text style={{ color: newType === tp ? Colors.primary : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 13 }}>{t("notifications", `types.${tp}`)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -1060,7 +1060,7 @@ function NewsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean; lang: st
           <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
             {CATEGORIES.map(cat => (
               <TouchableOpacity key={cat} onPress={() => setNewCategory(cat)} style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: newCategory === cat ? "#2E7D9A" : Colors.divider, backgroundColor: newCategory === cat ? "#2E7D9A15" : "transparent" }}>
-                <Text style={{ color: newCategory === cat ? "#2E7D9A" : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 12 }}>{t("news", `categories.${cat}`)}</Text>
+                <Text style={{ color: newCategory === cat ? "#2E7D9A" : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 13 }}>{t("news", `categories.${cat}`)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -2182,7 +2182,7 @@ export default function SettingsScreen() {
               <Text style={instPortalSty.sub}>إدارة خدمات مؤسستك المعتمدة</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success }} />
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.success }}>متاحة للمؤسسات المسجّلة</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.success }}>متاحة للمؤسسات المسجّلة</Text>
               </View>
             </View>
             <View style={instPortalSty.iconCol}>
@@ -2753,13 +2753,13 @@ export default function SettingsScreen() {
                 {syncingFirebase ? "جارٍ مزامنة Firebase…" : "مزامنة مستخدمي Firebase"}
               </Text>
               {syncResult && !syncingFirebase && (
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>
                   {syncResult.firebase_total} ✓
                 </Text>
               )}
             </TouchableOpacity>
 
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>
               {managedUsers.length} مستخدم في القاعدة
             </Text>
             {managedUsers.length === 0 ? (
@@ -2785,11 +2785,11 @@ export default function SettingsScreen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: isRTL ? "right" : "left" }}>{u.name}</Text>
-                            <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: isRTL ? "right" : "left" }}>{u.email || u.phone || ""}</Text>
+                            <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: isRTL ? "right" : "left" }}>{u.email || u.phone || ""}</Text>
                           </View>
                         </View>
-                        <View style={{ backgroundColor: isMod ? Colors.accent + "20" : Colors.textMuted + "20", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? 8 : 0 }}>
-                          <Text style={{ color: isMod ? Colors.accent : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 11 }}>{isMod ? t("admin", "roleModerator") : t("admin", "roleUser")}</Text>
+                        <View style={{ backgroundColor: isMod ? Colors.accent + "20" : withAlpha(Colors.textMuted, "20"), paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? 8 : 0 }}>
+                          <Text style={{ color: isMod ? Colors.accent : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 12 }}>{isMod ? t("admin", "roleModerator") : t("admin", "roleUser")}</Text>
                         </View>
                         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={Colors.textMuted} style={{ marginLeft: isRTL ? 0 : 6, marginRight: isRTL ? 6 : 0 }} />
                       </View>
@@ -2799,7 +2799,7 @@ export default function SettingsScreen() {
                       <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.divider }}>
                         <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginBottom: 14 }}>
                           {isMod ? (
-                            <TouchableOpacity onPress={() => changeUserRole(u.id, "user")} style={{ flex: 1, backgroundColor: Colors.textMuted + "20", paddingVertical: 10, borderRadius: 8, alignItems: "center" }}>
+                            <TouchableOpacity onPress={() => changeUserRole(u.id, "user")} style={{ flex: 1, backgroundColor: withAlpha(Colors.textMuted, "20"), paddingVertical: 10, borderRadius: 8, alignItems: "center" }}>
                               <Text style={{ color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>{t("admin", "demoteToUser")}</Text>
                             </TouchableOpacity>
                           ) : (
@@ -2828,7 +2828,7 @@ export default function SettingsScreen() {
                                     style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", backgroundColor: active ? Colors.primary + "20" : Colors.divider, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: active ? Colors.primary + "50" : "transparent" }}
                                   >
                                     <Ionicons name={sec.icon as any} size={14} color={active ? Colors.primary : Colors.textMuted} style={{ marginRight: isRTL ? 0 : 5, marginLeft: isRTL ? 5 : 0 }} />
-                                    <Text style={{ color: active ? Colors.primary : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 12 }}>{sec.label}</Text>
+                                    <Text style={{ color: active ? Colors.primary : Colors.textMuted, fontFamily: "Cairo_500Medium", fontSize: 13 }}>{sec.label}</Text>
                                   </TouchableOpacity>
                                 );
                               })}
@@ -3516,7 +3516,7 @@ const styles = StyleSheet.create({
   langBtnActive: { backgroundColor: Colors.primary },
   langBtnText: { color: Colors.primary, fontFamily: "Cairo_600SemiBold" },
   langBtnTextActive: { color: "#fff" },
-  langNote: { fontSize: 12, color: Colors.textMuted, marginTop: 6, textAlign: "center" },
+  langNote: { fontSize: 13, color: Colors.textMuted, marginTop: 6, textAlign: "center" },
   settingSection: { marginBottom: 20 },
   settingLabel: { fontSize: 14, fontFamily: "Cairo_600SemiBold", color: Colors.textPrimary, marginBottom: 4 },
   loginWrap: { flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 24, paddingBottom: 60 },
@@ -3539,7 +3539,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.cardBg },
-  pinHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  pinHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   loginToggleRow: {
     flexDirection: "row-reverse", backgroundColor: Colors.bg, borderRadius: 14,
     padding: 3, gap: 3, width: "100%",
@@ -3575,7 +3575,7 @@ const styles = StyleSheet.create({
   body: { padding: 16, gap: 10 },
   section: { gap: 10 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  sectionHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  sectionHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   sectionLabelRow: { gap: 2 },
   statsGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   statCard: {
@@ -3584,7 +3584,7 @@ const styles = StyleSheet.create({
     ...Colors.shadow.card,
   },
   statValue: { fontFamily: "Cairo_700Bold", fontSize: 28 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   toolRow: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 14,
     flexDirection: "row-reverse", alignItems: "center", gap: 12,
@@ -3649,8 +3649,8 @@ const ac = StyleSheet.create({
   badge: { backgroundColor: Colors.accent + "20", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 1 },
   badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.accent },
   title: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", flex: 1 },
-  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  meta: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  meta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
 });
 
 // ─── Section Bar Styles ───────────────────────────────────────────────────────
@@ -3714,8 +3714,8 @@ const ms = StyleSheet.create({
   lmThumb: { width: 52, height: 52, borderRadius: 8 },
   lmLocalThumb: { backgroundColor: "#9B59B620", alignItems: "center", justifyContent: "center" },
   lmName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  lmSubText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
-  lmUrlText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#9B59B6", textAlign: "right", marginTop: 2 },
+  lmSubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  lmUrlText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9B59B6", textAlign: "right", marginTop: 2 },
   lmDeleteBtn: { padding: 8, borderRadius: 8, backgroundColor: "#E74C3C15" },
 
   lmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
@@ -3737,7 +3737,7 @@ const ms = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.divider, height: 46,
   },
   lmHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
     textAlign: "right", marginTop: 4,
   },
   lmSaveBtn: {
@@ -3764,7 +3764,7 @@ const sub_s = StyleSheet.create({
   summaryRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-around" },
   summaryItem: { alignItems: "center", flex: 1 },
   summaryNum: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#EF4444", lineHeight: 32 },
-  summaryLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center", marginTop: 2 },
+  summaryLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 2 },
   summaryDivider: { width: 1, height: 36, backgroundColor: Colors.divider },
 
   groupHeader: {
@@ -3786,17 +3786,17 @@ const sub_s = StyleSheet.create({
   cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
   planBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  planText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
+  planText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  cardDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 },
   tagRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 5, marginTop: 4 },
   tag: { backgroundColor: Colors.divider, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  tagText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  tagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
 
   payBtn: {
     backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
     alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0, minWidth: 58,
   },
-  payBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
+  payBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" },
 
   rideCard: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 18,
@@ -3805,12 +3805,12 @@ const sub_s = StyleSheet.create({
   },
   rideCardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 },
   rideCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  rideCardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 14, lineHeight: 18 },
+  rideCardSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 14, lineHeight: 18 },
   rideToggleRow: { flexDirection: "row-reverse", gap: 8 },
   rideToggleBtn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6,
     paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider,
-    backgroundColor: Colors.divider + "30",
+    backgroundColor: withAlpha(Colors.divider, "30"),
   },
   rideToggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
 
@@ -3822,7 +3822,7 @@ const sub_s = StyleSheet.create({
   },
   devIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   devTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginBottom: 3 },
-  devDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right", lineHeight: 16 },
+  devDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 16 },
   devBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, flexShrink: 0 },
   devBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
 
@@ -3831,7 +3831,7 @@ const sub_s = StyleSheet.create({
     backgroundColor: Colors.accent + "12", borderRadius: 12, padding: 12, marginTop: 6,
     borderWidth: 1, borderColor: Colors.accent + "25",
   },
-  noteText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", flex: 1, lineHeight: 18 },
+  noteText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", flex: 1, lineHeight: 18 },
 });
 
 const profileSty = StyleSheet.create({
@@ -3953,7 +3953,7 @@ const profileSty = StyleSheet.create({
   },
   dividerText: {
     fontFamily: "Cairo_500Medium",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
   },
 });
@@ -3977,7 +3977,7 @@ const instPortalSty = StyleSheet.create({
   },
   textCol: { flex: 1, alignItems: "flex-end", gap: 4 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, letterSpacing: 0.3 },
-  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   iconCol: { alignItems: "center", gap: 4 },
   iconBox: {
     width: 54, height: 54, borderRadius: 16,
@@ -4016,7 +4016,7 @@ const contactSty = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.primary + "35",
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
-  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   onlineBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
     backgroundColor: "#25D36618", borderRadius: 20,
@@ -4024,7 +4024,7 @@ const contactSty = StyleSheet.create({
     borderWidth: 1, borderColor: "#25D36635",
   },
   onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#25D366" },
-  onlineText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#25D366" },
+  onlineText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#25D366" },
   // أزرار الإجراءات الرئيسية
   actionBtn: {
     flexDirection: "row-reverse",
@@ -4046,7 +4046,7 @@ const contactSty = StyleSheet.create({
     color: Colors.textPrimary, textAlign: "right",
   },
   actionSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
+    fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textMuted, textAlign: "right",
     marginTop: 3,
   },
@@ -4065,7 +4065,7 @@ const contactSty = StyleSheet.create({
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
   dividerText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
+    fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textMuted, paddingHorizontal: 6,
   },
   // أزرار ثانوية (اتصال / إيميل)
@@ -4084,7 +4084,7 @@ const contactSty = StyleSheet.create({
   },
   infoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   infoText: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
+    fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textMuted,
   },
   infoDot: { fontSize: 12, color: Colors.textMuted, marginHorizontal: 2 },
@@ -4114,7 +4114,7 @@ const legalSty = StyleSheet.create({
     borderWidth: 1.5, borderColor: "#10B98135",
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
-  sub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  sub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   btn: {
     flexDirection: "row-reverse", alignItems: "center",
     backgroundColor: Colors.surface3,
@@ -4128,10 +4128,10 @@ const legalSty = StyleSheet.create({
     flexShrink: 0,
   },
   btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 },
+  btnSub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 3, lineHeight: 18 },
   divider:  { height: 1, backgroundColor: Colors.divider },
   infoRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 7, paddingTop: 4 },
-  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", flex: 1, lineHeight: 18 },
+  infoTxt:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", flex: 1, lineHeight: 18 },
 });
 
 const profileCompleteSty = StyleSheet.create({
@@ -4152,7 +4152,7 @@ const profileCompleteSty = StyleSheet.create({
     color: Colors.textPrimary, textAlign: "right",
   },
   sub: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
+    fontFamily: "Cairo_400Regular", fontSize: 13,
     color: Colors.textSecondary, textAlign: "right",
     marginTop: 2,
   },
@@ -4172,7 +4172,7 @@ const linkPcSty = StyleSheet.create({
   },
   textWrap: { flex: 1, gap: 2 },
   title: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right" },
-  sub:   { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
+  sub:   { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right" },
   steps: { gap: 8, paddingHorizontal: 4 },
   step:  { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   stepNum: {
@@ -4180,7 +4180,7 @@ const linkPcSty = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.primary + "60",
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  stepNumTxt: { color: Colors.primary, fontSize: 11, fontFamily: "Cairo_700Bold" },
+  stepNumTxt: { color: Colors.primary, fontSize: 12, fontFamily: "Cairo_700Bold" },
   stepTxt:    { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", flex: 1 },
   urlBox: {
     flexDirection: "row-reverse", alignItems: "center", gap: 8,
@@ -4188,7 +4188,7 @@ const linkPcSty = StyleSheet.create({
     borderColor: Colors.primary + "40", paddingHorizontal: 12, paddingVertical: 8,
     marginRight: 32,
   },
-  urlText: { flex: 1, color: Colors.primary, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" },
+  urlText: { flex: 1, color: Colors.primary, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right" },
   btn: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
     backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12,
@@ -4210,10 +4210,10 @@ const devCardBtnSty = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" },
-  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.55)", textAlign: "right", marginTop: 2 },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.55)", textAlign: "right", marginTop: 2 },
   footer: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#10B981" },
-  footerText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.4)" },
+  footerText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.4)" },
 });
 
 // ─── مودال بطاقة المطور ───────────────────────────────────────────────────────
@@ -4243,9 +4243,9 @@ const devModalSty = StyleSheet.create({
     borderWidth: 2, borderColor: "rgba(5,12,28,0.9)",
   },
   name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right" },
-  role: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#2563EB", textAlign: "right", marginTop: 2 },
+  role: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#2563EB", textAlign: "right", marginTop: 2 },
   locationRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 },
-  location: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.5)" },
+  location: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.5)" },
   closeBtn: {
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: "rgba(255,255,255,0.07)",
@@ -4259,7 +4259,7 @@ const devModalSty = StyleSheet.create({
     backgroundColor: "rgba(37,99,235,0.15)",
     alignItems: "center", justifyContent: "center",
   },
-  infoLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "right" },
+  infoLabel: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "right" },
   infoValue: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.85)", textAlign: "right", marginTop: 1 },
   contactRow: { flexDirection: "row-reverse", gap: 10 },
   contactBtn: {
@@ -4270,7 +4270,7 @@ const devModalSty = StyleSheet.create({
   contactBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
   footer: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   footerTag: {
-    fontFamily: "Cairo_500Medium", fontSize: 11, color: "#2563EB",
+    fontFamily: "Cairo_500Medium", fontSize: 12, color: "#2563EB",
     backgroundColor: "rgba(37,99,235,0.12)", borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 3,
   },

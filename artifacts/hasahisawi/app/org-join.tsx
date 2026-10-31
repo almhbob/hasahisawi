@@ -744,7 +744,7 @@ function OrgJoinScreen() {
               </View>
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 10, backgroundColor: "#6B728012", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#6B728025" }}>
                 <Ionicons name="information-circle-outline" size={16} color="#6B7280" style={{ marginTop: 2 }} />
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", flex: 1, lineHeight: 20 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", flex: 1, lineHeight: 20 }}>
                   حصاحيصاوي منصة مجتمعية أهلية مستقلة، وغير تابعة لأي جهة حكومية. انضمام الجهات الحكومية لأغراض التواصل المجتمعي فقط.
                 </Text>
               </View>
@@ -958,9 +958,9 @@ function OrgJoinScreen() {
                             onPress={(e) => { e.stopPropagation?.(); doUploadRepPhoto(repPhotoUri!); }}
                           >
                             <Ionicons name="refresh" size={14} color={Colors.primary} />
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>إعادة الرفع</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary }}>إعادة الرفع</Text>
                           </TouchableOpacity>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>
                             {repPhotoUploadError || "يمكنك المتابعة وسيُراجع فريق الإدارة الهوية يدوياً."}
                           </Text>
                         </View>
@@ -1516,7 +1516,7 @@ const s = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   backBtn: { width: 38, height: 38, borderRadius: 11, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
   headerIcon: { width: 44, height: 44, borderRadius: 13, justifyContent: "center", alignItems: "center" },
 
   progressRow: { flexDirection: "row", alignItems: "flex-start", gap: 0, marginBottom: 4 },
@@ -1527,14 +1527,14 @@ const s = StyleSheet.create({
   },
   progressActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   progressDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  progressNum: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.textMuted },
-  progressLabel: { fontFamily: "Cairo_500Medium", fontSize: 10, color: Colors.textMuted, textAlign: "center", maxWidth: 50 },
+  progressNum: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textMuted },
+  progressLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted, textAlign: "center", maxWidth: 50 },
   progressLine: { flex: 1, height: 2, backgroundColor: Colors.divider, marginTop: 13, marginHorizontal: 4 },
 
   stepHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   stepIcon: { width: 50, height: 50, borderRadius: 15, justifyContent: "center", alignItems: "center" },
   stepTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
-  stepSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  stepSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
 
   typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   typeCard: {
@@ -1542,7 +1542,7 @@ const s = StyleSheet.create({
     padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider,
     backgroundColor: Colors.cardBg,
   },
-  typeCardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
+  typeCardText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
 
   catChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
@@ -1552,7 +1552,7 @@ const s = StyleSheet.create({
 
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   divider: { flex: 1, height: 1, backgroundColor: Colors.divider },
-  dividerText: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted },
+  dividerText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
 
   selectedCount: {
     flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 14,
@@ -1566,7 +1566,7 @@ const s = StyleSheet.create({
   },
   serviceIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: Colors.cardBg + "80", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider },
   serviceLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  serviceCat: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  serviceCat: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.divider, justifyContent: "center", alignItems: "center" },
   checkboxSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
 
@@ -1601,7 +1601,7 @@ const s = StyleSheet.create({
     textAlign: "right", lineHeight: 26, writingDirection: "rtl", width: "100%",
   },
   documentFooter: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted,
+    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
     textAlign: "center", lineHeight: 20, marginTop: 4,
   },
 
@@ -1611,10 +1611,10 @@ const s = StyleSheet.create({
   },
   signatureTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary, textAlign: "right", marginBottom: 6 },
   sigRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  sigKey: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, minWidth: 90 },
+  sigKey: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted, minWidth: 90 },
   sigVal: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" },
   signLine: { marginTop: 12, alignItems: "center", gap: 4 },
-  signLineText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  signLineText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   signLineVal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.primary },
 
   warningBox: {
@@ -1622,7 +1622,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.accent + "15", borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: Colors.accent + "35",
   },
-  warningText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
+  warningText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
 
   successIcon: { width: 90, height: 90, borderRadius: 45, justifyContent: "center", alignItems: "center" },
   successTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, textAlign: "center" },
@@ -1659,12 +1659,12 @@ const s = StyleSheet.create({
     justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.divider,
   },
   photoPickerTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  photoPickerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  photoPickerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   photoPreview: { width: 72, height: 48, borderRadius: 10, backgroundColor: Colors.divider },
   photoPickerDoneText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary },
-  photoPickerChange: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  photoNote: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
+  photoPickerChange: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  photoNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
 
   // معاينة العقد
   contractSection: { width: "100%", gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider },
@@ -1673,20 +1673,20 @@ const s = StyleSheet.create({
   contractParties: { flexDirection: "row", gap: 0 },
   contractParty: { flex: 1, gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg },
   contractPartyDivider: { width: 1, backgroundColor: Colors.divider, marginVertical: 4 },
-  contractPartyTitle: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary, textAlign: "center", marginBottom: 4 },
-  contractPartyText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
+  contractPartyTitle: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, textAlign: "center", marginBottom: 4 },
+  contractPartyText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
   contractBullet: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   contractBulletDot: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.primary, marginTop: 2 },
-  contractBulletText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
+  contractBulletText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 20 },
   contractPenalties: { flexDirection: "row", gap: 8 },
   penaltyItem: { flex: 1, alignItems: "center", gap: 4, padding: 10, borderRadius: 10, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.divider },
   penaltyIcon: { fontSize: 18 },
-  penaltyTitle: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.textPrimary, textAlign: "center" },
-  penaltyDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center", lineHeight: 15 },
+  penaltyTitle: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textPrimary, textAlign: "center" },
+  penaltyDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center", lineHeight: 15 },
   contractInfoGrid: { borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: Colors.cyber + "25", backgroundColor: Colors.bg },
   contractInfoCell: { padding: 12, gap: 4 },
-  contractInfoLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.cyber, textAlign: "right" },
-  contractInfoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
+  contractInfoLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.cyber, textAlign: "right" },
+  contractInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
 
   // بطاقة حالة الطلب
   statusCard: {
@@ -1699,7 +1699,7 @@ const s = StyleSheet.create({
   statusBadgeRow: { flexDirection: "row" },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   statusBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  statusHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  statusHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
 
   // أزرار إجراءات العقد
   contractActionsTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
@@ -1710,7 +1710,7 @@ const s = StyleSheet.create({
   contractActionBtnDisabled: { opacity: 0.55 },
   contractActionIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: "center", alignItems: "center" },
   contractActionTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  contractActionSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  contractActionSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
 });
 
 const fi = StyleSheet.create({

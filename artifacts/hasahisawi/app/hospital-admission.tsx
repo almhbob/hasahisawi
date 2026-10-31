@@ -26,7 +26,7 @@ function StatusBadge({ status }: { status: string }) {
   const [label, color] = map[status] || [status, "#9CA3AF"];
   return (
     <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, backgroundColor: color + "20" }}>
-      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color }}>{label}</Text>
+      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color }}>{label}</Text>
     </View>
   );
 }
@@ -143,7 +143,7 @@ export default function HospitalAdmissionScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" }}>التنويم والمرافق</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: BLUE, marginTop: 1 }}>متابعة حالة التنويم والمرافقين</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: BLUE, marginTop: 1 }}>متابعة حالة التنويم والمرافقين</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -160,7 +160,7 @@ export default function HospitalAdmissionScreen() {
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: activeTab === t.key ? "#fff" : "#64748B" }}>{t.label}</Text>
               {t.count > 0 && (
                 <View style={{ backgroundColor: activeTab === t.key ? "#FFFFFF40" : BLUE, borderRadius: 10, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" }}>{t.count}</Text>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" }}>{t.count}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -233,14 +233,14 @@ export default function HospitalAdmissionScreen() {
                               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>{adm.facility_name || "مستشفى"}</Text>
                               <StatusBadge status={adm.status} />
                             </View>
-                            {adm.ward && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#64748B", marginTop: 2 }}>العنبر: {adm.ward}{adm.room_number ? ` — غرفة ${adm.room_number}` : ""}{adm.bed_number ? ` — سرير ${adm.bed_number}` : ""}</Text>}
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#64748B", marginTop: 2 }}>الطبيب: {adm.doctor_name || "—"}</Text>
+                            {adm.ward && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#64748B", marginTop: 2 }}>العنبر: {adm.ward}{adm.room_number ? ` — غرفة ${adm.room_number}` : ""}{adm.bed_number ? ` — سرير ${adm.bed_number}` : ""}</Text>}
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#64748B", marginTop: 2 }}>الطبيب: {adm.doctor_name || "—"}</Text>
                           </View>
                           <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color="#64748B" />
                         </View>
                         {adm.diagnosis && (
                           <View style={{ marginTop: 10, backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 10 }}>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "right" }}>{adm.diagnosis}</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#94A3B8", textAlign: "right" }}>{adm.diagnosis}</Text>
                           </View>
                         )}
                       </TouchableOpacity>
@@ -250,13 +250,13 @@ export default function HospitalAdmissionScreen() {
                           {/* Admission/discharge dates */}
                           <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 12 }}>
                             <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 10 }}>
-                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "center" }}>تاريخ الدخول</Text>
-                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff", textAlign: "center", marginTop: 2 }}>{new Date(adm.admission_date).toLocaleDateString("ar-EG")}</Text>
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "center" }}>تاريخ الدخول</Text>
+                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", textAlign: "center", marginTop: 2 }}>{new Date(adm.admission_date).toLocaleDateString("ar-EG")}</Text>
                             </View>
                             {adm.expected_discharge && (
                               <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 10 }}>
-                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "center" }}>صرف متوقع</Text>
-                                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff", textAlign: "center", marginTop: 2 }}>{adm.expected_discharge}</Text>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "center" }}>صرف متوقع</Text>
+                                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", textAlign: "center", marginTop: 2 }}>{adm.expected_discharge}</Text>
                               </View>
                             )}
                           </View>
@@ -294,13 +294,13 @@ export default function HospitalAdmissionScreen() {
                               {isActive && (
                                 <TouchableOpacity onPress={() => setShowAddCompanion(adm.id)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: BLUE + "20", borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
                                   <Ionicons name="person-add-outline" size={14} color={BLUE} />
-                                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: BLUE }}>إضافة مرافق</Text>
+                                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: BLUE }}>إضافة مرافق</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
 
                             {companions.length === 0 ? (
-                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7280", textAlign: "center", paddingVertical: 12 }}>لا يوجد مرافقون معتمدون</Text>
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7280", textAlign: "center", paddingVertical: 12 }}>لا يوجد مرافقون معتمدون</Text>
                             ) : (
                               companions.map((c: Companion) => (
                                 <View key={c.id} style={{ backgroundColor: "#FFFFFF08", borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: c.status === "approved" ? GREEN + "30" : c.status === "pending" ? "#F59E0B30" : "#EF444430" }}>
@@ -310,7 +310,7 @@ export default function HospitalAdmissionScreen() {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>{c.companion_name}</Text>
-                                      {c.relation && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#64748B" }}>{c.relation}</Text>}
+                                      {c.relation && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#64748B" }}>{c.relation}</Text>}
                                     </View>
                                     <StatusBadge status={c.status} />
                                   </View>
@@ -318,21 +318,21 @@ export default function HospitalAdmissionScreen() {
                                     <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
                                       <TouchableOpacity onPress={() => approveCompanion(adm.id, c.id, "rejected")}
                                         style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center" }}>
-                                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>رفض</Text>
+                                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>رفض</Text>
                                       </TouchableOpacity>
                                       <TouchableOpacity onPress={() => approveCompanion(adm.id, c.id, "approved")}
                                         style={{ flex: 2, paddingVertical: 8, borderRadius: 10, backgroundColor: GREEN, alignItems: "center" }}>
-                                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" }}>اعتماد المرافق</Text>
+                                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>اعتماد المرافق</Text>
                                       </TouchableOpacity>
                                     </View>
                                   )}
                                   {c.status === "approved" && isActive && (
                                     <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-                                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8" }}>بطاقة الخروج والعودة</Text>
+                                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#94A3B8" }}>بطاقة الخروج والعودة</Text>
                                       <TouchableOpacity onPress={() => toggleExitPass(adm.id, c.id, !c.exit_pass_active)}
                                         style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: c.exit_pass_active ? GREEN : "#374151", borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12 }}>
                                         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#fff" }} />
-                                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" }}>{c.exit_pass_active ? "مفعّلة" : "غير مفعّلة"}</Text>
+                                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>{c.exit_pass_active ? "مفعّلة" : "غير مفعّلة"}</Text>
                                       </TouchableOpacity>
                                     </View>
                                   )}
@@ -369,7 +369,7 @@ export default function HospitalAdmissionScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>{req.patient_name || "مريض"}</Text>
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#64748B", marginTop: 2 }}>{req.facility_name || "مستشفى"}{req.ward ? ` — ${req.ward}` : ""}</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#64748B", marginTop: 2 }}>{req.facility_name || "مستشفى"}{req.ward ? ` — ${req.ward}` : ""}</Text>
                       </View>
                       <StatusBadge status={req.status} />
                     </View>
@@ -377,19 +377,19 @@ export default function HospitalAdmissionScreen() {
                       <>
                         {req.diagnosis && (
                           <View style={{ backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 10, marginBottom: 8 }}>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "right" }}>{req.diagnosis}</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#94A3B8", textAlign: "right" }}>{req.diagnosis}</Text>
                           </View>
                         )}
                         <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                           {req.expected_discharge && (
                             <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 10, padding: 8 }}>
-                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "center" }}>صرف متوقع</Text>
-                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff", textAlign: "center", marginTop: 2 }}>{req.expected_discharge}</Text>
+                              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "center" }}>صرف متوقع</Text>
+                              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff", textAlign: "center", marginTop: 2 }}>{req.expected_discharge}</Text>
                             </View>
                           )}
                           <View style={{ flex: 1, backgroundColor: req.exit_pass_active ? GREEN + "20" : "#374151", borderRadius: 10, padding: 8 }}>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#94A3B8", textAlign: "center" }}>بطاقة الخروج</Text>
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: req.exit_pass_active ? GREEN : "#6B7280", textAlign: "center", marginTop: 2 }}>{req.exit_pass_active ? "مفعّلة ✓" : "غير مفعّلة"}</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#94A3B8", textAlign: "center" }}>بطاقة الخروج</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: req.exit_pass_active ? GREEN : "#6B7280", textAlign: "center", marginTop: 2 }}>{req.exit_pass_active ? "مفعّلة ✓" : "غير مفعّلة"}</Text>
                           </View>
                         </View>
                       </>

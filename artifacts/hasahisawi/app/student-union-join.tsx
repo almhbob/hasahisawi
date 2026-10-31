@@ -580,7 +580,7 @@ const s = StyleSheet.create({
     backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: UC2, textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center", marginTop: 2 },
   progressBar: { height: 4, backgroundColor: Colors.borderSubtle },
   progressFill: { height: 4, backgroundColor: UC, borderRadius: 2 },
   sectionHeader: {
@@ -594,7 +594,7 @@ const s = StyleSheet.create({
   },
   sectionNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text, textAlign: "right" },
-  sectionProgress: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  sectionProgress: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   label: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 6, marginTop: 14 },
   input: {
     backgroundColor: Colors.cardBg, borderRadius: 12, padding: 13,

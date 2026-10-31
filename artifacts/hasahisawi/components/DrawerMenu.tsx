@@ -13,7 +13,7 @@ import Animated, {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { useDrawer } from "@/lib/drawer-context";
 import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
@@ -301,7 +301,7 @@ export default function DrawerMenu() {
                 <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
               </View>
             ) : (
-              <View style={[styles.avatar, isGuest && { backgroundColor: Colors.textMuted + "30", borderColor: Colors.textMuted + "40" }]}>
+              <View style={[styles.avatar, isGuest && { backgroundColor: withAlpha(Colors.textMuted, "30"), borderColor: withAlpha(Colors.textMuted, "40") }]}>
                 <Text style={[styles.avatarText, isGuest && { color: Colors.textMuted }]}>{initial}</Text>
               </View>
             )}
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   appTagline: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   },
   userDetailText: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   guestLoginBtn: {
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   },
   guestLoginText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 12,
+    fontSize: 13,
     color: "#fff",
   },
   roleBadge: {
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 10, color: "#fff",
+    fontSize: 11, color: "#fff",
   },
   divider: {
     height: 1,
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   },
   groupLabel: {
     fontFamily: "Cairo_500Medium",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.primaryDeep ?? "#006B4A",
     letterSpacing: 1.0,
     textTransform: "uppercase",
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   },
   drawerBadgeText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 10,
+    fontSize: 11,
     color: "#fff",
     lineHeight: 14,
   },
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   },
   soonChipText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 10,
+    fontSize: 11,
     color: "#946B00",
   },
 });

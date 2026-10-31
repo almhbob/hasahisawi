@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import Colors from "@/constants/colors";
+import Colors, { withAlpha } from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import { uploadLandmarkImage } from "@/lib/firebase/storage";
@@ -315,7 +315,7 @@ function AdminLegalSuggestionsTab({ token, apiBase }: { token: string; apiBase: 
         {["pending","approved","rejected"].map(s => (
           <TouchableOpacity key={s} onPress={() => setFilter(s)}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: filter === s ? STATUS_COLOR[s] : "#FFFFFF0A", alignItems: "center" }}>
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: filter === s ? "#fff" : "#9CA3AF" }}>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: filter === s ? "#fff" : "#9CA3AF" }}>
               {s === "pending" ? "معلقة" : s === "approved" ? "مقبولة" : "مرفوضة"}
             </Text>
           </TouchableOpacity>
@@ -327,7 +327,7 @@ function AdminLegalSuggestionsTab({ token, apiBase }: { token: string; apiBase: 
         <View key={s.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{s.form_title || `استمارة #${s.form_id}`}</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{s.lawyer_name}</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{s.lawyer_name}</Text>
           </View>
           <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 10 }}>{s.suggestion_text}</Text>
           {s.status === "pending" && (
@@ -384,7 +384,7 @@ function AdminPartnersTab({ token, apiBase }: { token: string; apiBase: string }
         {["pending", "approved", "rejected"].map(s => (
           <TouchableOpacity key={s} onPress={() => setFilter(s)}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: filter === s ? SC[s] : "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: filter === s ? SC[s] : "#FFFFFF10" }}>
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: filter === s ? "#fff" : "#9CA3AF" }}>{SL[s]}</Text>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: filter === s ? "#fff" : "#9CA3AF" }}>{SL[s]}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -395,14 +395,14 @@ function AdminPartnersTab({ token, apiBase }: { token: string; apiBase: string }
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>{p.org_name}</Text>
             <View style={{ backgroundColor: (SC[p.status] ?? "#888") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[p.status] ?? "#888" }}>{SL[p.status] ?? p.status}</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[p.status] ?? "#888" }}>{SL[p.status] ?? p.status}</Text>
             </View>
           </View>
-          {p.org_type ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>النوع: {p.org_type}{p.sector ? ` · ${p.sector}` : ""}</Text> : null}
-          {(p.city || p.country) ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>{[p.city, p.country].filter(Boolean).join("، ")}</Text> : null}
-          {p.cooperation_scope ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={2}>{p.cooperation_scope}</Text> : null}
-          {p.contact_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>المتقدم: {p.contact_name}{p.contact_phone ? ` — ${p.contact_phone}` : ""}</Text> : null}
-          {p.created_at ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(p.created_at).toLocaleDateString("ar-EG")}</Text> : null}
+          {p.org_type ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>النوع: {p.org_type}{p.sector ? ` · ${p.sector}` : ""}</Text> : null}
+          {(p.city || p.country) ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>{[p.city, p.country].filter(Boolean).join("، ")}</Text> : null}
+          {p.cooperation_scope ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={2}>{p.cooperation_scope}</Text> : null}
+          {p.contact_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>المتقدم: {p.contact_name}{p.contact_phone ? ` — ${p.contact_phone}` : ""}</Text> : null}
+          {p.created_at ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(p.created_at).toLocaleDateString("ar-EG")}</Text> : null}
           {p.status === "pending" ? (
             <View style={{ flexDirection: "row-reverse", gap: 10 }}>
               <TouchableOpacity onPress={() => review(p.id, "rejected")} style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
@@ -414,7 +414,7 @@ function AdminPartnersTab({ token, apiBase }: { token: string; apiBase: string }
             </View>
           ) : (
             <TouchableOpacity onPress={() => remove(p.id)} style={{ paddingVertical: 8, borderRadius: 10, backgroundColor: "#EF444415", alignItems: "center", borderWidth: 1, borderColor: "#EF444440" }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 12 }}>حذف</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 13 }}>حذف</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -485,7 +485,7 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
           <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
             {["pending", "approved", "rejected"].map(s => (
               <TouchableOpacity key={s} onPress={() => setFilter(s)} style={{ flex: 1, paddingVertical: 7, borderRadius: 10, backgroundColor: filter === s ? SC[s] : "#FFFFFF0A", alignItems: "center" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: filter === s ? "#fff" : "#9CA3AF" }}>{SL[s]}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: filter === s ? "#fff" : "#9CA3AF" }}>{SL[s]}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -496,12 +496,12 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>{a.full_name}</Text>
                 <View style={{ backgroundColor: (SC[a.status] ?? "#888") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[a.status] ?? "#888" }}>{SL[a.status] ?? a.status}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[a.status] ?? "#888" }}>{SL[a.status] ?? a.status}</Text>
                 </View>
               </View>
-              {a.title ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{a.title}</Text> : null}
-              {a.phone ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{a.phone}</Text> : null}
-              {a.specialties ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }} numberOfLines={2}>{a.specialties}</Text> : null}
+              {a.title ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{a.title}</Text> : null}
+              {a.phone ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{a.phone}</Text> : null}
+              {a.specialties ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }} numberOfLines={2}>{a.specialties}</Text> : null}
               {a.status === "pending" && (
                 <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 12 }}>
                   <TouchableOpacity onPress={() => rejectApp(a.id)} style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
@@ -526,23 +526,23 @@ function AdminLawyersTab({ token, apiBase }: { token: string; apiBase: string })
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{l.full_name}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{l.title}{l.plan_name_ar ? ` · ${l.plan_name_ar}` : ""}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{l.title}{l.plan_name_ar ? ` · ${l.plan_name_ar}` : ""}</Text>
                 </View>
                 <View style={{ backgroundColor: l.is_active ? "#10B98120" : "#EF444420", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 8 }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: l.is_active ? "#10B981" : "#EF4444" }}>{l.is_active ? "فعّال" : "موقوف"}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: l.is_active ? "#10B981" : "#EF4444" }}>{l.is_active ? "فعّال" : "موقوف"}</Text>
                 </View>
               </View>
-              {l.phone ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{l.phone}</Text> : null}
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>العقود: {l.contracts_count ?? 0}</Text>
+              {l.phone ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{l.phone}</Text> : null}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>العقود: {l.contracts_count ?? 0}</Text>
               <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
                 <TouchableOpacity onPress={() => toggleLawyer(l.id, "is_active", !l.is_active)} style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: l.is_active ? "#EF444420" : "#10B98120", borderWidth: 1, borderColor: l.is_active ? "#EF4444" : "#10B981" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: l.is_active ? "#EF4444" : "#10B981" }}>{l.is_active ? "إيقاف" : "تفعيل"}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: l.is_active ? "#EF4444" : "#10B981" }}>{l.is_active ? "إيقاف" : "تفعيل"}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => toggleLawyer(l.id, "is_featured", !l.is_featured)} style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: l.is_featured ? "#F59E0B20" : "#FFFFFF0A", borderWidth: 1, borderColor: l.is_featured ? "#F59E0B" : "#FFFFFF10" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: l.is_featured ? "#F59E0B" : "#9CA3AF" }}>{l.is_featured ? "★ مميَّز" : "تمييز"}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: l.is_featured ? "#F59E0B" : "#9CA3AF" }}>{l.is_featured ? "★ مميَّز" : "تمييز"}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => deleteLawyer(l.id)} style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>حذف</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -611,29 +611,29 @@ function AdminDesignersTab({ token, apiBase }: { token: string; apiBase: string 
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>{m.shop_name}</Text>
               <View style={{ backgroundColor: (SC[m.status] ?? "#F472B6") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[m.status] ?? "#F472B6" }}>{SL[m.status] ?? m.status}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[m.status] ?? "#F472B6" }}>{SL[m.status] ?? m.status}</Text>
               </View>
             </View>
-            {m.owner_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>المالك: {m.owner_name}</Text> : null}
-            {m.phone ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{m.phone}</Text> : null}
+            {m.owner_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>المالك: {m.owner_name}</Text> : null}
+            {m.phone ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{m.phone}</Text> : null}
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6, marginBottom: 12 }}>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>منتجات: {m.product_count ?? 0}</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>طلبات: {m.order_count ?? 0}</Text>
-              {m.package_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: m.pkg_color ?? "#F472B6" }}>الباقة: {m.package_name}</Text> : null}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>منتجات: {m.product_count ?? 0}</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>طلبات: {m.order_count ?? 0}</Text>
+              {m.package_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: m.pkg_color ?? "#F472B6" }}>الباقة: {m.package_name}</Text> : null}
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
               {m.status !== "active" && (
                 <TouchableOpacity onPress={() => updateMemberStatus(m.id, "active")} style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#10B98120", borderWidth: 1, borderColor: "#10B981" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981" }}>تفعيل</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#10B981" }}>تفعيل</Text>
                 </TouchableOpacity>
               )}
               {m.status !== "suspended" && (
                 <TouchableOpacity onPress={() => updateMemberStatus(m.id, "suspended")} style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF4444" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>تعليق</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>تعليق</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={() => deleteMember(m.id)} style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>حذف</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -646,19 +646,19 @@ function AdminDesignersTab({ token, apiBase }: { token: string; apiBase: string 
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>{o.shop_name}</Text>
               <View style={{ backgroundColor: (SC[o.status] ?? "#888") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[o.status] ?? "#888" }}>{SL[o.status] ?? o.status}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[o.status] ?? "#888" }}>{SL[o.status] ?? o.status}</Text>
               </View>
             </View>
-            {o.product_title ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>المنتج: {o.product_title}</Text> : null}
-            {o.client_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>العميل: {o.client_name}</Text> : null}
-            {o.created_at ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginTop: 4, marginBottom: 10 }}>{new Date(o.created_at).toLocaleDateString("ar-EG")}</Text> : null}
+            {o.product_title ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>المنتج: {o.product_title}</Text> : null}
+            {o.client_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>العميل: {o.client_name}</Text> : null}
+            {o.created_at ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textDisabled, textAlign: "right", marginTop: 4, marginBottom: 10 }}>{new Date(o.created_at).toLocaleDateString("ar-EG")}</Text> : null}
             {o.status === "pending" && (
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <TouchableOpacity onPress={() => updateOrderStatus(o.id, "cancelled")} style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: "#EF444420", alignItems: "center", borderWidth: 1, borderColor: "#EF4444" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 12 }}>إلغاء</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#EF4444", fontSize: 13 }}>إلغاء</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => updateOrderStatus(o.id, "in_progress")} style={{ flex: 2, paddingVertical: 8, borderRadius: 10, backgroundColor: "#3B82F6", alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 12 }}>بدء التنفيذ</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>بدء التنفيذ</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -709,7 +709,7 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
           <Ionicons name="refresh" size={15} color={Colors.textMuted} />
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>تحديث تلقائي كل 30 ث</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>تحديث تلقائي كل 30 ث</Text>
         </TouchableOpacity>
         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>الإجازات المرضية</Text>
       </View>
@@ -731,16 +731,16 @@ function AdminSickLeavesTab({ token, apiBase }: { token: string; apiBase: string
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{sl.doctor_name || "طبيب"}</Text>
             <View style={{ flexDirection: "row-reverse", gap: 6, alignItems: "center" }}>
               <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#1F5C8A20" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#1F5C8A" }}>{typeLabel(sl.leave_type)}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1F5C8A" }}>{typeLabel(sl.leave_type)}</Text>
               </View>
               <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: statusColor(sl.status || "pending") + "20" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: statusColor(sl.status || "pending") }}>{statusLabel(sl.status || "pending")}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: statusColor(sl.status || "pending") }}>{statusLabel(sl.status || "pending")}</Text>
               </View>
             </View>
           </View>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{sl.start_date} ← {sl.end_date}  ({sl.leave_days} يوم)</Text>
-          {sl.institution_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>المؤسسة: {sl.institution_name}</Text>}
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#4B5563", textAlign: "right", marginTop: 3 }}>رمز التحقق: {sl.barcode_token}</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{sl.start_date} ← {sl.end_date}  ({sl.leave_days} يوم)</Text>
+          {sl.institution_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>المؤسسة: {sl.institution_name}</Text>}
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#4B5563", textAlign: "right", marginTop: 3 }}>رمز التحقق: {sl.barcode_token}</Text>
           {(!sl.status || sl.status === "pending") && (
             <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
               <TouchableOpacity onPress={() => updateStatus(sl.id, "flagged")} disabled={acting === sl.id}
@@ -800,7 +800,7 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
           <Ionicons name="refresh" size={15} color={Colors.textMuted} />
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>تحديث تلقائي كل 30 ث</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>تحديث تلقائي كل 30 ث</Text>
         </TouchableOpacity>
         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>التنويم والمرافق</Text>
       </View>
@@ -819,12 +819,12 @@ function AdminAdmissionsTab({ token, apiBase }: { token: string; apiBase: string
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.patient_display_name || `مريض #${a.patient_user_id}`}</Text>
             <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, backgroundColor: a.status === "active" ? "#10B98120" : "#6B728020" }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: a.status === "active" ? "#10B981" : "#6B7280" }}>{a.status === "active" ? "نشط" : "صُرف"}</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: a.status === "active" ? "#10B981" : "#6B7280" }}>{a.status === "active" ? "نشط" : "صُرف"}</Text>
             </View>
           </View>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{a.facility_name || "مستشفى"}{a.ward ? ` — ${a.ward}` : ""}</Text>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الطبيب: {a.doctor_name || "—"}</Text>
-          {a.diagnosis && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.diagnosis}</Text>}
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>{a.facility_name || "مستشفى"}{a.ward ? ` — ${a.ward}` : ""}</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الطبيب: {a.doctor_name || "—"}</Text>
+          {a.diagnosis && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.diagnosis}</Text>}
           {a.status === "active" && (
             <TouchableOpacity onPress={() => discharge(a.id)} disabled={acting === a.id}
               style={{ marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#3B82F6", alignItems: "center" }}>
@@ -932,7 +932,7 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
               {ORD_FILTERS.map(([k, lbl]) => (
                 <TouchableOpacity key={k} onPress={() => setOrdFilter(k)}
                   style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: ordFilter === k ? PINK : "#FFFFFF0A" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ordFilter === k ? "#fff" : "#9CA3AF" }}>{lbl}{k === "pending_review" && orders.filter(o => o.status === "pending_review").length > 0 && ordFilter !== "pending_review" ? ` (${orders.filter(o => o.status === "pending_review").length})` : ""}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: ordFilter === k ? "#fff" : "#9CA3AF" }}>{lbl}{k === "pending_review" && orders.filter(o => o.status === "pending_review").length > 0 && ordFilter !== "pending_review" ? ` (${orders.filter(o => o.status === "pending_review").length})` : ""}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity onPress={loadOrders} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: "#FFFFFF0A" }}>
@@ -950,21 +950,21 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 8 }}>
                     <View>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{o.order_number}</Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>{new Date(o.created_at).toLocaleDateString("ar-SA")}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 }}>{new Date(o.created_at).toLocaleDateString("ar-SA")}</Text>
                     </View>
                     <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: (STATUS_COLOR[o.status] || "#888") + "20" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[o.status] || "#888" }}>{STATUS_LABEL[o.status] || o.status}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: STATUS_COLOR[o.status] || "#888" }}>{STATUS_LABEL[o.status] || o.status}</Text>
                     </View>
                   </View>
-                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>من: {o.sender_anonymous ? "ممهول" : o.sender_name}  →  إلى: {o.recipient_name}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الخدمة: {o.service_type} · الهدية: {o.gift_type}</Text>
-                  {o.message_text && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }}>"{o.message_text}"</Text>}
-                  {o.delivery_location === "outside_city" && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: "#F97316", textAlign: "right", marginTop: 2 }}>خارج المدينة</Text>}
-                  {o.estimated_cost > 0 && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#D4AF37", textAlign: "right", marginTop: 3 }}>التكلفة: {Number(o.estimated_cost).toLocaleString()} SDG</Text>}
+                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>من: {o.sender_anonymous ? "ممهول" : o.sender_name}  →  إلى: {o.recipient_name}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الخدمة: {o.service_type} · الهدية: {o.gift_type}</Text>
+                  {o.message_text && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }}>"{o.message_text}"</Text>}
+                  {o.delivery_location === "outside_city" && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#F97316", textAlign: "right", marginTop: 2 }}>خارج المدينة</Text>}
+                  {o.estimated_cost > 0 && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#D4AF37", textAlign: "right", marginTop: 3 }}>التكلفة: {Number(o.estimated_cost).toLocaleString()} SDG</Text>}
                   {o.sender_phone && (
                     <TouchableOpacity onPress={() => Linking.openURL(`tel:${o.sender_phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 6 }}>
                       <Ionicons name="call-outline" size={13} color="#22C55E" />
-                      <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{o.sender_phone}</Text>
+                      <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: "#22C55E" }}>{o.sender_phone}</Text>
                     </TouchableOpacity>
                   )}
                   {/* Actions */}
@@ -1006,18 +1006,18 @@ function AdminZawajilTab({ token, apiBase }: { token: string; apiBase: string })
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.full_name}</Text>
                 <View style={{ flexDirection: "row-reverse", gap: 5, alignItems: "center" }}>
                   <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: PINK + "20" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: PINK }}>{roleLabel(a.role)}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: PINK }}>{roleLabel(a.role)}</Text>
                   </View>
                   <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: a.status === "approved" ? "#10B98120" : a.status === "rejected" ? "#EF444420" : "#F59E0B20" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>{a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>{a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}</Text>
                   </View>
                 </View>
               </View>
               <TouchableOpacity onPress={() => Linking.openURL(`tel:${a.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5 }}>
-                <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{a.phone}</Text>
+                <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: "#22C55E" }}>{a.phone}</Text>
               </TouchableOpacity>
-              {a.neighborhood && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الحي: {a.neighborhood}</Text>}
-              {a.experience && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.experience}</Text>}
+              {a.neighborhood && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>الحي: {a.neighborhood}</Text>}
+              {a.experience && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 4 }}>{a.experience}</Text>}
               {a.status === "pending" && (
                 <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
                   <TouchableOpacity onPress={() => updateAppStatus(a.id, "rejected")} disabled={acting === a.id}
@@ -1175,7 +1175,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
               </Text>
             </View>
             <View style={{ backgroundColor: "#0B1A12", borderRadius: 12, padding: 16, gap: 10 }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>بيانات الدخول للبوابة</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>بيانات الدخول للبوابة</Text>
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>اسم المستخدم</Text>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: UC, letterSpacing: 1 }}>{grantResult?.username}</Text>
@@ -1185,7 +1185,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F59E0B", letterSpacing: 1 }}>{grantResult?.temp_password}</Text>
               </View>
             </View>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
               احتفظ بهذه البيانات وأرسلها للعضو — لا يمكن استعادة كلمة المرور لاحقاً
             </Text>
             <TouchableOpacity onPress={() => setGrantResult(null)}
@@ -1217,7 +1217,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
                 <View style={{ alignItems: "center", gap: 4 }}>
                   <Ionicons name="key" size={32} color={UC} />
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "center" }}>تعديل كلمة المرور</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>{resetPwdApp?.full_name}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>{resetPwdApp?.full_name}</Text>
                 </View>
                 <TextInput
                   value={resetPwdNew}
@@ -1236,7 +1236,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
                   style={{ backgroundColor: "#0B1A12", color: "#fff", borderRadius: 10, padding: 12, fontFamily: "Cairo_400Regular", textAlign: "right", borderWidth: 1, borderColor: resetPwdConfirm && resetPwdNew !== resetPwdConfirm ? "#EF4444" : UC + "40" }}
                 />
                 {resetPwdConfirm.length > 0 && resetPwdNew !== resetPwdConfirm && (
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#EF4444", textAlign: "center" }}>كلمتا المرور غير متطابقتين</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", textAlign: "center" }}>كلمتا المرور غير متطابقتين</Text>
                 )}
                 <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                   <TouchableOpacity onPress={() => { setResetPwdApp(null); setResetPwdNew(""); setResetPwdConfirm(""); }}
@@ -1259,20 +1259,20 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
           <TouchableOpacity onPress={load} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
             <Ionicons name="refresh" size={14} color={Colors.textMuted} />
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
               {lastUpdated.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => exportToCSV(apps.map(a => ({ الاسم: a.full_name||a.applicant_name||"", الهاتف: a.phone||"", المؤسسة: a.institution||"", التخصص: a.major||"", الحالة: a.status||"", التاريخ: a.created_at ? new Date(a.created_at).toLocaleDateString("ar-SA") : "" })), "طلبات_اتحاد_الطلاب.csv")}
             style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
             <Ionicons name="download-outline" size={13} color={Colors.textMuted} />
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted }}>تصدير CSV</Text>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted }}>تصدير CSV</Text>
           </TouchableOpacity>
         </View>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
           {pendingCount > 0 && (
             <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "#EF444420" }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#EF4444" }}>{pendingCount} معلق</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#EF4444" }}>{pendingCount} معلق</Text>
             </View>
           )}
           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>إتحاد الطلاب</Text>
@@ -1282,7 +1282,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
         {[["pending","معلق"],["approved","مقبول"],["rejected","مرفوض"],["all","الكل"]].map(([k, lbl]) => (
           <TouchableOpacity key={k} onPress={() => setFilter(k)}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: filter === k ? UC : "#FFFFFF0A", alignItems: "center" }}>
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: filter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: filter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -1293,18 +1293,18 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{a.full_name || a.applicant_name || "مقدّم طلب"}</Text>
             <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: a.status === "approved" ? "#10B98120" : a.status === "rejected" ? "#EF444420" : "#F59E0B20" }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: a.status === "approved" ? "#10B981" : a.status === "rejected" ? "#EF4444" : "#F59E0B" }}>
                 {a.status === "approved" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "معلق"}
               </Text>
             </View>
           </View>
           {a.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${a.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginBottom: 4 }}>
-            <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{a.phone}</Text>
+            <Ionicons name="call-outline" size={13} color="#22C55E" /><Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: "#22C55E" }}>{a.phone}</Text>
           </TouchableOpacity>}
-          {a.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>المؤسسة: {a.institution}</Text>}
-          {a.major && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {a.major}</Text>}
-          {a.motivation && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }} numberOfLines={2}>"{a.motivation}"</Text>}
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
+          {a.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>المؤسسة: {a.institution}</Text>}
+          {a.major && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {a.major}</Text>}
+          {a.motivation && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 4, fontStyle: "italic" }} numberOfLines={2}>"{a.motivation}"</Text>}
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
 
           {/* أزرار المعلق */}
           {a.status === "pending" && (
@@ -1328,7 +1328,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
                 onPress={() => { setResetPwdApp({ id: a.id, full_name: a.full_name || a.applicant_name || "المدير" }); setResetPwdNew(""); setResetPwdConfirm(""); setResetPwdDone(null); }}
                 style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#0B1A12", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5, borderWidth: 1, borderColor: UC + "60" }}>
                 <Ionicons name="key-outline" size={14} color={UC} />
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: UC }}>تعديل كلمة المرور</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: UC }}>تعديل كلمة المرور</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => grantManager(a.id)}
@@ -1337,7 +1337,7 @@ function AdminStudentUnionTab({ token, apiBase }: { token: string; apiBase: stri
                 {granting === a.id ? <ActivityIndicator size="small" color="#fff" /> : (
                   <>
                     <Ionicons name="shield-checkmark-outline" size={14} color="#fff" />
-                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" }}>منح صلاحيات الإدارة</Text>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>منح صلاحيات الإدارة</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1473,10 +1473,10 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
           <TouchableOpacity key={k} onPress={() => setSubTab(k as any)}
             style={{ flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: subTab === k ? UC : "transparent" }}>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
-              <Text style={{ fontFamily: subTab === k ? "Cairo_700Bold" : "Cairo_500Medium", fontSize: 12, color: subTab === k ? UC : Colors.textMuted }}>{lbl}</Text>
+              <Text style={{ fontFamily: subTab === k ? "Cairo_700Bold" : "Cairo_500Medium", fontSize: 13, color: subTab === k ? UC : Colors.textMuted }}>{lbl}</Text>
               {k === "members" && pendingCount > 0 && (
                 <View style={{ backgroundColor: "#EF4444", borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" }}>{pendingCount}</Text>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" }}>{pendingCount}</Text>
                 </View>
               )}
             </View>
@@ -1488,7 +1488,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
       {subTab === "members" && (
         <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>
               آخر تحديث: {lastRefresh.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
             </Text>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text }}>طلبات الانضمام</Text>
@@ -1500,7 +1500,7 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
               {[["pending","معلق"], ["approved","مقبول"], ["rejected","مرفوض"], ["all","الكل"]].map(([k, lbl]) => (
                 <TouchableOpacity key={k} onPress={() => setMemberFilter(k)}
                   style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: memberFilter === k ? UC : "#FFFFFF0A" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: memberFilter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: memberFilter === k ? "#fff" : "#9CA3AF" }}>{lbl}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1510,11 +1510,11 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: "row-reverse", gap: 6 }}>
               <TouchableOpacity onPress={() => setUnionFilter("all")} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: unionFilter === "all" ? UC + "40" : "#FFFFFF0A" }}>
-                <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>كل النقابات</Text>
+                <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted }}>كل النقابات</Text>
               </TouchableOpacity>
               {unions.map(u => (
                 <TouchableOpacity key={u.id} onPress={() => setUnionFilter(u.id)} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: unionFilter === u.id ? UC + "40" : "#FFFFFF0A" }}>
-                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>{u.short_name || u.name}</Text>
+                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted }}>{u.short_name || u.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1529,22 +1529,22 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
                 <View style={{ flexDirection: "row-reverse", gap: 5 }}>
                   {m.membership_no && (
                     <View style={{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, backgroundColor: UC + "20" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: UC }}>#{m.membership_no}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: UC }}>#{m.membership_no}</Text>
                     </View>
                   )}
                   <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: statusColor(m.status) + "20" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: statusColor(m.status) }}>{statusLabel(m.status)}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: statusColor(m.status) }}>{statusLabel(m.status)}</Text>
                   </View>
                 </View>
               </View>
-              {m.union_name && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: UC, textAlign: "right" }}>النقابة: {m.union_name}</Text>}
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {m.specialty || m.job_title || "—"}</Text>
+              {m.union_name && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: UC, textAlign: "right" }}>النقابة: {m.union_name}</Text>}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>التخصص: {m.specialty || m.job_title || "—"}</Text>
               {m.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${m.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 4 }}>
                 <Ionicons name="call-outline" size={13} color="#22C55E" />
-                <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{m.phone}</Text>
+                <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 13, color: "#22C55E" }}>{m.phone}</Text>
               </TouchableOpacity>}
-              {m.employer && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>جهة العمل: {m.employer}</Text>}
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>
+              {m.employer && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>جهة العمل: {m.employer}</Text>}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 3 }}>
                 {new Date(m.applied_at).toLocaleDateString("ar-SA")}
               </Text>
               {m.status === "pending" && (
@@ -1582,15 +1582,15 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{u.name}</Text>
                   <TouchableOpacity onPress={() => toggleUnionActive(u)} disabled={acting === u.id}
                     style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: u.is_active ? "#10B98120" : "#6B728020", marginRight: 8 }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: u.is_active ? "#10B981" : "#6B7280" }}>{u.is_active ? "نشطة" : "معطّلة"}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: u.is_active ? "#10B981" : "#6B7280" }}>{u.is_active ? "نشطة" : "معطّلة"}</Text>
                   </TouchableOpacity>
                 </View>
-                {u.field && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: UC, textAlign: "right" }}>المجال: {u.field}</Text>}
-                {u.address && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{u.address}</Text>}
+                {u.field && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: UC, textAlign: "right" }}>المجال: {u.field}</Text>}
+                {u.address && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{u.address}</Text>}
                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 8 }}>
-                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted }}>{u.members_total || 0} عضو</Text>
+                  <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted }}>{u.members_total || 0} عضو</Text>
                   {u.phone && <TouchableOpacity onPress={() => Linking.openURL(`tel:${u.phone}`)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
-                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: "#22C55E" }}>{u.phone}</Text>
+                    <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "#22C55E" }}>{u.phone}</Text>
                     <Ionicons name="call-outline" size={13} color="#22C55E" />
                   </TouchableOpacity>}
                 </View>
@@ -1622,9 +1622,9 @@ function AdminUnionsTab({ token, apiBase }: { token: string; apiBase: string }) 
                     <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
-                {a.union_name && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 11, color: UC, textAlign: "right", marginBottom: 4 }}>{a.union_name}</Text>}
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>{a.body}</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 6 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
+                {a.union_name && <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: UC, textAlign: "right", marginBottom: 4 }}>{a.union_name}</Text>}
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>{a.body}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 6 }}>{new Date(a.created_at).toLocaleDateString("ar-SA")}</Text>
               </View>
             ))}
           </ScrollView>
@@ -2034,7 +2034,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>{grantResult2?.full_name}</Text>
             </View>
             <View style={{ backgroundColor: "#0B1A12", borderRadius: 12, padding: 16, gap: 10 }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>بيانات دخول بوابة إدارة الاتحاد</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>بيانات دخول بوابة إدارة الاتحاد</Text>
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>اسم المستخدم</Text>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1F5C8A" }}>{grantResult2?.username}</Text>
@@ -2044,7 +2044,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F59E0B" }}>{grantResult2?.temp_password}</Text>
               </View>
             </View>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
               أرسل هذه البيانات للعضو — لا يمكن استعادة كلمة المرور لاحقاً
             </Text>
             <TouchableOpacity onPress={() => setGrantResult2(null)}
@@ -2064,9 +2064,9 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
           }}
           style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
           <Ionicons name="download-outline" size={13} color={Colors.textMuted} />
-          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted }}>تصدير CSV</Text>
+          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted }}>تصدير CSV</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" }}>{items.length} سجل</Text>
+        <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "left" }}>{items.length} سجل</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44, flexGrow: 0 }}
         contentContainerStyle={{ paddingHorizontal: 12, gap: 8, flexDirection: "row-reverse", alignItems: "center" }}>
@@ -2075,7 +2075,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
             style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
               backgroundColor: sub === t.key ? Colors.primary : "#FFFFFF0A",
               borderWidth: 1, borderColor: sub === t.key ? Colors.primary : "#FFFFFF15" }}>
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12,
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13,
               color: sub === t.key ? "#fff" : "#9CA3AF" }}>{t.label}</Text>
           </TouchableOpacity>
         ))}
@@ -2099,19 +2099,19 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                   {getTitle(item)}
                 </Text>
                 <View style={{ backgroundColor: (SC[st] ?? "#888") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[st] ?? "#888" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[st] ?? "#888" }}>
                     {SL[st] ?? st}
                   </Text>
                 </View>
               </View>
-              {!!getSub(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{getSub(item)}</Text>}
+              {!!getSub(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{getSub(item)}</Text>}
               {sub === "institution" && !!item.applicant_name && (
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>
                   {"المندوب: "}{item.applicant_name}
                 </Text>
               )}
-              {!!getDesc(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={3}>{getDesc(item)}</Text>}
-              {item.created_at && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>}
+              {!!getDesc(item) && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 8 }} numberOfLines={3}>{getDesc(item)}</Text>}
+              {item.created_at && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>}
               {/* أزرار قبول/رفض للمعلق */}
               {sub !== "women" && isPending && (
                 <View style={{ flexDirection: "row-reverse", gap: 10 }}>
@@ -2167,7 +2167,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                 style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
                   backgroundColor: taView === v ? "#1D4ED8" : "#FFFFFF0A",
                   borderWidth: 1, borderColor: taView === v ? "#3B82F6" : "#FFFFFF15" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: taView === v ? "#fff" : "#9CA3AF" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: taView === v ? "#fff" : "#9CA3AF" }}>
                   {v === "apps" ? "الطلبات" : "✉️ الدعوات"}
                 </Text>
               </TouchableOpacity>
@@ -2197,12 +2197,12 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
                   <View style={{ flexDirection: "row", gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم الوكالة *</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم الوكالة *</Text>
                       <TextInput value={invAgencyName} onChangeText={setInvAgencyName} placeholder="وكالة عاشق طيبة" placeholderTextColor={Colors.textMuted}
                         style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم المسؤول</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اسم المسؤول</Text>
                       <TextInput value={invContactName} onChangeText={setInvContactName} placeholder="الاسم الكامل" placeholderTextColor={Colors.textMuted}
                         style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
                     </View>
@@ -2210,12 +2210,12 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
                   <View style={{ flexDirection: "row", gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الهاتف</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الهاتف</Text>
                       <TextInput value={invPhone} onChangeText={setInvPhone} placeholder="+249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
                         style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>واتساب</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>واتساب</Text>
                       <TextInput value={invWhatsapp} onChangeText={setInvWhatsapp} placeholder="+966..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
                         style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
                     </View>
@@ -2223,19 +2223,19 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
                   <View style={{ flexDirection: "row", gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>البريد الإلكتروني</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>البريد الإلكتروني</Text>
                       <TextInput value={invEmail} onChangeText={setInvEmail} placeholder="info@agency.com" placeholderTextColor={Colors.textMuted} keyboardType="email-address" autoCapitalize="none"
                         style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>المدينة</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>المدينة</Text>
                       <TextInput value={invCity} onChangeText={setInvCity} placeholder="الحصاحيصا" placeholderTextColor={Colors.textMuted}
                         style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
                     </View>
                   </View>
 
                   <View>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>نوع الوكالة</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>نوع الوكالة</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, flexDirection: "row-reverse" }}>
                       {(["local","international","hajj_umrah","tourism","corporate"] as const).map(t => {
                         const EMOJI: Record<string,string> = { local:"🇸🇩", international:"✈️", hajj_umrah:"🕋", tourism:"🌍", corporate:"💼" };
@@ -2245,7 +2245,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                             style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
                               backgroundColor: invAgencyType === t ? "#1D4ED820" : "#FFFFFF08",
                               borderColor: invAgencyType === t ? "#3B82F6" : "#FFFFFF15" }}>
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: invAgencyType === t ? "#60A5FA" : Colors.textMuted }}>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: invAgencyType === t ? "#60A5FA" : Colors.textMuted }}>
                               {EMOJI[t]} {LABEL[t]}
                             </Text>
                           </TouchableOpacity>
@@ -2255,7 +2255,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                   </View>
 
                   <View>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>ملاحظة للوكالة</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>ملاحظة للوكالة</Text>
                     <TextInput value={invNote} onChangeText={setInvNote} placeholder="نص الدعوة الذي سيراه المدعو..." placeholderTextColor={Colors.textMuted} multiline
                       style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right", minHeight: 60, textAlignVertical: "top" }} />
                   </View>
@@ -2274,7 +2274,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
 
               {/* قائمة الدعوات */}
               <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 8, gap: 8 }}>
-                <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>
+                <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
                   {invitations.length} دعوة مرسلة
                 </Text>
               </View>
@@ -2294,18 +2294,18 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                     <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{inv.agency_name}</Text>
                       <View style={{ backgroundColor: color + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color }}>{INV_STATUS_LABEL[st] || st}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color }}>{INV_STATUS_LABEL[st] || st}</Text>
                       </View>
                     </View>
-                    {inv.contact_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {inv.contact_name}</Text>}
-                    {inv.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {inv.phone}</Text>}
-                    {inv.city && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {inv.city}</Text>}
-                    {inv.note && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 6, lineHeight: 18 }} numberOfLines={2}>{inv.note}</Text>}
+                    {inv.contact_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {inv.contact_name}</Text>}
+                    {inv.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {inv.phone}</Text>}
+                    {inv.city && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {inv.city}</Text>}
+                    {inv.note && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6, lineHeight: 18 }} numberOfLines={2}>{inv.note}</Text>}
                     <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>
                         أُنشئت: {new Date(inv.created_at).toLocaleDateString("ar-EG")}
                       </Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>
                         تنتهي: {new Date(inv.expires_at).toLocaleDateString("ar-EG")}
                       </Text>
                     </View>
@@ -2313,14 +2313,14 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                       <TouchableOpacity onPress={() => copyInviteLink(inv)}
                         style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#1D4ED820", borderWidth: 1, borderColor: "#3B82F650", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5 }}>
                         <Ionicons name="copy-outline" size={14} color="#60A5FA" />
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#60A5FA" }}>نسخ الرابط</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#60A5FA" }}>نسخ الرابط</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => deleteInvitation(inv.id)} disabled={invActing === inv.id}
                         style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444450", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5 }}>
                         {invActing === inv.id ? <ActivityIndicator size="small" color="#EF4444" /> : (
                           <>
                             <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>حذف</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -2343,7 +2343,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                 style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
                   backgroundColor: mgrView === v ? "#059669" : "#FFFFFF0A",
                   borderWidth: 1, borderColor: mgrView === v ? "#059669" : "#FFFFFF15" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: mgrView === v ? "#fff" : "#9CA3AF" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: mgrView === v ? "#fff" : "#9CA3AF" }}>
                   {v === "apps" ? "الطلبات" : "المدراء"}
                 </Text>
               </TouchableOpacity>
@@ -2357,13 +2357,13 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                 <TouchableOpacity onPress={() => exportToCSV(managers.map(m => ({ الاسم: m.full_name, اسم_المستخدم: m.username, الهاتف: m.phone||"", البريد: m.email||"", الحالة: m.is_active ? "نشط" : "معلق", تاريخ_الإنشاء: m.created_at ? new Date(m.created_at).toLocaleDateString("ar-SA") : "" })), "مدراء_الاتحادات.csv")}
                   style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
                   <Ionicons name="download-outline" size={13} color={Colors.textMuted} />
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted }}>تصدير CSV</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted }}>تصدير CSV</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={loadManagers}
                   style={{ paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF08", borderWidth: 1, borderColor: "#FFFFFF15" }}>
                   <Ionicons name="refresh" size={13} color={Colors.textMuted} />
                 </TouchableOpacity>
-                <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "left" }}>{managers.length} مدير</Text>
+                <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "left" }}>{managers.length} مدير</Text>
               </View>
 
               {mgrLoading ? <ActivityIndicator color="#059669" style={{ marginTop: 30 }} /> :
@@ -2376,18 +2376,18 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text }}>{m.full_name}</Text>
                     <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
                       backgroundColor: m.is_active ? "#05966920" : "#EF444420" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10,
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11,
                         color: m.is_active ? "#10B981" : "#EF4444" }}>
                         {m.is_active ? "● نشط" : "◌ معلق"}
                       </Text>
                     </View>
                   </View>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>
                     اسم المستخدم: <Text style={{ color: Colors.text, fontFamily: "Cairo_600SemiBold" }}>{m.username}</Text>
                   </Text>
-                  {m.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>📞 {m.phone}</Text>}
-                  {m.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{m.institution}</Text>}
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>
+                  {m.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>📞 {m.phone}</Text>}
+                  {m.institution && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>{m.institution}</Text>}
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 4 }}>
                     {new Date(m.created_at).toLocaleDateString("ar-SA")}
                   </Text>
 
@@ -2402,7 +2402,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                       {mgrActing === m.id ? <ActivityIndicator size="small" color={m.is_active ? "#F59E0B" : "#10B981"} /> : (
                         <>
                           <Ionicons name={m.is_active ? "pause-circle-outline" : "play-circle-outline"} size={15} color={m.is_active ? "#F59E0B" : "#10B981"} />
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: m.is_active ? "#F59E0B" : "#10B981" }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: m.is_active ? "#F59E0B" : "#10B981" }}>
                             {m.is_active ? "تعليق النشاط" : "إعادة التفعيل"}
                           </Text>
                         </>
@@ -2415,7 +2415,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                       style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
                         backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF444450" }}>
                       <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444" }}>حذف</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -2574,7 +2574,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
               { label: "إيموجي", val: newProdEmoji, set: setNewProdEmoji, ph: "🛍️" },
             ].map(f => (
               <View key={f.label}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>{f.label}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 4 }}>{f.label}</Text>
                 <TextInput
                   style={{ backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14, paddingHorizontal: 12, paddingVertical: 10, textAlign: "right" }}
                   value={f.val} onChangeText={f.set} placeholder={f.ph} placeholderTextColor={Colors.textMuted} keyboardType={(f as any).kb ?? "default"}
@@ -2607,8 +2607,8 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
               backgroundColor: subView === k ? "#3B78A6" : Colors.bg,
               borderWidth: 1, borderColor: subView === k ? "#3B78A6" : Colors.divider }}
           >
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: subView === k ? "#fff" : Colors.textMuted }}>{label}</Text>
-            {cnt > 0 && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: subView === k ? "#ffffffCC" : Colors.textSubtle }}>{cnt}</Text>}
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: subView === k ? "#fff" : Colors.textMuted }}>{label}</Text>
+            {cnt > 0 && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: subView === k ? "#ffffffCC" : Colors.textSubtle }}>{cnt}</Text>}
           </TouchableOpacity>
         ))}
       </View>
@@ -2627,24 +2627,24 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>{store.name}</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{store.owner_name} · {store.phone}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{store.owner_name} · {store.phone}</Text>
               </View>
               <View style={{ backgroundColor: (STATUS_COLOR[store.status] ?? "#6B7280") + "25", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[store.status] ?? "#6B7280" }}>{STATUS_AR[store.status] ?? store.status}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: STATUS_COLOR[store.status] ?? "#6B7280" }}>{STATUS_AR[store.status] ?? store.status}</Text>
               </View>
             </View>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }} numberOfLines={2}>{store.description || "—"}</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }} numberOfLines={2}>{store.description || "—"}</Text>
 
             {/* أزرار القبول/الرفض */}
             {store.status === "pending" && (
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <TouchableOpacity disabled={acting === store.id} onPress={() => updateStoreStatus(store.id, "approved")}
                   style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10B98120", borderWidth: 1, borderColor: "#10B981", alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>قبول</Text>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#10B981" }}>قبول</Text>
                 </TouchableOpacity>
                 <TouchableOpacity disabled={acting === store.id} onPress={() => updateStoreStatus(store.id, "rejected")}
                   style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#EF444420", borderWidth: 1, borderColor: "#EF4444", alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#EF4444" }}>رفض</Text>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#EF4444" }}>رفض</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -2653,7 +2653,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
               <TouchableOpacity onPress={() => toggleFeatured(store.id, !store.is_featured)}
                 style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: store.is_featured ? "#F0A50020" : Colors.bg, borderWidth: 1, borderColor: store.is_featured ? "#F0A500" : Colors.divider }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: store.is_featured ? "#F0A500" : Colors.textMuted }}>{store.is_featured ? "⭐ مميز" : "☆ جعله مميزاً"}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: store.is_featured ? "#F0A500" : Colors.textMuted }}>{store.is_featured ? "⭐ مميز" : "☆ جعله مميزاً"}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -2661,15 +2661,15 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
                   if (expandedStore !== store.id && !products[store.id]) loadProducts(store.id);
                 }}
                 style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#3B78A610", borderWidth: 1, borderColor: "#3B78A640" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#3B78A6" }}>{expandedStore === store.id ? "إخفاء المنتجات" : `المنتجات (${store.product_count})`}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#3B78A6" }}>{expandedStore === store.id ? "إخفاء المنتجات" : `المنتجات (${store.product_count})`}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setAddProductStore(store); setNewProdName(""); setNewProdPrice(""); setNewProdEmoji("🛍️"); setNewProdDesc(""); }}
                 style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#10B98110", borderWidth: 1, borderColor: "#10B98140" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>+ منتج</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981" }}>+ منتج</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => deleteStore(store.id, store.name)}
                 style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "#EF444410", borderWidth: 1, borderColor: "#EF444430" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#EF4444" }}>حذف</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444" }}>حذف</Text>
               </TouchableOpacity>
             </View>
 
@@ -2677,13 +2677,13 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             {expandedStore === store.id && (
               <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 10 }}>
                 {(products[store.id] ?? []).length === 0 ? (
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>لا توجد منتجات</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>لا توجد منتجات</Text>
                 ) : (products[store.id] ?? []).map(prod => (
                   <View key={prod.id} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 8, backgroundColor: Colors.bg, borderRadius: 8 }}>
                     <Text style={{ fontSize: 20 }}>{prod.emoji}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{prod.name}</Text>
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3B78A6" }}>{prod.price.toLocaleString("en-US")} ج</Text>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3B78A6" }}>{prod.price.toLocaleString("en-US")} ج</Text>
                     </View>
                     <TouchableOpacity onPress={() => deleteProduct(store.id, prod.id)}>
                       <Ionicons name="trash-outline" size={16} color="#EF4444" />
@@ -2701,14 +2701,14 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>طلب #{order.id}</Text>
               <View style={{ backgroundColor: (STATUS_COLOR[order.status] ?? "#6B7280") + "25", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[order.status] ?? "#6B7280" }}>{STATUS_AR[order.status] ?? order.status}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: STATUS_COLOR[order.status] ?? "#6B7280" }}>{STATUS_AR[order.status] ?? order.status}</Text>
               </View>
             </View>
             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>🏪 {order.store_name}</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>👤 {order.customer_name} · {order.customer_phone}</Text>
-            {order.customer_address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>📍 {order.customer_address}</Text> : null}
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>👤 {order.customer_name} · {order.customer_phone}</Text>
+            {order.customer_address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>📍 {order.customer_address}</Text> : null}
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3B78A6", textAlign: "right" }}>الإجمالي: {Number(order.total).toLocaleString("en-US")} ج</Text>
-            {order.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>📝 {order.notes}</Text> : null}
+            {order.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>📝 {order.notes}</Text> : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {["pending","confirmed","preparing","delivered","cancelled"].map(s => (
                 <TouchableOpacity
@@ -2717,7 +2717,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
                   onPress={() => updateOrderStatus(order.id, s)}
                   style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: order.status === s ? (STATUS_COLOR[s] ?? "#6B7280") : (STATUS_COLOR[s] ?? "#6B7280") + "15", borderWidth: 1, borderColor: (STATUS_COLOR[s] ?? "#6B7280") + (order.status === s ? "FF" : "60") }}
                 >
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: order.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: order.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -2730,13 +2730,13 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary }}>طلب #{req.id}</Text>
               <View style={{ backgroundColor: (STATUS_COLOR[req.status] ?? "#6B7280") + "25", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: STATUS_COLOR[req.status] ?? "#6B7280" }}>{STATUS_AR[req.status] ?? req.status}</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: STATUS_COLOR[req.status] ?? "#6B7280" }}>{STATUS_AR[req.status] ?? req.status}</Text>
               </View>
             </View>
-            {req.store_name && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#14B8A6", textAlign: "right" }}>🏪 {req.store_name}</Text>}
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>👤 {req.customer_name} · {req.customer_phone}</Text>
+            {req.store_name && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#14B8A6", textAlign: "right" }}>🏪 {req.store_name}</Text>}
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>👤 {req.customer_name} · {req.customer_phone}</Text>
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 }}>📋 {req.product_description}</Text>
-            {req.budget ? <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>💰 الميزانية: {req.budget}</Text> : null}
+            {req.budget ? <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" }}>💰 الميزانية: {req.budget}</Text> : null}
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
               {["seen","replied","closed"].map(s => (
                 <TouchableOpacity
@@ -2745,7 +2745,7 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
                   onPress={() => updateRequestStatus(req.id, s)}
                   style={{ flex: 1, paddingVertical: 7, borderRadius: 8, backgroundColor: req.status === s ? (STATUS_COLOR[s] ?? "#6B7280") : (STATUS_COLOR[s] ?? "#6B7280") + "15", alignItems: "center", borderWidth: 1, borderColor: (STATUS_COLOR[s] ?? "#6B7280") + (req.status === s ? "FF" : "60") }}
                 >
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: req.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: req.status === s ? "#fff" : (STATUS_COLOR[s] ?? "#6B7280") }}>{STATUS_AR[s]}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -4345,7 +4345,7 @@ export default function AdminDashboard() {
         <TouchableOpacity onPress={() => openUserStats(u)} activeOpacity={0.85} style={{ position: "absolute", top: 10, left: 12, zIndex: 5 }}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: Colors.primary + "30" }}>
             <Ionicons name="bar-chart-outline" size={12} color={Colors.primary} />
-            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary }}>إحصائيات</Text>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary }}>إحصائيات</Text>
           </View>
         </TouchableOpacity>
         {/* Top row */}
@@ -4573,7 +4573,7 @@ export default function AdminDashboard() {
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary }}>مزامنة حسابات المستخدمين</Text>
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: statusColors[status] ?? "#6B7280" }} />
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: statusColors[status] ?? "#6B7280" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: statusColors[status] ?? "#6B7280" }}>
                           {statusLabels[status] ?? status}
                         </Text>
                       </View>
@@ -4583,16 +4583,16 @@ export default function AdminDashboard() {
                     <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
                       <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#EF444430" }}>
                         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F97316" }}>{pgTotal ?? "—"}</Text>
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>قاعدة البيانات</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 }}>قاعدة البيانات</Text>
                       </View>
                       <View style={{ flex: 1, backgroundColor: "#FFFFFF08", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#4285F430" }}>
                         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#4285F4" }}>{fbTotal !== null ? fbTotal : "—"}</Text>
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>Firebase</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 }}>Firebase</Text>
                       </View>
                       {missing !== null && missing > 0 && (
                         <View style={{ flex: 1, backgroundColor: "#F59E0B10", borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#F59E0B40" }}>
                           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F59E0B" }}>{missing}</Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 }}>غير مزامَن</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 }}>غير مزامَن</Text>
                         </View>
                       )}
                     </View>
@@ -4600,7 +4600,7 @@ export default function AdminDashboard() {
                     {/* Result */}
                     {fbSyncResult && !fbSyncResult.error && (
                       <View style={{ backgroundColor: "#10B98115", borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: "#10B98130" }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981", textAlign: "right" }}>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#10B981", textAlign: "right" }}>
                           ✓ تمت المزامنة — Firebase: {fbSyncResult.firebase_total} · أُضيف: {fbSyncResult.created} · حُدِّث: {fbSyncResult.updated}
                           {fbSyncResult.errors > 0 ? ` · أخطاء: ${fbSyncResult.errors}` : ""}
                         </Text>
@@ -4608,16 +4608,16 @@ export default function AdminDashboard() {
                     )}
                     {fbSyncResult?.error && (
                       <View style={{ backgroundColor: "#EF444415", borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: "#EF444430" }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444", textAlign: "right" }}>{fbSyncResult.error}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444", textAlign: "right" }}>{fbSyncResult.error}</Text>
                       </View>
                     )}
                     {!configured && fbHealth && (
                       <View style={{ marginBottom: 10 }}>
                         <View style={{ backgroundColor: "#F59E0B10", borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "#F59E0B30" }}>
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F59E0B", textAlign: "right", marginBottom: 4 }}>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F59E0B", textAlign: "right", marginBottom: 4 }}>
                             ⚠ Firebase Admin SDK غير مُهيَّأ — المستخدمون لن يظهروا
                           </Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#9CA3AF", textAlign: "right" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#9CA3AF", textAlign: "right" }}>
                             لاسترجاع المستخدمين: افتح Firebase Console ← Project Settings ← Service Accounts ← Generate new private key ← انسخ المحتوى والصقه أدناه
                           </Text>
                         </View>
@@ -4632,7 +4632,7 @@ export default function AdminDashboard() {
                         </TouchableOpacity>
                         {showFbSaForm && (
                           <View style={{ backgroundColor: "#FFFFFF05", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#4285F430" }}>
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 6 }}>
                               الصق محتوى ملف serviceAccountKey.json هنا:
                             </Text>
                             <TextInput
@@ -4642,11 +4642,11 @@ export default function AdminDashboard() {
                               numberOfLines={6}
                               placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  ...\n}'}
                               placeholderTextColor="#4B5563"
-                              style={{ backgroundColor: "#111827", borderRadius: 8, padding: 10, fontFamily: "monospace", fontSize: 11, color: "#E5E7EB", textAlign: "left", minHeight: 120, borderWidth: 1, borderColor: "#374151", marginBottom: 8 }}
+                              style={{ backgroundColor: "#111827", borderRadius: 8, padding: 10, fontFamily: "monospace", fontSize: 12, color: "#E5E7EB", textAlign: "left", minHeight: 120, borderWidth: 1, borderColor: "#374151", marginBottom: 8 }}
                             />
                             {fbSaJsonResult && (
                               <View style={{ backgroundColor: (fbSaJsonResult as any).ok ? "#10B98115" : "#EF444415", borderRadius: 8, padding: 8, marginBottom: 8, borderWidth: 1, borderColor: (fbSaJsonResult as any).ok ? "#10B98130" : "#EF444430" }}>
-                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: (fbSaJsonResult as any).ok ? "#10B981" : "#EF4444", textAlign: "right" }}>
+                                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: (fbSaJsonResult as any).ok ? "#10B981" : "#EF4444", textAlign: "right" }}>
                                   {(fbSaJsonResult as any).ok
                                     ? `✓ ${(fbSaJsonResult as any).message ?? "تم الحفظ بنجاح"}`
                                     : `✗ ${(fbSaJsonResult as any).error ?? "فشل الحفظ"}`}
@@ -4843,11 +4843,11 @@ export default function AdminDashboard() {
                   📦 استيراد من قاعدة بيانات أخرى
                 </Text>
                 <View style={{ backgroundColor: Colors.primary + "12", borderRadius: 10, padding: 10, gap: 4 }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary, textAlign: "right" }}>كيف أحصل على الرابط؟</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary, textAlign: "right" }}>كيف أحصل على الرابط؟</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
                     {"• Render: Dashboard → Databases → اختر قاعدة البيانات → \"External Database URL\""}
                   </Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "right" }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" }}>
                     {"• تنبيه: قواعد Render المجانية تُحذف بعد 90 يوم من عدم الاستخدام"}
                   </Text>
                 </View>
@@ -4856,7 +4856,7 @@ export default function AdminDashboard() {
                   onChangeText={setMigrateUrl}
                   placeholder="postgres://user:pass@host.render.com:5432/dbname"
                   placeholderTextColor={Colors.textMuted}
-                  style={{ backgroundColor: Colors.bg, color: Colors.textPrimary, borderRadius: 8, padding: 10, fontFamily: "Cairo_400Regular", textAlign: "left", fontSize: 11, borderWidth: 1, borderColor: Colors.primary + "50" }}
+                  style={{ backgroundColor: Colors.bg, color: Colors.textPrimary, borderRadius: 8, padding: 10, fontFamily: "Cairo_400Regular", textAlign: "left", fontSize: 12, borderWidth: 1, borderColor: Colors.primary + "50" }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   multiline
@@ -4868,7 +4868,7 @@ export default function AdminDashboard() {
                       <View style={{ height: 6, backgroundColor: Colors.primary, borderRadius: 3,
                         width: `${Math.round((migrateProgress.done / Math.max(migrateProgress.total, 1)) * 100)}%` as any }} />
                     </View>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
                       {migrateProgress.done} / {migrateProgress.total} مستخدم
                     </Text>
                   </View>
@@ -4891,17 +4891,17 @@ export default function AdminDashboard() {
                     <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary, textAlign: "center" }}>
                       ✅ اكتملت عملية النقل
                     </Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 4 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", marginTop: 4 }}>
                       نُقل: {(migrateResult as any).migrated} · تجاهل (موجود): {(migrateResult as any).skipped} · أخطاء: {(migrateResult as any).errors}
                     </Text>
                   </View>
                 )}
                 {(migrateResult as any)?.error && (
                   <View style={{ backgroundColor: "#EF444415", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#EF444430" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444", textAlign: "right", marginBottom: 4 }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#EF4444", textAlign: "right", marginBottom: 4 }}>
                       ❌ فشل الاتصال
                     </Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#EF4444", textAlign: "right" }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#EF4444", textAlign: "right" }}>
                       {(migrateResult as any).error}
                     </Text>
                   </View>
@@ -4910,7 +4910,7 @@ export default function AdminDashboard() {
 
               {/* ── مزامنة Firebase ── */}
               <View style={{ width: "100%", borderTopWidth: 1, borderColor: "#ffffff15", paddingTop: 14, gap: 8 }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" }}>
                   أو إذا سجّل المستخدمون عبر Google / Firebase:
                 </Text>
                 <TouchableOpacity
@@ -4924,7 +4924,7 @@ export default function AdminDashboard() {
                   </Text>
                 </TouchableOpacity>
                 {fbSyncResult && (
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.primary, textAlign: "center" }}>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.primary, textAlign: "center" }}>
                     ✅ Firebase: {(fbSyncResult as any).created ?? 0} جديد، {(fbSyncResult as any).updated ?? 0} محدَّث
                   </Text>
                 )}
@@ -4959,7 +4959,7 @@ export default function AdminDashboard() {
             <View style={s.emptyState}>
               <Ionicons name="trophy-outline" size={44} color="#D4AF3760" />
               <Text style={s.emptyStateText}>لا توجد شخصيات مكرّمة بعد</Text>
-              <Text style={[s.emptyStateText, { fontSize: 12, marginTop: 4 }]}>اضغط "إضافة" لتكريم أول شخصية من أبناء المدينة</Text>
+              <Text style={[s.emptyStateText, { fontSize: 13, marginTop: 4 }]}>اضغط "إضافة" لتكريم أول شخصية من أبناء المدينة</Text>
             </View>
           ) : (
             <FlatList
@@ -5069,7 +5069,7 @@ export default function AdminDashboard() {
                     ) : (
                       <View style={[hs.honorPhotoPreview, hs.honorPhotoPlaceholder]}>
                         <Ionicons name="person-circle-outline" size={44} color="#D4AF37" />
-                        <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>اختر صورة شخصية</Text>
+                        <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 6 }}>اختر صورة شخصية</Text>
                       </View>
                     )}
                     <TouchableOpacity
@@ -5253,12 +5253,12 @@ export default function AdminDashboard() {
                   ) : editLmForm.image_url ? (
                     <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
                       <Ionicons name="image-outline" size={28} color="#9B59B6" />
-                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4 }} numberOfLines={1}>{editLmForm.image_url}</Text>
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 4 }} numberOfLines={1}>{editLmForm.image_url}</Text>
                     </View>
                   ) : (
                     <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
                       <Ionicons name="camera-outline" size={30} color={Colors.textMuted} />
-                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>لم تُختر صورة بعد</Text>
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 6 }}>لم تُختر صورة بعد</Text>
                     </View>
                   )}
                   {/* زر رفع الصورة */}
@@ -5303,12 +5303,12 @@ export default function AdminDashboard() {
                   ) : lmForm.image_url ? (
                     <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
                       <Ionicons name="image-outline" size={28} color="#9B59B6" />
-                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 4 }} numberOfLines={1}>{lmForm.image_url}</Text>
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 4 }} numberOfLines={1}>{lmForm.image_url}</Text>
                     </View>
                   ) : (
                     <View style={[s.lmImgPreview, s.lmImgPlaceholder]}>
                       <Ionicons name="camera-outline" size={30} color={Colors.textMuted} />
-                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6 }}>اختر صورة المعلم</Text>
+                      <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 6 }}>اختر صورة المعلم</Text>
                     </View>
                   )}
                   {/* زر رفع الصورة */}
@@ -5623,7 +5623,7 @@ export default function AdminDashboard() {
           {isMod && (
             <View style={{ marginHorizontal: 14, marginBottom: 8, padding: 10, backgroundColor: "#F0A50012", borderRadius: 8, borderWidth: 1, borderColor: "#F0A50030", flexDirection: "row-reverse", gap: 8, alignItems: "center" }}>
               <Ionicons name="information-circle-outline" size={16} color="#F0A500" />
-              <Text style={{ color: "#F0A500", fontFamily: "Cairo_400Regular", fontSize: 12, flex: 1, textAlign: "right" }}>
+              <Text style={{ color: "#F0A500", fontFamily: "Cairo_400Regular", fontSize: 13, flex: 1, textAlign: "right" }}>
                 صلاحيتك: رفع طلبات مؤسسات جديدة للمراجعة. الموافقة والإيقاف والحذف من صلاحية الإدارة فقط.
               </Text>
             </View>
@@ -5638,7 +5638,7 @@ export default function AdminDashboard() {
                 </View>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>رقم واتساب عقود المؤسسات</Text>
               </View>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>
                 هذا الرقم يُرسَل إليه عقد الانضمام الموقع من المؤسسات عبر واتساب
               </Text>
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
@@ -5682,7 +5682,7 @@ export default function AdminDashboard() {
                       style={[{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: svcReqsFilter === sf ? sfMeta.color : Colors.divider, backgroundColor: svcReqsFilter === sf ? sfMeta.color + "18" : "transparent" }]}
                       onPress={() => { setSvcReqsFilter(sf); loadServiceRequests(sf); }}
                     >
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: svcReqsFilter === sf ? sfMeta.color : Colors.textMuted }}>{sfMeta.label}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: svcReqsFilter === sf ? sfMeta.color : Colors.textMuted }}>{sfMeta.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -5690,7 +5690,7 @@ export default function AdminDashboard() {
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
                 {svcRequests.filter(r => r.status === "pending").length > 0 && (
                   <View style={{ backgroundColor: Colors.accent, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
-                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" }}>{svcRequests.filter(r => r.status === "pending").length}</Text>
+                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" }}>{svcRequests.filter(r => r.status === "pending").length}</Text>
                   </View>
                 )}
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>طلبات الخدمات</Text>
@@ -5701,7 +5701,7 @@ export default function AdminDashboard() {
             {loadingSvcReqs ? (
               <ActivityIndicator color={Colors.cyber} size="small" style={{ marginVertical: 8 }} />
             ) : svcRequests.length === 0 ? (
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", paddingVertical: 8 }}>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 8 }}>
                 {svcReqsFilter === "pending" ? "لا توجد طلبات معلقة" : "لا توجد طلبات"}
               </Text>
             ) : (
@@ -5716,15 +5716,15 @@ export default function AdminDashboard() {
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" }}>{sr.service_name}</Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{sr.community_name}</Text>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{sr.community_name}</Text>
                         </View>
                         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: actionMeta.color + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
                           <Ionicons name={actionMeta.icon} size={12} color={actionMeta.color} />
-                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: actionMeta.color }}>{actionMeta.label}</Text>
+                          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: actionMeta.color }}>{actionMeta.label}</Text>
                         </View>
                       </View>
                       {sr.submitted_by_name && (
-                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>مقدّم من: {sr.submitted_by_name}</Text>
+                        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>مقدّم من: {sr.submitted_by_name}</Text>
                       )}
                       {svcReqsFilter === "pending" && (
                         <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 4 }}>
@@ -5962,7 +5962,7 @@ export default function AdminDashboard() {
                         {/* ── Moderator: read-only notice ── */}
                         {isMod && (
                           <View style={{ marginTop: 12, padding: 10, backgroundColor: "#F0A50010", borderRadius: 8, borderWidth: 1, borderColor: "#F0A50030" }}>
-                            <Text style={{ color: "#F0A500", fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "center" }}>
+                            <Text style={{ color: "#F0A500", fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "center" }}>
                               المراجعة والموافقة والإيقاف من صلاحية الإدارة
                             </Text>
                           </View>
@@ -6018,7 +6018,7 @@ export default function AdminDashboard() {
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <Text style={s.modalTitle}>رفع طلب مؤسسة</Text>
-                    <Text style={[s.fieldLabel, { color: Colors.textMuted, marginBottom: 14, textAlign: "center", fontSize: 11 }]}>
+                    <Text style={[s.fieldLabel, { color: Colors.textMuted, marginBottom: 14, textAlign: "center", fontSize: 12 }]}>
                       الطلب سيُرسل للإدارة للمراجعة والموافقة
                     </Text>
 
@@ -6592,7 +6592,7 @@ export default function AdminDashboard() {
                     <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: updateForce ? Colors.danger : Colors.text, textAlign: "right" }}>
                       تحديث إجباري
                     </Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>
                       المستخدم لا يستطيع تجاهل الإشعار
                     </Text>
                   </View>
@@ -6670,13 +6670,13 @@ export default function AdminDashboard() {
                 <View style={[s.cardHeaderRow, { marginBottom: 10 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.cardTitle, { fontSize: 15 }]}>{lib.library_name}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
                       {lib.manager_name} · {lib.phone}
                     </Text>
                   </View>
                   {lib.is_verified && (
                     <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#0EA5E920" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#0EA5E9" }}>موثّقة</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#0EA5E9" }}>موثّقة</Text>
                     </View>
                   )}
                 </View>
@@ -6686,7 +6686,7 @@ export default function AdminDashboard() {
                     style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
                       backgroundColor: lib.is_verified ? Colors.bg : "#0EA5E915",
                       borderWidth: 1, borderColor: lib.is_verified ? Colors.divider : "#0EA5E940" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: lib.is_verified ? Colors.textMuted : "#0EA5E9" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: lib.is_verified ? Colors.textMuted : "#0EA5E9" }}>
                       {lib.is_verified ? "إلغاء التوثيق" : "توثيق"}
                     </Text>
                   </TouchableOpacity>
@@ -6721,7 +6721,7 @@ export default function AdminDashboard() {
               ].map(stat => (
                 <View key={stat.label} style={{ flex: 1, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.divider }}>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: stat.color }}>{stat.val}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>{stat.label}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>{stat.label}</Text>
                 </View>
               ))}
             </View>
@@ -6746,13 +6746,13 @@ export default function AdminDashboard() {
                       {m.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#1F5C8A" />}
                       {m.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
                     </View>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
                       {m.owner_name} · {m.phone || m.whatsapp}
                     </Text>
-                    {m.address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{m.address}</Text> : null}
+                    {m.address ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{m.address}</Text> : null}
                   </View>
                   <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: m.status === "approved" ? "#10B98120" : m.status === "rejected" ? Colors.danger + "20" : "#F59E0B20" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: m.status === "approved" ? "#10B981" : m.status === "rejected" ? Colors.danger : "#F59E0B" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.status === "approved" ? "#10B981" : m.status === "rejected" ? Colors.danger : "#F59E0B" }}>
                       {m.status === "approved" ? "معتمد" : m.status === "rejected" ? "مرفوض" : "بانتظار الموافقة"}
                     </Text>
                   </View>
@@ -6761,13 +6761,13 @@ export default function AdminDashboard() {
                   {m.status !== "approved" && (
                     <TouchableOpacity onPress={() => approveMerchant(m.id)}
                       style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>قبول الطلب</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981" }}>قبول الطلب</Text>
                     </TouchableOpacity>
                   )}
                   {m.status !== "rejected" && (
                     <TouchableOpacity onPress={() => rejectMerchant(m.id)}
                       style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.danger }}>رفض</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.danger }}>رفض</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -6777,7 +6777,7 @@ export default function AdminDashboard() {
                     style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
                       backgroundColor: m.is_verified ? Colors.bg : "#1F5C8A15",
                       borderWidth: 1, borderColor: m.is_verified ? Colors.divider : "#1F5C8A40" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_verified ? Colors.textMuted : "#1F5C8A" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: m.is_verified ? Colors.textMuted : "#1F5C8A" }}>
                       {m.is_verified ? "إلغاء التوثيق" : "توثيق"}
                     </Text>
                   </TouchableOpacity>
@@ -6786,7 +6786,7 @@ export default function AdminDashboard() {
                     style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center",
                       backgroundColor: m.is_featured ? "#F0A50015" : Colors.bg,
                       borderWidth: 1, borderColor: m.is_featured ? "#F0A50040" : Colors.divider }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: m.is_featured ? "#F0A500" : Colors.textMuted }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: m.is_featured ? "#F0A500" : Colors.textMuted }}>
                       {m.is_featured ? "إزالة التمييز" : "تمييز"}
                     </Text>
                   </TouchableOpacity>
@@ -6820,12 +6820,12 @@ export default function AdminDashboard() {
                 <View style={[s.cardHeaderRow, { marginBottom: 8 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.cardTitle, { fontSize: 14 }]}>{o.order_number}{o.shop_name ? ` · ${o.shop_name}` : ""}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 }}>
                       {o.customer_name} · {o.customer_phone}
                     </Text>
                   </View>
                   <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: o.status === "delivered" ? "#10B98120" : o.status === "cancelled" ? Colors.danger + "20" : o.status === "confirmed" ? "#1F5C8A20" : "#F59E0B20" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#1F5C8A" : "#F59E0B" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: o.status === "delivered" ? "#10B981" : o.status === "cancelled" ? Colors.danger : o.status === "confirmed" ? "#1F5C8A" : "#F59E0B" }}>
                       {o.status === "delivered" ? "تم التسليم" : o.status === "cancelled" ? "ملغي" : o.status === "confirmed" ? "مؤكد" : "بانتظار التأكيد"}
                     </Text>
                   </View>
@@ -6833,24 +6833,24 @@ export default function AdminDashboard() {
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, textAlign: "right", marginBottom: 8 }}>
                   الإجمالي: {Math.round(Number(o.total || 0)).toLocaleString("ar-SA")} ج.س
                 </Text>
-                {o.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>{o.notes}</Text> : null}
+                {o.notes ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>{o.notes}</Text> : null}
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                   {o.status === "pending" && (
                     <TouchableOpacity onPress={() => updateOrderStatus(o.id, "confirmed")}
                       style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#1F5C8A15", borderWidth: 1, borderColor: "#1F5C8A40" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1F5C8A" }}>تأكيد الطلب</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#1F5C8A" }}>تأكيد الطلب</Text>
                     </TouchableOpacity>
                   )}
                   {(o.status === "pending" || o.status === "confirmed") && (
                     <TouchableOpacity onPress={() => updateOrderStatus(o.id, "delivered")}
                       style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#10B981" }}>تم التسليم</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981" }}>تم التسليم</Text>
                     </TouchableOpacity>
                   )}
                   {o.status !== "cancelled" && o.status !== "delivered" && (
                     <TouchableOpacity onPress={() => updateOrderStatus(o.id, "cancelled")}
                       style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", backgroundColor: Colors.danger + "15", borderWidth: 1, borderColor: Colors.danger + "40" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.danger }}>إلغاء</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.danger }}>إلغاء</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -6872,7 +6872,7 @@ export default function AdminDashboard() {
             ].map(stat=>(
               <View key={stat.label} style={{ flex:1, backgroundColor:Colors.cardBg, borderRadius:14, padding:12, alignItems:"center", borderWidth:1, borderColor:Colors.divider }}>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:22, color:stat.color }}>{stat.val}</Text>
-                <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"center" }}>{stat.label}</Text>
+                <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 12, color:Colors.textMuted, textAlign:"center" }}>{stat.label}</Text>
               </View>
             ))}
           </View>
@@ -6897,13 +6897,13 @@ export default function AdminDashboard() {
                       {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={15} color="#1F5C8A" />}
                       {shop.is_featured && <MaterialCommunityIcons name="star-circle" size={15} color="#F0A500" />}
                     </View>
-                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:12, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>
                       {shop.owner_name} · {shop.phone ?? shop.whatsapp ?? "—"}
                     </Text>
-                    {shop.address && <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted, textAlign:"right" }}>{shop.address}</Text>}
+                    {shop.address && <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 12, color:Colors.textMuted, textAlign:"right" }}>{shop.address}</Text>}
                   </View>
                   <View style={{ paddingHorizontal:8, paddingVertical:4, borderRadius:8, backgroundColor: shop.is_approved?"#10B98120":"#F59E0B20" }}>
-                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:10, color: shop.is_approved?"#10B981":"#F59E0B" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 11, color: shop.is_approved?"#10B981":"#F59E0B" }}>
                       {shop.is_approved?"مفعّل":"بانتظار الموافقة"}
                     </Text>
                   </View>
@@ -6913,7 +6913,7 @@ export default function AdminDashboard() {
                   <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:6, marginBottom:12 }}>
                     {shop.specialties.slice(0,5).map((sp: string)=>(
                       <View key={sp} style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:"#1F5C8A12" }}>
-                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize:10, color:"#1F5C8A" }}>{sp}</Text>
+                        <Text style={{ fontFamily:"Cairo_500Medium", fontSize: 11, color:"#1F5C8A" }}>{sp}</Text>
                       </View>
                     ))}
                   </View>
@@ -6921,12 +6921,12 @@ export default function AdminDashboard() {
                 {/* Stats */}
                 <View style={{ flexDirection:"row-reverse", gap:8, marginBottom:12 }}>
                   <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
-                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:12, color:Colors.textSecondary }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 13, color:Colors.textSecondary }}>
                       {shop.total_products ?? 0} منتج
                     </Text>
                   </View>
                   <View style={{ paddingHorizontal:10, paddingVertical:5, borderRadius:10, backgroundColor:Colors.bg, borderWidth:1, borderColor:Colors.divider }}>
-                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11, color:Colors.textMuted }}>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 12, color:Colors.textMuted }}>
                       {new Date(shop.created_at).toLocaleDateString("ar")}
                     </Text>
                   </View>
@@ -6937,7 +6937,7 @@ export default function AdminDashboard() {
                     style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
                       backgroundColor: shop.is_approved?Colors.bg:"#10B98115", borderWidth:1,
                       borderColor: shop.is_approved?Colors.divider:"#10B98140" }}>
-                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_approved?Colors.textMuted:"#10B981" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 12, color: shop.is_approved?Colors.textMuted:"#10B981" }}>
                       {shop.is_approved?"إلغاء التفعيل":"تفعيل المتجر"}
                     </Text>
                   </TouchableOpacity>
@@ -6945,7 +6945,7 @@ export default function AdminDashboard() {
                     style={{ flex:1, paddingVertical:9, borderRadius:10, alignItems:"center", minWidth:80,
                       backgroundColor: shop.is_verified?Colors.bg:"#1F5C8A15", borderWidth:1,
                       borderColor: shop.is_verified?Colors.divider:"#1F5C8A40" }}>
-                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_verified?Colors.textMuted:"#1F5C8A" }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 12, color: shop.is_verified?Colors.textMuted:"#1F5C8A" }}>
                       {shop.is_verified?"إلغاء التوثيق":"توثيق"}
                     </Text>
                   </TouchableOpacity>
@@ -6953,7 +6953,7 @@ export default function AdminDashboard() {
                     style={{ paddingVertical:9, paddingHorizontal:12, borderRadius:10, alignItems:"center",
                       backgroundColor: shop.is_featured?"#F0A50015":Colors.bg, borderWidth:1,
                       borderColor: shop.is_featured?"#F0A50040":Colors.divider }}>
-                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:11, color: shop.is_featured?"#F0A500":Colors.textMuted }}>
+                    <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize: 12, color: shop.is_featured?"#F0A500":Colors.textMuted }}>
                       {shop.is_featured?"✦ مميّز":"تمييز"}
                     </Text>
                   </TouchableOpacity>
@@ -7007,7 +7007,7 @@ export default function AdminDashboard() {
             <Ionicons name="gift" size={20} color="#fff" />
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#fff", textAlign: "right" }}>لوحة إدارة زواجل الكاملة</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#ffffffD0", textAlign: "right" }}>الطلبات، المتجر، الانضمام، وتفويض المشرفين</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#ffffffD0", textAlign: "right" }}>الطلبات، المتجر، الانضمام، وتفويض المشرفين</Text>
             </View>
             <Ionicons name="chevron-back" size={18} color="#fff" />
           </TouchableOpacity>
@@ -7063,7 +7063,7 @@ export default function AdminDashboard() {
                   style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
                     backgroundColor: reportsFilter === f ? "#EF4444" : "#FFFFFF0A",
                     borderWidth: 1, borderColor: reportsFilter === f ? "#EF4444" : "#FFFFFF15" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: reportsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: reportsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -7082,15 +7082,15 @@ export default function AdminDashboard() {
                    <View key={r.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: sc+"30", borderRightWidth: 4, borderRightColor: sc, padding: 14, marginBottom: 12 }}>
                      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{r.issue || r.agency_name}</Text>
-                       {r.urgent && <View style={{ backgroundColor: "#EF444420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#EF4444" }}>🚨 عاجل</Text></View>}
+                       {r.urgent && <View style={{ backgroundColor: "#EF444420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#EF4444" }}>🚨 عاجل</Text></View>}
                        <View style={{ backgroundColor: sc+"20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: sc }}>{SL[r.status]||r.status}</Text>
+                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: sc }}>{SL[r.status]||r.status}</Text>
                        </View>
                      </View>
-                     {r.reporter_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.reporter_name} {r.phone ? `· ${r.phone}` : ""}</Text>}
-                     {r.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {r.location}</Text>}
-                     {r.description && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{r.description}</Text>}
-                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+                     {r.reporter_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.reporter_name} {r.phone ? `· ${r.phone}` : ""}</Text>}
+                     {r.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {r.location}</Text>}
+                     {r.description && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{r.description}</Text>}
+                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
                      <View style={{ flexDirection: "row-reverse", gap: 6, flexWrap: "wrap" }}>
                        {(["received","inProgress","resolved","dismissed"] as const).map(ns => ns !== r.status && (
                          <TouchableOpacity key={ns} disabled={reportsActing === r.id}
@@ -7103,7 +7103,7 @@ export default function AdminDashboard() {
                              } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setReportsActing(null); }
                            }}
                            style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: (SC[ns]||"#888")+"18", borderWidth: 1, borderColor: (SC[ns]||"#888")+"40" }}>
-                           <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[ns]||"#888" }}>{SL[ns]||ns}</Text>
+                           <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[ns]||"#888" }}>{SL[ns]||ns}</Text>
                          </TouchableOpacity>
                        ))}
                        <TouchableOpacity disabled={reportsActing === r.id}
@@ -7141,16 +7141,16 @@ export default function AdminDashboard() {
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{item.item_name}</Text>
                 <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: (item.status === "found" ? "#10B981" : "#F97316")+"20" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: item.status === "found" ? "#10B981" : "#F97316" }}>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: item.status === "found" ? "#10B981" : "#F97316" }}>
                     {item.status === "found" ? "✅ وُجد" : "🔍 مفقود"}
                   </Text>
                 </View>
               </View>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {item.reporter_name || item.user_display_name || "—"}</Text>
-              {item.contact_phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {item.contact_phone}</Text>}
-              {item.last_seen && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {item.last_seen}</Text>}
-              {item.description && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{item.description}</Text>}
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {item.reporter_name || item.user_display_name || "—"}</Text>
+              {item.contact_phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {item.contact_phone}</Text>}
+              {item.last_seen && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {item.last_seen}</Text>}
+              {item.description && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{item.description}</Text>}
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <TouchableOpacity disabled={missingActing === item.id}
                   onPress={async () => {
@@ -7165,7 +7165,7 @@ export default function AdminDashboard() {
                     backgroundColor: item.status === "found" ? "#F9731615" : "#10B98115",
                     borderColor: item.status === "found" ? "#F9731640" : "#10B98140" }}>
                   {missingActing === item.id ? <ActivityIndicator size="small" color="#10B981" /> :
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: item.status === "found" ? "#F97316" : "#10B981" }}>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: item.status === "found" ? "#F97316" : "#10B981" }}>
                       {item.status === "found" ? "تراجع — لا يزال مفقوداً" : "✅ تم العثور عليه"}
                     </Text>
                   }
@@ -7200,30 +7200,30 @@ export default function AdminDashboard() {
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الاسم *</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الاسم *</Text>
                 <TextInput value={numForm.name} onChangeText={v => setNumForm(f=>({...f, name:v}))} placeholder="مثال: الإطفاء" placeholderTextColor={Colors.textMuted}
                   style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الرقم *</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>الرقم *</Text>
                 <TextInput value={numForm.number} onChangeText={v => setNumForm(f=>({...f, number:v}))} placeholder="998 أو +249..." placeholderTextColor={Colors.textMuted} keyboardType="phone-pad"
                   style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
               </View>
             </View>
             <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>التصنيف</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>التصنيف</Text>
                 <TextInput value={numForm.category} onChangeText={v => setNumForm(f=>({...f, category:v}))} placeholder="عام / طوارئ / صحة..." placeholderTextColor={Colors.textMuted}
                   style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اللون</Text>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>اللون</Text>
                 <TextInput value={numForm.color} onChangeText={v => setNumForm(f=>({...f, color:v}))} placeholder="#F97316" placeholderTextColor={Colors.textMuted} autoCapitalize="none"
                   style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right" }} />
               </View>
             </View>
             <View style={{ marginTop: 10 }}>
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>ملاحظة</Text>
+              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>ملاحظة</Text>
               <TextInput value={numForm.note} onChangeText={v => setNumForm(f=>({...f, note:v}))} placeholder="وصف اختياري..." placeholderTextColor={Colors.textMuted} multiline
                 style={{ backgroundColor: "#FFFFFF0A", borderRadius: 10, borderWidth: 1, borderColor: "#FFFFFF18", paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", color: Colors.text, fontSize: 13, textAlign: "right", minHeight: 50, textAlignVertical: "top" }} />
             </View>
@@ -7259,7 +7259,7 @@ export default function AdminDashboard() {
           </View>
 
           {/* قائمة الأرقام */}
-          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 10 }}>{adminNumbers.length} رقم مسجّل</Text>
+          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 10 }}>{adminNumbers.length} رقم مسجّل</Text>
           {loadingNumbers ? <ActivityIndicator color="#10B981" style={{ marginTop: 20 }} /> :
            adminNumbers.map(n => (
             <View key={n.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 12, borderWidth: 1, borderColor: (n.color||"#10B981")+"40", borderRightWidth: 4, borderRightColor: n.color||"#10B981", padding: 14, marginBottom: 10 }}>
@@ -7273,14 +7273,14 @@ export default function AdminDashboard() {
                     <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: n.color||"#10B981", textAlign: "right" }}>{n.number}</Text>
                   </View>
                 </View>
-                {!n.is_active && <View style={{ backgroundColor: "#EF444420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#EF4444" }}>معطّل</Text></View>}
+                {!n.is_active && <View style={{ backgroundColor: "#EF444420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#EF4444" }}>معطّل</Text></View>}
               </View>
-              {n.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{n.category}</Text>}
-              {n.note && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>{n.note}</Text>}
+              {n.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>{n.category}</Text>}
+              {n.note && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 8 }}>{n.note}</Text>}
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <TouchableOpacity onPress={() => { setEditingNumber(n); setNumForm({ name: n.name, number: n.number, category: n.category||"عام", icon: n.icon||"call", color: n.color||"#F97316", note: n.note||"", sort_order: String(n.sort_order||99) }); }}
                   style={{ flex: 2, paddingVertical: 8, borderRadius: 9, backgroundColor: "#FFFFFF0A", borderWidth: 1, borderColor: "#FFFFFF18", alignItems: "center" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted }}>✏️ تعديل</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted }}>✏️ تعديل</Text>
                 </TouchableOpacity>
                 <TouchableOpacity disabled={numbersActing === n.id}
                   onPress={() => Alert.alert("حذف", `هل تريد حذف رقم "${n.name}"؟`, [
@@ -7304,7 +7304,7 @@ export default function AdminDashboard() {
       {/* ══ المصانع ══ */}
       {tab === "factories_admin" && isAdmin && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>{adminFactories.length} مصنع مسجّل</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 12 }}>{adminFactories.length} مصنع مسجّل</Text>
           {loadingFactories ? <ActivityIndicator color="#6B7280" style={{ marginTop: 40 }} /> :
            adminFactories.length === 0 ? (
             <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا توجد مصانع مسجّلة بعد</Text>
@@ -7313,18 +7313,18 @@ export default function AdminDashboard() {
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{f.name}</Text>
                 <View style={{ flexDirection: "row-reverse", gap: 4 }}>
-                  {f.is_featured && <View style={{ backgroundColor: "#F59E0B20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#F59E0B" }}>⭐ مميز</Text></View>}
+                  {f.is_featured && <View style={{ backgroundColor: "#F59E0B20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#F59E0B" }}>⭐ مميز</Text></View>}
                   <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: f.is_active ? "#10B98120" : "#EF444420" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: f.is_active ? "#10B981" : "#EF4444" }}>{f.is_active ? "نشط" : "معطّل"}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: f.is_active ? "#10B981" : "#EF4444" }}>{f.is_active ? "نشط" : "معطّل"}</Text>
                   </View>
                 </View>
               </View>
-              {f.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏷️ {f.category}</Text>}
-              {f.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {f.location}</Text>}
-              {f.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {f.phone}</Text>}
+              {f.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏷️ {f.category}</Text>}
+              {f.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {f.location}</Text>}
+              {f.phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {f.phone}</Text>}
               <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 4, marginBottom: 10 }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>{new Date(f.created_at).toLocaleDateString("ar-EG")}</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted }}>{f.package_type || "free"}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>{new Date(f.created_at).toLocaleDateString("ar-EG")}</Text>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{f.package_type || "free"}</Text>
               </View>
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <TouchableOpacity disabled={factoriesActing === f.id}
@@ -7339,7 +7339,7 @@ export default function AdminDashboard() {
                     backgroundColor: f.is_active ? "#EF444415" : "#10B98115",
                     borderColor: f.is_active ? "#EF444440" : "#10B98140" }}>
                   {factoriesActing === f.id ? <ActivityIndicator size="small" color={f.is_active ? "#EF4444" : "#10B981"} /> :
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: f.is_active ? "#EF4444" : "#10B981" }}>{f.is_active ? "تعطيل" : "تفعيل"}</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: f.is_active ? "#EF4444" : "#10B981" }}>{f.is_active ? "تعطيل" : "تفعيل"}</Text>
                   }
                 </TouchableOpacity>
                 <TouchableOpacity disabled={factoriesActing === f.id}
@@ -7352,7 +7352,7 @@ export default function AdminDashboard() {
                   }}
                   style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", borderWidth: 1,
                     backgroundColor: "#F59E0B15", borderColor: "#F59E0B40" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F59E0B" }}>{f.is_featured ? "⭐ إلغاء" : "⭐ تمييز"}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F59E0B" }}>{f.is_featured ? "⭐ إلغاء" : "⭐ تمييز"}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity disabled={factoriesActing === f.id}
                   onPress={() => Alert.alert("حذف", `هل تريد حذف مصنع "${f.name}"؟`, [
@@ -7386,7 +7386,7 @@ export default function AdminDashboard() {
                   style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
                     backgroundColor: farmersSub === f ? FC[f] : "#FFFFFF0A",
                     borderWidth: 1, borderColor: farmersSub === f ? FC[f] : "#FFFFFF15" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: farmersSub === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: farmersSub === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -7404,13 +7404,13 @@ export default function AdminDashboard() {
                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right" }}>{item.title}</Text>
                     <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: item.is_available ? "#10B98120" : "#EF444420" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: item.is_available ? "#10B981" : "#EF4444" }}>{item.is_available ? "متاح" : "غير متاح"}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: item.is_available ? "#10B981" : "#EF4444" }}>{item.is_available ? "متاح" : "غير متاح"}</Text>
                     </View>
                   </View>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {item.user_display_name || "—"} {item.contact_phone ? `· ${item.contact_phone}` : ""}</Text>
-                  {item.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>📍 {item.location}</Text>}
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {item.user_display_name || "—"} {item.contact_phone ? `· ${item.contact_phone}` : ""}</Text>
+                  {item.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>📍 {item.location}</Text>}
                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>{new Date(item.created_at).toLocaleDateString("ar-EG")}</Text>
                     <TouchableOpacity onPress={() => Alert.alert("حذف", `هل تريد حذف "${item.title}"؟`, [
                       { text: "إلغاء", style: "cancel" },
                       { text: "حذف", style: "destructive", onPress: async () => {
@@ -7440,7 +7440,7 @@ export default function AdminDashboard() {
                 style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
                   backgroundColor: rentalView === v ? "#0EA5E9" : "#FFFFFF0A",
                   borderWidth: 1, borderColor: rentalView === v ? "#0EA5E9" : "#FFFFFF15" }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: rentalView === v ? "#fff" : "#9CA3AF" }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: rentalView === v ? "#fff" : "#9CA3AF" }}>
                   {v === "listings" ? "🏠 العقارات" : "📄 العقود"}
                 </Text>
               </TouchableOpacity>
@@ -7457,16 +7457,16 @@ export default function AdminDashboard() {
                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }}>{r.title}</Text>
                     <View style={{ flexDirection: "row-reverse", gap: 4 }}>
-                      {r.is_verified && <View style={{ backgroundColor: "#0EA5E920", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#0EA5E9" }}>✅ موثّق</Text></View>}
+                      {r.is_verified && <View style={{ backgroundColor: "#0EA5E920", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#0EA5E9" }}>✅ موثّق</Text></View>}
                       <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: r.status === "active" ? "#10B98120" : "#6B728020" }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: r.status === "active" ? "#10B981" : "#9CA3AF" }}>{r.status === "active" ? "نشط" : r.status}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: r.status === "active" ? "#10B981" : "#9CA3AF" }}>{r.status === "active" ? "نشط" : r.status}</Text>
                       </View>
                     </View>
                   </View>
-                  {r.owner_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.owner_name} {r.owner_phone ? `· ${r.owner_phone}` : ""}</Text>}
-                  {r.neighborhood && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {r.neighborhood}</Text>}
+                  {r.owner_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.owner_name} {r.owner_phone ? `· ${r.owner_phone}` : ""}</Text>}
+                  {r.neighborhood && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📍 {r.neighborhood}</Text>}
                   {(r.price_per_month || r.price_per_day) && <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0EA5E9", textAlign: "right", marginBottom: 6 }}>{r.price_per_month ? `${r.price_per_month} / شهر` : `${r.price_per_day} / يوم`}</Text>}
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
                   <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                     <TouchableOpacity disabled={rentalsActing === r.id}
                       onPress={async () => {
@@ -7480,7 +7480,7 @@ export default function AdminDashboard() {
                         backgroundColor: r.status === "active" ? "#EF444415" : "#10B98115",
                         borderColor: r.status === "active" ? "#EF444440" : "#10B98140" }}>
                       {rentalsActing === r.id ? <ActivityIndicator size="small" color={r.status === "active" ? "#EF4444" : "#10B981"} /> :
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: r.status === "active" ? "#EF4444" : "#10B981" }}>{r.status === "active" ? "إيقاف" : "تفعيل"}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: r.status === "active" ? "#EF4444" : "#10B981" }}>{r.status === "active" ? "إيقاف" : "تفعيل"}</Text>
                       }
                     </TouchableOpacity>
                   </View>
@@ -7499,18 +7499,18 @@ export default function AdminDashboard() {
                     <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{c.listing_title}</Text>
                       <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: (SC[c.status]||"#888")+"20" }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: SC[c.status]||"#888" }}>{SL[c.status]||c.status}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SC[c.status]||"#888" }}>{SL[c.status]||c.status}</Text>
                       </View>
                     </View>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏠 المالك: {c.owner_name} {c.owner_phone ? `· ${c.owner_phone}` : ""}</Text>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 المستأجر: {c.renter_name} {c.renter_phone ? `· ${c.renter_phone}` : ""}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏠 المالك: {c.owner_name} {c.owner_phone ? `· ${c.owner_phone}` : ""}</Text>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 المستأجر: {c.renter_name} {c.renter_phone ? `· ${c.renter_phone}` : ""}</Text>
                     <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6 }}>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>{c.start_date ? new Date(c.start_date).toLocaleDateString("ar-EG") : "—"} ← {c.end_date ? new Date(c.end_date).toLocaleDateString("ar-EG") : "—"}</Text>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#0EA5E9" }}>{c.total_amount} SDG</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textDisabled }}>{c.start_date ? new Date(c.start_date).toLocaleDateString("ar-EG") : "—"} ← {c.end_date ? new Date(c.end_date).toLocaleDateString("ar-EG") : "—"}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#0EA5E9" }}>{c.total_amount} SDG</Text>
                     </View>
                     {c.status === "disputed" && c.dispute_details && (
                       <View style={{ backgroundColor: "#EF444410", borderRadius: 8, padding: 10, marginTop: 8, borderWidth: 1, borderColor: "#EF444430" }}>
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#EF4444", textAlign: "right" }}>⚠️ تفاصيل النزاع: {c.dispute_details}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#EF4444", textAlign: "right" }}>⚠️ تفاصيل النزاع: {c.dispute_details}</Text>
                       </View>
                     )}
                     <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 10 }}>
@@ -7525,7 +7525,7 @@ export default function AdminDashboard() {
                           }}
                           style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98140", alignItems: "center" }}>
                           {rentalsActing === c.id ? <ActivityIndicator size="small" color="#10B981" /> :
-                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#10B981" }}>✅ حل النزاع</Text>
+                            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#10B981" }}>✅ حل النزاع</Text>
                           }
                         </TouchableOpacity>
                       )}
@@ -7550,14 +7550,14 @@ export default function AdminDashboard() {
                   style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
                     backgroundColor: jobsFilter === f ? "#1F5C8A" : "#FFFFFF0A",
                     borderWidth: 1, borderColor: jobsFilter === f ? "#1F5C8A" : "#FFFFFF15" }}>
-                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: jobsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
+                  <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: jobsFilter === f ? "#fff" : "#9CA3AF" }}>{FL[f]}</Text>
                 </TouchableOpacity>
               );
             })}
             <TouchableOpacity onPress={loadAdminJobs} style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: "#FFFFFF0A" }}>
               <Ionicons name="refresh" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{adminJobs.length} وظيفة</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{adminJobs.length} وظيفة</Text>
           </ScrollView>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {loadingJobs ? <ActivityIndicator color="#1F5C8A" style={{ marginTop: 40 }} /> : (() => {
@@ -7574,18 +7574,18 @@ export default function AdminDashboard() {
                   <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{job.title}</Text>
                     <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: job.is_active ? "#1F5C8A20" : "#6B728020" }}>
-                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: job.is_active ? "#1F5C8A" : "#9CA3AF" }}>{job.is_active ? "● نشطة" : "◌ معطّلة"}</Text>
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: job.is_active ? "#1F5C8A" : "#9CA3AF" }}>{job.is_active ? "● نشطة" : "◌ معطّلة"}</Text>
                     </View>
                   </View>
                   <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 2 }}>{job.company}</Text>
                   <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 4 }}>
-                    {job.type && <View style={{ backgroundColor: "#1F5C8A15", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5B8DB8" }}>{TYPE_LABEL[job.type] || job.type}</Text></View>}
-                    {job.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>📍 {job.location}</Text>}
+                    {job.type && <View style={{ backgroundColor: "#1F5C8A15", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}><Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5B8DB8" }}>{TYPE_LABEL[job.type] || job.type}</Text></View>}
+                    {job.location && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>📍 {job.location}</Text>}
                   </View>
-                  {job.salary && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#10B981", textAlign: "right", marginBottom: 2 }}>💰 {job.salary}</Text>}
-                  {job.contact_phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {job.contact_phone}</Text>}
-                  {job.author_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 2 }}>👤 {job.author_name}</Text>}
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(job.created_at).toLocaleDateString("ar-EG")}</Text>
+                  {job.salary && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#10B981", textAlign: "right", marginBottom: 2 }}>💰 {job.salary}</Text>}
+                  {job.contact_phone && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>📞 {job.contact_phone}</Text>}
+                  {job.author_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textDisabled, textAlign: "right", marginBottom: 2 }}>👤 {job.author_name}</Text>}
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(job.created_at).toLocaleDateString("ar-EG")}</Text>
                   <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                     <TouchableOpacity disabled={jobsActing === job.id}
                       onPress={async () => {
@@ -7599,7 +7599,7 @@ export default function AdminDashboard() {
                         backgroundColor: job.is_active ? "#EF444415" : "#10B98115",
                         borderColor: job.is_active ? "#EF444440" : "#10B98140" }}>
                       {jobsActing === job.id ? <ActivityIndicator size="small" color={job.is_active ? "#EF4444" : "#10B981"} /> :
-                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: job.is_active ? "#EF4444" : "#10B981" }}>{job.is_active ? "تعطيل" : "تفعيل"}</Text>
+                        <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: job.is_active ? "#EF4444" : "#10B981" }}>{job.is_active ? "تعطيل" : "تفعيل"}</Text>
                       }
                     </TouchableOpacity>
                     <TouchableOpacity disabled={jobsActing === job.id}
@@ -7627,7 +7627,7 @@ export default function AdminDashboard() {
       {tab === "ratings_admin" && isAdmin && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", marginBottom: 12, gap: 8 }}>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{adminRatings.length} تقييم</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{adminRatings.length} تقييم</Text>
             <TouchableOpacity onPress={loadAdminRatings} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF0A" }}>
               <Ionicons name="refresh" size={13} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -7646,11 +7646,11 @@ export default function AdminDashboard() {
                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{r.entity_name || r.target_id || "—"}</Text>
                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: starColor, letterSpacing: 1 }}>{stars}</Text>
                  </View>
-                 {r.entity_type && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏷️ {r.entity_type}</Text>}
-                 {r.user_display_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.user_display_name}</Text>}
-                 {r.comment && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{r.comment}</Text>}
+                 {r.entity_type && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>🏷️ {r.entity_type}</Text>}
+                 {r.user_display_name && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {r.user_display_name}</Text>}
+                 {r.comment && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{r.comment}</Text>}
                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
-                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled }}>{new Date(r.created_at).toLocaleDateString("ar-EG")}</Text>
                    <TouchableOpacity disabled={ratingsActing === r.id}
                      onPress={() => Alert.alert("حذف التقييم", "هل تريد حذف هذا التقييم؟", [
                        { text: "إلغاء", style: "cancel" },
@@ -7712,7 +7712,7 @@ export default function AdminDashboard() {
           </Modal>
 
           <View style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 6, gap: 8 }}>
-            <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" }}>{adminFeedback.length} رسالة</Text>
+            <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>{adminFeedback.length} رسالة</Text>
             <TouchableOpacity onPress={loadAdminFeedback} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#FFFFFF0A" }}>
               <Ionicons name="refresh" size={13} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -7735,28 +7735,28 @@ export default function AdminDashboard() {
                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, flex: 1, textAlign: "right" }} numberOfLines={1}>{fb.title}</Text>
                      <View style={{ flexDirection: "row-reverse", gap: 4 }}>
                        <View style={{ backgroundColor: tc + "20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: tc }}>{TYPE_LABEL[fb.type] || fb.type}</Text>
+                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: tc }}>{TYPE_LABEL[fb.type] || fb.type}</Text>
                        </View>
                        <View style={{ backgroundColor: sc + "20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 10, color: sc }}>{STATUS_LABEL[fb.status] || fb.status}</Text>
+                         <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: sc }}>{STATUS_LABEL[fb.status] || fb.status}</Text>
                        </View>
                      </View>
                    </View>
-                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {fb.sender_name} {fb.phone ? `· ${fb.phone}` : ""}</Text>
-                   {fb.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>🏷️ {fb.category}</Text>}
-                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{fb.body}</Text>
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 2 }}>👤 {fb.sender_name} {fb.phone ? `· ${fb.phone}` : ""}</Text>
+                   {fb.category && <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>🏷️ {fb.category}</Text>}
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18, marginBottom: 6 }} numberOfLines={3}>{fb.body}</Text>
                    {fb.admin_reply && (
                      <View style={{ backgroundColor: "#2F8A8A10", borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: "#2F8A8A30" }}>
-                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#2F8A8A", textAlign: "right", marginBottom: 4 }}>✅ ردّ الإدارة:</Text>
-                       <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 }}>{fb.admin_reply}</Text>
+                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#2F8A8A", textAlign: "right", marginBottom: 4 }}>✅ ردّ الإدارة:</Text>
+                       <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 }}>{fb.admin_reply}</Text>
                      </View>
                    )}
-                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(fb.created_at).toLocaleDateString("ar-EG")}</Text>
+                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right", marginBottom: 10 }}>{new Date(fb.created_at).toLocaleDateString("ar-EG")}</Text>
                    <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                      <TouchableOpacity onPress={() => { setReplyingTo(fb); setReplyText(fb.admin_reply || ""); }}
                        style={{ flex: 2, paddingVertical: 9, borderRadius: 10, backgroundColor: "#2F8A8A15", borderWidth: 1, borderColor: "#2F8A8A40", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
                        <Ionicons name="chatbubble-outline" size={14} color="#2F8A8A" />
-                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#2F8A8A" }}>{fb.admin_reply ? "تعديل الرد" : "ردّ"}</Text>
+                       <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#2F8A8A" }}>{fb.admin_reply ? "تعديل الرد" : "ردّ"}</Text>
                      </TouchableOpacity>
                    </View>
                  </View>
@@ -7861,7 +7861,7 @@ export default function AdminDashboard() {
                           <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 20, color: item.color }}>
                             {item.value}
                           </Text>
-                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" }}>
+                          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" }}>
                             {item.label}
                           </Text>
                         </View>
@@ -7883,7 +7883,7 @@ export default function AdminDashboard() {
                             <Ionicons name={row.icon as any} size={15} color={Colors.primary} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>{row.label}</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>{row.label}</Text>
                             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#fff" }}>{row.val}</Text>
                           </View>
                         </View>
@@ -7894,7 +7894,7 @@ export default function AdminDashboard() {
                             <Ionicons name="person-outline" size={15} color={Colors.primary} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted }}>نبذة</Text>
+                            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>نبذة</Text>
                             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, lineHeight: 20 }}>{st.user.bio}</Text>
                           </View>
                         </View>
@@ -8163,7 +8163,7 @@ const s = StyleSheet.create({
   statGrad: { padding: 16, alignItems: "center", gap: 4 },
   statIcon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   statValue: { fontFamily: "Cairo_700Bold", fontSize: 28 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
 
   /* Cards */
   card: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.divider },
@@ -8177,17 +8177,17 @@ const s = StyleSheet.create({
 
   /* Bar chart */
   barRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 },
-  barLabel: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary, width: 100, textAlign: "right" },
+  barLabel: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, width: 100, textAlign: "right" },
   barTrack: { flex: 1, height: 7, backgroundColor: Colors.divider, borderRadius: 4, overflow: "hidden" },
   barFill: { height: "100%", backgroundColor: Colors.primary, borderRadius: 4 },
-  barCount: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primary, width: 26, textAlign: "right" },
+  barCount: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, width: 26, textAlign: "right" },
 
   /* Recent row */
-  recentRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingVertical: 6, borderBottomWidth: 1, borderColor: Colors.divider + "80" },
+  recentRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingVertical: 6, borderBottomWidth: 1, borderColor: withAlpha(Colors.divider, "80") },
   avatarSm: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   avatarSmLetter: { fontFamily: "Cairo_700Bold", fontSize: 15 },
   recentName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  recentSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  recentSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
 
   /* Search */
   searchBar: {
@@ -8207,13 +8207,13 @@ const s = StyleSheet.create({
   avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.primary + "25", alignItems: "center", justifyContent: "center" },
   avatarLetter: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.primary },
   userName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  userContact: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  userContact: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   chipRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 10 },
   chip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: Colors.divider },
-  chipText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  chipText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   userActions: { flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" },
   userActionBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primary + "12", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: Colors.primary + "30" },
-  userActionTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  userActionTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
 
   /* Badge */
   badge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
@@ -8235,8 +8235,8 @@ const s = StyleSheet.create({
   lmThumb: { width: 64, height: 52, borderRadius: 10, overflow: "hidden" },
   lmThumbLocal: { backgroundColor: "#9B59B615", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#9B59B630" },
   lmName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  lmSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
-  lmUrl: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
+  lmSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
+  lmUrl: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 4 },
   lmImgPreview: {
     width: "100%", height: 140, borderRadius: 12, marginBottom: 10, overflow: "hidden",
   },
@@ -8260,24 +8260,24 @@ const s = StyleSheet.create({
   adCardRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 8 },
   adStatusIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   adCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  adCardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  adCardSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   adStatusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  adStatusTxt: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  adStatusTxt: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   adMeta: { flexDirection: "row-reverse", gap: 10, flexWrap: "wrap" },
   adMetaItem: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
-  adMetaTxt: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  adMetaTxt: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
 
   /* Info block */
   infoBlock: { backgroundColor: Colors.bg, borderRadius: 14, padding: 12, gap: 6, borderWidth: 1, borderColor: Colors.divider, marginBottom: 10 },
-  infoRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 4, borderBottomWidth: 1, borderColor: Colors.divider + "60" },
-  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  infoRow: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 4, borderBottomWidth: 1, borderColor: withAlpha(Colors.divider, "60") },
+  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   infoValue: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", flex: 1, marginRight: 12 },
 
   /* Neighborhoods */
   nbrCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: Colors.divider },
   nbrIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   nbrName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  nbrType: { fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2, textAlign: "right" },
+  nbrType: { fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 2, textAlign: "right" },
 
   /* Form fields */
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6 },
@@ -8287,7 +8287,7 @@ const s = StyleSheet.create({
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary,
     marginBottom: 10,
   },
-  fieldHint: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", lineHeight: 18, marginBottom: 8 },
+  fieldHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 18, marginBottom: 8 },
   inputWithIcon: { flexDirection: "row-reverse", alignItems: "center", gap: 4, marginBottom: 4 },
 
   /* Toggle */
@@ -8373,7 +8373,7 @@ const sm = StyleSheet.create({
   },
   trackingLabel: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.textMuted,
     textAlign: "center",
   },
@@ -8385,7 +8385,7 @@ const sm = StyleSheet.create({
   },
   nbrTitle: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
     textAlign: "right",
     marginBottom: 2,
@@ -8416,12 +8416,12 @@ const sm = StyleSheet.create({
   },
   nbrName: {
     fontFamily: "Cairo_500Medium",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textPrimary,
   },
   nbrCount: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   clearFilter: {
@@ -8433,7 +8433,7 @@ const sm = StyleSheet.create({
   },
   clearFilterTxt: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   sortRow: {
@@ -8443,7 +8443,7 @@ const sm = StyleSheet.create({
   },
   sortLabel: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
   },
   sortBtn: {
@@ -8460,7 +8460,7 @@ const sm = StyleSheet.create({
   },
   sortBtnTxt: {
     fontFamily: "Cairo_500Medium",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
   },
   sortBtnTxtActive: {
@@ -8514,12 +8514,12 @@ const uc = StyleSheet.create({
   },
   metaText: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   joinAgo: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.textMuted,
     textAlign: "right",
   },
@@ -8558,7 +8558,7 @@ const uc = StyleSheet.create({
   },
   secBtnTxt: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
   },
 });
 
@@ -8638,7 +8638,7 @@ const ps = StyleSheet.create({
   },
   memberSub: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textMuted,
     textAlign: "right",
   },
@@ -8650,7 +8650,7 @@ const ps = StyleSheet.create({
   },
   nbrChipTxt: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   roleFlow: {
@@ -8745,14 +8745,14 @@ const hs = StyleSheet.create({
   },
   honorTitle: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
     color: "#D4AF37",
     textAlign: "right",
     marginTop: 2,
   },
   honorRole: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     textAlign: "right",
     marginTop: 2,
@@ -8774,7 +8774,7 @@ const hs = StyleSheet.create({
   },
   visText: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
+    fontSize: 12,
   },
   datesRow: {
     flexDirection: "row-reverse",
@@ -8783,12 +8783,12 @@ const hs = StyleSheet.create({
   },
   datesText: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   tributePreview: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
     textAlign: "right",
     fontStyle: "italic",
@@ -8814,7 +8814,7 @@ const hs = StyleSheet.create({
   },
   honorActionTxt: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
+    fontSize: 13,
   },
   honorPhotoPreview: {
     width: "100%",

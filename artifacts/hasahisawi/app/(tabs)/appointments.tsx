@@ -773,9 +773,9 @@ const s = StyleSheet.create({
   catIcon: { width: 64, height: 64, borderRadius: Colors.radius.lg, justifyContent: "center", alignItems: "center" },
   catInfo: { flex: 1, gap: 4 },
   catTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
-  catSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
+  catSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   catCount: { marginTop: 4 },
-  catCountText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "right" },
+  catCountText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "right" },
 
   infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },
   infoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right", lineHeight: 22 },
@@ -788,8 +788,8 @@ const s = StyleSheet.create({
   },
   facilityIcon: { width: 50, height: 50, borderRadius: Colors.radius.md, justifyContent: "center", alignItems: "center" },
   facilityName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  facilitySub: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
-  facilityAddress: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  facilitySub: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  facilityAddress: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
 
   // Facility banner
   facilityBanner: {
@@ -797,7 +797,7 @@ const s = StyleSheet.create({
     borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden",
   },
   facilityBannerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  facilityBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  facilityBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
 
   // Services
   sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
@@ -865,7 +865,7 @@ const s = StyleSheet.create({
   apptHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   apptFacility: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", flex: 1, marginRight: 8 },
   apptStatus: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  apptStatusText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+  apptStatusText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   apptBody: { gap: 8 },
   apptRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   apptRowVal: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", flex: 1, marginLeft: 8 },

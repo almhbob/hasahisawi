@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   sub: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary,
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
     textAlign: "right", lineHeight: 18,
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + "18",
     borderWidth: 1, borderColor: Colors.primary + "30",
   },
-  chipText: { fontFamily: "Cairo_500Medium", fontSize: 10, color: Colors.primary },
+  chipText: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.primary },
 
   btn: { borderRadius: 12, overflow: "hidden" },
   btnGrad: {

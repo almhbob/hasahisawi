@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   chatInfo: { flex: 1 },
   chatRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   chatName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  chatTime: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  chatTime: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   lastMsg: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2, textAlign: "right" },
   lastMsgUnread: { color: Colors.textPrimary, fontFamily: "Cairo_600SemiBold" },
   badge: {
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right", includeFontPadding: false },
   userItem: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
   userName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  userRole: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  userRole: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
   startChatBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -645,5 +645,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primary + "40",
   },
-  startChatBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
+  startChatBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
 });

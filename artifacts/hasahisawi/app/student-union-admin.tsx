@@ -509,7 +509,7 @@ const s = StyleSheet.create({
     backgroundColor: "#FFFFFF10", alignItems: "center", justifyContent: "center",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
-  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: UC2, textAlign: "center", marginTop: 2 },
+  headerSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: UC2, textAlign: "center", marginTop: 2 },
   tabRow: {
     flexDirection: "row-reverse", padding: 12, gap: 8,
     backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle,
@@ -527,7 +527,7 @@ const s = StyleSheet.create({
     borderWidth: 1, padding: 12, alignItems: "center", gap: 4,
   },
   statNum: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
   filterChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.borderSubtle,
@@ -553,9 +553,9 @@ const s = StyleSheet.create({
   },
   avatarText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: UC2 },
   appName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right" },
-  appSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
+  appSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
+  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
   details: { padding: 14, gap: 6 },
   detailRow: { flexDirection: "row-reverse", gap: 6, alignItems: "flex-start" },
   detailLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
@@ -564,7 +564,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
     backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  tagText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  tagText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   actions: { flexDirection: "row-reverse", gap: 10, padding: 14, paddingTop: 0 },
   actionBtn: {
     flex: 1, flexDirection: "row-reverse", alignItems: "center",

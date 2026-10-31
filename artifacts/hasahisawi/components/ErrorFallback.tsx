@@ -86,10 +86,10 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           Please reload the app to continue.
         </Text>
 
-        <Text style={[styles.message, { color: "#FF6B6B", fontSize: 11, marginTop: 4, textAlign: "left" }]} selectable>
+        <Text style={[styles.message, { color: "#FF6B6B", fontSize: 12, marginTop: 4, textAlign: "left" }]} selectable>
           {error?.message || "Unknown error"}
         </Text>
-        <Text style={[styles.message, { color: "#888", fontSize: 9, marginTop: 2, textAlign: "left" }]} selectable>
+        <Text style={[styles.message, { color: "#888", fontSize: 11, marginTop: 2, textAlign: "left" }]} selectable>
           {error?.stack?.split("\n").slice(0, 3).join(" | ") || ""}
         </Text>
 
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 18,
     width: "100%",
   },
