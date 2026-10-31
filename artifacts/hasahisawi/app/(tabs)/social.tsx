@@ -107,6 +107,8 @@ type MediaAsset = {
 const DEVICE_ID_KEY = "social_device_id";
 const USER_NAME_KEY = "social_user_name";
 const POSTS_CACHE_KEY = "social_posts";
+type Feed = "all" | "following";
+const postsCacheKey = (feed: Feed, cat: string) => feed === "following" ? `${POSTS_CACHE_KEY}_following_${cat}` : `${POSTS_CACHE_KEY}_${cat}`;
 const BOOKMARKS_KEY = "social_bookmarks";
 
 const CATEGORIES = ["عام", "سؤال", "خبر", "إعلان", "نقاش", "شكر", "صور", "طلب"];
@@ -206,9 +208,10 @@ function authHeaders(token?: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function apiFetchPosts(deviceId: string, category?: string, page = 1, token?: string | null): Promise<Post[]> {
+async function apiFetchPosts(deviceId: string, category?: string, page = 1, token?: string | null, feed: Feed = "all"): Promise<Post[]> {
   const params = new URLSearchParams({ device_id: deviceId, page: String(page), limit: "30" });
   if (category && category !== "الكل") params.set("category", category);
+  if (feed === "following") params.set("feed", "following");
   const res = await fetchWithTimeout(apiUrl(`/api/posts?${params}`), { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to fetch posts");
   return res.json();
@@ -1218,6 +1221,7 @@ export default function SocialScreen() {
   const [showComments, setShowComments] = useState(false);
   const [catFilter, setCatFilter] = useState("الكل");
   const [sortMode, setSortMode] = useState<"recent" | "popular">("recent");
+  const [feed, setFeed] = useState<Feed>("all");
   const [bookmarks, setBookmarks] = useState<Set<number>>(new Set());
   const [showSaved, setShowSaved] = useState(false);
   const [menuPost, setMenuPost] = useState<Post | null>(null);
@@ -1257,7 +1261,7 @@ export default function SocialScreen() {
 
     // أوفلاين — اعرض بيانات الـ cache مباشرةً
     if (!online && (opts?.reset || p === 1)) {
-      const cached = await cacheGet<Post[]>(`${POSTS_CACHE_KEY}_${cat}`);
+      const cached = await cacheGet<Post[]>(postsCacheKey(feed, cat));
       if (cached) {
         setPosts(cached.data);
         setFromCache(true);
@@ -1275,13 +1279,13 @@ export default function SocialScreen() {
 
     try {
       const id = deviceId || await getDeviceId();
-      const data = await apiFetchPosts(id, cat, p, auth.token);
+      const data = await apiFetchPosts(id, cat, p, auth.token, feed);
       if (opts?.reset || p === 1) {
         setPosts(data);
         setPage(2);
         setFromCache(false);
         // خزّن الصفحة الأولى فقط (الأحدث) للاستخدام أوفلاين
-        if (data.length > 0) cacheSet(`${POSTS_CACHE_KEY}_${cat}`, data).catch(() => {});
+        if (data.length > 0) cacheSet(postsCacheKey(feed, cat), data).catch(() => {});
       } else {
         setPosts(prev => [...prev, ...data]);
         setPage(p + 1);
@@ -1290,7 +1294,7 @@ export default function SocialScreen() {
     } catch {
       // عند الفشل جرّب الـ cache كبديل
       if (p === 1) {
-        const cached = await cacheGet<Post[]>(`${POSTS_CACHE_KEY}_${cat}`);
+        const cached = await cacheGet<Post[]>(postsCacheKey(feed, cat));
         if (cached) {
           setPosts(cached.data);
           setFromCache(true);
@@ -1307,7 +1311,7 @@ export default function SocialScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [deviceId, catFilter, page, auth.token]);
+  }, [deviceId, catFilter, page, auth.token, feed]);
 
   useEffect(() => { init(); }, []);
 
@@ -1318,7 +1322,7 @@ export default function SocialScreen() {
 
   useEffect(() => {
     if (deviceId) loadPosts({ reset: true, cat: catFilter });
-  }, [catFilter, deviceId]);
+  }, [catFilter, deviceId, feed]);
 
   // Auto-poll every 60s
   useEffect(() => {
@@ -1326,7 +1330,7 @@ export default function SocialScreen() {
       if (deviceId) loadPosts({ quiet: true, reset: true });
     }, 60000);
     return () => clearInterval(iv);
-  }, [deviceId, catFilter]);
+  }, [deviceId, catFilter, feed]);
 
   const handlePost = async (
     content: string, category: string, name: string,
@@ -1480,6 +1484,17 @@ export default function SocialScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filters}
       >
+        {/* الكل / أتابعهم */}
+        {!auth.isGuest && (
+          <AnimatedPress
+            style={[styles.filterBtn, feed === "following" && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
+            onPress={() => { setFeed(f => f === "all" ? "following" : "all"); setShowSaved(false); }}
+            scaleDown={0.92}
+          >
+            <Ionicons name="people-outline" size={12} color={feed === "following" ? "#fff" : Colors.textMuted} />
+            <Text style={[styles.filterText, feed === "following" && styles.filterTextActive]}>أتابعهم</Text>
+          </AnimatedPress>
+        )}
         {/* Sort toggle */}
         <AnimatedPress
           style={[styles.filterBtn, sortMode === "popular" && { backgroundColor: "#1F5C8A", borderColor: "#1F5C8A" }]}
@@ -1597,6 +1612,16 @@ export default function SocialScreen() {
                 <Text style={styles.emptyText}>{error}</Text>
                 <TouchableOpacity style={styles.emptyBtn} onPress={() => loadPosts({ reset: true })}>
                   <Text style={styles.emptyBtnText}>إعادة المحاولة</Text>
+                </TouchableOpacity>
+              </View>
+            ) : feed === "following" && !showSaved ? (
+              <View style={styles.empty}>
+                <Ionicons name="people-outline" size={62} color={Colors.divider} />
+                <Text style={[styles.emptyText, { textAlign: "center", paddingHorizontal: 24 }]}>
+                  لا توجد منشورات ممن تتابعهم بعد. افتح ملف أي شخص واضغط «متابعة» لترى منشوراته هنا.
+                </Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => setFeed("all")}>
+                  <Text style={styles.emptyBtnText}>تصفح كل المنشورات</Text>
                 </TouchableOpacity>
               </View>
             ) : showSaved ? (

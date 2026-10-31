@@ -65,6 +65,7 @@ function getTypeIcon(type: string): string {
     case "union_manager_application": return "people-outline";
     case "transport":        return "car-outline";
     case "direct":           return "person-outline";
+    case "follow":           return "person-add-outline";
     default:                 return "notifications-outline";
   }
 }
@@ -90,6 +91,7 @@ function getTypeColor(type: string): string {
     case "union_manager_application": return "#4CAF50";
     case "transport":        return "#00BCD4";
     case "direct":           return Colors.textSecondary;
+    case "follow":           return Colors.primary;
     default:                 return Colors.textSecondary;
   }
 }
@@ -105,6 +107,7 @@ function getNotifRoute(notif: Notification): string | null {
       type === "lawyer_application" || type === "alert") return "/admin";
   if (type === "zawajil" || (parsed as any)?.screen === "zawajil") return "/zawajil";
   if (type === "transport") return "/(tabs)";
+  if (type === "follow" && (parsed as any)?.follower_id) return `/profile?id=${encodeURIComponent(String((parsed as any).follower_id))}`;
   return null;
 }
 

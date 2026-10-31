@@ -118,6 +118,9 @@ router.post("/users/:id/block", async (req: Request, res: Response) => {
     const u = await query(`SELECT id FROM users WHERE id=$1`, [target]);
     if (!u.rows[0]) return res.status(404).json({ error: "المستخدم غير موجود" });
     await query(`INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [me.id, target]);
+    // الحظر يلغي المتابعة في الاتجاهين (الجدول قد لا يكون أُنشئ بعد)
+    await query(`DELETE FROM user_follows WHERE (follower_id=$1 AND followee_id=$2) OR (follower_id=$2 AND followee_id=$1)`, [me.id, target])
+      .catch(() => {});
     return res.json({ success: true, blocked: true });
   } catch (err) {
     logger.error({ err }, "[social-safety] block");
