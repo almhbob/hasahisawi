@@ -3,7 +3,7 @@
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 
-export type UploadTarget = { upload_url: string; method?: string; headers?: Record<string, string>; content_type?: string };
+export type UploadTarget = { upload_url: string; method?: string; headers?: Record<string, string>; content_type?: string; public_url?: string };
 
 function parseResult(text: string): string {
   let body: any = {};
@@ -27,7 +27,9 @@ export async function uploadToTarget(
   onProgress?: (pct: number) => void,
 ): Promise<string> {
   const headers: Record<string, string> = { ...(target.headers || {}) };
-  if (file.size) headers["x-content-length"] = String(file.size);
+  // R2: الرد فارغ، والرابط العام معروف مسبقاً من الخادم
+  const result = (text: string) => target.public_url ? target.public_url : parseResult(text);
+  if (file.size && !target.public_url) headers["x-content-length"] = String(file.size);
 
   if (Platform.OS === "web") {
     const body: Blob = file.file ?? (await (await fetch(file.uri)).blob());
@@ -37,7 +39,7 @@ export async function uploadToTarget(
       Object.entries(headers).forEach(([k, v]) => { if (k.toLowerCase() !== "x-content-length") xhr.setRequestHeader(k, v); });
       xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)); };
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) { try { resolve(parseResult(xhr.responseText)); } catch (e) { reject(e); } }
+        if (xhr.status >= 200 && xhr.status < 300) { try { resolve(result(xhr.responseText)); } catch (e) { reject(e); } }
         else reject(friendly(xhr.status, xhr.responseText));
       };
       xhr.onerror = () => reject(new Error("انقطع الاتصال أثناء الرفع — تأكد من الإنترنت وأعد المحاولة."));
@@ -56,5 +58,5 @@ export async function uploadToTarget(
   const res = await task.uploadAsync();
   if (!res) throw new Error("أُلغي الرفع");
   if (res.status < 200 || res.status >= 300) throw friendly(res.status, res.body);
-  return parseResult(res.body);
+  return result(res.body);
 }

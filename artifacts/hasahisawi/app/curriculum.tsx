@@ -389,11 +389,11 @@ function UploadForm({ meta, api, token, isMod, onDone }: { meta: Meta; api: stri
     const tr = await fetch(`${api}/api/curriculum/upload-target`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ file_name: a.name, size: a.size ?? 0, content_type: a.mimeType || "" }),
+      body: JSON.stringify({ file_name: a.name, size: a.size ?? 0, content_type: a.mimeType || "", supports: ["r2"] }),
     }).catch(() => null);
     const target = tr ? await tr.json().catch(() => ({})) : {};
     if (tr && !tr.ok && tr.status === 413) throw new Error(target.error || "الملف أكبر من المسموح");
-    if (tr?.ok && target.provider === "blob") {
+    if (tr?.ok && (target.provider === "blob" || target.provider === "r2")) {
       return uploadToTarget(target, { uri: a.uri, file: (a as any).file, mimeType: a.mimeType, size: a.size }, setProgress);
     }
     const sr = await fetch(`${api}/api/curriculum/upload-signature`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ size: a.size ?? 0 }) });

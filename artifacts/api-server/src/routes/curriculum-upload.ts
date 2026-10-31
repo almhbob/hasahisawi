@@ -5,6 +5,7 @@ import { Router } from "express";
 import { randomBytes } from "node:crypto";
 import { logger } from "../lib/logger";
 import { sessionUser } from "../lib/shared-db";
+import { r2Configured, r2PresignPut, r2DeleteByUrl } from "../lib/r2";
 
 export const BOOK_MAX_MB = 500;
 export const CLOUDINARY_RAW_LIMIT_MB = 9.5;
@@ -23,7 +24,7 @@ const EXT_TYPE: Record<string, string> = {
   png: "image/png", mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "video/mp4",
 };
 
-export function blobConfigured() { return !!process.env.BLOB_READ_WRITE_TOKEN; }
+export function blobConfigured() { return !!process.env.BLOB_READ_WRITE_TOKEN || r2Configured(); }
 
 export function curriculumMaxFileMb() {
   return blobConfigured() ? BOOK_MAX_MB : CLOUDINARY_RAW_LIMIT_MB;
@@ -47,8 +48,17 @@ router.post("/curriculum/upload-target", async (req, res) => {
 
     // كل الكتب تذهب إلى التخزين الكبير متى كان متاحاً — Cloudinary المجاني يرفض كثيراً من ملفات PDF
     // (حد 10MB للملفات الخام) فكان المستخدم يرى «الحجم أكبر من المسموح» حتى لملفات متوسطة.
-    if (!blobConfigured()) {
-      return res.json({ provider: "cloudinary", max_file_mb: maxFileMb });
+    if (!blobConfigured() || (!process.env.BLOB_READ_WRITE_TOKEN && !(Array.isArray(req.body?.supports) && req.body.supports.includes("r2")))) {
+      return res.json({ provider: "cloudinary", max_file_mb: process.env.BLOB_READ_WRITE_TOKEN ? maxFileMb : CLOUDINARY_RAW_LIMIT_MB });
+    }
+
+    const safeName = rawName.replace(/\.[^.]*$/, "").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/-+/g, "-").slice(0, 60) || "book";
+    // Cloudflare R2 أولاً (بلا رسوم تحميل) للتطبيقات التي تدعمه
+    const supportsR2 = Array.isArray(req.body?.supports) && req.body.supports.includes("r2");
+    if (r2Configured() && supportsR2) {
+      const key = `curriculum/${user.id}/${Date.now()}-${randomBytes(4).toString("hex")}-${safeName}.${ext}`;
+      const { url, public_url } = r2PresignPut(key, 3600);
+      return res.json({ provider: "r2", upload_url: url, method: "PUT", headers: { "Content-Type": contentType }, content_type: contentType, public_url, max_file_mb: BOOK_MAX_MB });
     }
 
     const { issueSignedToken, presignUrl } = await import("@vercel/blob");
@@ -78,7 +88,8 @@ router.post("/curriculum/upload-target", async (req, res) => {
 // حذف ملف من التخزين الكبير عند حذف الكتاب (يوفّر المساحة)
 export async function deleteBookBlob(url: string | null | undefined) {
   try {
-    if (!url || !blobConfigured() || !/\.blob\.vercel-storage\.com\//.test(url)) return;
+    await r2DeleteByUrl(url).catch((e) => logger.warn({ err: e?.message }, "curriculum r2 delete"));
+    if (!url || !process.env.BLOB_READ_WRITE_TOKEN || !/\.blob\.vercel-storage\.com\//.test(url)) return;
     const { del } = await import("@vercel/blob");
     await del(url);
   } catch (err: any) {
