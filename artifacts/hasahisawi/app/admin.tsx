@@ -45,7 +45,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -4282,6 +4282,7 @@ export default function AdminDashboard() {
   const ALL_TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; badge?: number; adminOnly?: boolean; modPerm?: string }[] = [
     { key: "overview",       label: "نظرة عامة",        icon: "grid",               color: Colors.cyber                                  },
     { key: "members",        label: "الأعضاء",           icon: "people",             color: Colors.primary, modPerm: "members"            },
+    { key: "social_reports", label: "بلاغات المجتمع",     icon: "flag",               color: "#E05567"                                     },
     { key: "admins",         label: "المديرون",          icon: "shield",             color: "#E05567",      adminOnly: true               },
     { key: "moderators",     label: "المشرفون",          icon: "shield-half",        color: "#F0A500",      adminOnly: true               },
     { key: "communities",    label: "المؤسسات",          icon: "business",           color: "#16A085", badge: pendingCommunitiesCount, modPerm: "communities" },
@@ -4496,6 +4497,7 @@ export default function AdminDashboard() {
                 style={[s.tabBtn, active && { backgroundColor: t.color + "20", borderColor: t.color + "80" }]}
                 onPress={() => {
                   if (t.key === "transport") { router.push("/admin-transport" as any); return; }
+                  if (t.key === "social_reports") { router.push("/admin-social-reports" as any); return; }
                   if (t.key === "sections_config") { router.push("/admin-sections-config" as any); return; }
                   setTab(t.key);
                 }}

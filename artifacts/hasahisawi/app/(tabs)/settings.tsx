@@ -2084,6 +2084,26 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
+            {auth.user && !auth.isGuest && (
+              <>
+                <View style={legalSty.divider} />
+                <TouchableOpacity
+                  style={legalSty.btn}
+                  onPress={() => router.push("/blocked-users" as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={legalSty.btnIcon}>
+                    <Ionicons name="ban-outline" size={20} color="#10B981" />
+                  </View>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={legalSty.btnTitle}>المستخدمون المحظورون</Text>
+                    <Text style={legalSty.btnSub}>من حظرتهم في المجتمع وإلغاء الحظر</Text>
+                  </View>
+                  <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </>
+            )}
+
             <View style={legalSty.divider} />
 
             <TouchableOpacity

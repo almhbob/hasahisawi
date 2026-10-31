@@ -182,7 +182,7 @@ function AuthGate() {
 
         // ── تنبيه إدارة: أي طلب جديد → مركز الطلبات ──
         if (type === "admin_alert") {
-          router.push("/admin-requests" as any);
+          router.push((data?.kind === "social_report" ? "/admin-social-reports" : "/admin-requests") as any);
           return;
         }
         // ── المطاعم: طلب جديد للمالك، وتحديث حالة للعميل ──
@@ -367,6 +367,8 @@ function RootLayoutNav() {
         <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="designer"                 options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="notifications"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="blocked-users"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />

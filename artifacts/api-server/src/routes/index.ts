@@ -17,6 +17,7 @@ import sportsClubsRouter from "./sports-clubs";
 import providerListingsRouter from "./provider-listings";
 import chatPlusRouter from "./chat-plus";
 import profilePlusRouter from "./profile-plus";
+import socialSafetyRouter, { ensureSocialSafety } from "./social-safety";
 import callsRouter from "./calls";
 import zawajilAdminRouter from "./zawajil-admin";
 
@@ -38,6 +39,7 @@ router.use(sportsClubsRouter);
 router.use(providerListingsRouter);
 router.use(chatPlusRouter);
 router.use(profilePlusRouter);
+router.use(socialSafetyRouter);
 router.use(callsRouter);
 router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
@@ -53,8 +55,9 @@ initTravelAgenciesDb().catch(console.error);
 initExtraDb().catch(console.error);
 ensureLawyersDb().catch(console.error);
 initTransportLiveDb().catch(console.error);
-initHasahisawiDb().catch(console.error);
 ensureAdminAlertsDb().catch(console.error);
 ensureStoresDb().catch(console.error);
+// بعد جداول المجتمع (social_posts/social_comments) لأنها تضيف عموداً لها.
+initHasahisawiDb().then(() => ensureSocialSafety()).catch(console.error);
 
 export default router;

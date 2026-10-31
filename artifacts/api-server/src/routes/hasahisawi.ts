@@ -1,4 +1,5 @@
 import { ensureProfilePlus } from "./profile-plus";
+import { ensureSocialSafety, hiddenAuthorIds } from "./social-safety";
 import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
 import { canManageZawajil, notifyZawajilManagers } from "./zawajil-admin";
 import { Router, type Request, type Response, type NextFunction } from "express";
@@ -3213,6 +3214,13 @@ router.get("/posts", async (req: Request, res: Response) => {
       conditions.push(`p.author_id=$${paramIndex++}`);
       params.push(Number(user_id));
     }
+    // إخفاء منشورات من حظرهم المشاهد أو حظروه
+    const viewerForBlocks = await getSessionUser(req).catch(() => null);
+    const hidden = await hiddenAuthorIds(viewerForBlocks ? Number(viewerForBlocks.id) : null);
+    if (hidden.length) {
+      conditions.push(`(p.author_id IS NULL OR NOT (p.author_id = ANY($${paramIndex++}::int[])))`);
+      params.push(hidden);
+    }
     let whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
     const deviceParam = `$${paramIndex++}`;
@@ -3285,7 +3293,8 @@ router.post("/posts", writeLimiter, async (req: Request, res: Response) => {
       `INSERT INTO social_posts (author_id, author_name, content, category, image_url, video_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [
         user?.id || null,
-        author_name || user?.name || "مجهول",
+        // صاحب الحساب ينشر باسمه دائماً — يمنع انتحال الأسماء
+        (user?.name as string) || author_name || "مجهول",
         content?.trim() || "",
         category || "عام",
         image_url || null,
@@ -3315,7 +3324,15 @@ router.delete("/posts/:id", async (req: Request, res: Response) => {
 
 router.get("/posts/:id/comments", async (req: Request, res: Response) => {
   try {
-    const result = await query(`SELECT * FROM social_comments WHERE post_id=$1 ORDER BY created_at ASC`, [req.params.id]);
+    await ensureSocialSafety().catch(() => {});
+    const viewer = await getSessionUser(req).catch(() => null);
+    const hidden = await hiddenAuthorIds(viewer ? Number(viewer.id) : null);
+    const result = await query(
+      `SELECT c.*, u.avatar_url AS author_avatar, COALESCE(u.is_verified, false) AS author_verified
+         FROM social_comments c LEFT JOIN users u ON u.id = c.author_id
+        WHERE c.post_id=$1 AND (c.author_id IS NULL OR NOT (c.author_id = ANY($2::int[])))
+        ORDER BY c.created_at ASC`,
+      [req.params.id, hidden]);
     return res.json(result.rows);
   } catch (err) {
     logger.error({ err }, "route error");
@@ -3326,7 +3343,7 @@ router.get("/posts/:id/comments", async (req: Request, res: Response) => {
 router.post("/posts/:id/comments", writeLimiter, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
-    const { content, author_name } = req.body;
+    const { content, author_name, parent_id } = req.body;
     if (!content) return res.status(400).json({ error: "المحتوى مطلوب" });
 
     const mod = await checkContent(content);
@@ -3339,9 +3356,12 @@ router.post("/posts/:id/comments", writeLimiter, async (req: Request, res: Respo
       });
     }
 
+    await ensureSocialSafety().catch(() => {});
     const result = await query(
-      `INSERT INTO social_comments (post_id, author_name, content) VALUES ($1,$2,$3) RETURNING *`,
-      [req.params.id, author_name || user?.name || "مجهول", content]
+      `INSERT INTO social_comments (post_id, author_name, content, author_id, parent_id)
+       VALUES ($1,$2,$3,$4,(SELECT id FROM social_comments WHERE id=$5 AND post_id=$1)) RETURNING *`,
+      [req.params.id, (user?.name as string) || author_name || "مجهول", content, user?.id || null,
+       Number.isInteger(Number(parent_id)) && Number(parent_id) > 0 ? Number(parent_id) : null]
     );
     return res.json(result.rows[0]);
   } catch (err) {
