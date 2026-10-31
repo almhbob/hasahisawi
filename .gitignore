@@ -84,3 +84,8 @@ docs/assets/__node_modules/
 *service-account*.json
 *firebase-adminsdk*.json
 vercel-dist/
+
+# Credentials and project secrets must never be committed (the repository is public)
+hasahisawi-project-data.md
+*-project-data.md
+*credentials*.md

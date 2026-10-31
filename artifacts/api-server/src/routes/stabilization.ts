@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { Pool } from "pg";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
+import { sessionUser } from "../lib/shared-db";
+import { ownedDriver, ownedMerchant } from "../lib/ownership";
 
 const router = Router();
 
@@ -138,19 +140,12 @@ export async function initStabilizationDb(): Promise<void> {
 router.post("/transport/trips/:id/accept", async (req: Request, res: Response) => {
   try {
     await initStabilizationDb();
-    const me = await getSessionUser(req).catch(() => null);
-    const driverId = Number(req.body?.driver_id ?? req.body?.driverId);
-    if (!driverId) return res.status(400).json({ error: "driver_id مطلوب" });
-
-    const driverR = await query(
-      `SELECT * FROM transport_drivers WHERE id=$1 AND status='approved' LIMIT 1`,
-      [driverId],
-    );
-    const driver = driverR.rows[0];
-    if (!driver) return res.status(404).json({ error: "السائق غير معتمد أو غير موجود" });
-    if (driver.user_id && me?.id && Number(driver.user_id) !== Number(me.id) && !["admin", "moderator", "transport_supervisor"].includes(me.role)) {
-      return res.status(403).json({ error: "هذا السائق لا يتبع حسابك" });
-    }
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول بحساب السائق أولاً" });
+    // Without driver_id, accept as the caller's own driver (the account-bound driver tab).
+    const driverId = Number(req.body?.driver_id ?? req.body?.driverId) || null;
+    const driver = await ownedDriver(me, driverId);
+    if (!driver) return res.status(403).json({ error: "هذا السائق لا يتبع حسابك أو غير معتمد" });
 
     const { rows } = await query(
       `UPDATE transport_trips
@@ -167,17 +162,16 @@ router.post("/transport/trips/:id/accept", async (req: Request, res: Response) =
     if (!rows[0]) return res.status(409).json({ error: "تم قبول الطلب بواسطة سائق آخر أو لم يعد متاحاً" });
     return res.json({ success: true, trip: rows[0] });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || "Server error" });
+    logger.error({ err: e }, "transport accept error");
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
 router.get("/transport/driver/:driverId/incoming-trips", async (req: Request, res: Response) => {
   try {
     await initStabilizationDb();
-    const driverId = Number(req.params.driverId);
-    const d = await query(`SELECT * FROM transport_drivers WHERE id=$1 AND status='approved' LIMIT 1`, [driverId]);
-    const driver = d.rows[0];
-    if (!driver) return res.status(404).json({ error: "السائق غير معتمد" });
+    const driver = await ownedDriver(await sessionUser(req), Number(req.params.driverId));
+    if (!driver) return res.status(403).json({ error: "هذا السائق لا يتبع حسابك أو غير معتمد" });
     const vehicle = String(driver.vehicle_type || "").toLowerCase();
     const { rows } = await query(
       `SELECT * FROM transport_trips
@@ -194,7 +188,7 @@ router.get("/transport/driver/:driverId/incoming-trips", async (req: Request, re
       [vehicle, driver.zone_id ?? null, driver.operator_id ?? null],
     );
     return res.json(rows);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/join-application-archives", async (req: Request, res: Response) => {
@@ -208,7 +202,7 @@ router.get("/admin/join-application-archives", async (req: Request, res: Respons
         ORDER BY created_at DESC LIMIT 50`,
     );
     return res.json({ archives: rows });
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/join-application-archives/:id", async (req: Request, res: Response) => {
@@ -219,7 +213,7 @@ router.get("/admin/join-application-archives/:id", async (req: Request, res: Res
     const { rows } = await query(`SELECT * FROM join_application_archives WHERE id=$1 OR snapshot_id=$2 LIMIT 1`, [Number(req.params.id) || 0, req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: "الأرشيف غير موجود" });
     return res.json(rows[0]);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/admin/join-application-archives", async (req: Request, res: Response) => {
@@ -249,7 +243,7 @@ router.post("/admin/join-application-archives", async (req: Request, res: Respon
       [snapshotId, admin.id, admin.name, records.length, pending, JSON.stringify(sourceCounts), JSON.stringify({ records }), req.body?.note ?? null],
     );
     return res.status(201).json(rows[0]);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/social/posts/:postId/media", async (req: Request, res: Response) => {
@@ -257,7 +251,7 @@ router.get("/social/posts/:postId/media", async (req: Request, res: Response) =>
     await initStabilizationDb();
     const { rows } = await query(`SELECT * FROM post_media WHERE post_id=$1 ORDER BY sort_order,id`, [req.params.postId]);
     return res.json({ media: rows });
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/social/posts/:postId/media", async (req: Request, res: Response) => {
@@ -266,6 +260,12 @@ router.post("/social/posts/:postId/media", async (req: Request, res: Response) =
     const media = Array.isArray(req.body?.media) ? req.body.media : [];
     const postId = Number(req.params.postId);
     if (!postId || media.length === 0) return res.status(400).json({ error: "media مطلوب" });
+    const me = await sessionUser(req);
+    const post = await query(`SELECT author_id FROM social_posts WHERE id=$1`, [postId]);
+    if (!post.rows[0]) return res.status(404).json({ error: "المنشور غير موجود" });
+    if (!me || (Number(post.rows[0].author_id) !== Number(me.id) && !["admin", "moderator"].includes(me.role))) {
+      return res.status(403).json({ error: "غير مصرح" });
+    }
     await query(`DELETE FROM post_media WHERE post_id=$1`, [postId]);
     const inserted = [];
     for (let i = 0; i < media.length; i++) {
@@ -279,7 +279,7 @@ router.post("/social/posts/:postId/media", async (req: Request, res: Response) =
       inserted.push(r.rows[0]);
     }
     return res.status(201).json({ media: inserted });
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/merchant-products", async (req: Request, res: Response) => {
@@ -296,7 +296,7 @@ router.get("/merchant-products", async (req: Request, res: Response) => {
       [merchantId],
     );
     return res.json({ products: rows });
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/merchant-products", async (req: Request, res: Response) => {
@@ -305,6 +305,7 @@ router.post("/merchant-products", async (req: Request, res: Response) => {
     const me = await getSessionUser(req).catch(() => null);
     const { merchant_id, name, category, description, price, old_price, stock, images } = req.body;
     if (!merchant_id || !name || Number(price) < 0) return res.status(400).json({ error: "بيانات المنتج ناقصة" });
+    if (!await ownedMerchant(req, merchant_id)) return res.status(403).json({ error: "غير مصرح — المتجر لا يتبع حسابك" });
     const r = await query(
       `INSERT INTO merchant_products (merchant_id,name,category,description,price,old_price,stock,created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -317,13 +318,16 @@ router.post("/merchant-products", async (req: Request, res: Response) => {
       if (url) await query(`INSERT INTO merchant_product_images (product_id,image_url,sort_order) VALUES ($1,$2,$3)`, [product.id, url, i]);
     }
     return res.status(201).json(product);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/merchant-products/:id", async (req: Request, res: Response) => {
   try {
     await initStabilizationDb();
     const { name, category, description, price, old_price, stock, is_available } = req.body;
+    const cur = await query(`SELECT merchant_id FROM merchant_products WHERE id=$1`, [req.params.id]);
+    if (!cur.rows[0]) return res.status(404).json({ error: "المنتج غير موجود" });
+    if (!await ownedMerchant(req, cur.rows[0].merchant_id)) return res.status(403).json({ error: "غير مصرح" });
     const { rows } = await query(
       `UPDATE merchant_products SET
         name=COALESCE($1,name), category=COALESCE($2,category), description=COALESCE($3,description),
@@ -334,7 +338,7 @@ router.patch("/merchant-products/:id", async (req: Request, res: Response) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "المنتج غير موجود" });
     return res.json(rows[0]);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.post("/marketplace-orders", async (req: Request, res: Response) => {
@@ -351,7 +355,7 @@ router.post("/marketplace-orders", async (req: Request, res: Response) => {
       [orderNumber, req.body?.merchant_id ?? null, me?.id ?? null, req.body?.customer_name ?? me?.name ?? null, req.body?.customer_phone ?? me?.phone ?? null, total, JSON.stringify(items), req.body?.notes ?? null],
     );
     return res.status(201).json(rows[0]);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/admin/marketplace-orders", async (req: Request, res: Response) => {
@@ -369,7 +373,7 @@ router.get("/admin/marketplace-orders", async (req: Request, res: Response) => {
       [status],
     );
     return res.json({ orders: rows });
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.patch("/admin/marketplace-orders/:id", async (req: Request, res: Response) => {
@@ -383,7 +387,7 @@ router.patch("/admin/marketplace-orders/:id", async (req: Request, res: Response
     );
     if (!rows[0]) return res.status(404).json({ error: "الطلب غير موجود" });
     return res.json(rows[0]);
-  } catch (e: any) { return res.status(500).json({ error: e?.message || "Server error" }); }
+  } catch (e: any) { logger.error({ err: e }, "stabilization route error"); return res.status(500).json({ error: "Server error" }); }
 });
 
 export default router;
