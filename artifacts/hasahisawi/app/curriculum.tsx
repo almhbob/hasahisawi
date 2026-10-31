@@ -396,7 +396,7 @@ function UploadForm({ meta, api, token, isMod, onDone }: { meta: Meta; api: stri
     if (tr?.ok && target.provider === "blob") {
       return uploadToTarget(target, { uri: a.uri, file: (a as any).file, mimeType: a.mimeType, size: a.size }, setProgress);
     }
-    const sr = await fetch(`${api}/api/curriculum/upload-signature`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const sr = await fetch(`${api}/api/curriculum/upload-signature`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ size: a.size ?? 0 }) });
     const sig = await sr.json().catch(() => ({}));
     if (!sr.ok) throw new Error(sig.error || "تعذّر بدء الرفع");
     const form = new FormData();

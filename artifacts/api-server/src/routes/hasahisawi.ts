@@ -15,6 +15,7 @@ import { verifyIdToken, listAllFirebaseUsers, ensureEmailPasswordProvider, ensur
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
+import { curriculumMaxFileMb, CLOUDINARY_RAW_LIMIT_MB } from "./curriculum-upload";
 
 const router = Router();
 
@@ -19248,7 +19249,6 @@ const CURRICULUM_SUBJECTS: Record<string, string[]> = {
   intermediate: ["القرآن الكريم", "التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "الرياضيات", "العلوم", "اللغة الإنجليزية", "التاريخ", "الجغرافيا", "الحاسوب", "اللغة الفرنسية"],
   secondary: ["التربية الإسلامية", "التربية المسيحية", "اللغة العربية", "اللغة الإنجليزية", "الرياضيات الأساسية", "الرياضيات المتخصصة", "الفيزياء", "الكيمياء", "الأحياء", "التاريخ", "الجغرافيا", "الحاسوب", "علوم الحاسوب", "الفنون", "الاقتصاد", "اللغة الفرنسية"],
 };
-const CURRICULUM_MAX_FILE_MB = 500;
 
 let _curriculumReady: Promise<void> | null = null;
 function ensureCurriculumTables(): Promise<void> {
@@ -19329,7 +19329,7 @@ router.get("/curriculum/meta", async (_req: Request, res: Response) => {
     return res.json({
       stages: CURRICULUM_STAGES.map((s) => ({ ...s, grades: s.grades.map((g) => ({ ...g, count: counts[`${s.key}:${g.n}`] || 0 })) })),
       tracks: CURRICULUM_TRACKS, kinds: CURRICULUM_KINDS, subjects: CURRICULUM_SUBJECTS,
-      max_file_mb: CURRICULUM_MAX_FILE_MB,
+      max_file_mb: curriculumMaxFileMb(),
     });
   } catch (err) { logger.error({ err }, "curriculum/meta"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -19371,13 +19371,17 @@ router.post("/curriculum/upload-signature", writeLimiter, async (req: Request, r
     const user = await getSessionUser(req) as Record<string, any> | null;
     if (!user) return res.status(401).json({ error: "سجّل الدخول لرفع الملفات" });
     if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const requestedSize = Number(req.body?.size) || 0;
+    if (requestedSize > CLOUDINARY_RAW_LIMIT_MB * 1024 * 1024) {
+      return res.status(413).json({ error: "حجم الملف يتجاوز حد Cloudinary البالغ " + CLOUDINARY_RAW_LIMIT_MB + " ميجابايت" });
+    }
     const { v2: cloudinary } = await import("cloudinary");
     const cfg = cloudinary.config();
     if (!cfg.cloud_name || !cfg.api_key || !cfg.api_secret) return res.status(503).json({ error: "خدمة رفع الملفات غير مهيأة. أضف الكتاب كرابط بدلاً من ذلك." });
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = `hasahisawi/curriculum/${user.id}`;
     const signature = cloudinary.utils.api_sign_request({ timestamp, folder }, cfg.api_secret);
-    return res.json({ cloud_name: cfg.cloud_name, api_key: cfg.api_key, timestamp, folder, signature, resource_type: "raw", max_file_mb: CURRICULUM_MAX_FILE_MB });
+    return res.json({ cloud_name: cfg.cloud_name, api_key: cfg.api_key, timestamp, folder, signature, resource_type: "raw", max_file_mb: CLOUDINARY_RAW_LIMIT_MB });
   } catch (err) { logger.error({ err }, "curriculum/upload-signature"); return res.status(500).json({ error: "Server error" }); }
 });
 

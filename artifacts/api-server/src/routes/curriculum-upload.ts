@@ -25,6 +25,10 @@ const EXT_TYPE: Record<string, string> = {
 
 export function blobConfigured() { return !!process.env.BLOB_READ_WRITE_TOKEN; }
 
+export function curriculumMaxFileMb() {
+  return blobConfigured() ? BOOK_MAX_MB : CLOUDINARY_RAW_LIMIT_MB;
+}
+
 const router = Router();
 
 // POST /api/curriculum/upload-target { file_name, size, content_type }
@@ -35,7 +39,8 @@ router.post("/curriculum/upload-target", async (req, res) => {
     if (!user) return res.status(401).json({ error: "سجّل الدخول لرفع الملفات" });
     if (user.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
     const size = Number(req.body?.size) || 0;
-    if (size > BOOK_MAX_MB * 1024 * 1024) return res.status(413).json({ error: `الحد الأقصى لحجم الملف ${BOOK_MAX_MB} ميجابايت` });
+    const maxFileMb = curriculumMaxFileMb();
+    if (size > maxFileMb * 1024 * 1024) return res.status(413).json({ error: "الحد الأقصى لحجم الملف " + maxFileMb + " ميجابايت" });
     const rawName = String(req.body?.file_name || "book.pdf");
     const ext = (rawName.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6) || "pdf";
     const contentType = EXT_TYPE[ext] || (ALLOWED_TYPES.includes(String(req.body?.content_type)) ? String(req.body.content_type) : "application/octet-stream");
@@ -43,7 +48,7 @@ router.post("/curriculum/upload-target", async (req, res) => {
     // كل الكتب تذهب إلى التخزين الكبير متى كان متاحاً — Cloudinary المجاني يرفض كثيراً من ملفات PDF
     // (حد 10MB للملفات الخام) فكان المستخدم يرى «الحجم أكبر من المسموح» حتى لملفات متوسطة.
     if (!blobConfigured()) {
-      return res.json({ provider: "cloudinary", max_file_mb: CLOUDINARY_RAW_LIMIT_MB });
+      return res.json({ provider: "cloudinary", max_file_mb: maxFileMb });
     }
 
     const { issueSignedToken, presignUrl } = await import("@vercel/blob");
