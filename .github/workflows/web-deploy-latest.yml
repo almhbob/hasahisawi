@@ -183,7 +183,12 @@ jobs:
         run: |
           # المفتاح المحفوظ قد يحمل سطراً جديداً أو مسافة من النسخ واللصق فيرفضه Cloudflare (Headers.append)
           # النسخ من هاتف عربي قد يضيف علامات اتجاه خفية؛ مفاتيح Cloudflare حروف لاتينية وأرقام و _ - فقط
-          CLOUDFLARE_API_TOKEN="$(printf '%s' "$CLOUDFLARE_API_TOKEN" | sed 's/^[[:space:]]*Bearer[[:space:]]*//' | LC_ALL=C tr -cd 'A-Za-z0-9_-')"
+          # إن لُصق نص صفحة Cloudflare كاملاً (المفتاح + أمر curl) نستخرج المفتاح cfut_… منه
+          _cf_tok="$(printf '%s' "$CLOUDFLARE_API_TOKEN" | LC_ALL=C grep -oE 'cfut_[A-Za-z0-9_-]+' | head -n1)"
+          if [ -z "$_cf_tok" ]; then
+            _cf_tok="$(printf '%s' "$CLOUDFLARE_API_TOKEN" | sed 's/.*Bearer[[:space:]]*//' | LC_ALL=C tr -cd 'A-Za-z0-9_-')"
+          fi
+          CLOUDFLARE_API_TOKEN="$_cf_tok"
           CLOUDFLARE_ACCOUNT_ID="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | LC_ALL=C tr -cd 'A-Fa-f0-9')"
           export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
           # تشخيص دون كشف القيم: الطول وصلاحية المفتاح
