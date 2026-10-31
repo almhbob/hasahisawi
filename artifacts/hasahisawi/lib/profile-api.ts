@@ -3,6 +3,7 @@ import { getApiUrl } from "./query-client";
 
 export type Cert = {
   id: number; kind: CertKind; title: string; issuer: string | null; issued_on: string | null;
+  expires_on: string | null;
   credential_id: string | null; credential_url: string | null; file_url: string | null; file_type: "pdf" | "image" | null;
   is_public: boolean; reviewed?: boolean; created_at?: string;
 };
@@ -63,6 +64,8 @@ export const profileApi = {
   update: (token: string, patch: Partial<{ headline: string; profession: string; bio: string; neighborhood: string; skills: string[]; social_links: Record<string, string>; open_to_work: boolean; show_certs: boolean; profile_locked: boolean }>) =>
     api(`/profile/me`, token, { method: "PATCH", body: patch }) as Promise<FullProfile>,
   addCert: (token: string, c: Partial<Cert>) => api(`/profile/me/certificates`, token, { method: "POST", body: c }) as Promise<Cert>,
+  importCerts: (token: string, records: Partial<Cert>[]) =>
+    api(`/profile/me/certificates/import`, token, { method: "POST", body: { records } }) as Promise<{ inserted: number; skipped: number; total: number }>,
   editCert: (token: string, id: number, c: Partial<Cert>) => api(`/profile/me/certificates/${id}`, token, { method: "PATCH", body: c }) as Promise<Cert>,
   delCert: (token: string, id: number) => api(`/profile/me/certificates/${id}`, token, { method: "DELETE" }),
   endorse: (token: string, id: number, skill: string) => api(`/profile/${id}/endorse`, token, { method: "POST", body: { skill } }) as Promise<{ endorsed: boolean; count: number }>,

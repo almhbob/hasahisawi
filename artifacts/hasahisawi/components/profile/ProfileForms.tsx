@@ -178,16 +178,17 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
   visible: boolean; token: string; cert: Cert | null; onClose: () => void; onSaved: () => void;
 }) {
   const [kind, setKind] = useState<CertKind>("course");
-  const [f, setF] = useState({ title: "", issuer: "", issued_on: "", credential_id: "", credential_url: "" });
+  const [f, setF] = useState({ title: "", issuer: "", issued_on: "", expires_on: "", credential_id: "", credential_url: "" });
   const [file, setFile] = useState<{ url: string; type: "pdf" | "image"; name?: string } | null>(null);
   const [isPublic, setIsPublic] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
     setKind(cert?.kind || "course");
-    setF({ title: cert?.title || "", issuer: cert?.issuer || "", issued_on: cert?.issued_on || "", credential_id: cert?.credential_id || "", credential_url: cert?.credential_url || "" });
+    setF({ title: cert?.title || "", issuer: cert?.issuer || "", issued_on: cert?.issued_on || "", expires_on: cert?.expires_on || "", credential_id: cert?.credential_id || "", credential_url: cert?.credential_url || "" });
     setFile(cert?.file_url ? { url: cert.file_url, type: cert.file_type || "image" } : null);
     setIsPublic(cert ? cert.is_public : true);
   }, [visible, cert]);
@@ -217,6 +218,28 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
     finally { setUploading(false); }
   };
 
+  const importJson = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    const asset = picked.assets[0];
+    if (asset.size && asset.size > 1024 * 1024) { notify("الملف كبير", "الحد الأقصى للاستيراد 1 ميجابايت"); return; }
+    setImporting(true);
+    try {
+      const text = await (await fetch(asset.uri)).text();
+      if (text.length > 1024 * 1024) throw new Error("الحد الأقصى للاستيراد 1 ميجابايت");
+      const parsed = JSON.parse(text);
+      const records = Array.isArray(parsed) ? parsed : parsed?.records;
+      if (!Array.isArray(records) || records.length < 1 || records.length > 100) {
+        throw new Error("يجب أن يحتوي الملف على قائمة من 1 إلى 100 شهادة");
+      }
+      const result = await profileApi.importCerts(token, records);
+      notify("اكتمل الاستيراد", `أُضيف ${result.inserted}، وتُخطّي ${result.skipped} مكرراً. السجلات المستوردة مخفية افتراضياً.`);
+      onSaved();
+    } catch (e: any) {
+      notify("تعذّر استيراد الملف", e?.message || "تحقق من أن الملف JSON صالح");
+    } finally { setImporting(false); }
+  };
+
   const save = async () => {
     if (f.title.trim().length < 2) { notify("اسم الشهادة مطلوب", "اكتب اسم الشهادة أو الخبرة"); return; }
     setBusy(true);
@@ -231,7 +254,7 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
   const isExp = kind === "experience";
   return (
     <Sheet visible={visible} title={cert ? "تعديل الشهادة" : "إضافة شهادة أو خبرة"} onClose={onClose}
-      footer={<PrimaryButton label={cert ? "حفظ التعديل" : "إضافة إلى ملفي"} onPress={save} busy={busy || uploading} />}>
+      footer={<PrimaryButton label={cert ? "حفظ التعديل" : "إضافة إلى ملفي"} onPress={save} busy={busy || uploading || importing} />}>
       <Text style={st.section}>النوع</Text>
       <View style={st.chips}>
         {CERT_KINDS.map((k) => {
@@ -244,9 +267,19 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
           );
         })}
       </View>
+      {!cert && (
+        <View style={{ marginBottom: 12 }}>
+          <Pressable onPress={importJson} disabled={busy || uploading || importing} style={st.attach}>
+            {importing ? <ActivityIndicator color={Colors.primary} /> : <Ionicons name="cloud-upload-outline" size={19} color={Colors.primary} />}
+            <Text style={st.attachText}>استيراد قائمة JSON حتى 100 شهادة</Text>
+          </Pressable>
+          <Text style={st.switchSub}>تُضاف إلى حسابك وتبقى مخفية عن الملف العام حتى تنشرها.</Text>
+        </View>
+      )}
       <Field label={isExp ? "المسمى الوظيفي" : "اسم الشهادة"} value={f.title} max={200} onChange={(v) => setF({ ...f, title: v })} placeholder={isExp ? "مثال: محاسب أول" : "مثال: بكالوريوس هندسة مدنية"} />
       <Field label={isExp ? "جهة العمل" : "الجهة المانحة"} value={f.issuer} max={200} onChange={(v) => setF({ ...f, issuer: v })} placeholder={isExp ? "مثال: مصنع سكر الجنيد" : "مثال: جامعة الجزيرة"} />
       <Field label={isExp ? "الفترة" : "تاريخ الحصول"} value={f.issued_on} max={20} onChange={(v) => setF({ ...f, issued_on: v })} placeholder={isExp ? "2019 – 2024" : "2023"} />
+      {!isExp && <Field label="تاريخ الانتهاء (اختياري)" value={f.expires_on} max={20} onChange={(v) => setF({ ...f, expires_on: v })} placeholder="2028-03-24" />}
       {!isExp && <Field label="رقم الشهادة (اختياري)" value={f.credential_id} max={120} onChange={(v) => setF({ ...f, credential_id: v })} placeholder="للتحقق من قبل جهة العمل" />}
       {!isExp && <Field label="رابط التحقق (اختياري)" value={f.credential_url} max={500} keyboard="url" onChange={(v) => setF({ ...f, credential_url: v })} placeholder="https://" />}
 

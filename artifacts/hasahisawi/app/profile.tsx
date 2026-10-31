@@ -463,7 +463,7 @@ export default function ProfileScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.certKind, { color: k.color }]}>{k.label}{!c.is_public && isOwn ? " · مخفية" : ""}</Text>
                     <Text style={styles.certTitle}>{c.title}</Text>
-                    {(c.issuer || c.issued_on) ? <Text style={styles.certMeta}>{[c.issuer, c.issued_on].filter(Boolean).join(" · ")}</Text> : null}
+                    {(c.issuer || c.issued_on || c.expires_on) ? <Text style={styles.certMeta}>{[c.issuer, c.issued_on, c.expires_on ? `ينتهي ${c.expires_on}` : null].filter(Boolean).join(" · ")}</Text> : null}
                     <View style={{ flexDirection: "row-reverse", gap: 12, marginTop: 2 }}>
                       {c.file_url ? <Text style={styles.link} onPress={() => c.file_type === "image" ? setPreview(c.file_url!) : openExternal(c.file_url!)}>عرض المرفق</Text> : null}
                       {c.credential_url ? <Text style={styles.link} onPress={() => openExternal(c.credential_url!)}>التحقق</Text> : null}

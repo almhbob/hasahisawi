@@ -5,11 +5,17 @@ on:
     branches: [master, main]
     paths:
       - 'artifacts/api-server/**'
+      - 'artifacts/hasahisawi/app/profile.tsx'
+      - 'artifacts/hasahisawi/lib/profile-api.ts'
+      - 'artifacts/hasahisawi/components/profile/ProfileForms.tsx'
       - '.github/workflows/api-service-e2e.yml'
   push:
     branches: [master]
     paths:
       - 'artifacts/api-server/**'
+      - 'artifacts/hasahisawi/app/profile.tsx'
+      - 'artifacts/hasahisawi/lib/profile-api.ts'
+      - 'artifacts/hasahisawi/components/profile/ProfileForms.tsx'
       - '.github/workflows/api-service-e2e.yml'
   workflow_dispatch:
 
@@ -18,7 +24,7 @@ permissions:
 
 jobs:
   api-e2e:
-    name: Join requests and service journeys
+    name: Service journeys (requests + certificates)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -47,6 +53,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck API server
+        run: pnpm --filter @workspace/api-server run typecheck
 
       - name: Build API server
         working-directory: artifacts/api-server
@@ -93,3 +102,4 @@ jobs:
           if (!ready) { console.error("API test schema did not initialize; missing:", JSON.stringify(missing)); process.exit(1); }
           NODE
           node qa/e2e-requests.mjs
+          node qa/e2e-certificates.mjs
