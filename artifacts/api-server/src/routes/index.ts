@@ -57,13 +57,25 @@ router.use(lawyersAdminRouter);
 router.use(transportLiveRouter);
 router.use(hasahisawiRouter);
 
-initTravelAgenciesDb().catch(console.error);
-initExtraDb().catch(console.error);
-ensureLawyersDb().catch(console.error);
-initTransportLiveDb().catch(console.error);
-ensureAdminAlertsDb().catch(console.error);
-ensureStoresDb().catch(console.error);
-// بعد جداول المجتمع (social_posts/social_comments) لأنها تضيف عموداً لها.
-initHasahisawiDb().then(() => Promise.all([ensureSocialSafety(), ensureSocialPlus(), ensureVolunteerDb(), ensureContestsDb()])).catch(console.error);
+async function initializeDatabaseSchemas() {
+  // Core schema creates users and the tables referenced by feature schemas.
+  await initHasahisawiDb();
+  await initTravelAgenciesDb();
+  await initExtraDb();
+  await ensureLawyersDb();
+  await initTransportLiveDb();
+  await ensureStoresDb();
+  // بعد جداول المجتمع (social_posts/social_comments) لأنها تضيف عموداً لها.
+  await ensureSocialSafety();
+  await ensureSocialPlus();
+  await ensureVolunteerDb();
+  await ensureContestsDb();
+  // Keep this last: its table is the completion marker used by readiness checks.
+  await ensureAdminAlertsDb();
+}
+
+void initializeDatabaseSchemas().catch((error) => {
+  console.error("[db] schema initialization failed", error);
+});
 
 export default router;

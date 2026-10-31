@@ -22,6 +22,7 @@ if (pool) pool.on("error", err => logger.error({ err }, "travel agencies pg pool
 
 const AGENCY_TYPES = new Set(["local", "international", "hajj_umrah", "tourism", "corporate"]);
 const STATUSES = new Set(["pending", "approved", "rejected", "needs_info"]);
+let travelAgenciesDbReady: Promise<void> | null = null;
 
 
 async function q(sql: string, params: unknown[] = []) {
@@ -56,7 +57,9 @@ function phoneOk(v: string) { return !v || /^[+\d][\d\s()+-]{6,24}$/.test(v); }
 function websiteOk(v: string) { return !v || /^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(v); }
 function yearOk(v: unknown) { const n = Number(v); return !v || (Number.isInteger(n) && n >= 1900 && n <= new Date().getFullYear() + 1); }
 
-export async function initTravelAgenciesDb() {
+export function initTravelAgenciesDb(): Promise<void> {
+  if (!travelAgenciesDbReady) {
+    travelAgenciesDbReady = (async () => {
   await q(`CREATE TABLE IF NOT EXISTS travel_agencies (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -97,23 +100,67 @@ export async function initTravelAgenciesDb() {
     license_number TEXT,
     founded_year INT,
     website TEXT,
-    specialties TEXT[] DEFAULT '{}',
-    destinations TEXT[] DEFAULT '{}',
-    services_offered TEXT[] DEFAULT '{}',
-    booking_products TEXT[] DEFAULT '{}',
+    specialties JSONB NOT NULL DEFAULT '[]'::jsonb,
+    destinations JSONB NOT NULL DEFAULT '[]'::jsonb,
+    services_offered JSONB NOT NULL DEFAULT '[]'::jsonb,
+    booking_products JSONB NOT NULL DEFAULT '[]'::jsonb,
     target_routes TEXT,
     description TEXT,
     workspace_settings JSONB DEFAULT '{}'::jsonb,
-    status TEXT DEFAULT 'pending',
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','needs_info')),
     review_notes TEXT,
     reviewed_at TIMESTAMPTZ,
     created_agency_id INT REFERENCES travel_agencies(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
+  await q(`ALTER TABLE travel_agency_applications ADD COLUMN IF NOT EXISTS agency_name_en TEXT`);
+  await q(`ALTER TABLE travel_agency_applications ADD COLUMN IF NOT EXISTS booking_products JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await q(`ALTER TABLE travel_agency_applications ADD COLUMN IF NOT EXISTS workspace_settings JSONB NOT NULL DEFAULT '{}'::jsonb`);
+  await q(`ALTER TABLE travel_agency_applications ADD COLUMN IF NOT EXISTS review_notes TEXT`);
+  await q(`ALTER TABLE travel_agency_applications ADD COLUMN IF NOT EXISTS created_agency_id INT REFERENCES travel_agencies(id)`);
+  await q(`DO $$
+  BEGIN
+    IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='travel_agency_applications' AND column_name='specialties') = 'ARRAY' THEN
+      ALTER TABLE travel_agency_applications ALTER COLUMN specialties DROP DEFAULT;
+      ALTER TABLE travel_agency_applications ALTER COLUMN specialties TYPE JSONB USING to_jsonb(specialties);
+      ALTER TABLE travel_agency_applications ALTER COLUMN specialties SET DEFAULT '[]'::jsonb;
+    END IF;
+    IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='travel_agency_applications' AND column_name='destinations') = 'ARRAY' THEN
+      ALTER TABLE travel_agency_applications ALTER COLUMN destinations DROP DEFAULT;
+      ALTER TABLE travel_agency_applications ALTER COLUMN destinations TYPE JSONB USING to_jsonb(destinations);
+      ALTER TABLE travel_agency_applications ALTER COLUMN destinations SET DEFAULT '[]'::jsonb;
+    END IF;
+    IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='travel_agency_applications' AND column_name='services_offered') = 'ARRAY' THEN
+      ALTER TABLE travel_agency_applications ALTER COLUMN services_offered DROP DEFAULT;
+      ALTER TABLE travel_agency_applications ALTER COLUMN services_offered TYPE JSONB USING to_jsonb(services_offered);
+      ALTER TABLE travel_agency_applications ALTER COLUMN services_offered SET DEFAULT '[]'::jsonb;
+    END IF;
+    IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='travel_agency_applications' AND column_name='booking_products') = 'ARRAY' THEN
+      ALTER TABLE travel_agency_applications ALTER COLUMN booking_products DROP DEFAULT;
+      ALTER TABLE travel_agency_applications ALTER COLUMN booking_products TYPE JSONB USING to_jsonb(booking_products);
+      ALTER TABLE travel_agency_applications ALTER COLUMN booking_products SET DEFAULT '[]'::jsonb;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conrelid = 'public.travel_agency_applications'::regclass
+        AND conname = 'travel_agency_applications_status_check'
+        AND position('needs_info' in pg_get_constraintdef(oid)) > 0
+    ) THEN
+      ALTER TABLE travel_agency_applications DROP CONSTRAINT IF EXISTS travel_agency_applications_status_check;
+      ALTER TABLE travel_agency_applications ADD CONSTRAINT travel_agency_applications_status_check
+        CHECK (status IN ('pending','approved','rejected','needs_info'));
+    END IF;
+  END $$`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agencies_active_type ON travel_agencies(active, agency_type)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agency_applications_status ON travel_agency_applications(status, created_at DESC)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agency_applications_email_pending ON travel_agency_applications(LOWER(email), status) WHERE email IS NOT NULL`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agency_applications_phone_pending ON travel_agency_applications(phone, status) WHERE phone IS NOT NULL`);
+    })().catch((err) => {
+      travelAgenciesDbReady = null;
+      throw err;
+    });
+  }
+  return travelAgenciesDbReady!;
 }
 
 router.get("/travel-agencies", async (_req, res) => {
@@ -173,13 +220,13 @@ router.post("/travel-agencies/apply", heavyWriteLimiter, async (req, res) => {
       (agency_name, agency_name_en, agency_type, contact_name, contact_role, phone, whatsapp, email,
        city, country, license_number, founded_year, website, specialties, destinations, services_offered,
        booking_products, target_routes, description, workspace_settings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19,$20::jsonb)
       RETURNING id, status, created_at`, [
         agencyName, str(b.agency_name_en, 160), agencyType, contactName,
         str(b.contact_role, 100), phone, whatsapp, normalized(email), str(b.city, 100), str(b.country, 100) || "السودان",
         str(b.license_number, 100), b.founded_year ? Number(b.founded_year) : null, website,
-        arr(b.specialties), arr(b.destinations), arr(b.services_offered), bookingProducts, str(b.target_routes, 800),
-        str(b.description, 1600), workspaceSettings,
+        JSON.stringify(arr(b.specialties)), JSON.stringify(arr(b.destinations)), JSON.stringify(arr(b.services_offered)), JSON.stringify(bookingProducts), str(b.target_routes, 800),
+        str(b.description, 1600), JSON.stringify(workspaceSettings),
       ]);
     // ربط الطلب برابط الدعوة إن وُجد، حتى تظهر الدعوة "مُستخدمة" في لوحة الإدارة.
     const inviteToken = str(b.invite_token, 64);

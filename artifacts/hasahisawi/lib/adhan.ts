@@ -31,7 +31,7 @@ export type AdhanVoice = {
 export const ADHAN_VOICES: AdhanVoice[] = [
   {
     id: "sudani", name: "أذان بصوت شيخ سوداني", desc: "أذان كامل بالمقام السوداني (حوالي دقيقتين)",
-    sound: "hasahisawi_adhan_sd", channel: "adhan-sd-v3",
+    sound: "hasahisawi_adhan_sd", channel: "adhan-sd-v4",
     asset: () => require("../assets/sounds/adhan/sd.mp3"), available: true,
   },
   {

@@ -10,6 +10,7 @@ import { ensureVolunteerDb, levelFor } from "./volunteer";
 
 const router = Router();
 const ONLINE_SEC = 120;
+const MAX_PROFILE_CERTIFICATES = 100;
 
 export const SOCIAL_PLATFORMS = [
   "whatsapp", "facebook", "instagram", "x", "tiktok", "linkedin",
@@ -37,6 +38,7 @@ export function ensureProfilePlus(): Promise<void> {
         title VARCHAR(200) NOT NULL,
         issuer VARCHAR(200),
         issued_on VARCHAR(20),
+        expires_on VARCHAR(20),
         credential_id VARCHAR(120),
         credential_url TEXT,
         file_url TEXT,
@@ -46,6 +48,7 @@ export function ensureProfilePlus(): Promise<void> {
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
+      await query(`ALTER TABLE user_certificates ADD COLUMN IF NOT EXISTS expires_on VARCHAR(20)`);
       await query(`CREATE INDEX IF NOT EXISTS idx_user_certs_user ON user_certificates(user_id)`);
       await query(`CREATE TABLE IF NOT EXISTS user_endorsements (
         user_id INTEGER NOT NULL,
@@ -134,6 +137,7 @@ function certFields(b: any) {
     title: str(b?.title, 200),
     issuer: str(b?.issuer, 200) || null,
     issued_on: str(b?.issued_on, 20) || null,
+    expires_on: str(b?.expires_on, 20) || null,
     credential_id: str(b?.credential_id, 120) || null,
     credential_url: httpsUrl(b?.credential_url),
     file_url,
@@ -189,7 +193,7 @@ async function loadFull(id: number, viewerId: number | null, viewerStaff = false
     };
   }
   const [certs, endorse, counts, views, verif] = await Promise.all([
-    query(`SELECT id, kind, title, issuer, issued_on, credential_id, credential_url, file_url, file_type, is_public, reviewed, created_at
+    query(`SELECT id, kind, title, issuer, issued_on, expires_on, credential_id, credential_url, file_url, file_type, is_public, reviewed, created_at
              FROM user_certificates WHERE user_id=$1 ${own ? "" : "AND is_public"} ORDER BY sort_order, issued_on DESC NULLS LAST, id DESC`, [id]),
     query(`SELECT skill, COUNT(*)::int AS n, BOOL_OR(endorser_id=$2) AS mine FROM user_endorsements WHERE user_id=$1 GROUP BY skill`, [id, viewerId || 0]),
     query(`SELECT (SELECT COUNT(*)::int FROM social_posts WHERE author_id=$1) AS posts,
@@ -283,13 +287,83 @@ router.post("/profile/me/certificates", async (req: Request, res: Response) => {
     const f = certFields(req.body);
     if (f.title.length < 2) return res.status(400).json({ error: "اكتب اسم الشهادة" });
     const n = (await query(`SELECT COUNT(*)::int AS n FROM user_certificates WHERE user_id=$1`, [Number(me.id)])).rows[0].n;
-    if (n >= 30) return res.status(400).json({ error: "الحد الأقصى 30 شهادة" });
+    if (n >= MAX_PROFILE_CERTIFICATES) return res.status(400).json({ error: "الحد الأقصى 100 شهادة" });
     const r = await query(
-      `INSERT INTO user_certificates (user_id, kind, title, issuer, issued_on, credential_id, credential_url, file_url, file_type, is_public, sort_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [Number(me.id), f.kind, f.title, f.issuer, f.issued_on, f.credential_id, f.credential_url, f.file_url, f.file_type, f.is_public, n]);
+      `INSERT INTO user_certificates (user_id, kind, title, issuer, issued_on, expires_on, credential_id, credential_url, file_url, file_type, is_public, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [Number(me.id), f.kind, f.title, f.issuer, f.issued_on, f.expires_on, f.credential_id, f.credential_url, f.file_url, f.file_type, f.is_public, n]);
     return res.json(r.rows[0]);
   } catch (err) { logger.error({ err }, "[profile+] cert add"); return res.status(500).json({ error: "تعذّر إضافة الشهادة" }); }
+});
+
+router.post("/profile/me/certificates/import", async (req: Request, res: Response) => {
+  try {
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول أولاً" });
+    const records = req.body?.records;
+    if (!Array.isArray(records) || records.length < 1 || records.length > MAX_PROFILE_CERTIFICATES) {
+      return res.status(400).json({ error: "أرفق قائمة من 1 إلى 100 شهادة" });
+    }
+    const normalized = records.map(certFields);
+    if (normalized.some((f) => f.title.length < 2)) {
+      return res.status(400).json({ error: "كل سجل يحتاج إلى اسم شهادة صحيح" });
+    }
+
+    const existing = await query(
+      `SELECT title, issuer, issued_on FROM user_certificates WHERE user_id=$1`,
+      [Number(me.id)],
+    );
+    const keyOf = (f: { title: string; issuer: string | null; issued_on: string | null }) =>
+      `${f.title.toLocaleLowerCase()}\u0000${(f.issuer || "").toLocaleLowerCase()}\u0000${f.issued_on || ""}`;
+    const known = new Set(existing.rows.map(keyOf));
+    const candidates: ReturnType<typeof certFields>[] = [];
+    let skipped = 0;
+    for (const f of normalized) {
+      const key = keyOf(f);
+      if (known.has(key)) { skipped++; continue; }
+      known.add(key);
+      candidates.push(f);
+    }
+    if (!candidates.length) {
+      return res.json({ inserted: 0, skipped, total: existing.rows.length });
+    }
+    if (existing.rows.length + candidates.length > MAX_PROFILE_CERTIFICATES) {
+      return res.status(409).json({ error: "سيتجاوز الاستيراد الحد الأقصى البالغ 100 شهادة" });
+    }
+
+    const values: unknown[] = [];
+    const rowCasts = [
+      "INTEGER", "VARCHAR(20)", "VARCHAR(200)", "VARCHAR(200)", "VARCHAR(20)", "VARCHAR(20)",
+      "VARCHAR(120)", "TEXT", "TEXT", "VARCHAR(10)", "BOOLEAN", "INTEGER",
+    ];
+    const tuples = candidates.map((f, index) => {
+      const row = [
+        Number(me.id), f.kind, f.title, f.issuer, f.issued_on, f.expires_on,
+        null, null, null, null, false, existing.rows.length + index,
+      ];
+      const first = values.length + 1;
+      values.push(...row);
+      return `(${row.map((_, offset) => `$${first + offset}::${rowCasts[offset]}`).join(",")})`;
+    });
+    const countParam = values.length + 1;
+    const limitParam = values.length + 2;
+    values.push(candidates.length, MAX_PROFILE_CERTIFICATES);
+    const inserted = await query(
+      `INSERT INTO user_certificates
+         (user_id, kind, title, issuer, issued_on, expires_on, credential_id, credential_url, file_url, file_type, is_public, sort_order)
+       SELECT v.user_id, v.kind, v.title, v.issuer, v.issued_on, v.expires_on,
+              v.credential_id, v.credential_url, v.file_url, v.file_type, v.is_public, v.sort_order
+         FROM (VALUES ${tuples.join(",")}) AS v
+           (user_id, kind, title, issuer, issued_on, expires_on, credential_id, credential_url, file_url, file_type, is_public, sort_order)
+        WHERE (SELECT COUNT(*)::int FROM user_certificates WHERE user_id=$1) + $${countParam} <= $${limitParam}
+       RETURNING id`,
+      values,
+    );
+    if (inserted.rowCount !== candidates.length) {
+      return res.status(409).json({ error: "تغيّر عدد الشهادات أثناء الاستيراد؛ لم تُضف أي سجلات" });
+    }
+    return res.json({ inserted: inserted.rowCount, skipped, total: existing.rows.length + inserted.rowCount });
+  } catch (err) { logger.error({ err }, "[profile+] cert import"); return res.status(500).json({ error: "تعذّر استيراد الشهادات" }); }
 });
 
 router.patch("/profile/me/certificates/:cid", async (req: Request, res: Response) => {
@@ -299,10 +373,10 @@ router.patch("/profile/me/certificates/:cid", async (req: Request, res: Response
     const f = certFields(req.body);
     if (f.title.length < 2) return res.status(400).json({ error: "اكتب اسم الشهادة" });
     const r = await query(
-      `UPDATE user_certificates SET kind=$1, title=$2, issuer=$3, issued_on=$4, credential_id=$5, credential_url=$6,
-              file_url=$7, file_type=$8, is_public=$9, reviewed=FALSE
-        WHERE id=$10 AND user_id=$11 RETURNING *`,
-      [f.kind, f.title, f.issuer, f.issued_on, f.credential_id, f.credential_url, f.file_url, f.file_type, f.is_public, Number(req.params.cid), Number(me.id)]);
+      `UPDATE user_certificates SET kind=$1, title=$2, issuer=$3, issued_on=$4, expires_on=$5, credential_id=$6, credential_url=$7,
+              file_url=$8, file_type=$9, is_public=$10, reviewed=FALSE
+        WHERE id=$11 AND user_id=$12 RETURNING *`,
+      [f.kind, f.title, f.issuer, f.issued_on, f.expires_on, f.credential_id, f.credential_url, f.file_url, f.file_type, f.is_public, Number(req.params.cid), Number(me.id)]);
     if (!r.rows[0]) return res.status(404).json({ error: "الشهادة غير موجودة" });
     return res.json(r.rows[0]);
   } catch (err) { logger.error({ err }, "[profile+] cert edit"); return res.status(500).json({ error: "تعذّر التعديل" }); }
@@ -464,7 +538,7 @@ router.get("/public/cv/:id", async (req: Request, res: Response) => {
       <div class="cert">
         <div class="k">${esc(KIND_AR[c.kind] || "")}</div>
         <div class="t">${esc(c.title)}</div>
-        <div class="m">${esc([c.issuer, c.issued_on].filter(Boolean).join(" · "))}${c.credential_id ? ` · رقم: ${esc(c.credential_id)}` : ""}</div>
+        <div class="m">${esc([c.issuer, c.issued_on, c.expires_on ? `ينتهي ${c.expires_on}` : null].filter(Boolean).join(" · "))}${c.credential_id ? ` · رقم: ${esc(c.credential_id)}` : ""}</div>
         <div class="links">${c.file_url ? `<a href="${esc(c.file_url)}" target="_blank" rel="noopener">عرض الشهادة</a>` : ""}${c.credential_url ? `<a href="${esc(c.credential_url)}" target="_blank" rel="noopener">التحقق</a>` : ""}</div>
       </div>`).join("");
     const skills = (p.skills as any[]).map((s) => `<span class="chip">${esc(s.name)}${s.count ? ` <b>+${s.count}</b>` : ""}</span>`).join("");

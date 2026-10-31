@@ -68,6 +68,23 @@ jobs:
             echo "org.gradle.configuration-cache=false"
           } >> "$PROPS"
 
+      - name: Generate debug keystore
+        run: |
+          DEBUG_KEYSTORE=artifacts/hasahisawi/android/app/debug.keystore
+          mkdir -p "$(dirname "$DEBUG_KEYSTORE")"
+          if [ ! -s "$DEBUG_KEYSTORE" ]; then
+            keytool -genkeypair -noprompt -v \
+              -keystore "$DEBUG_KEYSTORE" \
+              -storetype JKS \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA -keysize 2048 -validity 10000
+          fi
+          keytool -list -keystore "$DEBUG_KEYSTORE" -storetype JKS \
+            -storepass android -alias androiddebugkey >/dev/null 2>&1
+
       - name: Patch Android native compatibility
         run: |
           EXPO_CAM_ROOT=$(node -e "const path=require('path'); const pkg=require.resolve('expo-camera/package.json',{paths:['artifacts/hasahisawi/node_modules','.']}); console.log(path.dirname(pkg));")
