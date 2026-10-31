@@ -49,6 +49,9 @@ import UserAvatar from "@/components/UserAvatar";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ActiveNowRow from "@/components/social/ActiveNowRow";
 import OrgInviteCard from "@/components/OrgInviteCard";
+import ReportSheet, { ActionSheet, type ActionItem, type ReportTarget } from "@/components/social/ReportSheet";
+import { blockUser } from "@/lib/social-safety";
+import { confirmAction, notify } from "@/lib/xplatform";
 
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -84,6 +87,9 @@ type Post = {
 type Comment = {
   id: number;
   post_id: number;
+  author_id?: number | null;
+  author_avatar?: string | null;
+  author_verified?: boolean;
   author_name: string;
   content: string;
   created_at: string;
@@ -196,10 +202,14 @@ function apiUrl(path: string) {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function apiFetchPosts(deviceId: string, category?: string, page = 1): Promise<Post[]> {
+function authHeaders(token?: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function apiFetchPosts(deviceId: string, category?: string, page = 1, token?: string | null): Promise<Post[]> {
   const params = new URLSearchParams({ device_id: deviceId, page: String(page), limit: "30" });
   if (category && category !== "الكل") params.set("category", category);
-  const res = await fetchWithTimeout(apiUrl(`/api/posts?${params}`));
+  const res = await fetchWithTimeout(apiUrl(`/api/posts?${params}`), { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to fetch posts");
   return res.json();
 }
@@ -210,10 +220,10 @@ async function apiCreatePost(data: {
   category: string;
   image_url?: string | null;
   video_url?: string | null;
-}): Promise<Post> {
+}, token?: string | null): Promise<Post> {
   const res = await fetchWithTimeout(apiUrl("/api/posts"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify(data),
   });
   const json = await res.json();
@@ -233,19 +243,20 @@ async function apiDeletePost(id: number, token?: string | null): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete");
 }
 
-async function apiFetchComments(postId: number): Promise<Comment[]> {
-  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`));
+async function apiFetchComments(postId: number, token?: string | null): Promise<Comment[]> {
+  const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`), { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to fetch comments");
   return res.json();
 }
 
 async function apiCreateComment(
   postId: number,
-  data: { author_name: string; content: string; parent_id?: number | null }
+  data: { author_name: string; content: string; parent_id?: number | null },
+  token?: string | null,
 ): Promise<Comment> {
   const res = await fetchWithTimeout(apiUrl(`/api/posts/${postId}/comments`), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify(data),
   });
   const text = await res.text();
@@ -679,14 +690,8 @@ function AddPostModal({
                     <Text style={ms.authorAvatarLetter}>{(name || "م").charAt(0)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <TextInput
-                      style={ms.nameInput}
-                      value={name}
-                      onChangeText={setName}
-                      placeholder="اسمك (اختياري)"
-                      placeholderTextColor={Colors.textMuted}
-                      maxLength={50}
-                    />
+                    {/* يُنشر المنشور باسم الحساب دائماً حتى يرتبط بالملف الشخصي */}
+                    <Text style={ms.nameInput} numberOfLines={1}>{name}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.catRow}>
                       {CATEGORIES.map((c) => (
                         <TouchableOpacity
@@ -764,7 +769,10 @@ function AddPostModal({
 
 function CommentsModal({
   post, visible, onClose, isAdmin, isGuest, defaultName, adminToken, onCommentsLoaded,
+  currentUserId, onBlock,
 }: {
+  currentUserId?: number | null;
+  onBlock: (authorId: number, authorName: string, after?: () => void) => void;
   post: Post | null;
   visible: boolean;
   onClose: () => void;
@@ -789,7 +797,7 @@ function CommentsModal({
     if (!post) return;
     setLoading(true);
     try {
-      const data = await apiFetchComments(post.id);
+      const data = await apiFetchComments(post.id, adminToken);
       // Build thread structure
       const roots: Comment[] = [];
       const map: Record<number, Comment> = {};
@@ -827,7 +835,7 @@ function CommentsModal({
         author_name: name.trim() || "مجهول",
         content: text.trim(),
         parent_id: replyTo?.id || null,
-      });
+      }, adminToken);
       setText("");
       setReplyTo(null);
       await load();
@@ -861,19 +869,48 @@ function CommentsModal({
     ]);
   };
 
+  const [menuFor, setMenuFor] = useState<Comment | null>(null);
+  // داخل نافذة التعليقات نفسها — iOS لا يعرض نافذة فوق نافذة مفتوحة من مستوى آخر
+  const [commentReport, setCommentReport] = useState<ReportTarget>(null);
+
+  const goToAuthor = (c: Comment) => {
+    if (!c.author_id) return;
+    onClose();
+    openAuthorProfile(c.author_id);
+  };
+
+  const commentMenuItems = (c: Comment): ActionItem[] => {
+    const items: ActionItem[] = [];
+    const mine = !!currentUserId && Number(c.author_id) === Number(currentUserId);
+    if (c.author_id) items.push({ key: "profile", label: `ملف ${c.author_name}`, icon: "person-circle-outline", onPress: () => goToAuthor(c) });
+    if (!mine) items.push({ key: "report", label: "الإبلاغ عن التعليق", icon: "flag-outline", danger: true, onPress: () => setCommentReport({ type: "comment", id: c.id }) });
+    if (!mine && c.author_id) items.push({ key: "block", label: `حظر ${c.author_name}`, icon: "ban-outline", danger: true, onPress: () => onBlock(Number(c.author_id), c.author_name, load) });
+    if (isAdmin) items.push({ key: "delete", label: "حذف التعليق", icon: "trash-outline", danger: true, onPress: () => handleDeleteComment(c.id) });
+    return items;
+  };
+
   const CommentItem = ({ item, depth = 0 }: { item: Comment; depth?: number }) => (
     <View style={[cs.commentCard, depth > 0 && cs.replyCard]}>
       <View style={cs.commentHeader}>
-        <View style={[cs.commentAvatar, { backgroundColor: avatarColor(item.author_name) }]}>
-          <Text style={cs.commentAvatarLetter}>{(item.author_name || "م").charAt(0)}</Text>
-        </View>
+        <TouchableOpacity onPress={() => goToAuthor(item)} disabled={!item.author_id} activeOpacity={0.75}>
+          <UserAvatar name={item.author_name || "م"} avatarUrl={item.author_avatar} size={32} borderRadius={10} />
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={cs.commentAuthor}>{item.author_name}</Text>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+            <Text style={[cs.commentAuthor, { flexShrink: 1 }]} onPress={item.author_id ? () => goToAuthor(item) : undefined} suppressHighlighting numberOfLines={1}>{item.author_name}</Text>
+            {item.author_verified ? <VerifiedBadge size={13} /> : null}
+          </View>
           <Text style={cs.commentTime}>{timeAgo(item.created_at)}</Text>
         </View>
-        {isAdmin && (
-          <TouchableOpacity onPress={() => handleDeleteComment(item.id)} style={{ padding: 4 }}>
-            <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+        {!isGuest && (
+          <TouchableOpacity
+            onPress={() => setMenuFor(item)}
+            style={{ padding: 4 }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="خيارات التعليق"
+          >
+            <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -937,6 +974,14 @@ function CommentsModal({
               </View>
             )}
 
+            <ActionSheet
+              visible={!!menuFor}
+              title={menuFor ? `تعليق ${menuFor.author_name}` : undefined}
+              items={menuFor ? commentMenuItems(menuFor) : []}
+              onClose={() => setMenuFor(null)}
+            />
+            <ReportSheet target={commentReport} token={adminToken} onClose={() => setCommentReport(null)} />
+
             <View style={cs.replyBar}>
               <View style={[cs.commentAvatar, { backgroundColor: avatarColor(name || "م"), flexShrink: 0 }]}>
                 <Text style={cs.commentAvatarLetter}>{(name || "م").charAt(0)}</Text>
@@ -972,8 +1017,9 @@ function CommentsModal({
 // ─── Post Card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare, onBookmark, isBookmarked,
+  post, index, isAdmin, deviceId, onReact, onComment, onDelete, onShare, onBookmark, isBookmarked, onMore,
 }: {
+  onMore?: (post: Post) => void;
   post: Post;
   index: number;
   isAdmin: boolean;
@@ -1072,11 +1118,21 @@ function PostCard({
               <Ionicons name={catIcon} size={10} color={catColor} />
               <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
             </View>
-            {isAdmin && (
+            {onMore ? (
+              <TouchableOpacity
+                onPress={() => onMore(post)}
+                style={styles.deleteBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="خيارات المنشور"
+              >
+                <Ionicons name="ellipsis-horizontal" size={17} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ) : isAdmin ? (
               <AnimatedPress onPress={() => onDelete(post.id)} style={styles.deleteBtn}>
                 <Ionicons name="trash-outline" size={15} color={Colors.danger} />
               </AnimatedPress>
-            )}
+            ) : null}
           </View>
         </View>
 
@@ -1164,6 +1220,9 @@ export default function SocialScreen() {
   const [sortMode, setSortMode] = useState<"recent" | "popular">("recent");
   const [bookmarks, setBookmarks] = useState<Set<number>>(new Set());
   const [showSaved, setShowSaved] = useState(false);
+  const [menuPost, setMenuPost] = useState<Post | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget>(null);
+  const myId = auth.user?.id != null ? Number(auth.user.id) : null;
 
   const init = useCallback(async () => {
     const id = await getDeviceId();
@@ -1216,7 +1275,7 @@ export default function SocialScreen() {
 
     try {
       const id = deviceId || await getDeviceId();
-      const data = await apiFetchPosts(id, cat, p);
+      const data = await apiFetchPosts(id, cat, p, auth.token);
       if (opts?.reset || p === 1) {
         setPosts(data);
         setPage(2);
@@ -1248,7 +1307,7 @@ export default function SocialScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [deviceId, catFilter, page]);
+  }, [deviceId, catFilter, page, auth.token]);
 
   useEffect(() => { init(); }, []);
 
@@ -1281,7 +1340,7 @@ export default function SocialScreen() {
     await AsyncStorage.setItem(USER_NAME_KEY, name);
     setUserName(name);
 
-    const newPost = await apiCreatePost({ author_name: name, content, category, image_url, video_url });
+    const newPost = await apiCreatePost({ author_name: name, content, category, image_url, video_url }, auth.token);
     // Optimistically prepend
     setPosts(prev => [newPost, ...prev]);
   };
@@ -1320,6 +1379,35 @@ export default function SocialScreen() {
         },
       },
     ]);
+  };
+
+  const handleBlock = async (authorId: number, authorName: string, after?: () => void) => {
+    const ok = await confirmAction(
+      `حظر ${authorName}؟`,
+      "لن ترى منشوراته وتعليقاته، ولن يرى منشوراتك وتعليقاتك. يمكنك إلغاء الحظر لاحقاً من الإعدادات ← المستخدمون المحظورون.",
+      "حظر", true,
+    );
+    if (!ok) return;
+    try {
+      await blockUser(authorId, auth.token);
+      setPosts(prev => prev.filter(p => Number(p.author_id) !== authorId));
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      after?.();
+      notify("تم الحظر", `لن يظهر لك محتوى ${authorName} بعد الآن.`);
+    } catch (e: any) {
+      notify("تعذّر الحظر", e?.message || "حاول مرة أخرى");
+    }
+  };
+
+  const postMenuItems = (p: Post): ActionItem[] => {
+    const items: ActionItem[] = [];
+    const mine = !!myId && Number(p.author_id) === myId;
+    if (p.author_id) items.push({ key: "profile", label: `ملف ${p.author_name}`, icon: "person-circle-outline", onPress: () => openAuthorProfile(p.author_id) });
+    items.push({ key: "share", label: "مشاركة", icon: "share-social-outline", onPress: () => handleShare(p) });
+    if (!auth.isGuest && !mine) items.push({ key: "report", label: "الإبلاغ عن المنشور", icon: "flag-outline", danger: true, onPress: () => setReportTarget({ type: "post", id: p.id }) });
+    if (!auth.isGuest && !mine && p.author_id) items.push({ key: "block", label: `حظر ${p.author_name}`, icon: "ban-outline", danger: true, onPress: () => handleBlock(Number(p.author_id), p.author_name) });
+    if (isAdmin) items.push({ key: "delete", label: "حذف المنشور", icon: "trash-outline", danger: true, onPress: () => handleDelete(p.id) });
+    return items;
   };
 
   const handleShare = async (post: Post) => {
@@ -1546,6 +1634,7 @@ export default function SocialScreen() {
               onShare={handleShare}
               onBookmark={toggleBookmark}
               isBookmarked={bookmarks.has(item.id)}
+              onMore={setMenuPost}
             />
           )}
         />
@@ -1567,12 +1656,22 @@ export default function SocialScreen() {
         isGuest={auth.isGuest}
         defaultName={userName}
         adminToken={auth.token}
+        currentUserId={myId}
+        onBlock={handleBlock}
         onCommentsLoaded={(count) => {
           if (selectedPost) {
             setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, comments_count: count } : p));
           }
         }}
       />
+
+      <ActionSheet
+        visible={!!menuPost}
+        title={menuPost ? `منشور ${menuPost.author_name}` : undefined}
+        items={menuPost ? postMenuItems(menuPost) : []}
+        onClose={() => setMenuPost(null)}
+      />
+      <ReportSheet target={reportTarget} token={auth.token} onClose={() => setReportTarget(null)} />
     </View>
   );
 }

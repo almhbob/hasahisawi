@@ -19,6 +19,7 @@ import VerifiedBadge, { VERIFIED_BLUE } from "@/components/VerifiedBadge";
 import { EditProfileModal, CertFormModal, VerifyModal } from "@/components/profile/ProfileForms";
 import { notify, confirmAction, uploadProfilePhoto, openExternal, copyText, systemShare } from "@/lib/xplatform";
 import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from "@/lib/profile-api";
+import { blockUser } from "@/lib/social-safety";
 
 type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
 type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
@@ -326,6 +327,27 @@ export default function ProfileScreen() {
                   <Ionicons name="document-text-outline" size={17} color={Colors.primaryDeep} />
                   <Text style={styles.ghostBtnText}>السيرة المهنية</Text>
                 </TouchableOpacity>}
+                {!!user && !isGuest && (
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    accessibilityLabel={`حظر ${profile.name}`}
+                    onPress={async () => {
+                      const ok = await confirmAction(
+                        `حظر ${profile.name}؟`,
+                        "لن ترى منشوراته وتعليقاته في المجتمع، ولن يرى منشوراتك وتعليقاتك. يمكنك إلغاء الحظر من الإعدادات ← المستخدمون المحظورون.",
+                        "حظر", true,
+                      );
+                      if (!ok) return;
+                      try {
+                        await blockUser(profile.id, token);
+                        notify("تم الحظر", `لن يظهر لك محتوى ${profile.name} بعد الآن.`);
+                        router.canGoBack() ? router.back() : router.replace("/(tabs)" as any);
+                      } catch (e: any) { notify("تعذّر الحظر", e?.message || "حاول مرة أخرى"); }
+                    }}
+                  >
+                    <Ionicons name="ban-outline" size={18} color={Colors.danger} />
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>

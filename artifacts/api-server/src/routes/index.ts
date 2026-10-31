@@ -17,6 +17,7 @@ import sportsClubsRouter from "./sports-clubs";
 import providerListingsRouter from "./provider-listings";
 import chatPlusRouter from "./chat-plus";
 import profilePlusRouter from "./profile-plus";
+import socialSafetyRouter, { ensureSocialSafety } from "./social-safety";
 import callsRouter from "./calls";
 import zawajilAdminRouter from "./zawajil-admin";
 
@@ -38,6 +39,7 @@ router.use(sportsClubsRouter);
 router.use(providerListingsRouter);
 router.use(chatPlusRouter);
 router.use(profilePlusRouter);
+router.use(socialSafetyRouter);
 router.use(callsRouter);
 router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
@@ -57,6 +59,8 @@ async function initializeDatabaseSchemas() {
   await ensureLawyersDb();
   await initTransportLiveDb();
   await ensureStoresDb();
+  // بعد جداول المجتمع (social_posts/social_comments) لأنها تضيف عموداً لها.
+  await ensureSocialSafety();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();
 }
