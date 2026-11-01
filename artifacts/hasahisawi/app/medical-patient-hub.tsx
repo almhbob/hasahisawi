@@ -320,7 +320,7 @@ export default function MedicalPatientHubScreen() {
                     return (
                       <Animated.View key={lr.id} entering={FadeInDown.delay(i * 25).springify()} style={s.card}>
                         <View style={s.cardRow}>
-                          <View style={[s.cardIcon, { backgroundColor: "#4C1D95" }]}>
+                          <View style={[s.cardIcon, { backgroundColor: "#0F5C43" }]}>
                             <Ionicons name="flask" size={20} color="#9DBBD6" />
                           </View>
                           <View style={{ flex: 1 }}>

@@ -78,7 +78,7 @@ type IslamicOccasion = {
 
 const OCCASIONS: IslamicOccasion[] = [
   {
-    key: "new_hijri", name: "رأس السنة الهجرية", emoji: "🌙", color: "#A78BFA", accent: "#C4B5FD",
+    key: "new_hijri", name: "رأس السنة الهجرية", emoji: "🌙", color: "#E59BB5", accent: "#C4B5FD",
     gradients: ["#0F0525", "#1E0A4E", "#0A0318"],
     hMonth: 1, hDayStart: 1, hDayEnd: 1, pattern: "✦",
     verse: "﴿ وَجَعَلْنَا اللَّيْلَ وَالنَّهَارَ آيَتَيْنِ فَمَحَوْنَا آيَةَ اللَّيْلِ وَجَعَلْنَا آيَةَ النَّهَارِ مُبْصِرَةً ﴾",
@@ -157,7 +157,7 @@ const OCCASIONS: IslamicOccasion[] = [
 ❝ حصاحيصاوي — بوابة الحصاحيصا ❞`,
   },
   {
-    key: "isra", name: "ليلة الإسراء والمعراج", emoji: "🌌", color: "#818CF8", accent: "#A5B4FC",
+    key: "isra", name: "ليلة الإسراء والمعراج", emoji: "🌌", color: "#E8B931", accent: "#A5B4FC",
     gradients: ["#07041A", "#100A30", "#040210"],
     hMonth: 7, hDayStart: 27, hDayEnd: 27, pattern: "⬟",
     verse: "﴿ سُبْحَانَ الَّذِي أَسْرَىٰ بِعَبْدِهِ لَيْلًا مِّنَ الْمَسْجِدِ الْحَرَامِ إِلَى الْمَسْجِدِ الْأَقْصَى ﴾",
@@ -303,7 +303,7 @@ const CARD_STYLES = [
   { id: "royal_gold",     label: "ذهبي ملكي",    accent: "#D4AF37", grad: ["#0D0800","#1A1000","#2D1E00"] as [string,string,string] },
   { id: "royal_green",    label: "زمردي",          accent: "#34D399", grad: ["#011009","#021F12","#033520"] as [string,string,string] },
   { id: "royal_blue",     label: "ياقوت أزرق",    accent: "#60A5FA", grad: ["#030A18","#06152E","#0A1F42"] as [string,string,string] },
-  { id: "royal_purple",   label: "أرجواني",        accent: "#C084FC", grad: ["#0C0318","#170830","#230C48"] as [string,string,string] },
+  { id: "royal_purple",   label: "أرجواني",        accent: "#E59BB5", grad: ["#0C0318","#170830","#230C48"] as [string,string,string] },
   { id: "royal_silver",   label: "فضي",            accent: "#CBD5E1", grad: ["#080B0F","#0F1319","#161D26"] as [string,string,string] },
   { id: "royal_rose",     label: "وردي ياقوت",    accent: "#F9A8D4", grad: ["#150308","#270512","#3A071A"] as [string,string,string] },
 ];
@@ -763,7 +763,7 @@ function GreetingsBoard({ token, refreshKey }: { token: string|null; refreshKey:
   const OCCASION_TAGS = ["تهنئة عامة","عيد مبارك","رمضان كريم","مولد النبي ﷺ","السنة الهجرية","يوم عرفة","أخرى"];
   const OCC_COLORS: Record<string,string> = {
     "عيد مبارك":"#F59E0B","رمضان كريم":"#10B981","مولد النبي ﷺ":"#34D399",
-    "السنة الهجرية":"#A78BFA","يوم عرفة":"#E2E8F0","أخرى":"#64748B","تهنئة عامة":GOLD,
+    "السنة الهجرية":"#E59BB5","يوم عرفة":"#E2E8F0","أخرى":"#64748B","تهنئة عامة":GOLD,
   };
 
   return (

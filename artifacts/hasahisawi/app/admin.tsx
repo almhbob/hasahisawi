@@ -598,7 +598,7 @@ function AdminDesignersTab({ token, apiBase }: { token: string; apiBase: string 
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 14 }}>
         {(["members", "orders"] as const).map(v => (
-          <TouchableOpacity key={v} onPress={() => setView(v)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: view === v ? "#F472B6" : "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: view === v ? "#F472B6" : "#FFFFFF10" }}>
+          <TouchableOpacity key={v} onPress={() => setView(v)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: view === v ? "#D9849F" : "#FFFFFF0A", alignItems: "center", borderWidth: 1, borderColor: view === v ? "#D9849F" : "#FFFFFF10" }}>
             <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: view === v ? "#fff" : "#9CA3AF" }}>
               {v === "members" ? "المصممون" : "الطلبات"}
             </Text>
@@ -606,15 +606,15 @@ function AdminDesignersTab({ token, apiBase }: { token: string; apiBase: string 
         ))}
       </View>
 
-      {loading ? <ActivityIndicator color="#F472B6" style={{ marginTop: 40 }} /> : view === "members" ? (
+      {loading ? <ActivityIndicator color="#D9849F" style={{ marginTop: 40 }} /> : view === "members" ? (
         members.length === 0 ? (
           <Text style={{ fontFamily: "Cairo_400Regular", color: Colors.textMuted, textAlign: "center", marginTop: 40 }}>لا يوجد مصممون مسجلون</Text>
         ) : members.map(m => (
-          <View key={m.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 16, marginBottom: 14, borderRightWidth: 4, borderRightColor: SC[m.status] ?? "#F472B6" }}>
+          <View key={m.id} style={{ backgroundColor: Colors.cardBg, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderSubtle, padding: 16, marginBottom: 14, borderRightWidth: 4, borderRightColor: SC[m.status] ?? "#D9849F" }}>
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, flex: 1, textAlign: "right" }}>{m.shop_name}</Text>
-              <View style={{ backgroundColor: (SC[m.status] ?? "#F472B6") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[m.status] ?? "#F472B6" }}>{SL[m.status] ?? m.status}</Text>
+              <View style={{ backgroundColor: (SC[m.status] ?? "#D9849F") + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SC[m.status] ?? "#D9849F" }}>{SL[m.status] ?? m.status}</Text>
               </View>
             </View>
             {m.owner_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" }}>المالك: {m.owner_name}</Text> : null}
@@ -622,7 +622,7 @@ function AdminDesignersTab({ token, apiBase }: { token: string; apiBase: string 
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6, marginBottom: 12 }}>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>منتجات: {m.product_count ?? 0}</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted }}>طلبات: {m.order_count ?? 0}</Text>
-              {m.package_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: m.pkg_color ?? "#F472B6" }}>الباقة: {m.package_name}</Text> : null}
+              {m.package_name ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: m.pkg_color ?? "#D9849F" }}>الباقة: {m.package_name}</Text> : null}
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
               {m.status !== "active" && (
@@ -4308,7 +4308,7 @@ export default function AdminDashboard() {
     { key: "student_union",    label: "إتحاد الطلاب",       icon: "people-circle",      color: "#1F5C8A",      adminOnly: true },
     { key: "partners",         label: "بوابة الشركاء",      icon: "handshake-outline" as any, color: "#F97316", adminOnly: true },
     { key: "lawyers_admin",    label: "المحامون",           icon: "briefcase",          color: "#1F5C8A",      adminOnly: true },
-    { key: "designers_admin",  label: "المصممون",           icon: "color-palette",      color: "#F472B6",      adminOnly: true },
+    { key: "designers_admin",  label: "المصممون",           icon: "color-palette",      color: "#D9849F",      adminOnly: true },
     { key: "join_requests",    label: "طلبات الانضمام",     icon: "person-add",         color: "#F59E0B",      adminOnly: true },
     { key: "reports_admin",    label: "البلاغات",            icon: "warning",            color: "#EF4444",      adminOnly: true },
     { key: "missing_admin",    label: "المفقودات",           icon: "search",             color: "#F97316",      adminOnly: true },

@@ -59,7 +59,7 @@ const CAT_LABEL: Record<string, string> = {
 
 // ── تدرجات الفئات ────────────────────────────────────────────────
 const CAT_GRAD: Record<string, [string,string]> = {
-  invitations:  ["#C46A3A","#BE185D"],
+  invitations:  ["#C46A3A","#8E2F55"],
   certificates: ["#F59E0B","#D97706"],
   marbled:      ["#1F5C8A","#173F5F"],
   logos:        ["#2F8A8A","#0891B2"],
@@ -527,7 +527,7 @@ function DesignGalleryScreen() {
       {activeTab === "subscribe" && (
         <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
           {/* لافتة تحفيزية */}
-          <LinearGradient colors={["#4C1D95","#1B0533"]} style={styles.subscribeHero}>
+          <LinearGradient colors={["#0F5C43","#1B0533"]} style={styles.subscribeHero}>
             <Text style={styles.subscribeHeroTitle}>انضم لمعرض التصاميم 🎨</Text>
             <Text style={styles.subscribeHeroSub}>
               عرّف بنفسك · ابعت تصاميمك · استقبل طلبات من الزبائن
@@ -636,7 +636,7 @@ function DesignGalleryScreen() {
           {/* رسالة النجاح */}
           {subDone && (
             <Animated.View entering={FadeIn} style={styles.successCard}>
-              <LinearGradient colors={["#3B78A6","#4C1D95"]} style={styles.successGrad}>
+              <LinearGradient colors={["#3B78A6","#0F5C43"]} style={styles.successGrad}>
                 <Text style={styles.successIcon}>🎉</Text>
                 <Text style={styles.successTitle}>تم إرسال طلبك!</Text>
                 <Text style={styles.successText}>

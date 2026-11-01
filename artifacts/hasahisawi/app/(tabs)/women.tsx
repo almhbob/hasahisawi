@@ -95,7 +95,7 @@ type Recipe = {
 const HEALTH_TIPS: HealthTip[] = [
   { id: "ht1", title: "تغذية المرأة الحامل", body: "تناولي الحديد والحمض الفوليك وأوميجا-3 يومياً. تجنبي المأكولات النيئة والكافيين الزائد. شربي 8 أكواب ماء على الأقل يومياً.", icon: "heart-pulse", color: "#FF4FA3" },
   { id: "ht2", title: "فحوصات الصحة الدورية", body: "اعملي فحص صدر سنوياً وفحص دم كل 6 أشهر. ضغط الدم والسكر مهمان. زوري الطبيبة النسائية مرة في السنة.", icon: "clipboard-pulse", color: "#3E9CBF" },
-  { id: "ht3", title: "الصحة النفسية للمرأة", body: "خصصي وقتاً يومياً لنفسك. التحدث مع المقربات يخفف التوتر. النوم الكافي 7-8 ساعات يحسن الصحة النفسية والجسدية.", icon: "emoticon-happy", color: "#A855F7" },
+  { id: "ht3", title: "الصحة النفسية للمرأة", body: "خصصي وقتاً يومياً لنفسك. التحدث مع المقربات يخفف التوتر. النوم الكافي 7-8 ساعات يحسن الصحة النفسية والجسدية.", icon: "emoticon-happy", color: "#B4436C" },
   { id: "ht4", title: "نصائح ما بعد الولادة", body: "الرضاعة الطبيعية مفيدة لك وللطفل. لا تترددي في طلب المساعدة. مارسي تمارين المشي بعد أسبوعين من الولادة الطبيعية.", icon: "baby-carriage", color: "#27AE68" },
 ];
 
@@ -143,7 +143,7 @@ const sh = StyleSheet.create({
 
 const TYPE_CONFIG: Record<ServiceType, { label: string; icon: string; color: string }> = {
   salon:     { label: "كوفيرة",        icon: "face-woman",         color: "#FF4FA3" },
-  sewing:    { label: "خياطة",         icon: "needle",              color: "#A855F7" },
+  sewing:    { label: "خياطة",         icon: "needle",              color: "#B4436C" },
   health:    { label: "صحة المرأة",   icon: "heart-pulse",         color: "#3E9CBF" },
   cooking:   { label: "طبخ ومطبخ",    icon: "pot-steam",           color: Colors.accent },
   childcare: { label: "رعاية أطفال",  icon: "baby-face-outline",   color: Colors.primary },
@@ -582,7 +582,7 @@ function WomenScreen() {
         <View style={s.statsRow}>
           {[
             { num: `${servicesByType("salon").length}`,    label: "كوفيرة",   color: "#FF4FA3" },
-            { num: `${servicesByType("sewing").length}`,   label: "خياطة",    color: "#A855F7" },
+            { num: `${servicesByType("sewing").length}`,   label: "خياطة",    color: "#B4436C" },
             { num: `${servicesByType("handmade").length}`, label: "يدوية",    color: "#14B8A6" },
             { num: `${servicesByType("cooking").length}`,  label: "مطبخ",     color: Colors.accent },
           ].map((st, i) => (
@@ -597,8 +597,8 @@ function WomenScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ ...s.subTabRow }}>
           {([
             ["services",   "الخدمات",      "storefront-outline",   "#FF4FA3"],
-            ["shops",      "المتاجر",       "shopping-outline",     "#A855F7"],
-            ["boutiques",  "بوتيكات",       "bag-personal-outline", "#8B5CF6"],
+            ["shops",      "المتاجر",       "shopping-outline",     "#B4436C"],
+            ["boutiques",  "بوتيكات",       "bag-personal-outline", "#C26D3D"],
             ["handmade",   "يدوية",         "hand-heart-outline",   "#14B8A6"],
             ["health",     "صحة المرأة",   "heart-outline",        "#3E9CBF"],
             ["recipes",    "مطبخ سوداني",  "restaurant-outline",   Colors.accent],
@@ -644,7 +644,7 @@ function WomenScreen() {
               activeOpacity={0.88}
               onPress={() => { setJoinDone(false); setJoinModal(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             >
-              <LinearGradient colors={["#FF4FA330", "#A855F720", "transparent"]} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={["#FF4FA330", "#B4436C20", "transparent"]} style={StyleSheet.absoluteFill} />
               <View style={jm.joinBannerIcon}>
                 <MaterialCommunityIcons name="store-plus-outline" size={26} color="#FF4FA3" />
               </View>
@@ -914,12 +914,12 @@ function WomenScreen() {
           <SectionHeader title="أنواع الحِرَف المتوفرة" sub="أختاري ما يناسبك" color="#14B8A6" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
             {([
-              { icon: "yarn",               label: "تطريز وحياكة",  color: "#A855F7" },
+              { icon: "yarn",               label: "تطريز وحياكة",  color: "#B4436C" },
               { icon: "candle",             label: "شمع وعطور",     color: "#F0A500" },
               { icon: "soap",               label: "صابون طبيعي",   color: "#3E9CBF" },
               { icon: "basket",             label: "سلال وخوص",     color: "#D97706" },
-              { icon: "palette",            label: "رسم وزخرفة",    color: "#EC4899" },
-              { icon: "crystal-ball",       label: "خزف وفخار",     color: "#8B5CF6" },
+              { icon: "palette",            label: "رسم وزخرفة",    color: "#B4436C" },
+              { icon: "crystal-ball",       label: "خزف وفخار",     color: "#C26D3D" },
               { icon: "bag-personal-outline", label: "حقائب يدوية", color: "#14B8A6" },
               { icon: "gift-outline",       label: "هدايا مخصصة",   color: "#EF4444" },
             ]).map((cat, i) => (
@@ -1021,7 +1021,7 @@ function WomenScreen() {
             ] as [string, string, string][]).map(([key, label, emoji]) => (
               <TouchableOpacity
                 key={key}
-                style={[sp.catChip, shopCategory === key && { backgroundColor: "#A855F7", borderColor: "#A855F7" }]}
+                style={[sp.catChip, shopCategory === key && { backgroundColor: "#B4436C", borderColor: "#B4436C" }]}
                 onPress={() => { setShopCategory(key); loadShops(key); }}
               >
                 <Text style={{ fontSize: 14 }}>{emoji}</Text>
@@ -1047,13 +1047,13 @@ function WomenScreen() {
 
             {/* بانر إضافة متجر */}
             <TouchableOpacity style={sp.addBanner} onPress={() => { setApplyDone(false); setApplyShopModal(true); }}>
-              <LinearGradient colors={["#A855F720", "#FF4FA310"]} style={StyleSheet.absoluteFill} />
-              <MaterialCommunityIcons name="store-plus-outline" size={26} color="#A855F7" />
+              <LinearGradient colors={["#B4436C20", "#FF4FA310"]} style={StyleSheet.absoluteFill} />
+              <MaterialCommunityIcons name="store-plus-outline" size={26} color="#B4436C" />
               <View style={{ flex: 1 }}>
                 <Text style={sp.addBannerTitle}>افتحي متجرك في ركن المرأة!</Text>
                 <Text style={sp.addBannerSub}>إكسسوارات، عطور، أحذية وأكثر — اعرضي منتجاتك لآلاف المستخدمات</Text>
               </View>
-              <Ionicons name="chevron-back" size={18} color="#A855F7" />
+              <Ionicons name="chevron-back" size={18} color="#B4436C" />
             </TouchableOpacity>
 
             {/* زر طلب منتج خاص */}
@@ -1068,10 +1068,10 @@ function WomenScreen() {
             </TouchableOpacity>
 
             {shopsLoading ? (
-              <ActivityIndicator color="#A855F7" size="large" style={{ marginTop: 30 }} />
+              <ActivityIndicator color="#B4436C" size="large" style={{ marginTop: 30 }} />
             ) : shops.filter(sh => !shopSearch || sh.name.includes(shopSearch) || sh.description.includes(shopSearch)).length === 0 ? (
               <View style={sp.emptyBox}>
-                <MaterialCommunityIcons name="store-off-outline" size={52} color="#A855F750" />
+                <MaterialCommunityIcons name="store-off-outline" size={52} color="#B4436C50" />
                 <Text style={sp.emptyTitle}>لا توجد متاجر بعد في هذه الفئة</Text>
                 <Text style={sp.emptySub}>كوني أول من تفتح متجرها هنا</Text>
               </View>
@@ -1085,7 +1085,7 @@ function WomenScreen() {
                       activeOpacity={0.88}
                       onPress={() => { setSelectedShop(selectedShop?.id === shop.id ? null : shop); setShopProducts([]); }}
                     >
-                      <LinearGradient colors={["#A855F70A", "transparent"]} style={StyleSheet.absoluteFill} />
+                      <LinearGradient colors={["#B4436C0A", "transparent"]} style={StyleSheet.absoluteFill} />
 
                       {/* رأس البطاقة */}
                       <View style={sp.shopHeader}>
@@ -1143,7 +1143,7 @@ function WomenScreen() {
                       {/* أزرار */}
                       <View style={sp.shopActions}>
                         <AnimatedPress style={{ flex: 1 }} onPress={() => { setSelectedShop(selectedShop?.id === shop.id ? null : shop); setShopProducts([]); }}>
-                          <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.shopBtn}>
+                          <LinearGradient colors={["#B4436C", "#8E2F55"]} style={sp.shopBtn}>
                             <MaterialCommunityIcons name="shopping-outline" size={15} color="#fff" />
                             <Text style={sp.shopBtnText}>{selectedShop?.id === shop.id ? "إخفاء المنتجات" : "عرض المنتجات"}</Text>
                           </LinearGradient>
@@ -1152,7 +1152,7 @@ function WomenScreen() {
                           style={sp.reqBtn}
                           onPress={() => { setReqStore(shop); setReqDone(false); setReqModal(true); }}
                         >
-                          <MaterialCommunityIcons name="clipboard-edit-outline" size={16} color="#A855F7" />
+                          <MaterialCommunityIcons name="clipboard-edit-outline" size={16} color="#B4436C" />
                         </TouchableOpacity>
                         {shop.phone ? (
                           <TouchableOpacity style={sp.callBtn} onPress={() => handleCall(shop.phone)}>
@@ -1166,7 +1166,7 @@ function WomenScreen() {
                     {selectedShop?.id === shop.id && (
                       <Animated.View entering={FadeIn.duration(250)} style={sp.productsPanel}>
                         {productsLoading ? (
-                          <ActivityIndicator color="#A855F7" style={{ padding: 20 }} />
+                          <ActivityIndicator color="#B4436C" style={{ padding: 20 }} />
                         ) : shopProducts.length === 0 ? (
                           <Text style={sp.noProductsText}>لا توجد منتجات متاحة حالياً</Text>
                         ) : (
@@ -1200,11 +1200,11 @@ function WomenScreen() {
                                     {inCart ? (
                                       <View style={sp.qtyRow}>
                                         <TouchableOpacity style={sp.qtyBtn} onPress={() => removeFromCart(prod.id)}>
-                                          <MaterialCommunityIcons name="minus" size={14} color="#A855F7" />
+                                          <MaterialCommunityIcons name="minus" size={14} color="#B4436C" />
                                         </TouchableOpacity>
                                         <Text style={sp.qtyText}>{inCart.qty}</Text>
                                         <TouchableOpacity style={sp.qtyBtn} onPress={() => addToCart(prod)}>
-                                          <MaterialCommunityIcons name="plus" size={14} color="#A855F7" />
+                                          <MaterialCommunityIcons name="plus" size={14} color="#B4436C" />
                                         </TouchableOpacity>
                                       </View>
                                     ) : (
@@ -1223,7 +1223,7 @@ function WomenScreen() {
                         {/* زر إتمام الشراء */}
                         {cartCount(cart) > 0 && (
                           <TouchableOpacity style={sp.checkoutBanner} onPress={() => setCartOpen(true)}>
-                            <LinearGradient colors={["#A855F7", "#7C3AED"]} style={StyleSheet.absoluteFill} />
+                            <LinearGradient colors={["#B4436C", "#8E2F55"]} style={StyleSheet.absoluteFill} />
                             <MaterialCommunityIcons name="cart-check" size={18} color="#fff" />
                             <Text style={sp.checkoutBannerText}>السلة ({cartCount(cart)} منتج) — {cartTotal(cart).toLocaleString("en-US")} ج</Text>
                             <Ionicons name="chevron-back" size={16} color="#fff" />
@@ -1245,8 +1245,8 @@ function WomenScreen() {
           {/* بانر ترحيبي */}
           <Animated.View entering={FadeIn.duration(400)}>
             <View style={bt.introBanner}>
-              <LinearGradient colors={["#A855F730", "#FF4FA320"]} style={StyleSheet.absoluteFill} />
-              <MaterialCommunityIcons name="shopping-outline" size={36} color="#A855F7" style={{ marginBottom: 8 }} />
+              <LinearGradient colors={["#B4436C30", "#FF4FA320"]} style={StyleSheet.absoluteFill} />
+              <MaterialCommunityIcons name="shopping-outline" size={36} color="#B4436C" style={{ marginBottom: 8 }} />
               <Text style={bt.introTitle}>البوتيكات النسائية</Text>
               <Text style={bt.introSub}>
                 تسوّقي بخصوصية تامة — عطور، ملابس، إكسسوارات وأكثر من بوتيكات حصاحيصاوية موثوقة
@@ -1268,11 +1268,11 @@ function WomenScreen() {
           </View>
 
           {storesLoading ? (
-            <ActivityIndicator color="#A855F7" size="large" style={{ marginTop: 40 }} />
+            <ActivityIndicator color="#B4436C" size="large" style={{ marginTop: 40 }} />
           ) : womenStores.length === 0 ? (
             <Animated.View entering={FadeIn.duration(500)}>
               <View style={bt.emptyBanner}>
-                <MaterialCommunityIcons name="store-off-outline" size={52} color="#A855F750" />
+                <MaterialCommunityIcons name="store-off-outline" size={52} color="#B4436C50" />
                 <Text style={bt.emptyTitle}>لا توجد بوتيكات بعد</Text>
                 <Text style={bt.emptySub}>
                   كوني أول من تفتح بوتيكها في حصاحيصا — اضغطي على "فتح متجري" للبدء
@@ -1281,7 +1281,7 @@ function WomenScreen() {
                   style={bt.openStoreBtn}
                   onPress={() => router.push("/store-portal" as any)}
                 >
-                  <LinearGradient colors={["#A855F7", "#7C3AED"]} style={bt.openStoreBtnGrad}>
+                  <LinearGradient colors={["#B4436C", "#8E2F55"]} style={bt.openStoreBtnGrad}>
                     <MaterialCommunityIcons name="store-plus-outline" size={18} color="#fff" />
                     <Text style={bt.openStoreBtnText}>فتح بوتيكي</Text>
                   </LinearGradient>
@@ -1295,7 +1295,7 @@ function WomenScreen() {
                 .map((store, idx) => (
                 <Animated.View key={store.id} entering={FadeInDown.delay(idx * 60).springify()}>
                   <View style={bt.storeCard}>
-                    <LinearGradient colors={["#A855F710", "#FF4FA308"]} style={StyleSheet.absoluteFill} />
+                    <LinearGradient colors={["#B4436C10", "#FF4FA308"]} style={StyleSheet.absoluteFill} />
 
                     {/* رأس البطاقة */}
                     <View style={bt.storeHeader}>
@@ -1306,14 +1306,14 @@ function WomenScreen() {
                             style={bt.storeLogo}
                           />
                         ) : (
-                          <MaterialCommunityIcons name="shopping-outline" size={28} color="#A855F7" />
+                          <MaterialCommunityIcons name="shopping-outline" size={28} color="#B4436C" />
                         )}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={bt.storeName}>{store.name}</Text>
                         <View style={bt.storeMeta}>
                           <View style={bt.typeChip}>
-                            <MaterialCommunityIcons name="tag-outline" size={11} color="#A855F7" />
+                            <MaterialCommunityIcons name="tag-outline" size={11} color="#B4436C" />
                             <Text style={bt.typeChipText}>{STORE_TYPE_LABELS[store.type] ?? store.type}</Text>
                           </View>
                           {store.delivery_available && (
@@ -1349,7 +1349,7 @@ function WomenScreen() {
                     {/* شارة عدد المنتجات */}
                     {store.product_count > 0 && (
                       <View style={bt.productsBadge}>
-                        <MaterialCommunityIcons name="hanger" size={13} color="#A855F7" />
+                        <MaterialCommunityIcons name="hanger" size={13} color="#B4436C" />
                         <Text style={bt.productsBadgeText}>{store.product_count} منتج</Text>
                       </View>
                     )}
@@ -1360,7 +1360,7 @@ function WomenScreen() {
                         style={{ flex: 1 }}
                         onPress={() => router.push({ pathname: "/stores", params: { openStoreId: String(store.id) } } as any)}
                       >
-                        <LinearGradient colors={["#A855F7", "#7C3AED"]} style={bt.actionBtn}>
+                        <LinearGradient colors={["#B4436C", "#8E2F55"]} style={bt.actionBtn}>
                           <MaterialCommunityIcons name="shopping-outline" size={15} color="#fff" />
                           <Text style={bt.actionBtnText}>تسوّقي الآن</Text>
                         </LinearGradient>
@@ -1370,7 +1370,7 @@ function WomenScreen() {
                           style={bt.callBtn}
                           onPress={() => handleCall(store.phone!)}
                         >
-                          <MaterialCommunityIcons name="phone-outline" size={18} color="#A855F7" />
+                          <MaterialCommunityIcons name="phone-outline" size={18} color="#B4436C" />
                         </AnimatedPress>
                       ) : null}
                     </View>
@@ -1383,10 +1383,10 @@ function WomenScreen() {
                 style={bt.addStoreRow}
                 onPress={() => router.push("/store-portal" as any)}
               >
-                <LinearGradient colors={["#A855F720", "transparent"]} style={StyleSheet.absoluteFill} />
-                <MaterialCommunityIcons name="store-plus-outline" size={20} color="#A855F7" />
+                <LinearGradient colors={["#B4436C20", "transparent"]} style={StyleSheet.absoluteFill} />
+                <MaterialCommunityIcons name="store-plus-outline" size={20} color="#B4436C" />
                 <Text style={bt.addStoreText}>فتح بوتيكي الخاص</Text>
-                <MaterialCommunityIcons name="chevron-left" size={18} color="#A855F7" />
+                <MaterialCommunityIcons name="chevron-left" size={18} color="#B4436C" />
               </TouchableOpacity>
             </>
           )}
@@ -1399,7 +1399,7 @@ function WomenScreen() {
         activeOpacity={0.88}
         onPress={() => { setJoinDone(false); setJoinModal(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
       >
-        <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jm.fabGrad}>
+        <LinearGradient colors={["#FF4FA3", "#B4436C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jm.fabGrad}>
           <MaterialCommunityIcons name="store-plus-outline" size={20} color="#fff" />
           <Text style={jm.fabText}>طلب الانضمام</Text>
         </LinearGradient>
@@ -1421,20 +1421,20 @@ function WomenScreen() {
 
               {orderDone ? (
                 <Animated.View entering={FadeIn} style={sp.successBox}>
-                  <LinearGradient colors={["#A855F720", "#7C3AED10"]} style={sp.successIcon}>
-                    <Ionicons name="checkmark-circle" size={56} color="#A855F7" />
+                  <LinearGradient colors={["#B4436C20", "#8E2F5510"]} style={sp.successIcon}>
+                    <Ionicons name="checkmark-circle" size={56} color="#B4436C" />
                   </LinearGradient>
                   <Text style={sp.successTitle}>تم إرسال طلبك بنجاح!</Text>
                   <Text style={sp.successSub}>ستتواصل معك صاحبة المتجر قريباً لتأكيد الطلب والتوصيل.</Text>
                   <TouchableOpacity onPress={() => { setCartOpen(false); setOrderDone(false); setCheckoutOpen(false); }} style={sp.successBtn}>
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.successBtnGrad}>
+                    <LinearGradient colors={["#B4436C", "#8E2F55"]} style={sp.successBtnGrad}>
                       <Text style={sp.successBtnText}>حسناً، شكراً!</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </Animated.View>
               ) : cartCount(cart) === 0 ? (
                 <View style={{ alignItems: "center", padding: 40, gap: 12 }}>
-                  <MaterialCommunityIcons name="cart-off" size={52} color="#A855F750" />
+                  <MaterialCommunityIcons name="cart-off" size={52} color="#B4436C50" />
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textSecondary }}>السلة فارغة</Text>
                 </View>
               ) : (
@@ -1448,11 +1448,11 @@ function WomenScreen() {
                       </View>
                       <View style={sp.qtyRow}>
                         <TouchableOpacity style={sp.qtyBtn} onPress={() => removeFromCart(ci.product.id)}>
-                          <MaterialCommunityIcons name="minus" size={14} color="#A855F7" />
+                          <MaterialCommunityIcons name="minus" size={14} color="#B4436C" />
                         </TouchableOpacity>
                         <Text style={sp.qtyText}>{ci.qty}</Text>
                         <TouchableOpacity style={sp.qtyBtn} onPress={() => addToCart(ci.product)}>
-                          <MaterialCommunityIcons name="plus" size={14} color="#A855F7" />
+                          <MaterialCommunityIcons name="plus" size={14} color="#B4436C" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1478,7 +1478,7 @@ function WomenScreen() {
                     onPress={submitOrder}
                     disabled={checkoutSending}
                   >
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.submitBtnGrad}>
+                    <LinearGradient colors={["#B4436C", "#8E2F55"]} style={sp.submitBtnGrad}>
                       {checkoutSending ? <ActivityIndicator color="#fff" /> : (
                         <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال الطلب</Text></>
                       )}
@@ -1507,13 +1507,13 @@ function WomenScreen() {
 
               {applyDone ? (
                 <Animated.View entering={FadeIn} style={sp.successBox}>
-                  <LinearGradient colors={["#A855F720", "#7C3AED10"]} style={sp.successIcon}>
-                    <Ionicons name="checkmark-circle" size={56} color="#A855F7" />
+                  <LinearGradient colors={["#B4436C20", "#8E2F5510"]} style={sp.successIcon}>
+                    <Ionicons name="checkmark-circle" size={56} color="#B4436C" />
                   </LinearGradient>
                   <Text style={sp.successTitle}>تم استلام طلبك!</Text>
                   <Text style={sp.successSub}>ستتم مراجعة طلبك من الإدارة والتواصل معك خلال 24 ساعة.</Text>
                   <TouchableOpacity onPress={() => { setApplyShopModal(false); setApplyDone(false); }} style={sp.successBtn}>
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.successBtnGrad}>
+                    <LinearGradient colors={["#B4436C", "#8E2F55"]} style={sp.successBtnGrad}>
                       <Text style={sp.successBtnText}>حسناً</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -1529,11 +1529,11 @@ function WomenScreen() {
                     ].map(([key, emoji, label]) => (
                       <TouchableOpacity
                         key={key}
-                        style={[sp.typeChip, applyCategory === key && { borderColor: "#A855F7", backgroundColor: "#A855F718" }]}
+                        style={[sp.typeChip, applyCategory === key && { borderColor: "#B4436C", backgroundColor: "#B4436C18" }]}
                         onPress={() => setApplyCategory(key)}
                       >
                         <Text style={{ fontSize: 16 }}>{emoji}</Text>
-                        <Text style={[sp.typeChipText, applyCategory === key && { color: "#A855F7" }]}>{label}</Text>
+                        <Text style={[sp.typeChipText, applyCategory === key && { color: "#B4436C" }]}>{label}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -1556,11 +1556,11 @@ function WomenScreen() {
 
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
                     <TouchableOpacity
-                      style={[sp.toggleBtn, applyDelivery && { backgroundColor: "#A855F720", borderColor: "#A855F7" }]}
+                      style={[sp.toggleBtn, applyDelivery && { backgroundColor: "#B4436C20", borderColor: "#B4436C" }]}
                       onPress={() => setApplyDelivery(!applyDelivery)}
                     >
-                      <MaterialCommunityIcons name={applyDelivery ? "checkbox-marked" : "checkbox-blank-outline"} size={18} color={applyDelivery ? "#A855F7" : Colors.textMuted} />
-                      <Text style={[sp.toggleText, applyDelivery && { color: "#A855F7" }]}>خدمة التوصيل متاحة</Text>
+                      <MaterialCommunityIcons name={applyDelivery ? "checkbox-marked" : "checkbox-blank-outline"} size={18} color={applyDelivery ? "#B4436C" : Colors.textMuted} />
+                      <Text style={[sp.toggleText, applyDelivery && { color: "#B4436C" }]}>خدمة التوصيل متاحة</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -1569,7 +1569,7 @@ function WomenScreen() {
                     onPress={submitApplyShop}
                     disabled={applySending}
                   >
-                    <LinearGradient colors={["#A855F7", "#7C3AED"]} style={sp.submitBtnGrad}>
+                    <LinearGradient colors={["#B4436C", "#8E2F55"]} style={sp.submitBtnGrad}>
                       {applySending ? <ActivityIndicator color="#fff" /> : (
                         <><MaterialCommunityIcons name="send-outline" size={18} color="#fff" /><Text style={sp.submitBtnText}>إرسال طلب فتح المتجر</Text></>
                       )}
@@ -1686,7 +1686,7 @@ function WomenScreen() {
               {joinDone ? (
                 /* ── شاشة النجاح ── */
                 <Animated.View entering={FadeIn} style={jm.successBox}>
-                  <LinearGradient colors={["#FF4FA320", "#A855F710"]} style={jm.successIconWrap}>
+                  <LinearGradient colors={["#FF4FA320", "#B4436C10"]} style={jm.successIconWrap}>
                     <Ionicons name="checkmark-circle" size={56} color="#FF4FA3" />
                   </LinearGradient>
                   <Text style={jm.successTitle}>تم إرسال طلبك بنجاح!</Text>
@@ -1697,7 +1697,7 @@ function WomenScreen() {
                     style={jm.successBtn}
                     onPress={() => { setJoinModal(false); setJoinDone(false); }}
                   >
-                    <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.successBtnGrad}>
+                    <LinearGradient colors={["#FF4FA3", "#B4436C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.successBtnGrad}>
                       <Text style={jm.successBtnText}>حسناً، شكراً!</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -1759,7 +1759,7 @@ function WomenScreen() {
                     onPress={submitJoinRequest}
                     disabled={joinSending}
                   >
-                    <LinearGradient colors={["#FF4FA3", "#A855F7"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.sendBtnGrad}>
+                    <LinearGradient colors={["#FF4FA3", "#B4436C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={jm.sendBtnGrad}>
                       {joinSending ? (
                         <ActivityIndicator color="#fff" />
                       ) : (
@@ -2014,9 +2014,9 @@ const sp = StyleSheet.create({
   addBanner: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg,
-    borderWidth: 1.5, borderColor: "#A855F740", padding: 14, overflow: "hidden", ...Colors.shadow.card,
+    borderWidth: 1.5, borderColor: "#B4436C40", padding: 14, overflow: "hidden", ...Colors.shadow.card,
   },
-  addBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#A855F7", textAlign: "right" },
+  addBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#B4436C", textAlign: "right" },
   addBannerSub:   { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", marginTop: 2 },
   reqBanner: {
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -2028,12 +2028,12 @@ const sp = StyleSheet.create({
   // بطاقة متجر
   shopCard: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 10,
-    borderWidth: 1, borderColor: "#A855F730", overflow: "hidden", ...Colors.shadow.card,
+    borderWidth: 1, borderColor: "#B4436C30", overflow: "hidden", ...Colors.shadow.card,
   },
   shopHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   shopLogoWrap: {
     width: 60, height: 60, borderRadius: Colors.radius.md,
-    backgroundColor: "#A855F710", borderWidth: 1, borderColor: "#A855F730",
+    backgroundColor: "#B4436C10", borderWidth: 1, borderColor: "#B4436C30",
     justifyContent: "center", alignItems: "center", overflow: "hidden",
   },
   shopLogo: { width: 60, height: 60, borderRadius: Colors.radius.md },
@@ -2044,8 +2044,8 @@ const sp = StyleSheet.create({
     backgroundColor: "#F0A50018", paddingHorizontal: 7, paddingVertical: 3, borderRadius: Colors.radius.sm,
   },
   featuredText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#F0A500" },
-  catBadge: { backgroundColor: "#A855F718", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
-  catBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A855F7" },
+  catBadge: { backgroundColor: "#B4436C18", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm },
+  catBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#B4436C" },
   deliveryBadge: {
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: Colors.successSoft, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Colors.radius.sm,
@@ -2063,7 +2063,7 @@ const sp = StyleSheet.create({
   shopBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   reqBtn: {
     width: 40, height: 40, borderRadius: Colors.radius.md,
-    borderWidth: 1.5, borderColor: "#A855F740", backgroundColor: "#A855F710",
+    borderWidth: 1.5, borderColor: "#B4436C40", backgroundColor: "#B4436C10",
     justifyContent: "center", alignItems: "center",
   },
   callBtn: {
@@ -2075,7 +2075,7 @@ const sp = StyleSheet.create({
   // لوحة المنتجات
   productsPanel: {
     backgroundColor: Colors.bg, borderRadius: Colors.radius.lg,
-    borderWidth: 1, borderColor: "#A855F730", padding: 14, gap: 10,
+    borderWidth: 1, borderColor: "#B4436C30", padding: 14, gap: 10,
     marginTop: -6,
   },
   productsPanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -2083,7 +2083,7 @@ const sp = StyleSheet.create({
   noProductsText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center", padding: 20 },
   cartBadgeBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: "#A855F7", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: "#B4436C", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 5,
   },
   cartBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 
@@ -2095,18 +2095,18 @@ const sp = StyleSheet.create({
   productImage: { width: "100%", height: 90, borderRadius: Colors.radius.sm, resizeMode: "cover" },
   productEmoji: {
     width: "100%", height: 90, borderRadius: Colors.radius.sm,
-    backgroundColor: "#A855F710", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#B4436C10", justifyContent: "center", alignItems: "center",
   },
   productName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   productPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
+  productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#B4436C" },
   productOriginalPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textDecorationLine: "line-through" },
-  qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#A855F710", borderRadius: Colors.radius.sm, padding: 4 },
+  qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#B4436C10", borderRadius: Colors.radius.sm, padding: 4 },
   qtyBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center" },
-  qtyText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
+  qtyText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#B4436C" },
   addToCartBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
-    backgroundColor: "#A855F7", borderRadius: Colors.radius.sm, paddingVertical: 6,
+    backgroundColor: "#B4436C", borderRadius: Colors.radius.sm, paddingVertical: 6,
   },
   addToCartText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 
@@ -2133,10 +2133,10 @@ const sp = StyleSheet.create({
   // عناصر السلة
   cartItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, marginBottom: 8 },
   cartItemName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-  cartItemPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A855F7" },
-  cartTotal: { flexDirection: "row", justifyContent: "space-between", padding: 14, backgroundColor: "#A855F710", borderRadius: Colors.radius.md, marginBottom: 16 },
+  cartItemPrice: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#B4436C" },
+  cartTotal: { flexDirection: "row", justifyContent: "space-between", padding: 14, backgroundColor: "#B4436C10", borderRadius: Colors.radius.md, marginBottom: 16 },
   cartTotalLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary },
-  cartTotalValue: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#A855F7" },
+  cartTotalValue: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#B4436C" },
 
   // حقول
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginBottom: 6 },
@@ -2165,8 +2165,8 @@ const sp = StyleSheet.create({
 
   // نجاح
   successBox: { alignItems: "center", paddingVertical: 32, gap: 14 },
-  successIcon: { width: 100, height: 100, borderRadius: Colors.radius.xl, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#A855F740" },
-  successTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#A855F7", textAlign: "center" },
+  successIcon: { width: 100, height: 100, borderRadius: Colors.radius.xl, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#B4436C40" },
+  successTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#B4436C", textAlign: "center" },
   successSub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, paddingHorizontal: 16 },
   successBtn: { borderRadius: Colors.radius.lg, overflow: "hidden", marginTop: 8, width: "80%" },
   successBtnGrad: { paddingVertical: 14, alignItems: "center" },
@@ -2184,10 +2184,10 @@ const sp = StyleSheet.create({
 const bt = StyleSheet.create({
   introBanner: {
     borderRadius: Colors.radius.lg, padding: 20, alignItems: "center", gap: 6,
-    borderWidth: 1.5, borderColor: "#A855F730", overflow: "hidden",
+    borderWidth: 1.5, borderColor: "#B4436C30", overflow: "hidden",
     backgroundColor: Colors.cardBg, ...Colors.shadow.card,
   },
-  introTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#A855F7", textAlign: "center" },
+  introTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#B4436C", textAlign: "center" },
   introSub: {
     fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
     textAlign: "center", lineHeight: 22,
@@ -2196,7 +2196,7 @@ const bt = StyleSheet.create({
   emptyBanner: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 28,
     alignItems: "center", gap: 10,
-    borderWidth: 1.5, borderColor: "#A855F720", ...Colors.shadow.card,
+    borderWidth: 1.5, borderColor: "#B4436C20", ...Colors.shadow.card,
   },
   emptyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary },
   emptySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
@@ -2209,12 +2209,12 @@ const bt = StyleSheet.create({
 
   storeCard: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16, gap: 10,
-    borderWidth: 1, borderColor: "#A855F730", overflow: "hidden", ...Colors.shadow.card,
+    borderWidth: 1, borderColor: "#B4436C30", overflow: "hidden", ...Colors.shadow.card,
   },
   storeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   storeLogoWrap: {
     width: 56, height: 56, borderRadius: Colors.radius.md,
-    backgroundColor: "#A855F718", borderWidth: 1, borderColor: "#A855F730",
+    backgroundColor: "#B4436C18", borderWidth: 1, borderColor: "#B4436C30",
     justifyContent: "center", alignItems: "center", overflow: "hidden",
   },
   storeLogo: { width: 56, height: 56, borderRadius: Colors.radius.md },
@@ -2222,9 +2222,9 @@ const bt = StyleSheet.create({
   storeMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" },
   typeChip: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#A855F718", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
+    backgroundColor: "#B4436C18", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
   },
-  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A855F7" },
+  typeChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#B4436C" },
   deliveryChip: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: Colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm,
@@ -2235,9 +2235,9 @@ const bt = StyleSheet.create({
   storeInfoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   productsBadge: {
     flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end",
-    backgroundColor: "#A855F712", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm,
+    backgroundColor: "#B4436C12", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm,
   },
-  productsBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A855F7" },
+  productsBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#B4436C" },
   storeActions: { flexDirection: "row", gap: 10, alignItems: "center" },
   actionBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -2246,16 +2246,16 @@ const bt = StyleSheet.create({
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
   callBtn: {
     width: 44, height: 44, borderRadius: Colors.radius.md,
-    borderWidth: 1.5, borderColor: "#A855F740", backgroundColor: "#A855F710",
+    borderWidth: 1.5, borderColor: "#B4436C40", backgroundColor: "#B4436C10",
     justifyContent: "center", alignItems: "center",
   },
 
   addStoreRow: {
     flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center",
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 16,
-    borderWidth: 1, borderColor: "#A855F730", overflow: "hidden", ...Colors.shadow.card,
+    borderWidth: 1, borderColor: "#B4436C30", overflow: "hidden", ...Colors.shadow.card,
   },
-  addStoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A855F7", flex: 1, textAlign: "center" },
+  addStoreText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#B4436C", flex: 1, textAlign: "center" },
 });
 
 export default withRTLScreen(WomenScreen);

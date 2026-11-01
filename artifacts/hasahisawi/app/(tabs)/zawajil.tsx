@@ -19,8 +19,8 @@ import ModernHeader from "@/components/ui/ModernHeader";
 
 const { width: W } = Dimensions.get("window");
 
-const PINK   = "#EC4899";
-const PINK2  = "#F472B6";
+const PINK   = "#B4436C";
+const PINK2  = "#D9849F";
 const GOLD   = "#D4AF37";
 const ZAWAJIL_INTRO_KEY = "zawajil_intro_v1";
 
@@ -34,10 +34,10 @@ type ServiceDef = {
   emoji: string;
 };
 const SERVICES: ServiceDef[] = [
-  { key: "hamasat_itab", label: "همسات عتاب",  subtitle: "رسالة من القلب",     icon: "heart",        color: "#EC4899", gradient: ["#EC4899","#BE185D"], description: "أرسل رسالة شخصية تعبر عن مشاعرك — شوق، عتاب، اعتذار أو تقدير", emoji: "💌" },
+  { key: "hamasat_itab", label: "همسات عتاب",  subtitle: "رسالة من القلب",     icon: "heart",        color: "#B4436C", gradient: ["#B4436C","#8E2F55"], description: "أرسل رسالة شخصية تعبر عن مشاعرك — شوق، عتاب، اعتذار أو تقدير", emoji: "💌" },
   { key: "nifaj",        label: "نفاج",         subtitle: "النصيحة المهداة",    icon: "bulb",         color: "#F59E0B", gradient: ["#F59E0B","#D97706"], description: "رسالة نصيحة واعية موجهة لشخص تحب أن يتحسن أو يغير سلوكاً معيناً", emoji: "💡" },
   { key: "shoubash",     label: "شوبش",         subtitle: "مساحة العرسان",      icon: "diamond",      color: "#D4AF37", gradient: ["#D4AF37","#B7950B"], description: "هدايا الزواج مع تقديم صوتي احترافي خلال حفل الزفاف، يمكن مشاركة أكثر من شخص", emoji: "💍" },
-  { key: "tabrikat",     label: "تبريكات",      subtitle: "مناسبات سعيدة",      icon: "sparkles",     color: "#C084FC", gradient: ["#C084FC","#9333EA"], description: "تهانٍ للخطوبة، التخرج، التفوق وكل المناسبات البهيجة", emoji: "🎉" },
+  { key: "tabrikat",     label: "تبريكات",      subtitle: "مناسبات سعيدة",      icon: "sparkles",     color: "#E59BB5", gradient: ["#E59BB5","#8E2F55"], description: "تهانٍ للخطوبة، التخرج، التفوق وكل المناسبات البهيجة", emoji: "🎉" },
   { key: "salamat",      label: "سلامات",        subtitle: "للمرضى والمتعبين",  icon: "heart-half",   color: "#22C55E", gradient: ["#22C55E","#15803D"], description: "رسالة دعم ومؤازرة مصحوبة بهدية لمن يعاني المرض أو الوعكة", emoji: "🌿" },
 ];
 
@@ -46,7 +46,7 @@ const STATUS_INFO: Record<string, { label: string; color: string; icon: keyof ty
   modification_requested: { label: "يحتاج تعديل",        color: "#F97316", icon: "create-outline",            step: 2 },
   approved:               { label: "مقبول",               color: "#22C55E", icon: "checkmark-circle-outline",  step: 3 },
   preparing:              { label: "جارٍ التجهيز",        color: "#0EA5E9", icon: "construct-outline",          step: 4 },
-  sending:                { label: "في الطريق",           color: "#C084FC", icon: "bicycle-outline",            step: 5 },
+  sending:                { label: "في الطريق",           color: "#E59BB5", icon: "bicycle-outline",            step: 5 },
   completed:              { label: "مكتمل ✓",             color: "#3EFF9C", icon: "checkmark-done-outline",     step: 6 },
   rejected:               { label: "مرفوض",               color: "#EF4444", icon: "close-circle-outline",       step: 0 },
   returned:               { label: "مُعادة للمرسل",      color: Colors.textSecondary, icon: "return-down-back-outline",    step: 0 },
@@ -70,7 +70,7 @@ const GIFT_TYPES = [
 // ── شرائح تسويقية ─────────────────────────────────────────────────────────────
 const INTRO_SLIDES = [
   { emoji: "🎁", title: "مرحباً في زواجل", body: "منصة هدايا بلمسة إنسانية حقيقية — أرسل هديتك مع رسالة قلبية وتوصيل احترافي لأحبائك في الحصاحيصا وما حولها", color: PINK },
-  { emoji: "🕵️", title: "ممهول أو شفقان؟", body: "أرسل هديتك بهوية مجهولة (ممهول) وادهش المستلم بلا كشف هويتك، أو بهوية معروفة (شفقان) — لكن كبّر جيبك عشان حتزيد عليك! 😄", color: "#818CF8" },
+  { emoji: "🕵️", title: "ممهول أو شفقان؟", body: "أرسل هديتك بهوية مجهولة (ممهول) وادهش المستلم بلا كشف هويتك، أو بهوية معروفة (شفقان) — لكن كبّر جيبك عشان حتزيد عليك! 😄", color: "#E8B931" },
   { emoji: "💝", title: "هدايا متنوعة", body: "اختر من متجر زواجل بسعر مناسب بدون رسوم جلب إضافية، أو أرسل هدية خارجية مع العلم أنها تشمل بدل مشوار + بدل وقت إضافيَّين", color: GOLD },
   { emoji: "🚀", title: "توصيل سريع", body: "نوصل داخل الحصاحيصا وخارجها. السعر يُحدَّد بعد المراجعة حسب الموقع والخدمة المختارة", color: "#22C55E" },
   { emoji: "✨", title: "انضم لفريق زواجل", body: "زاجل توصيل؟ كروان مؤدي صوتي؟ خطاط؟ شريك متجر هدايا؟ قدّم طلبك من تبويب الانضمام وسنتواصل معك", color: "#F59E0B" },
@@ -80,11 +80,11 @@ const INTRO_SLIDES = [
 type JoinRole = { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; desc: string; showGender?: boolean; showSamples?: boolean };
 const JOIN_ROLES: JoinRole[] = [
   { key: "zaajil",          label: "زاجل — مندوب توصيل",      icon: "bicycle-outline",    color: "#22C55E", desc: "توصيل الطلبات والهدايا داخل وخارج المدينة بسرعة واحترافية", showGender: true },
-  { key: "krowan",          label: "كروان — مؤدي صوتي",        icon: "mic-outline",        color: "#C084FC", desc: "تقديم الهدايا بصوت جميل في الأفراح والمناسبات الخاصة", showSamples: true },
+  { key: "krowan",          label: "كروان — مؤدي صوتي",        icon: "mic-outline",        color: "#E59BB5", desc: "تقديم الهدايا بصوت جميل في الأفراح والمناسبات الخاصة", showSamples: true },
   { key: "khattaat",        label: "خطاط",                     icon: "create-outline",     color: GOLD,      desc: "كتابة الرسائل والبطاقات بخط جميل وتنسيق احترافي", showSamples: true },
-  { key: "designer",        label: "مصمم",                     icon: "brush-outline",      color: "#8B5CF6", desc: "تصميم البطاقات والدعوات والبوسترات الإلكترونية للمناسبات", showSamples: true },
+  { key: "designer",        label: "مصمم",                     icon: "brush-outline",      color: "#C26D3D", desc: "تصميم البطاقات والدعوات والبوسترات الإلكترونية للمناسبات", showSamples: true },
   { key: "gift_store",      label: "انضمام متجر هدايا",        icon: "storefront-outline", color: PINK,      desc: "أضف منتجاتك إلى متجر زواجل وابدأ البيع عبر المنصة" },
-  { key: "service_girl",    label: "طلب خدمة — بنات",          icon: "female-outline",     color: "#F472B6", desc: "انضمي لقائمة مقدمات الخدمات الخاصة للمناسبات النسائية" },
+  { key: "service_girl",    label: "طلب خدمة — بنات",          icon: "female-outline",     color: "#D9849F", desc: "انضمي لقائمة مقدمات الخدمات الخاصة للمناسبات النسائية" },
   { key: "service_boy",     label: "طلب خدمة — أولاد",         icon: "male-outline",       color: "#38BDF8", desc: "انضم لقائمة مقدمي الخدمات الخاصة للمناسبات والفعاليات" },
 ];
 
@@ -330,7 +330,7 @@ export default function ZawajilScreen() {
         title="زواجل"
         subtitle="هدايا ورسائل توصيل بلمسة خاصة"
         icon="gift-outline"
-        gradient={[PINK, "#BE185D", "#1F0D18"]}
+        gradient={[PINK, "#8E2F55", "#1F0D18"]}
         rightSlot={
           <View style={[styles.statusBadge, { backgroundColor: SERVICE_ACTIVE ? "#22C55E18" : "#F9731618", borderColor: SERVICE_ACTIVE ? "#22C55E44" : "#F9731644" }]}>
             <View style={[styles.statusDot, { backgroundColor: SERVICE_ACTIVE ? "#22C55E" : "#F97316" }]} />
@@ -353,7 +353,7 @@ export default function ZawajilScreen() {
               onPress={() => setTab(t.key)}
             >
               {tab === t.key && (
-                <LinearGradient colors={[PINK, "#BE185D"]} style={StyleSheet.absoluteFill} start={{ x:0,y:0 }} end={{ x:1,y:0 }} />
+                <LinearGradient colors={[PINK, "#8E2F55"]} style={StyleSheet.absoluteFill} start={{ x:0,y:0 }} end={{ x:1,y:0 }} />
               )}
               <Ionicons name={t.icon} size={14} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
               <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
@@ -427,7 +427,7 @@ export default function ZawajilScreen() {
           {/* Info boxes */}
           <View style={styles.infoBox}>
             <View style={styles.infoIconBg}>
-              <Ionicons name="eye-off-outline" size={16} color="#818CF8" />
+              <Ionicons name="eye-off-outline" size={16} color="#E8B931" />
             </View>
             <Text style={[styles.infoText, { color: "#C7D2FE" }]}>
               <Text style={{ fontFamily: "Cairo_700Bold" }}>ممهول أو شفقان؟ </Text>
@@ -472,7 +472,7 @@ export default function ZawajilScreen() {
               />
             </View>
             <TouchableOpacity style={styles.trackBtn} onPress={() => loadMyOrders()}>
-              <LinearGradient colors={[PINK, "#BE185D"]} style={[StyleSheet.absoluteFill, { borderRadius: 12 }]} />
+              <LinearGradient colors={[PINK, "#8E2F55"]} style={[StyleSheet.absoluteFill, { borderRadius: 12 }]} />
               <Ionicons name="search" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -624,21 +624,21 @@ export default function ZawajilScreen() {
               keyboardShouldPersistTaps="handled"
             >
               {/* ── هوية المرسل: ممهول أو شفقان ── */}
-              <SectionHead icon="eye-outline" title="هوية المرسل" color="#818CF8" />
+              <SectionHead icon="eye-outline" title="هوية المرسل" color="#E8B931" />
               <View style={styles.anonCard}>
                 <Text style={styles.anonCardTitle}>كيف تريد أن يعرفك المستلم؟</Text>
                 <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 10 }}>
                   <TouchableOpacity
-                    style={[styles.anonBtn, !form.sender_anonymous && { backgroundColor: "#818CF822", borderColor: "#818CF8" }]}
+                    style={[styles.anonBtn, !form.sender_anonymous && { backgroundColor: "#E8B93122", borderColor: "#E8B931" }]}
                     onPress={() => setForm(p=>({...p,sender_anonymous:false}))}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="eye-off-outline" size={18} color={!form.sender_anonymous ? "#818CF8" : Colors.textSecondary} />
+                    <Ionicons name="eye-off-outline" size={18} color={!form.sender_anonymous ? "#E8B931" : Colors.textSecondary} />
                     <View>
-                      <Text style={[styles.anonBtnTitle, !form.sender_anonymous && { color: "#818CF8" }]}>ممهول 🕵️</Text>
+                      <Text style={[styles.anonBtnTitle, !form.sender_anonymous && { color: "#E8B931" }]}>ممهول 🕵️</Text>
                       <Text style={styles.anonBtnSub}>هويتك مجهولة</Text>
                     </View>
-                    {!form.sender_anonymous && <Ionicons name="checkmark-circle" size={16} color="#818CF8" style={{ marginRight: "auto" }} />}
+                    {!form.sender_anonymous && <Ionicons name="checkmark-circle" size={16} color="#E8B931" style={{ marginRight: "auto" }} />}
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.anonBtn, form.sender_anonymous && { backgroundColor: "#F9731622", borderColor: "#F97316" }]}
@@ -697,11 +697,11 @@ export default function ZawajilScreen() {
               {/* ── تفاصيل خاصة بالخدمة ── */}
               {form.service_type === "tabrikat" && (
                 <>
-                  <SectionHead icon="sparkles-outline" title="نوع المناسبة" color="#C084FC" />
+                  <SectionHead icon="sparkles-outline" title="نوع المناسبة" color="#E59BB5" />
                   <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
                     {OCCASION_TYPES.map(o => (
-                      <TouchableOpacity key={o.key} onPress={() => setForm(p=>({...p,occasion_type:o.key}))} style={[styles.occasionBtn, form.occasion_type === o.key && { backgroundColor: "#C084FC22", borderColor: "#C084FC" }]}>
-                        <Text style={[styles.occasionBtnText, form.occasion_type === o.key && { color: "#C084FC" }]}>{o.label}</Text>
+                      <TouchableOpacity key={o.key} onPress={() => setForm(p=>({...p,occasion_type:o.key}))} style={[styles.occasionBtn, form.occasion_type === o.key && { backgroundColor: "#E59BB522", borderColor: "#E59BB5" }]}>
+                        <Text style={[styles.occasionBtnText, form.occasion_type === o.key && { color: "#E59BB5" }]}>{o.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1099,7 +1099,7 @@ const styles = StyleSheet.create({
   modalSub:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
 
   // ── Anonymity card ──
-  anonCard:       { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#818CF822" },
+  anonCard:       { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#E8B93122" },
   anonCardTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   anonBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.surface3 },
   anonBtnTitle:   { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
