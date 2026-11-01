@@ -193,6 +193,56 @@ router.get("/calls/admin/recent", async (req: Request, res: Response) => {
   } catch (err) { logger.error({ err }, "[calls] admin recent"); return res.status(500).json({ error: "خطأ" }); }
 });
 
+// ── تشخيص المكالمات (للإدارة): هل خادم الترحيل (TURN) مضبوط؟ وما نتائج آخر المكالمات؟ ──
+/** نتيجة المكالمة من سجل أحداثها */
+function outcomeOf(c: any): { key: string; label: string; via?: string } {
+  const ev: any[] = Array.isArray(c.events) ? c.events : [];
+  const has = (name: string) => ev.some((e) => e.event === name);
+  const conn = ev.find((e) => e.event === "connected");
+  if (has("mic_err") || has("no_media")) return { key: "mic", label: "تعذّر الوصول للميكروفون" };
+  if (conn) {
+    const d = String(conn.detail || "");
+    return { key: "ok", label: "اتصلت بنجاح", via: d.includes("relay") ? "عبر خادم الترحيل" : d ? "مباشرة" : undefined };
+  }
+  if (has("failed")) return { key: "failed", label: "فشل الاتصال الصوتي (الشبكة)" };
+  if (c.status === "declined") return { key: "declined", label: "مرفوضة" };
+  if (c.status === "missed") return { key: "missed", label: "لم يُرد" };
+  if (c.answered_at) return { key: "noaudio", label: "رُدّ عليها دون اتصال صوتي مؤكد" };
+  if (c.status === "ringing") return { key: "ringing", label: "ترن الآن" };
+  return { key: "other", label: c.status };
+}
+
+router.get("/calls/admin/diagnostics", async (req: Request, res: Response) => {
+  try {
+    const me = await sessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "للإدارة فقط" });
+    const ice = await iceServers();
+    const relayUrls = ice.flatMap((s: any) => (Array.isArray(s.urls) ? s.urls : [s.urls])).filter((u: any) => /^turns?:/.test(String(u)));
+    const r = await query(`SELECT c.id, c.status, c.created_at, c.answered_at, c.ended_at, cu.name AS caller, ce.name AS callee,
+        (SELECT json_agg(json_build_object('t', e.created_at, 'role', e.role, 'event', e.event, 'detail', e.detail) ORDER BY e.id)
+           FROM voice_call_events e WHERE e.call_id=c.id) AS events
+      FROM voice_calls c JOIN users cu ON cu.id=c.caller_id JOIN users ce ON ce.id=c.callee_id
+      WHERE c.created_at > NOW() - INTERVAL '30 days' ORDER BY c.id DESC LIMIT 200`);
+    const calls = r.rows.map((c: any) => ({ ...c, outcome: outcomeOf(c) }));
+    const count = (k: string) => calls.filter((c: any) => c.outcome.key === k).length;
+    const answered = calls.filter((c: any) => c.answered_at).length;
+    return res.json({
+      turn: {
+        cloudflare: !!(process.env.CF_TURN_KEY_ID && process.env.CF_TURN_API_TOKEN),
+        metered: !!(process.env.METERED_API_KEY && process.env.METERED_DOMAIN),
+        custom: !!process.env.TURN_URLS,
+        relayServers: relayUrls.length, // > 0 يعني أن بيانات الدخول جُلبت فعلاً
+      },
+      stats: {
+        total: calls.length, answered, ok: count("ok"), failed: count("failed"), noaudio: count("noaudio"),
+        mic: count("mic"), missed: count("missed"), declined: count("declined"),
+        viaRelay: calls.filter((c: any) => c.outcome.via === "عبر خادم الترحيل").length,
+      },
+      recent: calls.slice(0, 40),
+    });
+  } catch (err) { logger.error({ err }, "[calls] diagnostics"); return res.status(500).json({ error: "خطأ" }); }
+});
+
 router.get("/calls/ice", async (_req, res) => res.json({ ice: await iceServers() }));
 
 // ── صفحة WebRTC التي تعمل داخل WebView (الإعدادات تُحقن من التطبيق) ──

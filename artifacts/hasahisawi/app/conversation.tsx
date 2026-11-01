@@ -16,7 +16,7 @@ import { apiGetOrCreateChat } from "@/lib/api-chat";
 import { chatApi, useChatSync, presenceText, REACTIONS, type ChatMsg } from "@/lib/chat-plus";
 import { callsApi } from "@/lib/calls";
 import { getApiUrl } from "@/lib/query-client";
-import { filePart } from "@/lib/xplatform";
+import { filePart, notify } from "@/lib/xplatform";
 
 const EDIT_MIN = 60;
 const DELETE_ALL_H = 24;
@@ -237,7 +237,8 @@ export default function ConversationScreen() {
   const [calling, setCalling] = useState(false);
   async function startVoiceCall() {
     if (!ensureReady() || calling) return;
-    if (Platform.OS === "web") { Alert.alert("المكالمات الصوتية", "المكالمات متاحة في تطبيق الجوال"); return; }
+    // Alert.alert لا يظهر شيئاً في المتصفح، فنستخدم notify الذي يعمل على الويب أيضاً
+    if (Platform.OS === "web") { notify("المكالمات الصوتية", "المكالمات الصوتية متاحة في تطبيق حصاحيصاوي على الجوال."); return; }
     setCalling(true);
     try {
       const r = await callsApi.start(token!, chatIdNum!);
