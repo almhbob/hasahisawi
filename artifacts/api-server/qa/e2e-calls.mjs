@@ -63,8 +63,9 @@ const callee = await peer(b, "callee");
 const connected = (p) => p.msgs.some((m) => m?.type === "conn" && m.state === "connected");
 const t0 = Date.now();
 while (Date.now() - t0 < 30000 && !(connected(caller) && connected(callee))) await new Promise((r) => setTimeout(r, 300));
-check("caller WebRTC connected", connected(caller), JSON.stringify(caller.msgs.slice(-6)));
-check("callee WebRTC connected", connected(callee), JSON.stringify(callee.msgs.slice(-6)));
+const brief = (p) => JSON.stringify(p.msgs.filter((m) => m?.type !== "status").slice(-8));
+check("caller WebRTC connected", connected(caller), brief(caller));
+check("callee WebRTC connected", connected(callee), brief(callee));
 
 // صوت فعلي يصل: نقرأ إحصاءات المستقبِل
 await new Promise((r) => setTimeout(r, 2500));
@@ -78,7 +79,7 @@ const end = await call("POST", `/calls/${callId}/end`, a.token, {});
 check("end call", end.status < 300, end.text);
 const after = await call("GET", `/calls/${callId}`, b.token);
 check("call marked ended", after.json?.call?.status === "ended", after.text);
-const logs = await db.query(`SELECT role, event, detail FROM call_logs WHERE call_id=$1 ORDER BY id`, [callId]).catch(() => ({ rows: [] }));
+const logs = await db.query(`SELECT role, event, detail FROM voice_call_events WHERE call_id=$1 ORDER BY id`, [callId]).catch(() => ({ rows: [] }));
 if (logs.rows.length) console.log("call log:", logs.rows.map((r) => `${r.role}:${r.event}${r.detail ? "(" + r.detail + ")" : ""}`).join(" | "));
 
 await browser.close(); await db.end();
