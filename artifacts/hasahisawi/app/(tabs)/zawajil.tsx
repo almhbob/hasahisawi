@@ -141,7 +141,7 @@ export default function ZawajilScreen() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
-  const [trackPhone, setTrackPhone] = useState("");
+  const [trackPhone, setTrackPhone] = useState(user?.phone || "");
 
   // Join form
   const [showJoin, setShowJoin]       = useState(false);
@@ -177,11 +177,13 @@ export default function ZawajilScreen() {
     if (!p) return;
     setLoadingOrders(true);
     try {
-      const r = await fetchWithTimeout(`${getApiUrl()}/api/zawajil/orders/mine?phone=${encodeURIComponent(p)}`, {});
+      // الخادم يعرض الطلبات لصاحب الرقم المسجَّل الدخول فقط
+      const r = await fetchWithTimeout(`${getApiUrl()}/api/zawajil/orders/mine?phone=${encodeURIComponent(p)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} } as any);
       if (r.ok) { const d = await r.json(); setMyOrders(Array.isArray(d) ? d : []); }
+      else { const j = await r.json().catch(() => ({})); setMyOrders([]); Alert.alert("تعذّر عرض الطلبات", j?.error || "حاول مجدداً"); }
     } catch { /* ignore */ }
     finally { setLoadingOrders(false); setRefreshing(false); }
-  }, [trackPhone]);
+  }, [trackPhone, token]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
