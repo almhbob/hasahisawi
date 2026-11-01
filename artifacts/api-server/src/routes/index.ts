@@ -21,6 +21,7 @@ import socialSafetyRouter, { ensureSocialSafety } from "./social-safety";
 import socialPlusRouter, { ensureSocialPlus } from "./social-plus";
 import callsRouter from "./calls";
 import zawajilAdminRouter from "./zawajil-admin";
+import communityRewardsRouter from "./community-rewards";
 
 const router: IRouter = Router();
 
@@ -44,6 +45,7 @@ router.use(socialSafetyRouter);
 router.use(socialPlusRouter);
 router.use(callsRouter);
 router.use(zawajilAdminRouter);
+router.use(communityRewardsRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(extraRouter);
