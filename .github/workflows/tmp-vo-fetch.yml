@@ -1,0 +1,22 @@
+name: tmp voiceover fetch
+on:
+  push:
+    branches: [tmp/vo-fetch]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p promo-vo
+          curl -fsSL -o promo-vo/vo.mp3 "$VO_URL"
+          ls -la promo-vo
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git rm -q --cached .github/workflows/tmp-vo-fetch.yml
+          git add promo-vo/vo.mp3
+          git commit -m "tmp: voiceover [skip ci]"
+          git push origin HEAD:tmp/vo-fetch-out
+        env:
+          VO_URL: "https://storage.googleapis.com/xi-backend/database/workspace/ed5caf9fd6584446a8bd197107556a82/content_generation/yzqm3aTGc8tztKLAenKz/kJgEIeKiphKe1eRei8tT/content.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=xi-backend-prod%40xi-labs.iam.gserviceaccount.com%2F20261101%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20261101T162839Z&X-Goog-Expires=7200&X-Goog-SignedHeaders=host&X-Goog-Signature=98fe53cf811218499b7794d4bac479064354ca3536834d932efa495c621ff4871fb6eab8dc667c2a905402b80d66e9f4e2bcffcb38f0af7373f5d5e3c67c1a99193eba3d98c894d99ffa5ad9cb7245a6ffce0104214e421b3b11458faaf7293dfd6110ba149d568baceee1a0080fb7d777eb83de9ae9808866cc1aab8175762992a2adcb848fcbbd4b4a0dd1d197d480e8a42bb81e7859295e712d9c361284804af0a3f5e79061c22894604baaa0e6bdb179921fef446b43ff2099235c23d5ab3335b62f203b4553fc6938151b4d74f5168a8eef20287d2f62b9364f273d3483e6084b4772b0f8c986c1f7f468f46674935ac45c12468a931cd174ab6f5e1799"
