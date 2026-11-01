@@ -50,7 +50,7 @@ export const TRANSPORT_ZONES: TransportZone[] = [
     id: 3,
     name: "أطراف المدينة",
     nameEn: "Outer Neighborhoods",
-    color: "#A855F7",
+    color: "#B4436C",
     icon: "map-marker-radius",
     description: "كمبو والجملونات وما يحيط بها",
     neighborhoods: [],

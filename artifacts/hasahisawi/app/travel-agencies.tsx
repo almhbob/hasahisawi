@@ -79,7 +79,7 @@ const WORKSPACE_MODULES = [
   { title: "طلبات الحجوزات", sub: "استلام ومتابعة طلبات العملاء", icon: "clipboard-list-outline", color: "#60A5FA" },
   { title: "أسعار وتوافر", sub: "تحديث عروض الطيران والفنادق", icon: "tag-multiple-outline", color: "#34D399" },
   { title: "فريق الوكالة", sub: "صلاحيات الموظفين والمسؤولين", icon: "account-cog-outline", color: "#FBBF24" },
-  { title: "إعدادات الدفع", sub: "حسابات التحويل وسياسة التأكيد", icon: "credit-card-cog-outline", color: "#F472B6" },
+  { title: "إعدادات الدفع", sub: "حسابات التحويل وسياسة التأكيد", icon: "credit-card-cog-outline", color: "#D9849F" },
 ];
 
 // ─── الشاشة الرئيسية ────────────────────────────────────────────────────────

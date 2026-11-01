@@ -56,7 +56,7 @@ const RENTAL_CATS = [
   { key: "photo",       label: "تصوير وفيديو",    icon: "camera",        color: GOLD,    emoji: "📸" },
   { key: "lighting",    label: "إضاءة وديكور",    icon: "flash",         color: "#FCD34D", emoji: "💡" },
   { key: "catering",    label: "ضيافة وتموين",    icon: "restaurant",    color: "#34D399", emoji: "🍽️" },
-  { key: "transport",   label: "مواصلات VIP",     icon: "car",           color: "#F472B6", emoji: "🚗" },
+  { key: "transport",   label: "مواصلات VIP",     icon: "car",           color: "#D9849F", emoji: "🚗" },
 ];
 
 type Event = {

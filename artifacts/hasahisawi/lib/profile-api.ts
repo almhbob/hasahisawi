@@ -42,7 +42,7 @@ export const SOCIALS: { key: SocialKey; label: string; icon: string; color: stri
 export const CERT_KINDS: { key: CertKind; label: string; icon: string; color: string }[] = [
   { key: "degree", label: "مؤهل علمي", icon: "school", color: "#2A6FA8" },
   { key: "course", label: "دورة تدريبية", icon: "ribbon", color: "#00966A" },
-  { key: "license", label: "رخصة مهنية", icon: "id-card", color: "#7C4DFF" },
+  { key: "license", label: "رخصة مهنية", icon: "id-card", color: "#2F8A8A" },
   { key: "award", label: "جائزة / تكريم", icon: "trophy", color: "#C98A00" },
   { key: "experience", label: "خبرة عملية", icon: "briefcase", color: "#B4532F" },
   { key: "other", label: "أخرى", icon: "document-text", color: "#5B6B66" },

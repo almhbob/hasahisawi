@@ -323,7 +323,7 @@ export default function ProfileScreen() {
           </View>
 
           {isOwn && profile.profile_locked ? (
-            <TouchableOpacity onPress={toggleLock} style={styles.ownLock}><Ionicons name="lock-closed" size={12} color="#7C3AED" /><Text style={styles.ownLockTxt}>ملفك مقفل — لا يراه إلا أنت والإدارة</Text></TouchableOpacity>
+            <TouchableOpacity onPress={toggleLock} style={styles.ownLock}><Ionicons name="lock-closed" size={12} color="#8E2F55" /><Text style={styles.ownLockTxt}>ملفك مقفل — لا يراه إلا أنت والإدارة</Text></TouchableOpacity>
           ) : null}
           {!lockedView && (
             <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
@@ -641,7 +641,7 @@ export default function ProfileScreen() {
             {Platform.OS !== "web" && biometricsAvailable && (
               <Quick icon="finger-print" label="الدخول بالبصمة" sub={biometricsEnabled ? "مفعّل — اضغط للإيقاف" : "اضغط للتفعيل"} color="#2F8A8A" onPress={toggleBiometrics} />
             )}
-            <Quick icon={profile.profile_locked ? "lock-closed" : "lock-open-outline"} label="قفل الملف الشخصي" sub={profile.profile_locked ? "مقفل — اضغط للفتح" : "ظاهر للجميع — اضغط للقفل"} color="#7C3AED" onPress={toggleLock} />
+            <Quick icon={profile.profile_locked ? "lock-closed" : "lock-open-outline"} label="قفل الملف الشخصي" sub={profile.profile_locked ? "مقفل — اضغط للفتح" : "ظاهر للجميع — اضغط للقفل"} color="#8E2F55" onPress={toggleLock} />
             {showPresence !== null && (
               <Quick icon={showPresence ? "eye" : "eye-off"} label="حالة النشاط" sub={showPresence ? "ظاهرة — اضغط للإخفاء" : "مخفية — اضغط للإظهار"} color="#1D66D4" onPress={togglePresence} />
             )}
@@ -806,8 +806,8 @@ const styles = StyleSheet.create({
   missChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.primary + "0D", borderWidth: 1, borderColor: Colors.primary + "30", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   missText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primaryDeep },
 
-  ownLock: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#7C3AED12", borderWidth: 1, borderColor: "#7C3AED35", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginTop: 8 },
-  ownLockTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#7C3AED" },
+  ownLock: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#8E2F5512", borderWidth: 1, borderColor: "#8E2F5535", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginTop: 8 },
+  ownLockTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#8E2F55" },
   lockBig: { width: 64, height: 64, borderRadius: 22, backgroundColor: Colors.primary + "14", alignItems: "center", justifyContent: "center", marginBottom: 4 },
   adminCard: { borderColor: "#F0A50060", backgroundColor: Colors.accentSoft },
   adminPill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#D97706", paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },

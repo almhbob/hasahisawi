@@ -22,10 +22,10 @@ const GRAD = ["#7A1E4B", "#B8336A", "#D6367A"] as const;
 
 const STATUS: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   pending_review:         { label: "بانتظار المراجعة", color: "#D97706", icon: "time-outline" },
-  modification_requested: { label: "طُلب تعديل",       color: "#7C3AED", icon: "create-outline" },
+  modification_requested: { label: "طُلب تعديل",       color: "#8E2F55", icon: "create-outline" },
   approved:               { label: "مقبول",            color: "#16A34A", icon: "checkmark-circle-outline" },
   preparing:              { label: "قيد التجهيز",      color: "#0284C7", icon: "cube-outline" },
-  sending:                { label: "في الطريق",        color: "#9333EA", icon: "bicycle-outline" },
+  sending:                { label: "في الطريق",        color: "#8E2F55", icon: "bicycle-outline" },
   completed:              { label: "تم التسليم",       color: "#059669", icon: "gift-outline" },
   rejected:               { label: "مرفوض",            color: "#DC2626", icon: "close-circle-outline" },
   returned:               { label: "مُعاد",            color: Colors.textSecondary, icon: "return-up-back-outline" },
@@ -200,7 +200,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
       onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/review`, { method: "PATCH", body: { action, estimated_cost: v.cost ? Number(v.cost) : undefined, admin_notes: v.notes || undefined } }); done(); } });
     if (action === "reject") setPrompt({ title: "رفض الطلب", confirm: "رفض", color: "#DC2626", fields: [{ key: "r", label: "سبب الرفض", multiline: true }],
       onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/review`, { method: "PATCH", body: { action, rejection_reason: v.r || "لم يستوفِ الطلب الشروط" } }); done(); } });
-    if (action === "request_modification") setPrompt({ title: "طلب تعديل من المرسل", confirm: "إرسال", color: "#7C3AED", fields: [{ key: "m", label: "ما المطلوب تعديله؟", multiline: true }],
+    if (action === "request_modification") setPrompt({ title: "طلب تعديل من المرسل", confirm: "إرسال", color: "#8E2F55", fields: [{ key: "m", label: "ما المطلوب تعديله؟", multiline: true }],
       onSubmit: async (v) => { await call(`/admin/zawajil/orders/${o.id}/review`, { method: "PATCH", body: { action, modification_request: v.m } }); done(); } });
   };
   const setStatus = async (o: any, status: string, label: string) => {
@@ -280,7 +280,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
                   <View style={st.actions}>
                     {(o.status === "pending_review" || o.status === "modification_requested") && <>
                       <Act label="قبول" icon="checkmark-circle" color="#16A34A" onPress={() => review(o, "approve")} />
-                      <Act label="طلب تعديل" icon="create" color="#7C3AED" onPress={() => review(o, "request_modification")} />
+                      <Act label="طلب تعديل" icon="create" color="#8E2F55" onPress={() => review(o, "request_modification")} />
                       <Act label="رفض" icon="close-circle" color="#DC2626" onPress={() => review(o, "reject")} />
                     </>}
                     {o.status === "approved" && <>
@@ -289,7 +289,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
                     </>}
                     {o.status === "preparing" && <>
                       {!o.assigned_zaajil_name && <Act label="إسناد لزاجل" icon="bicycle" color="#0284C7" onPress={() => openAssign(o)} />}
-                      <Act label="خرج للتوصيل" icon="navigate" color="#9333EA" onPress={() => setStatus(o, "sending", "خرج للتوصيل")} />
+                      <Act label="خرج للتوصيل" icon="navigate" color="#8E2F55" onPress={() => setStatus(o, "sending", "خرج للتوصيل")} />
                     </>}
                     {o.status === "sending" && <>
                       <Act label="تم التسليم" icon="gift" color="#059669" onPress={() => complete(o)} />

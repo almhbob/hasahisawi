@@ -17,6 +17,7 @@ import Colors, { withAlpha } from "@/constants/colors";
 import { useDrawer } from "@/lib/drawer-context";
 import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
+import { useIsRouteHidden } from "@/lib/section-visibility";
 import BrandPattern from "@/components/BrandPattern";
 import { useApiUnread } from "@/lib/api-chat";
 
@@ -158,8 +159,7 @@ const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string
 export default function DrawerMenu() {
   const { isOpen, close, open } = useDrawer();
   const { user, token, isGuest, logout } = useAuth();
-  const featureFlags = useFeatureFlags();
-  const isStaffUser = user?.role === "admin" || user?.role === "moderator";
+  const isRouteHidden = useIsRouteHidden();
   const { ride_status } = useFeatureFlags();
   const insets = useSafeAreaInsets();
   const unreadCount = useApiUnread(isGuest ? null : (token ?? null));
@@ -358,8 +358,7 @@ export default function DrawerMenu() {
             // فلتر العناصر النسائية — لا تظهر للرجال
             const visibleItems = group.items.filter(item => {
               // أقسام تخفيها الإدارة (الطاقم يراها ليديرها)
-              const secKey = item.route === "/contests" ? "contests" : item.route === "/volunteer" ? "volunteer" : null;
-              if (secKey && !isStaffUser && featureFlags.sections[secKey]?.visible === false) return false;
+              if (isRouteHidden(item.route)) return false;
               if (!item.femaleOnly) return true;
               return user?.gender !== "male" || user?.role === "admin";
             });

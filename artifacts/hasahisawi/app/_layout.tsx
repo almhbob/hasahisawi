@@ -1,4 +1,5 @@
 import Colors from "@/constants/colors";
+import { installWebAlert } from "@/lib/web-alert";
 import {
   Cairo_400Regular,
   Cairo_500Medium,
@@ -58,6 +59,9 @@ try {
     maxFontSizeMultiplier: 1.2,
   };
 } catch {}
+
+// رسائل Alert.alert تظهر على الويب أيضاً (react-native-web يتجاهلها)
+installWebAlert();
 
 // ── اتجاه الواجهة ─────────────────────────────────────────────
 // كل الشاشات مكتوبة بمحاذاة يمين صريحة (row-reverse + textAlign:"right").

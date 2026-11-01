@@ -5587,8 +5587,10 @@ router.post("/auth/firebase-exchange", async (req: Request, res: Response) => {
     // الدور لا يُقبل من العميل أبداً — الترقية تتم فقط من لوحة الإدارة أو عبر قائمة المطور أدناه.
     let requestedRole = "user";
 
-    // المطور الرئيسي يحصل دائماً على صلاحية admin
-    const ADMIN_EMAILS = ["almhbob.iii@gmail.com"];
+    // المطور الرئيسي يحصل دائماً على صلاحية admin. البريد هنا من رمز Firebase الموثّق فقط (انظر أعلاه).
+    // يمكن ضبط القائمة من إعدادات الخادم: ADMIN_EMAILS="a@x.com,b@y.com"
+    const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "almhbob.iii@gmail.com")
+      .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
     if (email && ADMIN_EMAILS.includes(email.toLowerCase())) {
       requestedRole = "admin";
     }

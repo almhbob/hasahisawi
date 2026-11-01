@@ -8,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { reloadAppAsync } from "expo";
 import { isDarkTheme, saveThemeMode } from "@/constants/theme-mode";
-import { useFeatureFlags } from "@/lib/feature-flags-context";
+import { useIsRouteHidden } from "@/lib/section-visibility";
 import { StarPattern, SectionMark } from "@/components/ui/Ornament";
 
 const CITY_PHOTO = require("@/assets/images/ferris-wheel.jpg");
@@ -174,19 +174,15 @@ export default function HomeScreen() {
   }, []));
 
   // أقسام تخفيها الإدارة من «أقسام التطبيق» (الطاقم يراها ليديرها)
-  const { sections } = useFeatureFlags();
-  const isStaff = user?.role === "admin" || user?.role === "moderator";
-  const hiddenIds = useMemo(() => new Set<string>(
-    isStaff ? [] : (["contests", "volunteer"] as const).filter(k => sections[k]?.visible === false)
-  ), [sections, isStaff]);
-  const featured = useMemo(() => FEATURED.filter(f => !hiddenIds.has(f.route.slice(1))), [hiddenIds]);
+  const isHidden = useIsRouteHidden();
+  const featured = useMemo(() => FEATURED.filter(f => !isHidden(f.route)), [isHidden]);
 
   const services = useMemo(() => {
     const gender = normalizeHomeGender(user?.gender);
-    const base = SERVICES.filter(s => !hiddenIds.has(s.id));
+    const base = SERVICES.filter(s => !isHidden(s.route));
     if (gender === "male" && user?.role !== "admin") return base.filter(s => s.id !== "women");
     return base;
-  }, [user?.gender, user?.role, hiddenIds]);
+  }, [user?.gender, user?.role, isHidden]);
 
   const top = useMemo(() => {
     const byId = new Map(services.map(s => [s.id, s]));
