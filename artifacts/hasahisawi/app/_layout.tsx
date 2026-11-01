@@ -411,6 +411,9 @@ function RootLayoutNav() {
         <Stack.Screen name="contests-admin"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-calls"              options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="red-crescent"             options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="red-crescent-card"        options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="red-crescent-admin"       options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="invite"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="get"                      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />

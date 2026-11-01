@@ -24,6 +24,7 @@ import contestsRouter, { ensureContestsDb } from "./contests";
 import callsRouter from "./calls";
 import zawajilAdminRouter from "./zawajil-admin";
 
+import redCrescentRouter, { ensureRedCrescentDb } from "./red-crescent";
 import invitesRouter, { ensureInvitesDb } from "./invites";
 const router: IRouter = Router();
 
@@ -46,6 +47,7 @@ router.use(profilePlusRouter);
 router.use(socialSafetyRouter);
 router.use(socialPlusRouter);
 router.use(volunteerRouter);
+router.use(redCrescentRouter);
 router.use(invitesRouter);
 router.use(contestsRouter);
 router.use(callsRouter);
@@ -71,6 +73,7 @@ async function initializeDatabaseSchemas() {
   await ensureSocialSafety();
   await ensureSocialPlus();
   await ensureVolunteerDb();
+  await ensureRedCrescentDb();
   await ensureInvitesDb();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
