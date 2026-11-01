@@ -1,9 +1,9 @@
 // بطاقة إعدادات الأذان — تشغيل/إيقاف، الصوت، الصلوات، والتذكير المسبق
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Switch, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, Switch, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
-import { ADHAN_PRAYERS, ADHAN_VOICES, AdhanSettings, previewAdhan, stopAdhanPreview } from "@/lib/adhan";
+import { ADHAN_PRAYERS, ADHAN_VOICES, ADHAN_VOLUMES, AdhanSettings, AdhanVolume, adhanSoundFor, previewAdhan, setPreviewVolume, stopAdhanPreview } from "@/lib/adhan";
 
 const REMINDERS = [0, 5, 10, 15, 30];
 
@@ -16,8 +16,27 @@ export default function AdhanSettingsCard({ value, onChange }: { value: AdhanSet
 
   const togglePreview = async (id: string) => {
     if (playing === id) { await stopAdhanPreview(); setPlaying(null); return; }
-    const ok = await previewAdhan(id);
+    const ok = await previewAdhan(id, value.volume || "high");
     setPlaying(ok ? id : null);
+  };
+  const vol = value.volume || "high";
+  const setVolume = (lv: AdhanVolume) => {
+    onChange({ ...value, volume: lv });
+    setPreviewVolume(lv);
+    if (!playing && voice.asset && Platform.OS !== "web") {
+      // معاينة قصيرة (8 ثوانٍ) للمستوى المختار
+      previewAdhan(voice.id, lv).then((ok) => {
+        setPlaying(ok ? voice.id : null);
+        if (ok) setTimeout(() => { stopAdhanPreview(); setPlaying((p) => (p === voice.id ? null : p)); }, 8000);
+      });
+    }
+  };
+  const openChannel = () => {
+    const ch = adhanSoundFor(voice, vol).channel;
+    (Linking as any).sendIntent?.("android.settings.CHANNEL_NOTIFICATION_SETTINGS", [
+      { key: "android.provider.extra.APP_PACKAGE", value: "com.almhbob.hasahisawi" },
+      { key: "android.provider.extra.CHANNEL_ID", value: ch },
+    ]).catch(() => Linking.openSettings());
   };
 
   return (
@@ -30,7 +49,7 @@ export default function AdhanSettingsCard({ value, onChange }: { value: AdhanSet
         <View style={{ flex: 1 }}>
           <Text style={[st.title, on && { color: Colors.primary }]}>{on ? "الأذان مُفعَّل" : "الأذان متوقف"}</Text>
           <Text style={st.sub}>
-            {on ? `${voice.name} · ${activeCount} من 5 صلوات${value.remindBefore ? ` · تذكير قبل ${value.remindBefore} د` : ""}` : "لن يصلك أذان عند دخول الوقت"}
+            {on ? `${voice.name} · ${ADHAN_VOLUMES.find((x) => x.id === vol)?.name} · ${activeCount} من 5 صلوات${value.remindBefore ? ` · تذكير قبل ${value.remindBefore} د` : ""}` : "لن يصلك أذان عند دخول الوقت"}
           </Text>
         </View>
         <Switch
@@ -75,6 +94,38 @@ export default function AdhanSettingsCard({ value, onChange }: { value: AdhanSet
               );
             })}
           </View>
+
+          {/* مستوى الصوت */}
+          {voice.sound && (
+            <View style={{ gap: 8 }}>
+              <Text style={st.section}>مستوى صوت الأذان</Text>
+              <View style={st.volRow}>
+                {ADHAN_VOLUMES.map((l, i) => {
+                  const sel = vol === l.id;
+                  return (
+                    <Pressable key={l.id} onPress={() => setVolume(l.id)} style={[st.volBtn, sel && st.chipSel]}>
+                      <Ionicons name={l.icon as any} size={18} color={sel ? "#fff" : Colors.textSecondary} />
+                      <View style={st.bars}>
+                        {[0, 1, 2, 3].map((b) => (
+                          <View key={b} style={[st.bar, { height: 5 + b * 4, backgroundColor: b <= i ? (sel ? "#fff" : Colors.primary) : (sel ? "#ffffff55" : Colors.divider) }]} />
+                        ))}
+                      </View>
+                      <Text style={[st.chipText, { fontSize: 12 }, sel && { color: "#fff" }]}>{l.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={st.voiceDesc}>
+                {vol === "max" ? "صوت مُضخَّم لمن لا يسمع الأذان جيداً." : vol === "low" ? "مناسب للبيت والأماكن الهادئة." : "اضغط على المستوى لتسمعه فوراً."} يتبع الأذان أيضاً مستوى «صوت المنبّه» في هاتفك.
+              </Text>
+              {Platform.OS === "android" && (
+                <Pressable onPress={openChannel} style={st.sysBtn}>
+                  <Ionicons name="settings-outline" size={15} color={Colors.primary} />
+                  <Text style={st.sysText}>ضبط صوت الأذان من إعدادات الهاتف</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
           {/* الصلوات */}
           <View style={{ gap: 8 }}>
@@ -147,6 +198,12 @@ const st = StyleSheet.create({
   chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.divider },
   chipSel: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  volRow: { flexDirection: "row-reverse", gap: 8 },
+  volBtn: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider },
+  bars: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 18 },
+  bar: { width: 4, borderRadius: 2 },
+  sysBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-end", paddingVertical: 4 },
+  sysText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.primary },
   note: { flexDirection: "row-reverse", gap: 6, alignItems: "flex-start" },
   noteText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11.5, lineHeight: 19, color: Colors.textSecondary, textAlign: "right" },
 });

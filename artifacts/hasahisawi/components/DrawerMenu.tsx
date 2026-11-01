@@ -4,7 +4,8 @@ import {
   View, Text, StyleSheet, Pressable,
   ScrollView, Image, Platform, Dimensions, I18nManager, PanResponder,
 } from "react-native";
-import { isDarkTheme } from "@/constants/theme-mode";
+import { isDarkTheme, saveThemeMode } from "@/constants/theme-mode";
+import { reloadAppAsync } from "expo";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -161,6 +162,15 @@ const TRANSPORT_BADGE: Record<string, { label: string; color: string; bg: string
 
 export default function DrawerMenu() {
   const { isOpen, close, open } = useDrawer();
+  // تبديل سريع فاتح ⇄ داكن (الألوان تُقرأ عند الفتح، لذا نعيد تحميل التطبيق)
+  const toggleTheme = async () => {
+    await saveThemeMode(isDarkTheme ? "light" : "dark").catch(() => false);
+    close();
+    setTimeout(() => {
+      if (Platform.OS === "web") { try { window.location.reload(); } catch {} return; }
+      reloadAppAsync().catch(() => {});
+    }, 260);
+  };
   const { user, token, isGuest, logout } = useAuth();
   const isRouteHidden = useIsRouteHidden();
   const { ride_status } = useFeatureFlags();
@@ -278,10 +288,16 @@ export default function DrawerMenu() {
         <View style={[styles.header, { overflow: "hidden" }]}>
           <BrandPattern variant="header" opacity={0.04} />
 
-          {/* زر الإغلاق */}
-          <Pressable onPress={close} style={styles.closeBtn} hitSlop={12}>
-            <Ionicons name="close" size={20} color={Colors.textSecondary} />
-          </Pressable>
+          {/* زر الإغلاق + تبديل المظهر السريع */}
+          <View style={styles.topBtns}>
+            <Pressable onPress={close} style={styles.closeBtn} hitSlop={12} accessibilityLabel="إغلاق القائمة">
+              <Ionicons name="close" size={20} color={Colors.textSecondary} />
+            </Pressable>
+            <Pressable onPress={toggleTheme} style={styles.themeBtn} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: isDarkTheme }} accessibilityLabel={isDarkTheme ? "التبديل إلى الوضع الفاتح" : "التبديل إلى الوضع الداكن"}>
+              <Ionicons name={isDarkTheme ? "sunny" : "moon"} size={16} color={isDarkTheme ? "#F2C94C" : "#3B4B63"} />
+              <Text style={styles.themeTxt}>{isDarkTheme ? "الوضع الفاتح" : "الوضع الداكن"}</Text>
+            </Pressable>
+          </View>
 
           {/* الشعار + اسم التطبيق */}
           <View style={styles.appRow}>
@@ -477,6 +493,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 14,
   },
+  topBtns: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  themeBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17,
+    backgroundColor: isDarkTheme ? "rgba(242,201,76,0.12)" : "#EEF1F6", borderWidth: 1, borderColor: Colors.border,
+  },
+  themeTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   closeBtn: {
     width: 34, height: 34, borderRadius: 11,
     backgroundColor: Colors.bgDeep ?? Colors.bgDeep,
