@@ -1,5 +1,7 @@
 import Colors from "@/constants/colors";
 import { installWebAlert } from "@/lib/web-alert";
+import { claimPendingInvite } from "@/lib/invites";
+import { notify } from "@/lib/xplatform";
 import {
   Cairo_400Regular,
   Cairo_500Medium,
@@ -263,7 +265,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership"];
+    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -291,6 +293,18 @@ function AuthGate() {
     }
   }, [user?.id, user?.gender, isLoading, isGuest, segments.join("/")]);
 
+  return null;
+}
+
+// رمز دعوة محفوظ من رابط ‎/get?ref=… يُحتسب للداعي تلقائياً بعد تسجيل الدخول
+function InviteClaimer() {
+  const { token, isGuest } = useAuth();
+  useEffect(() => {
+    if (!token || isGuest) return;
+    claimPendingInvite(token).then((inviter) => {
+      if (inviter) notify("مرحباً بك في حصاحيصاوي 💚", `احتُسبت دعوتك لـ ${inviter}`);
+    }).catch(() => {});
+  }, [token, isGuest]);
   return null;
 }
 
@@ -397,6 +411,8 @@ function RootLayoutNav() {
         <Stack.Screen name="contests-admin"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-calls"              options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="invite"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="get"                      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
@@ -477,6 +493,7 @@ export default function RootLayout() {
                   {/* الاتجاه LTR على كل المنصات (التصميم يتكفّل باليمين). كان الويب وحده RTL فتنعكس الواجهة */}
                   <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? "ltr" : undefined }}>
                     <OfflineQueueSync />
+                    <InviteClaimer />
                     <RootLayoutNav />
                     <NetworkBanner />
                     <AdminAlertsWatcher />

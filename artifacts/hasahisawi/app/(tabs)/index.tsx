@@ -62,6 +62,7 @@ const SERVICES: Service[] = [
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },
   { id: "women", label: "قسم المرأة", short: "المرأة", sub: "متاجر وخدمات نسائية", keywords: "نساء", icon: "face-woman", iconType: "material", group: "community", route: "/(tabs)/women" },
   { id: "volunteer", label: "التطوع", short: "التطوع", sub: "مهام ونقاط وبطاقة متطوع", keywords: "تطوع متطوع مبادرة نقاط عمل خيري", icon: "hand-heart-outline", iconType: "material", group: "community", route: "/volunteer", isNew: true },
+  { id: "invite", label: "ادعُ أصدقاءك", short: "ادعُ أصدقاءك", sub: "باركود للتثبيت ونقاط لكل منضم", keywords: "دعوة باركود آيفون ايفون تثبيت نقاط شارك", icon: "gift-outline", iconType: "ionicons", group: "community", route: "/invite", isNew: true },
   { id: "contests", label: "المسابقات", short: "المسابقات", sub: "جوائز ومسابقات موسمية", keywords: "مسابقة جائزة رمضان عيد استقلال", icon: "trophy-outline", iconType: "ionicons", group: "community", route: "/contests", isNew: true },
   { id: "orgs", label: "المنظمات", short: "المنظمات", sub: "جمعيات ومبادرات", keywords: "خيري جمعية تطوع", icon: "hand-heart", iconType: "material", group: "community", route: "/(tabs)/orgs" },
   { id: "sports", label: "النشاط الرياضي", short: "الرياضة", sub: "أندية وبطولات", keywords: "كورة نادي دوري", icon: "football", iconType: "ionicons", group: "community", route: "/(tabs)/sports" },
