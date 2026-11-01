@@ -9,7 +9,7 @@ const ROUTE_SECTIONS = new Set([
   "medical", "lawyers", "transport", "orgs", "women", "farmers", "factories", "telecom",
   "jobs", "market", "sports", "culture", "social", "communities", "student", "unions",
   "occasions", "zawajil", "rental", "map", "missing", "reports", "honored", "greetings",
-  "events", "ads", "contests", "volunteer",
+  "events", "ads", "contests", "volunteer", "red-crescent",
 ]);
 
 /** "/(tabs)/market" أو "/market" → "market" إن كان قسماً تديره الإدارة. */

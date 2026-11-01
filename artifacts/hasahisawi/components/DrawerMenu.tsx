@@ -55,6 +55,7 @@ const GROUPS: Group[] = [
     items: [
       { title: "الطب والصحة",  icon: "medkit-outline",     route: "/(tabs)/medical",     color: "#E05567"      },
       { title: "حجز موعد",    icon: "calendar-number-outline", route: "/(tabs)/appointments", color: Colors.accent },
+      { title: "الهلال الأحمر السوداني", icon: "medkit-outline", route: "/red-crescent", color: "#B91C1C" },
     ],
   },
   {
