@@ -1,4 +1,4 @@
-const CACHE = "hasahisawi-v6.5.6";
+const CACHE = "hasahisawi-v6.6.7-logo"; // اسم جديد يمسح النسخة المخزّنة القديمة (الأيقونات وشاشة البدء)
 const OFFLINE = ["/", "/index.html"];
 
 self.addEventListener("install", e => {

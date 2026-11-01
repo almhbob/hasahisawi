@@ -11,7 +11,7 @@
     "browser"
   ],
   "background_color": "#FFFFFF",
-  "theme_color": "#22C55E",
+  "theme_color": "#0B6B49",
   "lang": "ar",
   "dir": "rtl",
   "categories": [
@@ -21,32 +21,24 @@
   ],
   "icons": [
     {
-      "src": "/hasahisawi/icon-192.png",
+      "src": "/hasahisawi/icons/hasahisawi-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/hasahisawi/icon.png",
+      "src": "/hasahisawi/icons/hasahisawi-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/hasahisawi/icon-maskable.png",
+      "src": "/hasahisawi/icons/hasahisawi-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "الشاشة الرئيسية"
-    }
-  ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "id": "/"
 }
