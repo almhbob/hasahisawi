@@ -52,7 +52,8 @@ function confirm(title: string, msg: string, ok: string, destructive = false): P
 const tap = () => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
 // ── فقاعة رسالة ──────────────────────────────────────────────────────────────
-function Bubble({ msg, isMe, myId, otherName, showAvatar, otherAvatar, highlight, onLong, onReplyTap, onRetry }: {
+function Bubble({ msg, isMe, myId, otherName, showAvatar, otherAvatar, highlight, onLong, onReplyTap, onRetry, onOpenSender }: {
+  onOpenSender?: () => void;
   msg: ChatMsg; isMe: boolean; myId: number; otherName: string; showAvatar: boolean; otherAvatar: string | null; highlight: string;
   onLong: () => void; onReplyTap: (id: number) => void; onRetry: () => void;
 }) {
@@ -64,7 +65,7 @@ function Bubble({ msg, isMe, myId, otherName, showAvatar, otherAvatar, highlight
   const hl = highlight.trim();
   return (
     <View style={[st.bWrap, isMe ? st.bWrapMe : st.bWrapOther]}>
-      {!isMe ? <View style={{ width: 30, alignSelf: "flex-end" }}>{showAvatar ? <UserAvatar name={otherName} avatarUrl={otherAvatar} size={28} borderRadius={9} /> : null}</View> : null}
+      {!isMe ? <View style={{ width: 30, alignSelf: "flex-end" }}>{showAvatar ? <Pressable onPress={onOpenSender} hitSlop={6} accessibilityRole="button" accessibilityLabel={`الصفحة الشخصية لـ ${otherName}`}><UserAvatar name={otherName} avatarUrl={otherAvatar} size={28} borderRadius={9} /></Pressable> : null}</View> : null}
       <View style={{ maxWidth: "80%" }}>
         <Pressable onLongPress={deleted || msg.pending ? undefined : onLong} delayLongPress={280}
           style={[st.bubble, isMe ? st.bMe : st.bOther, deleted && st.bDeleted, hl && msg.content?.includes(hl) && st.bHit]}>
@@ -136,6 +137,9 @@ export default function ConversationScreen() {
   const { messages, other, state, blocked } = sync;
   const otherName = other?.name || paramName || "محادثة";
   const otherAvatar = other?.avatar_url ?? paramAvatar ?? null;
+  const otherId = Number(other?.id ?? userId ?? 0) || 0;
+  /** الضغط على اسم/صورة الطرف الآخر يفتح صفحته الشخصية */
+  const openOtherProfile = () => { if (otherId) router.push({ pathname: "/profile" as any, params: { id: String(otherId) } }); };
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -345,6 +349,8 @@ export default function ConversationScreen() {
       {/* الرأس */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={st.hBtn} accessibilityLabel="رجوع"><Ionicons name="arrow-forward" size={22} color={Colors.textPrimary} /></TouchableOpacity>
+        <TouchableOpacity onPress={openOtherProfile} disabled={!otherId} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={`الصفحة الشخصية لـ ${otherName}`}
+          style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
         <View>
           <UserAvatar name={otherName} avatarUrl={otherAvatar} size={42} borderRadius={14} />
           {other?.online ? <View style={st.onlineDot} /> : null}
@@ -357,6 +363,7 @@ export default function ConversationScreen() {
           </View>
           {status ? <Text style={[st.hStatus, (other?.online || other?.typing) && { color: Colors.primary }]} numberOfLines={1}>{status}</Text> : null}
         </View>
+        </TouchableOpacity>
         <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={() => { setSearchOn((v) => !v); setSearch(""); }} accessibilityLabel="بحث في المحادثة"><Ionicons name="search" size={19} color={Colors.textPrimary} /></TouchableOpacity>
         <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={startVoiceCall} onLongPress={handlePhoneOptions} disabled={calling || blocked.byMe || blocked.me} accessibilityLabel="مكالمة صوتية">{calling ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="call" size={19} color={Colors.primary} />}</TouchableOpacity>
         <TouchableOpacity hitSlop={10} style={st.hBtn} onPress={() => setMenu(true)} accessibilityLabel="خيارات المحادثة"><Ionicons name="ellipsis-vertical" size={19} color={Colors.textPrimary} /></TouchableOpacity>
@@ -398,7 +405,7 @@ export default function ConversationScreen() {
             const nx = listData[index - 1]; // العنصر الأحدث (القائمة مقلوبة)
             const lastOfGroup = !nx || nx.type === "sep" || nx.msg.sender_id !== m.sender_id;
             return (
-              <Bubble msg={m} isMe={isMe} myId={myId} otherName={otherName} otherAvatar={otherAvatar} showAvatar={lastOfGroup && !isMe}
+              <Bubble msg={m} isMe={isMe} myId={myId} otherName={otherName} otherAvatar={otherAvatar} showAvatar={lastOfGroup && !isMe} onOpenSender={openOtherProfile}
                 highlight={searchOn ? search : ""}
                 onLong={() => { tap(); setAction(m); }}
                 onReplyTap={(id) => { if (searchOn) { setSearchOn(false); setSearch(""); } setTimeout(() => jumpTo(id), 50); }}

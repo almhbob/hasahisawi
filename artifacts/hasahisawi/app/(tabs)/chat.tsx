@@ -54,10 +54,11 @@ function ChatCard({
 
   return (
     <TouchableOpacity style={[styles.chatCard, chat.pinned && { backgroundColor: Colors.primary + "08" }]} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.75} delayLongPress={350}>
-      <View>
+      {/* الضغط على الصورة يفتح الصفحة الشخصية، وعلى البطاقة يفتح المحادثة */}
+      <TouchableOpacity onPress={() => other.id && router.push({ pathname: "/profile" as any, params: { id: String(other.id) } })} hitSlop={4} accessibilityRole="button" accessibilityLabel={`الصفحة الشخصية لـ ${other.name}`}>
         <UserAvatar name={other.name} avatarUrl={other.avatar} size={52} borderRadius={16} />
         {chat.other_online ? <View style={styles.onlineDot} /> : null}
-      </View>
+      </TouchableOpacity>
       <View style={styles.chatInfo}>
         <View style={styles.chatRow}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, flex: 1 }}>

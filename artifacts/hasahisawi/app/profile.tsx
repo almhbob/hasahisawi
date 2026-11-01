@@ -11,6 +11,8 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import QRCode from "react-native-qrcode-svg";
 import Colors from "@/constants/colors";
+import { isDarkTheme } from "@/constants/theme-mode";
+import { invitesApi, type InviteMe } from "@/lib/invites";
 import { getApiUrl } from "@/lib/query-client";
 import { chatApi, presenceText } from "@/lib/chat-plus";
 import { useAuth } from "@/lib/auth-context";
@@ -65,6 +67,7 @@ export default function ProfileScreen() {
   const [certEdit, setCertEdit] = useState<{ open: boolean; cert: Cert | null }>({ open: false, cert: null });
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [invite, setInvite] = useState<InviteMe | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [follow, setFollow] = useState<FollowStats | null>(null);
   const [vol, setVol] = useState<VolunteerSummary | null>(null);
@@ -100,6 +103,11 @@ export default function ProfileScreen() {
     } catch { if (current()) setFailed(true); }
     finally { if (current()) setLoading(false); }
   }, [profileId, token, isOwn]);
+
+  // نقاط الدعوة تظهر في بطاقة «ادعُ أصدقاءك» لصاحب الملف
+  useFocusEffect(useCallback(() => {
+    if (isOwn && token) invitesApi.me(token).then(setInvite).catch(() => {});
+  }, [isOwn, token]));
 
   useFocusEffect(useCallback(() => {
     fetchProfile();
@@ -279,7 +287,7 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         {/* ── البطاقة الرئيسية ── */}
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.hero}>
-          <LinearGradient colors={profile.is_verified ? ["#0B4F8A", VERIFIED_BLUE] : [Colors.primaryDeep, Colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
+          <LinearGradient colors={["#063B2A", "#0B6B49", "#0E8A5F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
             <View style={styles.coverRing} />
             <View style={[styles.coverRing, { width: 120, height: 120, left: -30, top: 40, opacity: 0.08 }]} />
             {profile.open_to_work && (
@@ -289,7 +297,7 @@ export default function ProfileScreen() {
 
           <View style={styles.avatarWrap}>
             <TouchableOpacity onPress={isOwn ? pickAvatar : avatarUrl ? () => setPreview(avatarUrl) : undefined} activeOpacity={0.85} disabled={uploading} accessibilityLabel={isOwn ? "تغيير الصورة الشخصية" : undefined}>
-              <View style={[styles.avatarFrame, profile.is_verified && { backgroundColor: VERIFIED_BLUE }]}>
+              <View style={[styles.avatarFrame, profile.is_verified && { backgroundColor: "#E8B931" }]}>
                 <View style={{ borderRadius: 32, overflow: "hidden", borderWidth: profile.is_verified ? 3 : 0, borderColor: "#fff" }}>
                   <UserAvatar name={profile.name} avatarUrl={avatarUrl} size={100} borderRadius={30} />
                 </View>
@@ -573,7 +581,7 @@ export default function ProfileScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.certKind, { color: k.color }]}>{k.label}{!c.is_public && isOwn ? " · مخفية" : ""}</Text>
                     <Text style={styles.certTitle}>{c.title}</Text>
-                    {(c.issuer || c.issued_on || c.expires_on) ? <Text style={styles.certMeta}>{[c.issuer, c.issued_on, c.expires_on ? `ينتهي ${c.expires_on}` : null].filter(Boolean).join(" · ")}</Text> : null}
+                    {(c.issuer || c.issued_on || c.expires_on) ? <Text style={styles.certMeta}>{[c.issuer, c.kind === "experience" ? certPeriod(c.issued_on, c.expires_on) : monthYear(c.issued_on), c.kind !== "experience" && c.expires_on ? `ينتهي ${monthYear(c.expires_on)}` : null].filter(Boolean).join(" · ")}</Text> : null}
                     <View style={{ flexDirection: "row-reverse", gap: 12, marginTop: 2 }}>
                       {c.file_url ? <Text style={styles.link} onPress={() => c.file_type === "image" ? setPreview(c.file_url!) : openExternal(c.file_url!)}>عرض المرفق</Text> : null}
                       {c.credential_url ? <Text style={styles.link} onPress={() => openExternal(c.credential_url!)}>التحقق</Text> : null}
@@ -602,11 +610,25 @@ export default function ProfileScreen() {
               </View>
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
-              <TouchableOpacity style={styles.cvBtn} onPress={shareCv}><Ionicons name="share-social" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>مشاركة</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.cvBtn} onPress={() => setQrOpen(true)}><Ionicons name="qr-code" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>QR</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.cvBtn} onPress={() => openExternal(publicCvUrl(profile.id))}><Ionicons name="eye" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>معاينة</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.cvBtn} onPress={() => router.push("/(tabs)/cv-builder" as any)}><Ionicons name="document" size={16} color={Colors.primaryDeep} /><Text style={styles.cvBtnText}>سيرة PDF</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={shareCv}><Ionicons name="share-social" size={16} color="#0B6B49" /><Text style={styles.cvBtnText}>مشاركة</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={() => setQrOpen(true)}><Ionicons name="qr-code" size={16} color="#0B6B49" /><Text style={styles.cvBtnText}>QR</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={() => openExternal(publicCvUrl(profile.id))}><Ionicons name="eye" size={16} color="#0B6B49" /><Text style={styles.cvBtnText}>معاينة</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cvBtn} onPress={() => router.push("/(tabs)/cv-builder" as any)}><Ionicons name="document" size={16} color="#0B6B49" /><Text style={styles.cvBtnText}>سيرة PDF</Text></TouchableOpacity>
             </View>
+          </Animated.View>
+        )}
+
+        {/* ── ادعُ أصدقاءك ── */}
+        {isOwn && (
+          <Animated.View entering={FadeInDown.delay(125).springify()}>
+            <TouchableOpacity activeOpacity={0.88} onPress={() => router.push("/invite" as any)} style={[styles.card, styles.inviteCard]} accessibilityRole="button" accessibilityLabel="ادعُ أصدقاءك">
+              <View style={[styles.verifyIcon, { backgroundColor: "#E8B93126" }]}><Ionicons name="gift" size={22} color="#C8941A" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitleNoMb}>ادعُ أصدقاءك واجمع النقاط</Text>
+                <Text style={styles.hint}>{invite ? `${invite.points} نقطة · ${invite.count} انضموا بدعوتك · رمزك ${invite.code}` : "باركود يعمل مع أندرويد وآيفون، ونقاط تلقائية عن كل منضم"}</Text>
+              </View>
+              <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -739,10 +761,30 @@ function Stat({ value, label }: { value: number; label: string }) {
   );
 }
 
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+/** "2019-07-01" → "يوليو 2019" (كان يظهر 01-07-2019 فيُقرأ ملتبساً) */
+function monthYear(d?: string | null): string | null {
+  if (!d) return null;
+  const m = /^(\d{4})-(\d{2})/.exec(String(d));
+  return m ? `${AR_MONTHS[Number(m[2]) - 1] ?? ""} ${m[1]}`.trim() : String(d);
+}
+/** الخبرة العملية: "يناير 2020 – الآن" */
+function certPeriod(from?: string | null, to?: string | null): string | null {
+  const a = monthYear(from), b = monthYear(to);
+  if (a && b) return `${a} – ${b}`;
+  return a ? `${a} – الآن` : b;
+}
+/** أيقونات الاختصارات الداكنة تختفي على الخلفية الداكنة — نفتّح لونها في الوضع الداكن */
+function tone(hex: string): string {
+  if (!isDarkTheme || !/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  const n = parseInt(hex.slice(1), 16), mix = (c: number) => Math.round(c + (255 - c) * 0.45);
+  return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => mix(c).toString(16).padStart(2, "0")).join("");
+}
+
 function Quick({ icon, label, sub, color, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; sub: string; color: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.quick} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={label}>
-      <View style={[styles.quickIcon, { backgroundColor: color + "14" }]}><Ionicons name={icon} size={20} color={color} /></View>
+      <View style={[styles.quickIcon, { backgroundColor: tone(color) + (isDarkTheme ? "26" : "14") }]}><Ionicons name={icon} size={20} color={tone(color)} /></View>
       <Text style={styles.quickLabel}>{label}</Text>
       <Text style={styles.quickSub}>{sub}</Text>
     </TouchableOpacity>
@@ -834,9 +876,10 @@ const styles = StyleSheet.create({
   certTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
   certMeta: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right" },
 
-  cvCard: { backgroundColor: Colors.primaryDeep, borderColor: Colors.primaryDeep },
-  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: Colors.cardBg },
-  cvBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primaryDeep },
+  inviteCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, borderColor: "#E8B93155" },
+  cvCard: { backgroundColor: "#0B6B49", borderColor: "#0B6B49" },
+  cvBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF" },
+  cvBtnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#0B6B49" },
 
   visitor: { width: 68, alignItems: "center", gap: 3 },
   visitorName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, maxWidth: 56 },
