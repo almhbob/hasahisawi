@@ -46,17 +46,27 @@ app.use(
   }),
 );
 
+/** طلبات الصفحات التي يقدّمها الخادم نفسه (صفحة المكالمة داخل WebView، صفحات الإدارة…)
+ *  تحمل Origin مطابقاً لنطاق الخادم — هي ليست طلبات عابرة للنطاقات فيجب قبولها دائماً.
+ *  بدون هذا كانت كل طلبات POST من صفحة المكالمة (الإشارات وICE) تُرفض بـ 403 فترنّ المكالمة ولا تتصل. */
+function isSameOrigin(req: Request, origin: string): boolean {
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim().toLowerCase();
+  if (!host) return false;
+  try { return new URL(origin).host.toLowerCase() === host; } catch { return false; }
+}
+
 app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (process.env.NODE_ENV !== "production") return callback(null, true);
-      if (allowedOrigins().includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS: origin not allowed: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-admin-pin", "x-user-token"],
+  cors((req: Request, callback) => {
+    const base = {
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-admin-pin", "x-user-token"],
+    };
+    const origin = req.headers.origin;
+    if (!origin || process.env.NODE_ENV !== "production" || isSameOrigin(req, origin) || allowedOrigins().includes(origin)) {
+      return callback(null, { ...base, origin: true });
+    }
+    return callback(new Error(`CORS: origin not allowed: ${origin}`));
   }),
 );
 
