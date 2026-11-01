@@ -19,7 +19,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="application-name" content="حصاحيصاوي" />
         <meta name="description" content="بوابتك المجتمعية لمدينة الحصاحيصا وقراها" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0D0D0D" />
+        <meta name="theme-color" content="#0B6B49" />
 
         {/* iOS PWA — تجعل التطبيق يعمل كتطبيق أصلي على iPhone */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -29,10 +29,10 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="format-detection" content="telephone=no" />
 
         {/* Apple Touch Icons */}
-        <link rel="apple-touch-icon" href="/assets/assets/images/icon.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/assets/assets/images/icon.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/assets/assets/images/icon.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/assets/assets/images/icon.png" />
+        {/* شعار حصاحيصاوي (كانت أيقونة «ح» القديمة) */}
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/hasahisawi-192.png" />
 
         {/* Apple Splash Screens — شاشة البداية لكل موديل iPhone */}
         <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" href="/splash/splash-1320x2868.png" />
@@ -61,7 +61,8 @@ export default function Root({ children }: PropsWithChildren) {
 
           body {
             margin: 0; padding: 0;
-            background-color: #07110A;
+            /* خلفية ما قبل تحميل الواجهة: فاتحة كشاشة البدء (كانت شبه سوداء) */
+            background-color: #FFFFFF;
             min-height: 100%;
             display: flex;
             justify-content: center;
@@ -161,6 +162,8 @@ export default function Root({ children }: PropsWithChildren) {
               position: relative;
             }
           }
+
+          @media (prefers-color-scheme: dark) { body { background-color: #0B1410; } }
 
           ::-webkit-scrollbar { width: 4px; height: 4px; }
           ::-webkit-scrollbar-track { background: transparent; }

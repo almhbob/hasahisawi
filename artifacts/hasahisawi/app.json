@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/splash-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F0F1E9"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -71,7 +71,13 @@
       "expo-font",
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
-      ["expo-localization", { "supportsRTL": false, "forcesRTL": false }],
+      [
+        "expo-localization",
+        {
+          "supportsRTL": false,
+          "forcesRTL": false
+        }
+      ],
       [
         "expo-location",
         {

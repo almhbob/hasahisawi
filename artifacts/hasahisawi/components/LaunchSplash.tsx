@@ -4,7 +4,7 @@ import { Image, StyleSheet, View } from "react-native";
 import Animated, { FadeOut } from "react-native-reanimated";
 
 export const SPLASH_FULL = require("@/assets/images/splash-full.jpg");
-export const SPLASH_BG = "#F0F1E9";
+export const SPLASH_BG = "#FFFFFF";
 
 export function SplashArt() {
   return (
