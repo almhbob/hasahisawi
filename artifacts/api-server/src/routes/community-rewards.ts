@@ -426,9 +426,10 @@ router.post("/competitions/:id/enter", async (req: Request, res: Response) => {
     let score = 0, answers: number[] | null = null, content: string | null = null, image: string | null = null;
     const qs = c.questions as Q[];
     if (c.kind === "quiz") {
-      answers = Array.isArray(req.body?.answers) ? req.body.answers.slice(0, qs.length).map((a: unknown) => (Number.isInteger(Number(a)) ? Number(a) : -1)) : [];
-      if (answers.length !== qs.length) return res.status(400).json({ error: "أجب عن كل الأسئلة" });
-      score = qs.reduce((s, q, i) => s + (answers![i] === q.answer ? 1 : 0), 0);
+      const given: number[] = Array.isArray(req.body?.answers) ? req.body.answers.slice(0, qs.length).map((a: unknown) => (Number.isInteger(Number(a)) ? Number(a) : -1)) : [];
+      if (given.length !== qs.length) return res.status(400).json({ error: "أجب عن كل الأسئلة" });
+      answers = given;
+      score = qs.reduce((s, q, i) => s + (given[i] === q.answer ? 1 : 0), 0);
     } else {
       content = str(req.body?.content, 2000) || null;
       image = httpsUrl(req.body?.image_url);
