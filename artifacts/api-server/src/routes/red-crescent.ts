@@ -264,7 +264,7 @@ router.get("/public/srcs/verify/:token", async (req: Request, res: Response) => 
 .s{margin:16px;padding:12px;border-radius:14px;text-align:center;font-weight:bold;color:#fff;background:${state[1]}}
 .r{display:flex;justify-content:space-between;padding:10px 18px;border-top:1px solid #EEF2F0}.r b{color:#0B6B49}
 .f{font-size:12px;color:#6B7C74;text-align:center;padding:14px}</style></head><body><div class="c">
-<div class="h"><div style="font-size:13px;opacity:.9">جمعية الهلال الأحمر السوداني — فرعية الحصاحيصا</div><div style="font-size:20px;font-weight:bold;margin-top:4px">التحقق من بطاقة العضوية</div></div>
+<div class="h"><svg width="56" height="56" viewBox="0 0 100 100" aria-label="شارة الهلال الأحمر" style="display:block;margin:0 auto 6px"><defs><mask id="m"><rect width="100" height="100" fill="#000"/><circle cx="50" cy="50" r="34" fill="#fff"/><circle cx="63" cy="50" r="28" fill="#000"/></mask></defs><rect width="100" height="100" rx="24" fill="#fff"/><rect width="100" height="100" fill="#D7141A" mask="url(#m)"/></svg><div style="font-size:13px;opacity:.9">جمعية الهلال الأحمر السوداني — فرعية الحصاحيصا</div><div style="font-size:20px;font-weight:bold;margin-top:4px">التحقق من بطاقة العضوية</div></div>
 <div class="s">${esc(state[0])}<div style="font-weight:normal;font-size:13px;margin-top:4px">${esc(state[2])}</div></div>
 ${c ? `<div class="r"><span>الاسم</span><b>${esc(c.name)}</b></div><div class="r"><span>الصفة</span><b>${esc(ROLE_LABEL[c.role as Role] || c.role)}</b></div>
 <div class="r"><span>رقم البطاقة</span><b dir="ltr">${esc(c.card_no)}</b></div>${c.blood_type ? `<div class="r"><span>فصيلة الدم</span><b dir="ltr">${esc(c.blood_type)}</b></div>` : ""}

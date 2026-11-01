@@ -10,6 +10,7 @@ import { reloadAppAsync } from "expo";
 import { isDarkTheme, saveThemeMode } from "@/constants/theme-mode";
 import { useIsRouteHidden } from "@/lib/section-visibility";
 import { StarPattern, SectionMark } from "@/components/ui/Ornament";
+import RedCrescentMark from "@/components/srcs/RedCrescentMark";
 
 const CITY_PHOTO = require("@/assets/images/ferris-wheel.jpg");
 const APP_LOGO = require("@/assets/images/logo.png");
@@ -34,7 +35,7 @@ type Service = {
   sub: string;
   keywords?: string;
   icon: any;
-  iconType: "ionicons" | "material";
+  iconType: "ionicons" | "material" | "srcs";
   group: GroupKey;
   route: any;
   isNew?: boolean;
@@ -62,7 +63,7 @@ const SERVICES: Service[] = [
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },
   { id: "women", label: "قسم المرأة", short: "المرأة", sub: "متاجر وخدمات نسائية", keywords: "نساء", icon: "face-woman", iconType: "material", group: "community", route: "/(tabs)/women" },
   { id: "volunteer", label: "التطوع", short: "التطوع", sub: "مهام ونقاط وبطاقة متطوع", keywords: "تطوع متطوع مبادرة نقاط عمل خيري", icon: "hand-heart-outline", iconType: "material", group: "community", route: "/volunteer", isNew: true },
-  { id: "red-crescent", label: "الهلال الأحمر السوداني", short: "الهلال الأحمر", sub: "مسعفون، تطوع، أنشطة وطوارئ", keywords: "هلال احمر مسعف اسعاف اسعافات طوارئ تطوع تبرع دم", icon: "medkit-outline", iconType: "ionicons", group: "health", route: "/red-crescent", isNew: true },
+  { id: "red-crescent", label: "الهلال الأحمر السوداني", short: "الهلال الأحمر", sub: "مسعفون، تطوع، أنشطة وطوارئ", keywords: "هلال احمر مسعف اسعاف اسعافات طوارئ تطوع تبرع دم", icon: "red-crescent", iconType: "srcs", group: "health", route: "/red-crescent", isNew: true },
   { id: "invite", label: "ادعُ أصدقاءك", short: "ادعُ أصدقاءك", sub: "باركود للتثبيت ونقاط لكل منضم", keywords: "دعوة باركود آيفون ايفون تثبيت نقاط شارك", icon: "gift-outline", iconType: "ionicons", group: "community", route: "/invite", isNew: true },
   { id: "contests", label: "المسابقات", short: "المسابقات", sub: "جوائز ومسابقات موسمية", keywords: "مسابقة جائزة رمضان عيد استقلال", icon: "trophy-outline", iconType: "ionicons", group: "community", route: "/contests", isNew: true },
   { id: "orgs", label: "المنظمات", short: "المنظمات", sub: "جمعيات ومبادرات", keywords: "خيري جمعية تطوع", icon: "hand-heart", iconType: "material", group: "community", route: "/(tabs)/orgs" },
@@ -118,6 +119,8 @@ function greeting() {
 }
 
 function SvcIcon({ item, size, color }: { item: Service; size: number; color: string }) {
+  // الشارة تُرسم دائماً هلالاً أحمر على أرضية بيضاء (هيئتها المعتمدة)
+  if (item.iconType === "srcs") return <RedCrescentMark size={size + 6} background="#FFFFFF" />;
   return item.iconType === "ionicons"
     ? <Ionicons name={item.icon} size={size} color={color} />
     : <MaterialCommunityIcons name={item.icon} size={size} color={color} />;

@@ -11,7 +11,8 @@ import { useAuth } from "@/lib/auth-context";
 import { StarPattern } from "@/components/ui/Ornament";
 import { notify, openExternal } from "@/lib/xplatform";
 import { srcsStyles } from "@/components/srcs/styles";
-import { srcsApi, openMusif, musifVerifyUrl, ROLE_LABEL, SRCS_RED, SRCS_RED_DEEP, type SrcsMember } from "@/lib/red-crescent";
+import RedCrescentMark from "@/components/srcs/RedCrescentMark";
+import { srcsApi, openMusifOrHelp, musifVerifyUrl, ROLE_LABEL, SRCS_RED, SRCS_RED_DEEP, type SrcsMember } from "@/lib/red-crescent";
 
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("ar-EG", { year: "numeric", month: "long" }) : "—");
 
@@ -68,7 +69,7 @@ export default function SrcsCardScreen() {
             <LinearGradient colors={[SRCS_RED_DEEP, SRCS_RED, "#DC2626"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.idCard}>
               <StarPattern color="#FFFFFF" opacity={0.08} size={36} />
               <View style={s.idTop}>
-                <View style={s.idLogo}><Ionicons name="medkit" size={20} color={SRCS_RED} /></View>
+                <View style={s.idLogo}><RedCrescentMark size={30} background={null} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.idOrg}>جمعية الهلال الأحمر السوداني</Text>
                   <Text style={s.idBranch}>فرعية الحصاحيصا</Text>
@@ -114,7 +115,7 @@ export default function SrcsCardScreen() {
                 <TouchableOpacity style={[s.primary, { flex: 0, paddingHorizontal: 18 }]} onPress={saveMusif} disabled={saving}><Text style={s.primaryTxt}>{saving ? "…" : "ربط"}</Text></TouchableOpacity>
               </View>
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                <TouchableOpacity style={s.ghost} onPress={() => openMusif("responder")}><Text style={s.ghostTxt}>فتح مسعف</Text></TouchableOpacity>
+                <TouchableOpacity style={s.ghost} onPress={() => openMusifOrHelp("responder")}><Text style={s.ghostTxt}>فتح مسعف</Text></TouchableOpacity>
                 {m.musif_code ? <TouchableOpacity style={s.ghost} onPress={() => openExternal(musifVerifyUrl(m.musif_code!))}><Text style={s.ghostTxt}>بطاقتي في مسعف</Text></TouchableOpacity> : null}
               </View>
             </View>

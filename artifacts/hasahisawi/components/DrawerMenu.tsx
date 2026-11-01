@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useFeatureFlags } from "@/lib/feature-flags-context";
 import { useIsRouteHidden } from "@/lib/section-visibility";
 import BrandPattern from "@/components/BrandPattern";
+import RedCrescentMark from "@/components/srcs/RedCrescentMark";
 import { useApiUnread } from "@/lib/api-chat";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -378,7 +379,7 @@ export default function DrawerMenu() {
                     onPress={() => navigate(item.route)}
                   >
                     <View style={[styles.iconBox, { backgroundColor: (item.color ?? Colors.primary) + "1A" }]}>
-                      <Ionicons name={item.icon} size={20} color={item.color ?? Colors.primary} />
+                      {item.route === "/red-crescent" ? <RedCrescentMark size={22} background={null} /> : <Ionicons name={item.icon} size={20} color={item.color ?? Colors.primary} />}
                     </View>
                     <Text style={styles.itemLabel}>{item.title}</Text>
                     {item.isTransport && (() => {
