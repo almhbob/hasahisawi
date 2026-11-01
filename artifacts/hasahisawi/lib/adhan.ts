@@ -50,9 +50,26 @@ export const ADHAN_VOICES: AdhanVoice[] = [
   },
 ];
 
+/** مستوى صوت الأذان — لكل مستوى ملف صوت مُعايَر وقناة Android خاصة، فيعمل حتى والتطبيق مغلق */
+export type AdhanVolume = "low" | "med" | "high" | "max";
+export const ADHAN_VOLUMES: { id: AdhanVolume; name: string; icon: string; gain: number }[] = [
+  { id: "low", name: "منخفض", icon: "volume-low", gain: 0.25 },
+  { id: "med", name: "متوسط", icon: "volume-medium", gain: 0.5 },
+  { id: "high", name: "عالٍ", icon: "volume-high", gain: 1 },
+  { id: "max", name: "أعلى صوت", icon: "megaphone", gain: 1 },
+];
+
+/** اسم ملف الصوت (res/raw) والقناة لصوت ومستوى معيّنين */
+export function adhanSoundFor(v: AdhanVoice, level: AdhanVolume): { sound: string | null; channel: string } {
+  if (!v.sound) return { sound: null, channel: v.channel };
+  if (level === "high") return { sound: v.sound, channel: v.channel };
+  return { sound: `${v.sound}_${level}`, channel: `${v.channel}-${level}` };
+}
+
 export type AdhanSettings = {
   enabled: boolean;
   voice: string;
+  volume: AdhanVolume;
   prayers: Record<AdhanPrayer, boolean>;
   /** تذكير قبل الصلاة بالدقائق (0 = بدون) */
   remindBefore: number;
@@ -61,6 +78,7 @@ export type AdhanSettings = {
 export const DEFAULT_ADHAN: AdhanSettings = {
   enabled: true,
   voice: "sudani",
+  volume: "high",
   prayers: { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true },
   remindBefore: 0,
 };
@@ -75,7 +93,7 @@ export async function loadAdhanSettings(): Promise<AdhanSettings> {
     const raw = await AsyncStorage.getItem(ADHAN_SETTINGS_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      return { ...DEFAULT_ADHAN, ...p, prayers: { ...DEFAULT_ADHAN.prayers, ...(p.prayers || {}) } };
+      return { ...DEFAULT_ADHAN, ...p, volume: ADHAN_VOLUMES.some((x) => x.id === p.volume) ? p.volume : "high", prayers: { ...DEFAULT_ADHAN.prayers, ...(p.prayers || {}) } };
     }
     const legacy = await AsyncStorage.getItem(LEGACY_ENABLED_KEY);
     return { ...DEFAULT_ADHAN, enabled: legacy === null ? true : legacy === "1" };
@@ -93,11 +111,13 @@ async function ensureChannels() {
   if (Platform.OS !== "android") return;
   for (const v of ADHAN_VOICES) {
     if (!v.available) continue;
+    for (const lvl of (v.sound ? ADHAN_VOLUMES : ADHAN_VOLUMES.slice(2, 3))) {
+    const ss = adhanSoundFor(v, lvl.id);
     try {
-      await Notifications.setNotificationChannelAsync(v.channel, {
-        name: `أذان الصلاة — ${v.name}`,
+      await Notifications.setNotificationChannelAsync(ss.channel, {
+        name: `أذان الصلاة — ${v.name}${v.sound && lvl.id !== "high" ? ` (${lvl.name})` : ""}`,
         importance: Notifications.AndroidImportance.MAX,
-        sound: v.sound ?? null,
+        sound: ss.sound ?? null,
         enableVibrate: true,
         vibrationPattern: [0, 400, 250, 400],
         lightColor: "#27AE68",
@@ -106,6 +126,7 @@ async function ensureChannels() {
         audioAttributes: { usage: Notifications.AndroidAudioUsage.ALARM, contentType: Notifications.AndroidAudioContentType.MUSIC },
       } as any);
     } catch {}
+    }
   }
   try {
     await Notifications.setNotificationChannelAsync("adhan-remind-v3", {
@@ -159,6 +180,7 @@ export async function scheduleAdhan(
   if (!settings.enabled) return;
   await ensureChannels();
   const voice = voiceById(settings.voice);
+  const snd = adhanSoundFor(voice, settings.volume || "high");
   const now = Date.now();
   for (let d = 0; d < 7; d++) {
     const dayTimes = (timesForDay && timesForDay(d)) || times;
@@ -177,12 +199,12 @@ export async function scheduleAdhan(
           content: {
             title: `🕌 حان الآن موعد أذان ${p.name}`,
             body: p.key === "Fajr" ? `الصلاة خيرٌ من النوم — ${fmt(t)}` : `الله أكبر، حيّ على الصلاة — ${fmt(t)}`,
-            sound: voice.sound ? `${voice.sound}${voice.id === "short" ? ".wav" : ".mp3"}` : undefined,
+            sound: snd.sound ? `${snd.sound}${voice.id === "short" ? ".wav" : ".mp3"}` : undefined,
             priority: Notifications.AndroidNotificationPriority.MAX,
             data: { kind: "adhan", prayer: p.key, url: "/(tabs)/prayer" },
-            ...(Platform.OS === "android" ? { channelId: voice.channel } : {}),
+            ...(Platform.OS === "android" ? { channelId: snd.channel } : {}),
           } as any,
-          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: voice.channel } as any,
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: snd.channel } as any,
         }).catch(() => {});
       }
       if (settings.remindBefore > 0) {
@@ -227,18 +249,22 @@ export async function rescheduleAdhanFromCache() {
 
 /** تشغيل تجريبي للصوت داخل التطبيق */
 let preview: any = null;
-export async function previewAdhan(voiceId: string): Promise<boolean> {
+export async function previewAdhan(voiceId: string, level: AdhanVolume = "high"): Promise<boolean> {
   await stopAdhanPreview();
   const v = voiceById(voiceId);
   if (!v.asset || Platform.OS === "web") return false;
   try {
     const { Audio } = await import("expo-av");
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: true, staysActiveInBackground: false });
-    const { sound } = await Audio.Sound.createAsync(v.asset() as any, { shouldPlay: true, volume: 1 });
+    const { sound } = await Audio.Sound.createAsync(v.asset() as any, { shouldPlay: true, volume: ADHAN_VOLUMES.find((x) => x.id === level)?.gain ?? 1 });
     preview = sound;
     sound.setOnPlaybackStatusUpdate((st: any) => { if (st?.didJustFinish) stopAdhanPreview(); });
     return true;
   } catch { return false; }
+}
+/** تغيير صوت المعاينة أثناء التشغيل */
+export async function setPreviewVolume(level: AdhanVolume) {
+  if (preview) { try { await preview.setVolumeAsync(ADHAN_VOLUMES.find((x) => x.id === level)?.gain ?? 1); } catch {} }
 }
 export async function stopAdhanPreview() {
   const s = preview; preview = null;
