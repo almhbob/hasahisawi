@@ -1,4 +1,8 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+
+// يطابق TOKEN_KEY في lib/auth-context.tsx — الخادم يرفض الرفع بلا جلسة
+const TOKEN_KEY = "auth_session_token";
 
 export type UploadProgress = {
   bytesTransferred: number;
@@ -80,6 +84,10 @@ async function uploadToBackend(
   uri: string,
   options?: UploadFileOptions,
 ): Promise<string> {
+  let token: string | null = null;
+  try { token = await AsyncStorage.getItem(TOKEN_KEY); } catch {}
+  if (!token) throw new Error("سجّل الدخول أولاً لرفع الملفات");
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
@@ -121,6 +129,7 @@ async function uploadToBackend(
     xhr.timeout = 15 * 60 * 1000;
 
     xhr.open("POST", `${getApiUrl()}/api/upload`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
     const meta = inferFileMeta(uri, filePath, options);
     const formData = new FormData();

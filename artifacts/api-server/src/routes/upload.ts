@@ -6,6 +6,8 @@ import { mkdirSync } from "node:fs";
 import { v2 as cloudinary } from "cloudinary";
 import { logger } from "../lib/logger";
 import { pinMatches } from "../lib/admin-pin";
+import { sessionUser } from "../lib/shared-db";
+import { limiter } from "../lib/rate-limiters";
 
 const router = Router();
 const TMP_UPLOAD_DIR = "/tmp/uploads";
@@ -51,6 +53,21 @@ if (CLOUDINARY_OK) {
   logger.warn("Cloudinary not configured — uploads will use local fallback");
 }
 
+// حدود الحجم حسب النوع (قابلة للتعديل من متغيرات البيئة)
+const MB = 1024 * 1024;
+const MAX_IMAGE_BYTES = Number(process.env["MAX_IMAGE_UPLOAD_MB"] ?? 25) * MB;
+const MAX_DOC_BYTES   = Number(process.env["MAX_DOC_UPLOAD_MB"] ?? 50) * MB;
+const MAX_VIDEO_BYTES = Number(process.env["MAX_VIDEO_UPLOAD_MB"] ?? 500) * MB;
+
+// رفع الملفات: 40 ملفاً كل 10 دقائق لكل عنوان — يكفي لمنشور بعدة صور ويمنع الإغراق
+const uploadLimiter = limiter({
+  windowMs: 10 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "رفعت ملفات كثيرة، يرجى الانتظار قليلاً" },
+});
+
 const ALLOWED_MIME = new Set([
   "image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp",
   "image/gif",  "image/heic", "image/heif", "image/bmp", "image/tiff",
@@ -65,6 +82,15 @@ const ALLOWED_EXT = new Set([
   ".pdf",
   ".mp4", ".mov", ".m4v", ".mkv", ".webm", ".3gp", ".3g2", ".avi",
 ]);
+
+const VIDEO_EXT = [".mp4", ".mov", ".mkv", ".webm", ".3gp", ".3g2", ".avi", ".m4v"];
+
+function maxBytesFor(filename: string, mimetype: string): number {
+  const ext = path.extname(filename || "").toLowerCase();
+  if (mimetype.startsWith("video/") || VIDEO_EXT.includes(ext)) return MAX_VIDEO_BYTES;
+  if (mimetype === "application/pdf" || ext === ".pdf") return MAX_DOC_BYTES;
+  return MAX_IMAGE_BYTES;
+}
 
 function resolveFolder(filename: string, mimetype: string): string {
   const ext = path.extname(filename || "").toLowerCase();
@@ -97,7 +123,10 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase();
-    const ok  = ALLOWED_MIME.has((file.mimetype || "").toLowerCase()) || ALLOWED_EXT.has(ext);
+    const mime = (file.mimetype || "").toLowerCase();
+    // الامتداد شرط دائماً؛ والنوع يجب أن يكون معروفاً (أو عاماً كما ترسله بعض أجهزة أندرويد).
+    // سابقاً كان يكفي أحدهما، فيمرّ ملف ‎.html‎ بنوع octet-stream ويُخدَم من نطاق الخادم.
+    const ok  = ALLOWED_EXT.has(ext) && (ALLOWED_MIME.has(mime) || mime === "");
     cb(null, ok);
   },
 });
@@ -131,8 +160,25 @@ function uploadBufferToCloudinary(
   });
 }
 
+// لا رفع بلا هوية: يُتحقق قبل استقبال أي بايت حتى لا يُستهلك الخادم ولا حصة Cloudinary
+async function requireUploader(req: Request, res: Response, next: NextFunction) {
+  if (isAdminPinRequest(req)) { next(); return; }
+  try {
+    const user = await sessionUser(req);
+    if (!user) { res.status(401).json({ error: "سجّل الدخول لرفع الملفات" }); return; }
+    if (user.is_banned) { res.status(403).json({ error: "الحساب موقوف" }); return; }
+    (req as Request & { uploaderId?: number }).uploaderId = user.id;
+    next();
+  } catch (err) {
+    logger.error({ err }, "upload auth failed");
+    res.status(500).json({ error: "تعذّر التحقق من الحساب" });
+  }
+}
+
 router.post(
   "/upload",
+  uploadLimiter,
+  requireUploader,
   (req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(15 * 60 * 1000);
     res.setTimeout(15 * 60 * 1000);
@@ -156,6 +202,14 @@ router.post(
       res.status(400).json({ error: "لم يتم إرسال أي ملف أو نوع الملف غير مدعوم" });
       return;
     }
+
+    const maxBytes = maxBytesFor(req.file.originalname, req.file.mimetype);
+    if (req.file.size > maxBytes) {
+      if (req.file.path) { import("node:fs").then((fs) => fs.promises.unlink(req.file!.path).catch(() => {})); }
+      res.status(413).json({ error: `حجم الملف كبير جداً (الحد الأقصى لهذا النوع ${Math.round(maxBytes / MB)}MB)` });
+      return;
+    }
+    logger.info({ user: (req as Request & { uploaderId?: number }).uploaderId ?? "admin-pin", size: req.file.size, type: req.file.mimetype }, "upload");
 
     if (CLOUDINARY_OK && req.file.buffer) {
       try {
