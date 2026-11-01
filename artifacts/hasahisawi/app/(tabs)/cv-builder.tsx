@@ -13,6 +13,11 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CVFrame from "@/components/CVFrame";
 import { CV_TEMPLATES, SAMPLE_CV, buildCVHtml, type CVData, type CVTemplateMeta } from "@/lib/cv-templates";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { useAuth } from "@/lib/auth-context";
+import { profileApi } from "@/lib/profile-api";
+import { volunteerApi } from "@/lib/volunteer";
+import { cvFromProfile } from "@/lib/cv-from-profile";
 
 const CV_STEPS = [
   { id: 0, label: "النموذج", icon: "albums-outline" as const },
@@ -70,6 +75,30 @@ export default function CVBuilderScreen() {
   const [cv, setCv] = useState<CVData>({ ...EMPTY_CV });
   const [loading, setLoading] = useState(false);
   const [restored, setRestored] = useState(false);
+  const { user, token, isGuest } = useAuth();
+  const canFill = !!user && !isGuest && user.role !== "guest";
+  const [filling, setFilling] = useState(false);
+  const [fillMsg, setFillMsg] = useState("");
+  const autoTried = useRef(false);
+  const cvRef = useRef(cv);
+  cvRef.current = cv;
+
+  /** يجلب ملف العضو في حصاحيصاوي ويملأ الفارغ فقط — لا يكتب فوق ما كتبه. */
+  async function fillFromProfile(silent = false) {
+    if (!canFill || !user) return;
+    setFilling(true);
+    try {
+      const [p, vol] = await Promise.all([
+        profileApi.full(user.id, token).catch(() => null),
+        volunteerApi.summary(user.id).catch(() => null),
+      ]);
+      const { cv: next, filled } = cvFromProfile(cvRef.current, p, user, vol);
+      if (filled > 0) setCv(next);
+      setFillMsg(filled > 0
+        ? "عُبِّئت بياناتك من ملفك في حصاحيصاوي — راجعها وأكمل أو عدّل ما تريد."
+        : silent ? "" : "لا توجد بيانات جديدة في ملفك لإضافتها — أكمل ملفك الشخصي لتُعبّأ سيرتك أسرع.");
+    } finally { setFilling(false); }
+  }
   const scrollRef = useRef<ScrollView>(null);
   const previewW = Math.min(width - 32, 420);
 
@@ -88,6 +117,13 @@ export default function CVBuilderScreen() {
       setRestored(true);
     })();
   }, []);
+  // أول مرة بلا مسودة: نعبّئ السيرة تلقائياً من ملف العضو
+  useEffect(() => {
+    if (!restored || autoTried.current || !canFill) return;
+    autoTried.current = true;
+    const empty = !(cv.name.trim() || cv.title.trim() || cv.experience.some((x) => x.position));
+    if (empty) fillFromProfile(true);
+  }, [restored, canFill]);
   // حفظ تلقائي
   useEffect(() => {
     if (!restored) return;
@@ -179,7 +215,7 @@ export default function CVBuilderScreen() {
         <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
           {step === 0 && <Animated.View entering={FadeInDown.delay(60).springify()}>
             <Text style={s.sectionTitle}>اختر النموذج</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tmplRow}>
+            <RtlScrollRow contentContainerStyle={s.tmplRow}>
               {CV_TEMPLATES.map((t) => {
                 const on = t.id === tmpl.id;
                 return (
@@ -188,7 +224,7 @@ export default function CVBuilderScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </RtlScrollRow>
             <View style={s.tmplInfo}>
               <Text style={s.tmplName}>{tmpl.name} <Text style={s.tmplDesc}>— {tmpl.desc}</Text></Text>
               <Text style={s.tmplBest}>مناسب لـ: {tmpl.bestFor}</Text>
@@ -199,10 +235,28 @@ export default function CVBuilderScreen() {
             </View>
             <View style={{ alignItems: "center" }}><CVFrame html={previewHtml} width={previewW} /></View>
             {!hasData ? <Text style={[s.helperText, { textAlign: "center", marginTop: 8 }]}>المعاينة ببيانات مثال — ستظهر بياناتك فور كتابتها</Text> : null}
+            {fillMsg && hasData ? <Text style={[s.helperText, { textAlign: "center", marginTop: 8, color: Colors.primary }]}>{fillMsg}</Text> : null}
           </Animated.View>}
 
           {step === 1 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 6 }}>
             <Text style={s.sectionTitle}>البيانات الأساسية</Text>
+            {canFill ? (
+              <View style={s.fillCard}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="sparkles-outline" size={18} color={Colors.primary} />
+                  <Text style={s.fillTxt}>{fillMsg || "يمكن تعبئة سيرتك من بياناتك في حصاحيصاوي: الاسم، المسمى، النبذة، المؤهلات، الخبرات، الدورات والمهارات."}</Text>
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <TouchableOpacity style={s.fillBtn} onPress={() => fillFromProfile(false)} disabled={filling} accessibilityRole="button">
+                    <Ionicons name="person-circle-outline" size={16} color="#fff" />
+                    <Text style={s.fillBtnTxt}>{filling ? "جارٍ التعبئة…" : "تعبئة من ملفي"}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.fillBtnGhost} onPress={() => router.push("/profile" as any)} accessibilityRole="button">
+                    <Text style={s.fillBtnGhostTxt}>تحديث ملفي</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
             <InputField label="الاسم الكامل" value={cv.name} onChangeText={v => updateCv("name", v)} />
             <InputField label="المسمى الوظيفي" value={cv.title} onChangeText={v => updateCv("title", v)} placeholder="مثال: محاسب / فنّي كهرباء / معلّم" />
             <InputField label="الهاتف" value={cv.phone} onChangeText={v => updateCv("phone", v)} keyboardType="phone-pad" />
@@ -257,6 +311,12 @@ function ListEditor({ title, field, items, update, add, remove }: { title: strin
 }
 
 const s = StyleSheet.create({
+  fillCard: { gap: 10, padding: 12, marginBottom: 8, borderRadius: 14, backgroundColor: Colors.primary + "12", borderWidth: 1, borderColor: Colors.primary + "40" },
+  fillTxt: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 12.5, lineHeight: 20, color: Colors.text, textAlign: "right" },
+  fillBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: Colors.primary, paddingHorizontal: 14, height: 38, borderRadius: 12 },
+  fillBtnTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  fillBtnGhost: { justifyContent: "center", paddingHorizontal: 14, height: 38, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + "60" },
+  fillBtnGhostTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
   container: { flex: 1, backgroundColor: Colors.bg },
   shareBtn: { width: 36, height: 36, borderRadius: Colors.radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
   stepsBar: { flexDirection: "row-reverse", paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle || Colors.divider, backgroundColor: Colors.bg },
