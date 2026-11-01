@@ -53,6 +53,8 @@ const SERVICES: Service[] = [
   // المجتمع
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },
   { id: "women", label: "قسم المرأة", short: "المرأة", sub: "متاجر وخدمات نسائية", keywords: "نساء", icon: "face-woman", iconType: "material", group: "community", route: "/(tabs)/women" },
+  { id: "volunteer", label: "التطوع والنقاط", short: "التطوع", sub: "تطوّع واجمع النقاط", keywords: "تطوع نقاط مستوى لوحة الشرف متطوع", icon: "hand-heart-outline", iconType: "material", group: "community", route: "/volunteer" },
+  { id: "competitions", label: "المسابقات", short: "المسابقات", sub: "شارك واربح الجوائز", keywords: "مسابقة جائزة أسئلة فوز", icon: "trophy", iconType: "ionicons", group: "community", route: "/competitions" },
   { id: "orgs", label: "المنظمات", short: "المنظمات", sub: "جمعيات ومبادرات", keywords: "خيري جمعية تطوع", icon: "hand-heart", iconType: "material", group: "community", route: "/(tabs)/orgs" },
   { id: "sports", label: "النشاط الرياضي", short: "الرياضة", sub: "أندية وبطولات", keywords: "كورة نادي دوري", icon: "football", iconType: "ionicons", group: "community", route: "/(tabs)/sports" },
   { id: "culture", label: "النشاط الثقافي", short: "الثقافة", sub: "معارض وفعاليات", keywords: "ثقافة فن معرض", icon: "palette", iconType: "material", group: "community", route: "/(tabs)/culture" },

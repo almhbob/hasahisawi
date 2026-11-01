@@ -1795,6 +1795,9 @@ export default function SettingsScreen() {
         <ModernHeader title="الإعدادات" icon="settings-outline" />
         <ScrollView contentContainerStyle={[styles.loginWrap, { paddingTop: 8 }]} keyboardShouldPersistTaps="handled">
 
+          {/* ─── المظهر (فاتح / داكن / تلقائي) — في الأعلى ليسهل الوصول إليه ─── */}
+          <ThemeModeCard />
+
           {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}
           {auth.user && !auth.isGuest && (
             <View style={profileSty.card}>
@@ -2053,9 +2056,6 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
-
-          {/* ─── المظهر ─── */}
-          <ThemeModeCard />
 
           {/* ─── معلومات قانونية ─── */}
           <View style={legalSty.card}>

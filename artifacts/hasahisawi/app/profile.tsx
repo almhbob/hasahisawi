@@ -21,6 +21,7 @@ import { notify, confirmAction, uploadProfilePhoto, openExternal, copyText, syst
 import { CERT_KINDS, Cert, FullProfile, SOCIALS, profileApi, publicCvUrl } from "@/lib/profile-api";
 import { blockUser } from "@/lib/social-safety";
 import { fetchFollowStats, followUser, unfollowUser, type FollowStats } from "@/lib/social-follow";
+import { rewardsApi, levelStyleByName } from "@/lib/rewards-api";
 
 type Post = { id: number; content: string; image_url?: string | null; created_at: string; likes_count: number; comments_count?: number };
 type Visitor = { id: number; name: string; avatar_url: string | null; headline: string | null; is_verified: boolean; viewed_at: string };
@@ -66,6 +67,7 @@ export default function ProfileScreen() {
   const [preview, setPreview] = useState<string | null>(null);
   const [follow, setFollow] = useState<FollowStats | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
+  const [pts, setPts] = useState<{ total: number; level: string } | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId) { setLoading(false); return; }
@@ -80,6 +82,7 @@ export default function ProfileScreen() {
       if (postsRes?.ok) { const d = await postsRes.json(); setPosts(Array.isArray(d) ? d : d.posts ?? []); }
       if (isOwn && token) profileApi.visitors(token).then((r) => setVisitors(r.visitors)).catch(() => {});
       fetchFollowStats(Number(profileId), token).then(setFollow).catch(() => setFollow(null));
+      rewardsApi.userPoints(Number(profileId)).then((r) => setPts({ total: r.total, level: r.level.name })).catch(() => setPts(null));
     } catch { setFailed(true); }
     finally { setLoading(false); }
   }, [profileId, token, isOwn]);
@@ -333,6 +336,13 @@ export default function ProfileScreen() {
             <Stat value={profile.endorsers_count} label="زكّاه" />
             {isOwn && (<><View style={styles.statDivider} /><Stat value={profile.views_30d ?? 0} label="زيارة/30 يوم" /></>)}
           </View>}
+          {!lockedView && pts && (pts.total > 0 || isOwn) && (
+            <TouchableOpacity onPress={() => router.push({ pathname: "/volunteer", params: { tab: isOwn ? "points" : "board" } } as any)} accessibilityRole="button"
+              style={{ flexDirection: "row-reverse", alignItems: "center", alignSelf: "center", gap: 6, marginTop: 10, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1.5, borderColor: levelStyleByName(pts.level).color }}>
+              <Ionicons name={levelStyleByName(pts.level).icon as any} size={15} color={levelStyleByName(pts.level).color} />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: levelStyleByName(pts.level).color }}>{pts.level} · {pts.total.toLocaleString("ar-EG")} نقطة مجتمع</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.heroActions}>
             {isOwn ? (

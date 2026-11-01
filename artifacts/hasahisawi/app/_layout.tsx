@@ -169,6 +169,10 @@ function AuthGate() {
           return;
         }
 
+        // ── التطوع والمسابقات ──
+        if (screen === "volunteer") { router.push({ pathname: "/volunteer", params: data?.id ? {} : { tab: "points" } } as any); return; }
+        if (screen === "competitions") { router.push({ pathname: "/competitions", params: data?.id ? { id: String(data.id) } : {} } as any); return; }
+
         // ── مشوارك علينا: السائقون والإدارة والمشرفون ──
         if (type === "transport_admin_request" || screen === "admin-transport") {
           router.push("/admin-transport" as any);
@@ -355,6 +359,8 @@ function RootLayoutNav() {
         <Stack.Screen name="call"            options={{ headerShown: false, animation: "fade", gestureEnabled: false, presentation: "fullScreenModal" }} />
         <Stack.Screen name="profile"         options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="curriculum"      options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="volunteer"       options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="competitions"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="sports-club"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="restaurant"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="restaurant-manage" options={{ headerShown: false, animation: "slide_from_right" }} />
