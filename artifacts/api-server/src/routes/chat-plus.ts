@@ -57,6 +57,7 @@ export async function touchPresence(userId: number) {
 }
 
 export async function isBlockedBetween(a: number, b: number) {
+  await ensureChatPlus(); // تُستدعى أيضاً من المكالمات قبل فتح أي محادثة — نضمن وجود الجدول
   const r = await query(`SELECT blocker_id FROM chat_blocks WHERE (blocker_id=$1 AND blocked_id=$2) OR (blocker_id=$2 AND blocked_id=$1)`, [a, b]);
   return r.rows.map((x: any) => Number(x.blocker_id));
 }
