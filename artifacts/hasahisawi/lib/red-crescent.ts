@@ -1,5 +1,6 @@
 // مساحة جمعية الهلال الأحمر السوداني — واجهة الخادم + الربط مع تطبيق «مسعف»
-import { Linking, Platform } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
+import { router } from "expo-router";
 import { getApiUrl } from "@/lib/query-client";
 
 export type SrcsRole = "volunteer" | "paramedic" | "leader" | "admin";
@@ -67,15 +68,34 @@ export const srcsApi = {
 // ── التكامل مع تطبيق «مسعف» (com.almhbob.musif · musif://) ──────────
 // حصاحيصاوي: المجتمع والتنظيم (العضوية، الاجتماعات، الإعلانات، الأنشطة)
 // مسعف: العمل الميداني (نداء الاستغاثة، استقبال البلاغات، الموقع اللحظي)
-export const MUSIF_PLAY = "https://play.google.com/store/apps/details?id=com.almhbob.musif";
+// رابط المتجر يُضبط فقط بعد نشر «مسعف» (كان رابط Google Play يفتح صفحة «لم يتم العثور على العنصر»)
+export const MUSIF_STORE_URL = (process.env.EXPO_PUBLIC_MUSIF_STORE_URL || "").trim();
 export const musifVerifyUrl = (code: string) => `https://musif.app/v/${encodeURIComponent(code)}`;
 
-/** يفتح شاشة في تطبيق مسعف إن كان مثبتاً، وإلا صفحته على Google Play */
-export async function openMusif(path: "sos" | "responder" | "signup" | "first-aid" | "" = "", params: Record<string, string> = {}) {
+/** يفتح شاشة في تطبيق مسعف إن كان مثبتاً. يُرجع false إن لم يكن مثبتاً (أو على الويب). */
+export async function openMusif(path: "sos" | "responder" | "signup" | "first-aid" | "" = "", params: Record<string, string> = {}): Promise<boolean> {
+  if (Platform.OS === "web") return false;
   const qs = new URLSearchParams({ ...params, from: "hasahisawi" }).toString();
-  const deep = `musif://${path}${qs ? `?${qs}` : ""}`;
-  if (Platform.OS !== "web") {
-    try { await Linking.openURL(deep); return; } catch { /* غير مثبّت */ }
-  }
-  await Linking.openURL(MUSIF_PLAY).catch(() => {});
+  try { await Linking.openURL(`musif://${path}${qs ? `?${qs}` : ""}`); return true; }
+  catch { return false; }
+}
+
+/**
+ * زر الطوارئ وما شابهه: يفتح «مسعف» إن كان مثبتاً؛ وإلا يعرض بدائل تعمل فوراً
+ * (أرقام الطوارئ، ورابط تحميل مسعف حين يُنشر) بدل صفحة متجر غير موجودة.
+ */
+export async function openMusifOrHelp(path: "sos" | "responder" | "signup" | "first-aid", params: Record<string, string> = {}) {
+  if (await openMusif(path, params)) return;
+  const sos = path === "sos";
+  const buttons: { text: string; style?: "cancel" | "default"; onPress?: () => void }[] = [
+    { text: "أرقام الطوارئ", onPress: () => router.push("/(tabs)/numbers" as any) },
+  ];
+  if (MUSIF_STORE_URL) buttons.push({ text: "تحميل تطبيق مسعف", onPress: () => { Linking.openURL(MUSIF_STORE_URL).catch(() => {}); } });
+  buttons.push({ text: "إلغاء", style: "cancel" });
+  Alert.alert(
+    sos ? "طلب إسعاف" : "تطبيق «مسعف»",
+    (sos ? "في حالة الطوارئ اتصل فوراً بأرقام الإسعاف والطوارئ.\n\n" : "") +
+      (MUSIF_STORE_URL ? "تطبيق «مسعف» غير مثبّت على هذا الجهاز." : "تطبيق «مسعف» لم يُطرح بعد على المتاجر — سيتوفر قريباً."),
+    buttons,
+  );
 }

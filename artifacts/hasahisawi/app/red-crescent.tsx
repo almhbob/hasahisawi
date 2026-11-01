@@ -10,10 +10,11 @@ import { useAuth } from "@/lib/auth-context";
 import { StarPattern } from "@/components/ui/Ornament";
 import { notify } from "@/lib/xplatform";
 import {
-  srcsApi, openMusif, ROLE_LABEL, ACTIVITY_TYPES, BLOOD_TYPES, SRCS_RED, SRCS_RED_DEEP,
+  srcsApi, openMusifOrHelp, ROLE_LABEL, ACTIVITY_TYPES, BLOOD_TYPES, SRCS_RED, SRCS_RED_DEEP,
   type SrcsOverview, type SrcsRole,
 } from "@/lib/red-crescent";
 import { srcsStyles } from "@/components/srcs/styles";
+import RedCrescentMark from "@/components/srcs/RedCrescentMark";
 
 const fmtDate = (s: string, time = false) => new Date(s).toLocaleString("ar-EG", time ? { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "long", year: "numeric" });
 
@@ -60,7 +61,7 @@ export default function RedCrescentScreen() {
         <LinearGradient colors={[SRCS_RED_DEEP, SRCS_RED]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.hero}>
           <StarPattern color="#FFFFFF" opacity={0.1} />
           <View style={s.heroTop}>
-            <View style={s.heroIcon}><Ionicons name="medkit" size={26} color={SRCS_RED} /></View>
+            <View style={s.heroIcon}><RedCrescentMark size={40} background={null} /></View>
             <View style={{ flex: 1 }}>
               <Text style={s.heroTitle}>جمعية الهلال الأحمر السوداني</Text>
               <Text style={s.heroSub}>فرعية الحصاحيصا · إسعاف · تطوع · إغاثة</Text>
@@ -85,7 +86,7 @@ export default function RedCrescentScreen() {
             </View>
           </View>
           <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-            <TouchableOpacity style={s.emBtn} onPress={() => openMusif("sos")} accessibilityRole="button">
+            <TouchableOpacity style={s.emBtn} onPress={() => openMusifOrHelp("sos")} accessibilityRole="button">
               <Ionicons name="pulse" size={18} color="#fff" /><Text style={s.emBtnTxt}>نداء استغاثة — مسعف</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.emGhost} onPress={() => router.push("/(tabs)/numbers" as any)} accessibilityRole="button">
@@ -128,7 +129,7 @@ export default function RedCrescentScreen() {
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                   <TouchableOpacity style={s.primary} onPress={() => router.push("/red-crescent-card" as any)}><Ionicons name="card" size={18} color="#fff" /><Text style={s.primaryTxt}>بطاقتي</Text></TouchableOpacity>
                   {(m.role === "paramedic" || m.role === "leader") ? (
-                    <TouchableOpacity style={s.ghost} onPress={() => openMusif("signup", { role: "responder", srcs_card: m.card_no || "" })}>
+                    <TouchableOpacity style={s.ghost} onPress={() => openMusifOrHelp("signup", { role: "responder", srcs_card: m.card_no || "" })}>
                       <Ionicons name="pulse" size={16} color={SRCS_RED} /><Text style={s.ghostTxt}>{m.musif_code ? "فتح مسعف" : "سجّل مستجيباً في مسعف"}</Text>
                     </TouchableOpacity>
                   ) : null}
