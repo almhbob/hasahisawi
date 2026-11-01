@@ -1653,8 +1653,11 @@ type InquiryResult = {
 };
 
 function InquiryModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  // البحث بالهاتف يُقبل لصاحب الرقم المسجَّل الدخول فقط؛ وبرقم الطلب لأي أحد
+  const { user: me, token: myToken } = useAuth();
   const [mode, setMode]     = useState<"phone"|"ref">("phone");
-  const [query2, setQuery2] = useState("");
+  const [query2, setQuery2] = useState(me?.phone || "");
+  const [inqError, setInqError] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<InquiryResult[]>([]);
   const [searched, setSearched] = useState(false);
@@ -1665,10 +1668,12 @@ function InquiryModal({ visible, onClose }: { visible: boolean; onClose: () => v
     try {
       const param = mode === "phone" ? `phone=${encodeURIComponent(query2.trim())}` : `reg_number=${encodeURIComponent(query2.trim())}`;
       const param2 = mode === "phone" ? `phone=${encodeURIComponent(query2.trim())}` : `transfer_number=${encodeURIComponent(query2.trim())}`;
+      const opts = { headers: myToken ? { Authorization: `Bearer ${myToken}` } : {} } as any;
       const [r1, r2] = await Promise.all([
-        fetchWithTimeout(`${getApiUrl()}/api/education/my-registrations?${param}`),
-        fetchWithTimeout(`${getApiUrl()}/api/education/my-transfers?${param2}`),
+        fetchWithTimeout(`${getApiUrl()}/api/education/my-registrations?${param}`, opts),
+        fetchWithTimeout(`${getApiUrl()}/api/education/my-transfers?${param2}`, opts),
       ]);
+      setInqError(!r1.ok ? ((await r1.clone().json().catch(() => ({})))?.error || "") : "");
       const all: InquiryResult[] = [];
       if (r1.ok) {
         const d = await r1.json();
@@ -1732,7 +1737,7 @@ function InquiryModal({ visible, onClose }: { visible: boolean; onClose: () => v
           {searched && results.length === 0 && !loading && (
             <View style={iq.emptyBox}>
               <Ionicons name="search-outline" size={36} color={Colors.textMuted} />
-              <Text style={iq.emptyText}>لا توجد طلبات مرتبطة بهذا {mode==="phone"?"الرقم":"الكود"}</Text>
+              <Text style={iq.emptyText}>{inqError || `لا توجد طلبات مرتبطة بهذا ${mode==="phone"?"الرقم":"الكود"}`}</Text>
             </View>
           )}
 

@@ -11,7 +11,10 @@ import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkContent } from "../lib/content-moderator";
-import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter } from "../lib/rate-limiters";
+import { authLimiter, pinLimiter, registerLimiter, writeLimiter, heavyWriteLimiter, limiter } from "../lib/rate-limiters";
+
+// الاستعلام برقم الطلب: 30 محاولة كل 10 دقائق تكفي المستخدم وتمنع تخمين الأرقام
+const lookupLimiter = limiter({ windowMs: 10 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: "محاولات كثيرة، انتظر قليلاً" } });
 import { pinMatches, isUsableAdminPin, WEAK_PIN_MESSAGE } from "../lib/admin-pin";
 import { sessionUser } from "../lib/shared-db";
 import { ownedOccasionShop } from "../lib/ownership";
@@ -2820,7 +2823,7 @@ router.post("/auth/admin-login", authLimiter, async (req: Request, res: Response
   }
 });
 
-router.post("/auth/moderator-login", async (req: Request, res: Response) => {
+router.post("/auth/moderator-login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone_or_email, password } = req.body;
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
@@ -2844,7 +2847,7 @@ router.post("/auth/moderator-login", async (req: Request, res: Response) => {
 });
 
 // تسجيل دخول مشرف الترحيل
-router.post("/auth/transport-login", async (req: Request, res: Response) => {
+router.post("/auth/transport-login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
@@ -5414,6 +5417,8 @@ router.get("/ads/my-requests", async (req: Request, res: Response) => {
   try {
     const phone = String(req.query.phone ?? "").trim();
     if (!phone) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    const own = await requesterOwnsPhone(req, phone);
+    if (own !== "ok") return res.status(own === "login" ? 401 : 403).json({ error: own === "login" ? PHONE_LOGIN_MSG : PHONE_MISMATCH_MSG });
     const { rows } = await query(
       `SELECT id, institution_name, contact_name, title, description, type,
               duration_days, budget, status, admin_note,
@@ -6409,9 +6414,11 @@ router.get("/search", async (req: Request, res: Response) => {
 
     const [usersR, postsR, orgsR, commR] = await Promise.all([
       query(
+        // المطابقة الجزئية للهاتف كانت تكشف صاحب أي رقم من بضعة أرقام — الآن بالاسم، أو بالرقم كاملاً فقط
         `SELECT id, name, role, avatar_url, created_at FROM users
-         WHERE (name ILIKE $1 OR phone ILIKE $1) AND role != 'guest' LIMIT 15`,
-        [like]
+         WHERE (name ILIKE $1 OR ($2 <> '' AND RIGHT(regexp_replace(COALESCE(phone,''), '\\D', '', 'g'), 9) = $2))
+           AND role != 'guest' LIMIT 15`,
+        [like, phoneKey(q).length === 9 ? phoneKey(q) : ""]
       ),
       query(
         `SELECT p.id, p.content, p.image_url, p.created_at, u.name AS user_name, u.avatar_url AS user_avatar,
@@ -6961,7 +6968,7 @@ router.post("/auth/verify-reset-otp", authLimiter, async (req: Request, res: Res
 });
 
 // POST /api/auth/verify-otp
-router.post("/auth/verify-otp", async (req: Request, res: Response) => {
+router.post("/auth/verify-otp", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone_or_email, code, type = "register" } = req.body as { phone_or_email?: string; code?: string; type?: string };
     if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
@@ -7889,7 +7896,7 @@ async function getInstitutionSession(req: Request): Promise<{ institutionId: num
 }
 
 // POST /api/inst/login — تسجيل دخول المؤسسة
-router.post("/inst/login", async (req: Request, res: Response) => {
+router.post("/inst/login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, national_id } = req.body as { phone?: string; national_id?: string };
     if (!phone?.trim() || !national_id?.trim()) {
@@ -9393,7 +9400,7 @@ router.post("/events", async (req: Request, res: Response) => {
   try {
     const { title, type, description, location, event_date, event_time, organizer_name, contact_phone, is_free, price, capacity } = req.body;
     if (!title || !location || !event_date || !organizer_name) return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
-    const userId = (req as any).user?.id ?? null;
+    const userId = ((await getSessionUser(req))?.id as number | undefined) ?? null; // لم يكن أي وسيط يضبط req.user
     const r = await query(
       `INSERT INTO events (user_id, title, type, description, location, event_date, event_time, organizer_name, contact_phone, is_free, price, capacity, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING *`,
@@ -9458,7 +9465,7 @@ router.post("/event-rentals", async (req: Request, res: Response) => {
   try {
     const { category, name, description, price_per_day, price_per_event, quantity_available, contact_phone, provider_name } = req.body;
     if (!name || !provider_name || !contact_phone) return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
-    const userId = (req as any).user?.id ?? null;
+    const userId = ((await getSessionUser(req))?.id as number | undefined) ?? null; // لم يكن أي وسيط يضبط req.user
     const r = await query(
       `INSERT INTO event_rentals (user_id, category, name, description, price_per_day, price_per_event, quantity_available, contact_phone, provider_name)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
@@ -10026,9 +10033,29 @@ router.delete("/admin/educational-institutions/:id", async (req: Request, res: R
 // ── توليد رقم مرجعي فريد ──
 function genRefNumber(prefix: string): string {
   const y = new Date().getFullYear();
-  const rnd = Math.floor(100000 + Math.random() * 900000);
+  const rnd = randomInt(100000, 1000000); // مولّد آمن بدل Math.random
   return `${prefix}-${y}-${rnd}`;
 }
+
+/** آخر 9 أرقام (الرقم السوداني بلا مفتاح الدولة/الصفر) لمقارنة الهواتف بصيغها المختلفة. */
+function phoneKey(v: unknown): string {
+  const d = String(v ?? "").replace(/[٠-٩]/g, (c) => String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).replace(/\D/g, "");
+  return d.slice(-9);
+}
+
+/**
+ * البحث «بهاتفي» كان يقبل أي رقم يرسله أي أحد فيكشف طلبات الآخرين.
+ * الآن: يُقبل فقط إن كان الهاتف هو هاتف الحساب المسجَّل الدخول، أو كان الطالب من الطاقم.
+ */
+async function requesterOwnsPhone(req: Request, phone: unknown): Promise<"ok" | "login" | "mismatch"> {
+  const me = await getSessionUser(req);
+  if (!me) return "login";
+  if (me.role === "admin" || me.role === "moderator") return "ok";
+  const want = phoneKey(phone);
+  return want.length >= 9 && want === phoneKey(me.phone) ? "ok" : "mismatch";
+}
+const PHONE_LOGIN_MSG = "سجّل الدخول بحسابك المرتبط بهذا الرقم لعرض الطلبات";
+const PHONE_MISMATCH_MSG = "هذا الرقم لا يطابق رقم حسابك";
 
 // ── POST /api/education/register-student ── تقديم استمارة تسجيل ──
 router.post("/education/register-student", async (req: Request, res: Response) => {
@@ -10073,10 +10100,14 @@ router.post("/education/register-student", async (req: Request, res: Response) =
 });
 
 // ── GET /api/education/my-registrations?phone=xxx ── استعلام بالهاتف ──
-router.get("/education/my-registrations", async (req: Request, res: Response) => {
+router.get("/education/my-registrations", lookupLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, reg_number } = req.query;
     if (!phone && !reg_number) return res.status(400).json({ error: "رقم الهاتف أو رقم الطلب مطلوب" });
+    if (phone && !reg_number) {
+      const own = await requesterOwnsPhone(req, phone);
+      if (own !== "ok") return res.status(own === "login" ? 401 : 403).json({ error: own === "login" ? PHONE_LOGIN_MSG : PHONE_MISMATCH_MSG });
+    }
     let sql = `SELECT id, reg_number, institution_name, grade, academic_year,
                       student_name, student_gender, parent_name, parent_phone,
                       status, admin_notes, created_at
@@ -10136,10 +10167,14 @@ router.post("/education/transfer-request", async (req: Request, res: Response) =
 });
 
 // ── GET /api/education/my-transfers?phone=xxx ── استعلام النقل ──
-router.get("/education/my-transfers", async (req: Request, res: Response) => {
+router.get("/education/my-transfers", lookupLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, transfer_number } = req.query;
     if (!phone && !transfer_number) return res.status(400).json({ error: "رقم الهاتف أو رقم الطلب مطلوب" });
+    if (phone && !transfer_number) {
+      const own = await requesterOwnsPhone(req, phone);
+      if (own !== "ok") return res.status(own === "login" ? 401 : 403).json({ error: own === "login" ? PHONE_LOGIN_MSG : PHONE_MISMATCH_MSG });
+    }
     let sql = `SELECT id, transfer_number, from_institution_name, from_grade,
                       to_institution_name, to_grade, student_name,
                       transfer_reason, parent_name, parent_phone,
@@ -12553,7 +12588,7 @@ router.get("/telecom/companies/promo", async (req: Request, res: Response) => {
 });
 
 // ── Portal auth ───────────────────────────────────────────────────
-router.post("/telecom/portal/login", async (req: Request, res: Response) => {
+router.post("/telecom/portal/login", pinLimiter, async (req: Request, res: Response) => {
   try {
     await ensureTelecomV2();
     const { company_id, pin } = req.body;
@@ -12949,7 +12984,7 @@ async function getMerchantByToken(token: string) {
 }
 
 // POST /api/merchant-portal/login — تسجيل دخول التاجر بالـ PIN
-router.post("/merchant-portal/login", async (req: Request, res: Response) => {
+router.post("/merchant-portal/login", pinLimiter, async (req: Request, res: Response) => {
   try {
     await ensureMerchantPortalCols();
     const { shop_id, pin } = req.body;
@@ -13350,7 +13385,7 @@ router.post("/design-gallery/orders", async (req: Request, res: Response) => {
 router.post("/design-gallery/subscribe", async (req: Request, res: Response) => {
   try {
     await ensureDesignGalleryTables();
-    const userId = (req as any).user?.id;
+    const userId = (await getSessionUser(req))?.id as number | undefined; // لم يكن أي وسيط يضبط req.user فكان يرفض الجميع
     if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
     const { package_id, shop_name, bio, whatsapp, instagram, facebook, categories } = req.body;
     if (!shop_name || !package_id) return res.status(400).json({ error: "اسم المتجر والباقة مطلوبان" });
@@ -13375,7 +13410,7 @@ router.post("/design-gallery/subscribe", async (req: Request, res: Response) => 
 router.get("/design-gallery/my-shop", async (req: Request, res: Response) => {
   try {
     await ensureDesignGalleryTables();
-    const userId = (req as any).user?.id;
+    const userId = (await getSessionUser(req))?.id as number | undefined; // لم يكن أي وسيط يضبط req.user فكان يرفض الجميع
     if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
     const { rows } = await query(
       `SELECT m.*, pkg.name as package_name, pkg.max_products, pkg.is_unlimited, pkg.color as pkg_color
@@ -13392,7 +13427,7 @@ router.get("/design-gallery/my-shop", async (req: Request, res: Response) => {
 router.post("/design-gallery/my-products", async (req: Request, res: Response) => {
   try {
     await ensureDesignGalleryTables();
-    const userId = (req as any).user?.id;
+    const userId = (await getSessionUser(req))?.id as number | undefined; // لم يكن أي وسيط يضبط req.user فكان يرفض الجميع
     if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
     const { rows: mem } = await query(`SELECT * FROM design_gallery_members WHERE user_id=$1`, [userId]);
     if (!mem.length || mem[0].status !== 'active') return res.status(403).json({ error: "المتجر غير مفعّل" });
@@ -13410,7 +13445,7 @@ router.post("/design-gallery/my-products", async (req: Request, res: Response) =
 router.patch("/design-gallery/my-products/:id", async (req: Request, res: Response) => {
   try {
     await ensureDesignGalleryTables();
-    const userId = (req as any).user?.id;
+    const userId = (await getSessionUser(req))?.id as number | undefined; // لم يكن أي وسيط يضبط req.user فكان يرفض الجميع
     if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
     const { rows: mem } = await query(`SELECT id FROM design_gallery_members WHERE user_id=$1`, [userId]);
     if (!mem.length) return res.status(403).json({ error: "غير مصرح" });
@@ -13429,7 +13464,7 @@ router.patch("/design-gallery/my-products/:id", async (req: Request, res: Respon
 
 router.delete("/design-gallery/my-products/:id", async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = (await getSessionUser(req))?.id as number | undefined; // لم يكن أي وسيط يضبط req.user فكان يرفض الجميع
     if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
     const { rows: mem } = await query(`SELECT id FROM design_gallery_members WHERE user_id=$1`, [userId]);
     if (!mem.length) return res.status(403).json({ error: "غير مصرح" });
@@ -13683,12 +13718,13 @@ router.post("/zawajil/apply", async (req: Request, res: Response) => {
 router.get("/zawajil/orders/mine", async (req: Request, res: Response) => {
   try {
     await ensureZawajilTables();
-    const { phone, name } = req.query as Record<string,string>;
-    if (!phone && !name) return res.json([]);
-    const params: unknown[] = [];
-    let where = "WHERE 1=1";
-    if (phone) { params.push(phone); where += ` AND sender_phone=$${params.length}`; }
-    else { params.push(`%${name}%`); where += ` AND sender_name ILIKE $${params.length}`; }
+    // البحث بالاسم (ILIKE) كان يكشف طلبات كل الناس — أُزيل. الهاتف يجب أن يكون هاتف الحساب.
+    const { phone } = req.query as Record<string,string>;
+    if (!phone) return res.json([]);
+    const own = await requesterOwnsPhone(req, phone);
+    if (own !== "ok") return res.status(own === "login" ? 401 : 403).json({ error: own === "login" ? PHONE_LOGIN_MSG : PHONE_MISMATCH_MSG });
+    const params: unknown[] = [phone];
+    const where = "WHERE sender_phone=$1";
     const r = await query(`SELECT * FROM zawajil_orders ${where} ORDER BY created_at DESC LIMIT 50`, params);
     return res.json(r.rows);
   } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
@@ -14556,7 +14592,7 @@ router.get("/factory-plans", async (_req: Request, res: Response) => {
 // ── Factory Portal Auth ───────────────────────────────────────────
 
 // POST /api/factories/portal/login
-router.post("/factories/portal/login", async (req: Request, res: Response) => {
+router.post("/factories/portal/login", pinLimiter, async (req: Request, res: Response) => {
   try {
     await ensureFactoriesTables();
     const { factory_id, pin } = req.body;
@@ -15427,27 +15463,16 @@ router.post("/admin/appointments/:id/confirm", async (req: Request, res: Respons
 // ── بوابة المشرف (Supervisor Portal) ─────────────────────────────────────
 
 // POST /api/supervisor/login — تسجيل دخول المشرف بالهاتف
-router.post("/supervisor/login", async (req: Request, res: Response) => {
-  try {
-    await ensureClinicTables();
-    const { phone } = req.body as { phone?: string };
-    if (!phone?.trim()) return res.status(400).json({ error: "الهاتف مطلوب" });
-    const r = await query(
-      `SELECT * FROM clinic_supervisors WHERE (phone=$1 OR whatsapp=$1) AND is_active=TRUE LIMIT 1`,
-      [phone.trim()]
-    );
-    if (!r.rows[0]) return res.status(404).json({ error: "المشرف غير موجود أو غير مفعّل" });
-    const sup = r.rows[0];
-    // توليد token مؤقت
-    const token = `sup_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    await query(`UPDATE clinic_supervisors SET notes=COALESCE(notes,'') || '' WHERE id=$1`, [sup.id]);
-    return res.json({ supervisor: sup, token });
-  } catch (err) { logger.error({ err }, "Server error"); return res.status(500).json({ error: "Server error" }); }
+// كان الدخول برقم الهاتف وحده ويُرجع «رمزاً» لا يُتحقق منه في أي مكان، ولا يستخدمه التطبيق.
+router.post("/supervisor/login", authLimiter, async (_req: Request, res: Response) => {
+  return res.status(410).json({ error: "هذا المسار أُوقف — يدخل المشرفون من حساباتهم في التطبيق" });
 });
-
 // GET /api/supervisor/reminders-due — تذكيرات المشرف
 router.get("/supervisor/reminders-due", async (req: Request, res: Response) => {
   try {
+    // كانت تُرجع مواعيد المرضى وأسماءهم لأي أحد بلا تسجيل دخول
+    const me = await getSessionUser(req);
+    if (!me || (me.role !== "admin" && me.role !== "moderator")) return res.status(403).json({ error: "للطاقم فقط" });
     await ensureClinicTables();
     const colsR = await query(`SELECT column_name FROM information_schema.columns WHERE table_name='appointments' AND table_schema='public'`);
     const cols = colsR.rows.map((r: any) => r.column_name);

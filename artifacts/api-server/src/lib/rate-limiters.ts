@@ -5,7 +5,7 @@ import type { RequestHandler } from "express";
 // different @types/express major than this server uses. Typing every limiter as this
 // server's own RequestHandler keeps router.use()/route handlers type-compatible.
 // Runtime behaviour is unchanged.
-const limiter = (options: Parameters<typeof rateLimit>[0]): RequestHandler =>
+export const limiter = (options: Parameters<typeof rateLimit>[0]): RequestHandler =>
   rateLimit(options) as unknown as RequestHandler;
 
 export const authLimiter = limiter({

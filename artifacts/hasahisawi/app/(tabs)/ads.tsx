@@ -20,6 +20,7 @@ import { uploadAdImage } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { useAuth } from "@/lib/auth-context";
 
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -368,7 +369,9 @@ function SpacesTab({
 // ─── My Requests Tab ──────────────────────────────────────────────
 
 function MyRequestsTab() {
-  const [phone, setPhone] = useState("");
+  // الخادم يعرض الطلبات لصاحب الرقم المسجَّل الدخول فقط
+  const { user, token } = useAuth();
+  const [phone, setPhone] = useState(user?.phone || "");
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -377,8 +380,9 @@ function MyRequestsTab() {
     if (!phone.trim()) { Alert.alert("مطلوب", "أدخل رقم هاتفك لعرض طلباتك"); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/ads/my-requests?phone=${encodeURIComponent(phone.trim())}`);
+      const res = await fetch(`${getApiUrl()}/api/ads/my-requests?phone=${encodeURIComponent(phone.trim())}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) { setAds(await res.json()); setSearched(true); }
+      else { const j = await res.json().catch(() => ({})); Alert.alert("تعذّر عرض الطلبات", j?.error || "حاول مجدداً"); }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
     finally { setLoading(false); }
   };
