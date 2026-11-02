@@ -24,7 +24,7 @@ async function githubKeys(force = false) {
   return jwksCache.keys;
 }
 
-async function verifyGithubOidc(token: string): Promise<Record<string, any>> {
+export async function verifyGithubOidc(token: string, audience: string = AUDIENCE): Promise<Record<string, any>> {
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("malformed");
   const header = JSON.parse(fromB64url(parts[0]).toString("utf8"));
@@ -38,7 +38,7 @@ async function verifyGithubOidc(token: string): Promise<Record<string, any>> {
   const now = Math.floor(Date.now() / 1000);
   if (claims.iss !== GH_ISSUER) throw new Error("iss");
   const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-  if (!aud.includes(AUDIENCE)) throw new Error("aud");
+  if (!aud.includes(audience)) throw new Error("aud");
   if (typeof claims.exp !== "number" || claims.exp < now - 30) throw new Error("expired");
   if (typeof claims.nbf === "number" && claims.nbf > now + 60) throw new Error("nbf");
   if (claims.repository !== REPO) throw new Error("repository");
