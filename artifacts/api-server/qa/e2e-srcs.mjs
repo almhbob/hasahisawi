@@ -24,6 +24,8 @@ async function makeUser(name, role = "user") {
   await db.query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [u.rows[0].id, token]);
   return { id: u.rows[0].id, token };
 }
+// الروابط الموقّعة تُبنى على عنوان الإنتاج؛ نوجّهها إلى الخادم المحلي في الاختبار
+const local = (u) => String(u || "").replace(/^https?:\/\/[^/]+/, API);
 const DOC = (k) => `https://example.com/${k}-${Date.now()}.jpg`;
 
 const boss = await makeUser("مدير حصاحيصاوي", "admin");
@@ -129,11 +131,11 @@ const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 const fd = new FormData(); fd.append("kind", "national_id"); fd.append("file", new Blob([png], { type: "image/png" }), "id.png");
 let up = await fetch(API + "/api/srcs/private-upload", { method: "POST", headers: { Authorization: "Bearer " + medic.token }, body: fd }).then(async (x) => ({ status: x.status, json: await x.json().catch(() => null) }));
 check("private upload returns priv ref + signed url", up.status === 200 && /^priv:/.test(up.json?.ref) && /pfile\/.+sig=/.test(up.json?.url), JSON.stringify(up));
-const got = await fetch(up.json.url);
+const got = await fetch(local(up.json.url));
 check("signed url serves the file", got.status === 200 && (await got.arrayBuffer()).byteLength === png.length, got.status);
-const bad = await fetch(up.json.url.replace(/sig=[0-9a-f]+/, "sig=" + "0".repeat(40)));
+const bad = await fetch(local(up.json.url).replace(/sig=[0-9a-f]+/, "sig=" + "0".repeat(40)));
 check("tampered signature → 403", bad.status === 403, bad.status);
-const unsigned = await fetch(up.json.url.split("?")[0]);
+const unsigned = await fetch(local(up.json.url).split("?")[0]);
 check("no signature → 403", unsigned.status === 403, unsigned.status);
 const thief = await makeUser("متطفل");
 r = await call("POST", "/srcs/join", thief.token, { desired_role: "paramedic", national_id_no: "99999999", id_doc_url: up.json.ref, cert_doc_url: DOC("c2") });
@@ -157,14 +159,14 @@ check("unknown card → 404", r.status === 404, r.status);
 
 // ── التصدير ──
 r = await call("POST", "/srcs/admin/export-link", leaderU.token, { kind: "course", id: courseId, format: "csv" });
-const csv = r.json?.url ? await fetch(r.json.url).then((x) => x.text()) : "";
+const csv = r.json?.url ? await fetch(local(r.json.url)).then((x) => x.text()) : "";
 check("course results CSV export", csv.includes("المسعف") && csv.includes("ناجح"), csv.slice(0, 200));
 r = await call("POST", "/srcs/admin/export-link", leaderU.token, { kind: "members", format: "html" });
 check("leader without members perm cannot export members", r.status === 403, r.status);
 r = await call("POST", "/srcs/admin/export-link", boss.token, { kind: "meeting", id: mt2.id, format: "html" });
-const html = r.json?.url ? await fetch(r.json.url).then((x) => x.text()) : "";
+const html = r.json?.url ? await fetch(local(r.json.url)).then((x) => x.text()) : "";
 check("printable attendance sheet", html.includes("كشف حضور") && html.includes("✔ حضر"), html.slice(0, 120));
-const exp = await fetch(r.json.url.replace(/sig=[0-9a-f]+/, "sig=" + "1".repeat(40)));
+const exp = await fetch(local(r.json.url).replace(/sig=[0-9a-f]+/, "sig=" + "1".repeat(40)));
 check("export link tamper → 403", exp.status === 403, exp.status);
 
 // ── التذكيرات ──
