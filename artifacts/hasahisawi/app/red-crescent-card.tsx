@@ -68,8 +68,8 @@ export default function SrcsCardScreen() {
             {/* البطاقة — اضغط للتكبير */}
             <TouchableOpacity activeOpacity={0.92} onPress={() => { setViewerPage(0); setViewer(true); }} accessibilityRole="imagebutton" accessibilityLabel="عرض البطاقة مكبّرة">
               <SrcsCardFront m={m} holder={holder} width={cardW} />
-              <View style={s.zoomTag}><Ionicons name="expand" size={14} color="#fff" /><Text style={s.zoomTagTxt}>اضغط للتكبير</Text></View>
             </TouchableOpacity>
+            <View style={s.zoomTag}><Ionicons name="expand" size={14} color={SRCS_RED} /><Text style={s.zoomTagTxt}>اضغط على البطاقة لعرضها مكبّرة</Text></View>
             <TouchableOpacity activeOpacity={0.92} onPress={() => { setViewerPage(1); setViewer(true); }} accessibilityRole="imagebutton" accessibilityLabel="عرض ظهر البطاقة ورمز التحقق مكبّراً">
               <SrcsCardBack m={m} holder={holder} width={cardW} />
             </TouchableOpacity>
@@ -113,7 +113,7 @@ export default function SrcsCardScreen() {
 
 const s = StyleSheet.create({
   ...srcsStyles,
-  zoomTag: { position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.35)" },
-  zoomTagTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  zoomTag: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, marginTop: -6 },
+  zoomTagTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SRCS_RED },
   notice: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 14, backgroundColor: SRCS_RED + "0D", borderWidth: 1, borderColor: SRCS_RED + "30" },
 });
