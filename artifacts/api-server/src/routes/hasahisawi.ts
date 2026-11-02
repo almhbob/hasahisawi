@@ -10548,7 +10548,7 @@ async function sendExpoPushToUser(userId: number, title: string, body: string, d
   } catch (e) { logger.error({ err: e }, "Push send error"); }
 }
 
-async function sendExpoPushBroadcast(title: string, body: string, data?: any, channelId = "hasahisawi-default") {
+export async function sendExpoPushBroadcast(title: string, body: string, data?: any, channelId = "hasahisawi-default") {
   try {
     const { rows } = await query(`SELECT token FROM push_tokens WHERE token LIKE 'ExponentPushToken%'`);
     if (!rows.length) return;

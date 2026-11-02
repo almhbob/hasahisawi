@@ -22,6 +22,7 @@ import socialPlusRouter, { ensureSocialPlus } from "./social-plus";
 import volunteerRouter, { ensureVolunteerDb } from "./volunteer";
 import contestsRouter, { ensureContestsDb } from "./contests";
 import callsRouter from "./calls";
+import campaignRouter from "./campaign";
 import zawajilAdminRouter from "./zawajil-admin";
 
 import redCrescentRouter, { ensureRedCrescentDb } from "./red-crescent";
@@ -51,6 +52,7 @@ router.use(redCrescentRouter);
 router.use(invitesRouter);
 router.use(contestsRouter);
 router.use(callsRouter);
+router.use(campaignRouter);
 router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
