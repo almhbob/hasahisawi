@@ -41,7 +41,8 @@ function Hazard({ w, h }: { w: number; h: number }) {
 
 export function SrcsCardFront({ m, holder, width }: { m: SrcsMember; holder: Holder; width: number }) {
   const u = width / BASE, h = width * CARD_RATIO;
-  const valid = m.status === "active" && !!m.card_expires_at && new Date(m.card_expires_at) > new Date();
+  const revoked = !!m.revoked_at || m.status === "banned";
+  const valid = !revoked && m.status === "active" && !!m.card_expires_at && new Date(m.card_expires_at) > new Date();
   const z = (n: number) => n * u;
   return (
     <View style={{ width, height: h, borderRadius: z(18), overflow: "hidden", backgroundColor: SRCS_RED_DEEP }}>
@@ -79,11 +80,12 @@ export function SrcsCardFront({ m, holder, width }: { m: SrcsMember; holder: Hol
             <View style={{ paddingHorizontal: z(8), paddingVertical: z(1), borderRadius: z(8), backgroundColor: "#fff" }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: z(10), lineHeight: z(15), color: SRCS_RED_DEEP }}>{ROLE_LABEL[m.role]}</Text>
             </View>
-            <View style={{ paddingHorizontal: z(7), paddingVertical: z(1), borderRadius: z(8), backgroundColor: valid ? "#16A34A" : "#B45309" }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: z(9), lineHeight: z(14), color: "#fff" }}>{valid ? "سارية" : "غير سارية"}</Text>
+            <View style={{ paddingHorizontal: z(7), paddingVertical: z(1), borderRadius: z(8), backgroundColor: revoked ? "#111827" : valid ? "#16A34A" : "#B45309" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: z(9), lineHeight: z(14), color: "#fff" }}>{revoked ? "ملغاة" : valid ? "سارية" : "غير سارية"}</Text>
             </View>
           </View>
-          {m.unit ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: z(9.5), lineHeight: z(14), color: "rgba(255,255,255,0.9)", textAlign: "right" }} numberOfLines={1}>{m.unit}</Text> : null}
+          {m.unit ? <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: z(9.5), lineHeight: z(14), color: "#fff", textAlign: "right" }} numberOfLines={1}>الوحدة: {m.unit}</Text> : null}
+          {m.affiliation ? <Text style={{ fontFamily: "Cairo_400Regular", fontSize: z(9), lineHeight: z(13), color: "rgba(255,255,255,0.9)", textAlign: "right" }} numberOfLines={1}>الجهة: {m.affiliation}</Text> : null}
         </View>
       </View>
 
@@ -96,6 +98,14 @@ export function SrcsCardFront({ m, holder, width }: { m: SrcsMember; holder: Hol
           </View>
         ))}
       </View>
+
+      {revoked ? (
+        <View pointerEvents="none" style={{ position: "absolute", top: h * 0.32, left: width * 0.18, right: width * 0.18, alignItems: "center", transform: [{ rotate: "-14deg" }] }}>
+          <View style={{ borderWidth: z(3), borderColor: "#FFFFFF", borderRadius: z(10), paddingHorizontal: z(14), paddingVertical: z(2), backgroundColor: "rgba(17,24,39,0.55)" }}>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: z(22), lineHeight: z(32), color: "#fff" }}>بطاقة ملغاة</Text>
+          </View>
+        </View>
+      ) : null}
 
       {/* شريط التنبيه */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}>
