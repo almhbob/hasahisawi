@@ -1,0 +1,44 @@
+name: SRCS UI screenshots (temporary)
+on:
+  push:
+    branches: [tmp/srcs-shots]
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: pnpm install --no-frozen-lockfile --ignore-scripts
+      - name: API
+        working-directory: artifacts/api-server
+        run: |
+          node build.mjs
+          DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres NODE_ENV=development PORT=8080 nohup node dist/index.mjs > /tmp/api.log 2>&1 &
+      - name: Web export
+        working-directory: artifacts/hasahisawi
+        run: EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npx expo export --platform web --clear
+      - name: Shots
+        run: |
+          mkdir -p /tmp/t && cd /tmp/t && npm init -y >/dev/null && npm i pg playwright serve >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+          (cd $GITHUB_WORKSPACE/artifacts/hasahisawi/dist && nohup npx --prefix /tmp/t serve -s -l 3000 . > /tmp/serve.log 2>&1 &)
+          for i in $(seq 1 120); do node -e "const pg=require('pg');const c=new pg.Client('postgres://postgres:postgres@127.0.0.1:5432/postgres');c.connect().then(()=>c.query(\"select to_regclass('public.admin_alerts') is not null and to_regclass('public.srcs_audit') is not null as ok\")).then(r=>process.exit(r.rows[0].ok?0:1)).catch(()=>process.exit(1))" && break; sleep 3; done
+          mkdir -p /tmp/out && cp $GITHUB_WORKSPACE/.shots/shots.mjs /tmp/t/ && OUT=/tmp/out node shots.mjs | tee /tmp/out/log.txt
+      - name: Publish
+        if: always()
+        run: |
+          cd /tmp/out
+          git init -q && git checkout -q -b tmp/srcs-shots-out
+          git config user.name ci && git config user.email ci@example.com
+          git add -A && git commit -qm shots
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tmp/srcs-shots-out

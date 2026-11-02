@@ -1,0 +1,70 @@
+// لقطات شاشة لواجهات الهلال الأحمر على نسخة الويب مع خادم محلي وبيانات تجريبية
+import pg from "pg";
+import { randomBytes } from "node:crypto";
+import { chromium } from "playwright";
+const API = "http://127.0.0.1:8080", WEB = "http://localhost:3000";
+const db = new pg.Client({ connectionString: "postgres://postgres:postgres@127.0.0.1:5432/postgres" }); await db.connect();
+const call = async (m, p, t, b) => { const r = await fetch(API + "/api" + p, { method: m, headers: { ...(t ? { Authorization: "Bearer " + t } : {}), ...(b ? { "Content-Type": "application/json" } : {}) }, body: b ? JSON.stringify(b) : undefined }); return r.json().catch(() => ({})); };
+let n = 0;
+async function user(name, role = "user") {
+  n++; const tag = `${Date.now()}${n}`;
+  const u = await db.query(`INSERT INTO users (name, email, phone, national_id, password_hash, role) VALUES ($1,$2,$3,$4,'x',$5) RETURNING id`, [name, `s${tag}@t.l`, `09${tag.slice(-8)}`, `N-${tag}`, role]);
+  const token = randomBytes(16).toString("hex");
+  await db.query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [u.rows[0].id, token]);
+  return { id: u.rows[0].id, token, name, role };
+}
+const boss = await user("عاصم المحبوب", "admin");
+const medic = await user("محمد أحمد عبدالله", "user");
+const vol = await user("سارة عثمان", "user");
+await call("GET", "/profile/me", medic.token);
+const img = "https://images.unsplash.com/photo-1584515933487-779824d29309?w=600";
+await call("POST", "/srcs/join", medic.token, { desired_role: "paramedic", national_id_no: "11223344556", id_doc_url: img, cert_doc_url: img, blood_type: "O+", experience: "3 سنوات في الإسعاف الميداني" });
+await call("POST", "/srcs/join", vol.token, { desired_role: "paramedic", national_id_no: "99887766", id_doc_url: img, cert_doc_url: img });
+const mem = (await call("GET", "/srcs/admin/members", boss.token)).members;
+const mm = mem.find((m) => m.user_id === medic.id);
+const co = (await call("POST", "/srcs/admin/cohorts", boss.token, { name: "دفعة الإسعاف 2026" })).cohort;
+await call("PATCH", `/srcs/admin/members/${mm.id}`, boss.token, { status: "active", role: "paramedic", unit: "فريق الاستجابة السريعة", affiliation: "مستشفى الحصاحيصا التعليمي", cohort_id: co.id });
+await call("POST", "/srcs/admin/meetings", boss.token, { title: "الاجتماع الدوري لفريق الاستجابة", place: "مقر فرعية الهلال الأحمر — الحصاحيصا", starts_at: new Date(Date.now() + 2 * 86400e3).toISOString(), ends_at: new Date(Date.now() + 2 * 86400e3 + 7200e3).toISOString(), agenda: "مراجعة خطة الطوارئ للموسم" });
+const c = (await call("POST", "/srcs/admin/courses", boss.token, { title: "الإسعافات الأولية المتقدمة", kind: "course", place: "قاعة التدريب بالفرعية", trainer: "د. خالد إبراهيم", starts_at: new Date(Date.now() - 86400e3).toISOString(), ends_at: new Date(Date.now() + 5 * 86400e3).toISOString(), seats: 30, cert_hours: 24, description: "الإنعاش القلبي الرئوي، التعامل مع النزيف والكسور، نقل المصابين بأمان.", files: [{ name: "الحقيبة التدريبية.pdf", url: "https://example.com/a.pdf", type: "application/pdf" }, { name: "دليل الإنعاش.pdf", url: "https://example.com/b.pdf", type: "application/pdf" }] })).course;
+await call("POST", "/srcs/admin/courses", boss.token, { title: "ورشة الدعم النفسي في الكوارث", kind: "workshop", place: "مستشفى الحصاحيصا", trainer: "أ. منى", starts_at: new Date(Date.now() + 9 * 86400e3).toISOString(), seats: 20 });
+await call("POST", `/srcs/courses/${c.id}/enroll`, medic.token);
+const enr = (await call("GET", `/srcs/admin/courses/${c.id}/enrollments`, boss.token)).enrollments;
+await call("POST", `/srcs/admin/courses/${c.id}/results`, boss.token, { rows: [{ id: enr[0].id, score: 88, attended: true }] });
+await call("PATCH", `/srcs/admin/courses/${c.id}`, boss.token, { results_published: true });
+await call("PATCH", "/srcs/admin/settings", boss.token, { cert_price: 5000, cert_currency: "جنيه", cert_payment_info: "حوّل عبر تطبيق بنكك إلى الحساب 1234567 باسم فرعية الهلال الأحمر، ثم أدخل رقم الإشعار." });
+const cert = await call("POST", `/srcs/courses/${c.id}/certificate`, medic.token, { payment_ref: "BK-55120" });
+console.log("cert", cert.enrollment?.cert_status);
+
+const browser = await chromium.launch();
+async function shoot(u, path, file, actions) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1.5, locale: "ar" });
+  await ctx.addInitScript(([t, usr]) => { localStorage.setItem("auth_session_token", t); localStorage.setItem("auth_user_data", JSON.stringify(usr)); }, [u.token, { id: u.id, name: u.name, role: u.role }]);
+  const p = await ctx.newPage();
+  p.on("pageerror", (e) => console.log("PAGEERR", file, e.message));
+  await p.goto(WEB + path, { waitUntil: "networkidle" }).catch(() => {});
+  await p.waitForTimeout(3500);
+  if (actions) await actions(p);
+  await p.screenshot({ path: `${process.env.OUT || "/tmp/shots"}/${file}.jpg`, type: "jpeg", quality: 70, fullPage: false });
+  console.log("shot", file);
+  await ctx.close();
+}
+const tap = async (p, text) => { await p.getByText(text, { exact: false }).first().click({ timeout: 5000 }).catch((e) => console.log("tap miss", text)); await p.waitForTimeout(1500); };
+await shoot(medic, "/red-crescent", "01-home");
+await shoot(medic, "/red-crescent-card", "02-card");
+await shoot(medic, "/red-crescent-card", "03-card-zoom", (p) => tap(p, "اضغط للتكبير"));
+await shoot(medic, "/red-crescent-courses", "04-courses");
+await shoot(medic, "/red-crescent-courses", "05-course-sheet", (p) => tap(p, "الإسعافات الأولية المتقدمة"));
+await shoot(medic, "/red-crescent-courses?tab=mine", "06-mine");
+await shoot(vol, "/red-crescent", "07-join", (p) => tap(p, "طلب الانضمام"));
+await shoot(boss, "/red-crescent-admin", "08-admin-dash");
+await shoot(boss, "/red-crescent-admin", "09-admin-requests", (p) => tap(p, "الطلبات"));
+await shoot(boss, "/red-crescent-admin", "10-admin-members", (p) => tap(p, "الأعضاء"));
+await shoot(boss, "/red-crescent-admin", "11-member-edit", async (p) => { await tap(p, "الأعضاء"); await tap(p, "تعديل وصلاحيات"); });
+await shoot(boss, "/red-crescent-admin", "12-meeting-form", async (p) => { await tap(p, "الاجتماعات"); await tap(p, "اجتماع جديد"); });
+await shoot(boss, "/red-crescent-admin", "13-datepicker", async (p) => { await tap(p, "الاجتماعات"); await tap(p, "اجتماع جديد"); await tap(p, "اختر التاريخ والوقت"); });
+await shoot(boss, "/red-crescent-admin", "14-courses-admin", (p) => tap(p, "الدورات والنتائج"));
+await shoot(boss, "/red-crescent-admin", "15-enrollments", async (p) => { await tap(p, "الدورات والنتائج"); await tap(p, "المسجلون والنتائج"); });
+await shoot(boss, "/red-crescent-admin", "16-cohorts", (p) => tap(p, "الدفعات والسجل"));
+await shoot(boss, "/red-crescent-admin", "17-audit", async (p) => { await p.mouse.wheel(0, 0); await tap(p, "سجل التدقيق"); });
+await shoot(boss, "/red-crescent-admin", "18-settings", (p) => tap(p, "الإعدادات"));
+await browser.close(); await db.end();
