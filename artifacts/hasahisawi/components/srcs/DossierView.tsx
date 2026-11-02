@@ -136,7 +136,7 @@ const s = StyleSheet.create({
   pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
   pillTxt: { fontFamily: "Cairo_700Bold", fontSize: 11.5 },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
-  info: { width: "31.8%", padding: 8, borderRadius: 10, backgroundColor: Colors.bg },
+  info: { width: "48.8%", padding: 8, borderRadius: 10, backgroundColor: Colors.bg },
   infoK: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: Colors.textMuted, textAlign: "right" },
   infoV: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.text, textAlign: "right" },
   secTitle: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.text, textAlign: "right" },

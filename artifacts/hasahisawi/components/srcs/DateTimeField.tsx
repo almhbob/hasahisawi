@@ -105,14 +105,16 @@ function PickerModal({ visible, value, withTime, minDate, title, onClose, onPick
                     ))}
                   </View>
                 </View>
+                <Text style={st.sub}>الساعة</Text>
                 <View style={st.chips}>
                   {HOURS12.map((v) => (
                     <TouchableOpacity key={v} onPress={() => setHour12(v)} style={[st.chip, h12 === v && st.chipOn]}><Text style={[st.chipTxt, h12 === v && { color: "#fff" }]}>{v}</Text></TouchableOpacity>
                   ))}
                 </View>
+                <Text style={st.sub}>الدقائق</Text>
                 <View style={st.chips}>
                   {MINUTES.map((v) => (
-                    <TouchableOpacity key={v} onPress={() => setMin(v)} style={[st.chip, sel.getMinutes() === v && st.chipOn]}><Text style={[st.chipTxt, sel.getMinutes() === v && { color: "#fff" }]}>:{String(v).padStart(2, "0")}</Text></TouchableOpacity>
+                    <TouchableOpacity key={v} onPress={() => setMin(v)} style={[st.chip, sel.getMinutes() === v && st.chipOn]}><Text style={[st.chipTxt, sel.getMinutes() === v && { color: "#fff" }]}>{String(v).padStart(2, "0")}</Text></TouchableOpacity>
                   ))}
                 </View>
               </View>
@@ -151,6 +153,7 @@ const st = StyleSheet.create({
   ampmBtn: { paddingHorizontal: 14, height: 30, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   ampmOn: { backgroundColor: SRCS_RED },
   ampmTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.text },
+  sub: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   chip: { minWidth: 46, height: 36, paddingHorizontal: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", backgroundColor: Colors.bg },
   chipOn: { backgroundColor: SRCS_RED, borderColor: SRCS_RED },

@@ -117,7 +117,7 @@ export function AuditPanel() {
         <View key={r.id} style={st.audit}>
           <View style={st.aIcon}><Ionicons name={icon(r.action) as any} size={16} color={r.action === "ban" || r.action === "cert_revoke" ? "#B91C1C" : SRCS_RED} /></View>
           <View style={{ flex: 1, gap: 1 }}>
-            <Text style={s.itemTitle}>{AUDIT_LABEL[r.action] ?? r.action} — <Text style={{ fontFamily: "Cairo_400Regular" }}>{r.target.replace(/^\w+:\d+\s*/, "") || r.target}</Text></Text>
+            <Text style={s.itemTitle}>{AUDIT_LABEL[r.action] ?? r.action} — <Text style={{ fontFamily: "Cairo_400Regular" }}>{r.target === "certificate" ? "الشهادة الإلكترونية" : r.target.replace(/^\w+:\S+\s*/, "") || r.target}</Text></Text>
             <Text style={s.meta}>بواسطة {r.actor_name || "النظام"} · {new Date(r.created_at).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</Text>
             {summary(r) ? <Text style={[s.meta, { color: Colors.textSecondary }]} numberOfLines={3}>{summary(r)}</Text> : null}
           </View>
@@ -134,7 +134,16 @@ function summary(r: SrcsAudit): string {
     return `${FIELD_AR[k] ?? k}: ${val}`;
   }).join(" · ");
 }
-const fmt = (v: unknown) => { if (v === true) return "نعم"; if (v === false) return "لا"; if (v === null || v === undefined || v === "") return "—"; const s = String(v); return s.length > 60 ? s.slice(0, 60) + "…" : s; };
+const VALUE_AR: Record<string, string> = {
+  volunteer: "متطوع", paramedic: "مسعف", leader: "قائد فريق", admin: "إدارة الفرع",
+  active: "نشط", pending: "معلّق", suspended: "موقوف", rejected: "مرفوض", banned: "محظور",
+  requests: "الطلبات", members: "الأعضاء", meetings: "الاجتماعات", announcements: "الإعلانات", activities: "الأنشطة",
+  courses: "الدورات", results: "النتائج", cohorts: "الدفعات", certificates: "الشهادات", csv: "Excel", html: "طباعة",
+};
+const fmt = (v: unknown): string => {
+  if (typeof v === "string" && /^\[.*\]$/.test(v)) { try { const a = JSON.parse(v); if (Array.isArray(a)) return a.length ? a.map((x) => VALUE_AR[x] ?? x).join("، ") : "لا شيء"; } catch { /* */ } }
+  if (typeof v === "string" && VALUE_AR[v]) return VALUE_AR[v];
+  if (v === true) return "نعم"; if (v === false) return "لا"; if (v === null || v === undefined || v === "") return "—"; const s = String(v); return s.length > 60 ? s.slice(0, 60) + "…" : s; };
 
 const s = StyleSheet.create({ ...srcsStyles });
 const st = StyleSheet.create({
