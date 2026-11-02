@@ -1,20 +1,16 @@
 // بطاقة المسعف/المتطوع الرقمية — الهلال الأحمر السوداني، فرعية الحصاحيصا
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Share, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Share, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-import QRCode from "react-native-qrcode-svg";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
-import { StarPattern } from "@/components/ui/Ornament";
 import { notify, openExternal } from "@/lib/xplatform";
 import { srcsStyles } from "@/components/srcs/styles";
-import RedCrescentMark from "@/components/srcs/RedCrescentMark";
-import { srcsApi, openMusifOrHelp, musifVerifyUrl, ROLE_LABEL, SRCS_RED, SRCS_RED_DEEP, type SrcsMember } from "@/lib/red-crescent";
-
-const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("ar-EG", { year: "numeric", month: "long" }) : "—");
+import ZoomViewer from "@/components/srcs/ZoomViewer";
+import { SrcsCardFront, SrcsCardBack, CARD_RATIO } from "@/components/srcs/SrcsIdCard";
+import { srcsApi, openMusifOrHelp, musifVerifyUrl, SRCS_RED, type SrcsMember } from "@/lib/red-crescent";
 
 export default function SrcsCardScreen() {
   const insets = useSafeAreaInsets();
@@ -23,6 +19,11 @@ export default function SrcsCardScreen() {
   const [loading, setLoading] = useState(true);
   const [musif, setMusif] = useState("");
   const [saving, setSaving] = useState(false);
+  const [viewer, setViewer] = useState(false);
+  const [viewerPage, setViewerPage] = useState(0);
+  const { width: sw } = useWindowDimensions();
+  const cardW = Math.min(sw - 32, 520);
+  const holder = { name: user?.name, avatar_url: user?.avatar_url };
 
   const load = useCallback(async () => {
     try {
@@ -33,7 +34,6 @@ export default function SrcsCardScreen() {
   }, [token]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const valid = !!m && m.status === "active" && !!m.card_expires_at && new Date(m.card_expires_at) > new Date();
   const saveMusif = async () => {
     if (!token) return;
     setSaving(true);
@@ -65,43 +65,28 @@ export default function SrcsCardScreen() {
           </View>
         ) : (
           <>
-            {/* الوجه الأمامي */}
-            <LinearGradient colors={[SRCS_RED_DEEP, SRCS_RED, "#DC2626"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.idCard}>
-              <StarPattern color="#FFFFFF" opacity={0.08} size={36} />
-              <View style={s.idTop}>
-                <View style={s.idLogo}><RedCrescentMark size={30} background={null} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.idOrg}>جمعية الهلال الأحمر السوداني</Text>
-                  <Text style={s.idBranch}>فرعية الحصاحيصا</Text>
-                </View>
-                <View style={[s.state, { backgroundColor: valid ? "#16A34A" : "#B45309" }]}><Text style={s.stateTxt}>{valid ? "سارية" : "غير سارية"}</Text></View>
-              </View>
-              <View style={s.idBody}>
-                <View style={s.photo}>
-                  {user?.avatar_url ? <Image source={{ uri: user.avatar_url }} style={{ width: "100%", height: "100%" }} /> :
-                    <Text style={s.photoTxt}>{(user?.name || "؟").trim().charAt(0)}</Text>}
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={s.idName} numberOfLines={2}>{user?.name}</Text>
-                  <View style={s.rolePill}><Text style={s.roleTxt}>{ROLE_LABEL[m.role]}</Text></View>
-                  {m.unit ? <Text style={s.idLine} numberOfLines={1}>{m.unit}</Text> : null}
-                </View>
-              </View>
-              <View style={s.idGrid}>
-                <Field k="رقم البطاقة" v={m.card_no} ltr />
-                <Field k="فصيلة الدم" v={m.blood_type || "—"} ltr />
-                <Field k="صادرة" v={fmt(m.card_issued_at)} />
-                <Field k="صالحة حتى" v={fmt(m.card_expires_at)} />
-              </View>
-            </LinearGradient>
-
-            {/* التحقق */}
-            <View style={[s.card, { alignItems: "center" }]}>
-              <Text style={s.cardTitle}>رمز التحقق</Text>
-              <Text style={[s.hint, { textAlign: "center" }]}>يمسحه أي شخص بكاميرا هاتفه للتأكد من صلاحية بطاقتك.</Text>
-              {m.card_url ? <View style={s.qrBox}><QRCode value={m.card_url} size={190} color={SRCS_RED_DEEP} backgroundColor="#fff" /></View> : null}
-              {m.card_url ? <TouchableOpacity onPress={() => openExternal(m.card_url!)}><Text style={s.link}>فتح صفحة التحقق</Text></TouchableOpacity> : null}
+            {/* البطاقة — اضغط للتكبير */}
+            <TouchableOpacity activeOpacity={0.92} onPress={() => { setViewerPage(0); setViewer(true); }} accessibilityRole="imagebutton" accessibilityLabel="عرض البطاقة مكبّرة">
+              <SrcsCardFront m={m} holder={holder} width={cardW} />
+              <View style={s.zoomTag}><Ionicons name="expand" size={14} color="#fff" /><Text style={s.zoomTagTxt}>اضغط للتكبير</Text></View>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.92} onPress={() => { setViewerPage(1); setViewer(true); }} accessibilityRole="imagebutton" accessibilityLabel="عرض ظهر البطاقة ورمز التحقق مكبّراً">
+              <SrcsCardBack m={m} holder={holder} width={cardW} />
+            </TouchableOpacity>
+            <View style={s.notice}>
+              <Ionicons name="information-circle" size={18} color={SRCS_RED} />
+              <Text style={[s.hint, { flex: 1 }]}>اعرض البطاقة مكبّرة عند بوابات المستشفيات ونقاط التفتيش؛ يمكن لأي جهة مسح رمز التحقق للتأكد من صلاحيتها فوراً.</Text>
             </View>
+            {m.card_url ? (
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <TouchableOpacity style={s.primary} onPress={() => { setViewerPage(0); setViewer(true); }}><Ionicons name="expand" size={18} color="#fff" /><Text style={s.primaryTxt}>عرض بملء الشاشة</Text></TouchableOpacity>
+                <TouchableOpacity style={s.ghost} onPress={() => openExternal(m.card_url!)}><Ionicons name="shield-checkmark-outline" size={16} color={SRCS_RED} /><Text style={s.ghostTxt}>صفحة التحقق</Text></TouchableOpacity>
+              </View>
+            ) : null}
+            <ZoomViewer visible={viewer} onClose={() => setViewer(false)} initial={viewerPage} pages={[
+              { label: "الوجه", ratio: CARD_RATIO, render: (w) => <SrcsCardFront m={m} holder={holder} width={w} /> },
+              { label: "الظهر والتحقق", ratio: CARD_RATIO, render: (w) => <SrcsCardBack m={m} holder={holder} width={w} /> },
+            ]} />
 
             {/* الربط مع مسعف */}
             <View style={s.card}>
@@ -126,35 +111,9 @@ export default function SrcsCardScreen() {
   );
 }
 
-function Field({ k, v, ltr }: { k: string; v: string; ltr?: boolean }) {
-  return (
-    <View style={s.field}>
-      <Text style={s.fieldK}>{k}</Text>
-      <Text style={[s.fieldV, ltr && { writingDirection: "ltr" }]} numberOfLines={1}>{v}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   ...srcsStyles,
-  idCard: { borderRadius: 24, padding: 16, gap: 14, overflow: "hidden", minHeight: 230 },
-  idTop: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
-  idLogo: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  idOrg: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" },
-  idBranch: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.85)", textAlign: "right" },
-  state: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  stateTxt: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
-  idBody: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
-  photo: { width: 74, height: 88, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 2, borderColor: "#fff", overflow: "hidden", alignItems: "center", justifyContent: "center" },
-  photoTxt: { fontFamily: "Cairo_700Bold", fontSize: 32, color: "#fff" },
-  idName: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#fff", textAlign: "right" },
-  rolePill: { alignSelf: "flex-end", paddingHorizontal: 10, paddingVertical: 2, borderRadius: 10, backgroundColor: "#fff" },
-  roleTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: SRCS_RED_DEEP },
-  idLine: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "right" },
-  idGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
-  field: { width: "48%", padding: 8, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.18)" },
-  fieldK: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.8)", textAlign: "right" },
-  fieldV: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff", textAlign: "right" },
-  qrBox: { padding: 12, borderRadius: 18, backgroundColor: "#fff", borderWidth: 3, borderColor: SRCS_RED },
-  link: { fontFamily: "Cairo_700Bold", fontSize: 13, color: SRCS_RED },
+  zoomTag: { position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.35)" },
+  zoomTagTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  notice: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 14, backgroundColor: SRCS_RED + "0D", borderWidth: 1, borderColor: SRCS_RED + "30" },
 });

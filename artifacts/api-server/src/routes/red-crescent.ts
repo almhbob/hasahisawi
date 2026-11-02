@@ -94,6 +94,10 @@ export function ensureRedCrescentDb(): Promise<void> {
         PRIMARY KEY (activity_id, user_id)
       )`);
       await query(`CREATE INDEX IF NOT EXISTS idx_srcs_members_status ON srcs_members(status, role)`);
+      // مستندات طلب الانضمام (تُراجعها إدارة الفرع): الرقم الوطني + صورة الهوية + صورة الشهادة
+      await query(`ALTER TABLE srcs_members ADD COLUMN IF NOT EXISTS national_id_no VARCHAR(24)`);
+      await query(`ALTER TABLE srcs_members ADD COLUMN IF NOT EXISTS id_doc_url TEXT`);
+      await query(`ALTER TABLE srcs_members ADD COLUMN IF NOT EXISTS cert_doc_url TEXT`);
     })().catch((e) => { ready = null; throw e; });
   }
   return ready;
@@ -197,18 +201,25 @@ router.post("/srcs/join", writeLimiter, async (req: Request, res: Response) => {
     const b = req.body || {};
     const desired = ROLES.includes(b.desired_role) && b.desired_role !== "admin" ? b.desired_role : "volunteer";
     const blood = BLOOD.includes(String(b.blood_type)) ? String(b.blood_type) : null;
+    const docUrl = (v: unknown) => { const u = str(v, 600); return /^https:\/\//.test(u) ? u : null; };
+    const nid = str(b.national_id_no, 30).replace(/\s/g, "");
+    const nationalId = /^\d{6,20}$/.test(nid) ? nid : null;
+    const idDoc = docUrl(b.id_doc_url), certDoc = docUrl(b.cert_doc_url);
+    if (desired === "paramedic" && (!nationalId || !idDoc || !certDoc))
+      return res.status(400).json({ error: "طلب المسعف يتطلب الرقم الوطني وصورة الهوية وصورة الشهادة لمراجعتها" });
     const cur = await membership(me.id);
     if (cur && (cur.status === "active" || cur.status === "pending"))
       return res.status(409).json({ error: cur.status === "active" ? "أنت عضو بالفعل" : "طلبك قيد المراجعة" });
     const r = await query(
-      `INSERT INTO srcs_members (user_id, desired_role, role, status, unit, phone, blood_type, experience, certifications, musif_code)
-       VALUES ($1,$2,'volunteer','pending',$3,$4,$5,$6,$7,$8)
+      `INSERT INTO srcs_members (user_id, desired_role, role, status, unit, phone, blood_type, experience, certifications, musif_code, national_id_no, id_doc_url, cert_doc_url)
+       VALUES ($1,$2,'volunteer','pending',$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (user_id) DO UPDATE SET desired_role=$2, status='pending', unit=$3, phone=$4, blood_type=$5,
-         experience=$6, certifications=$7, musif_code=$8, admin_note=NULL, created_at=NOW()
+         experience=$6, certifications=$7, musif_code=$8, national_id_no=$9, id_doc_url=$10, cert_doc_url=$11, admin_note=NULL, created_at=NOW()
        RETURNING *`,
-      [me.id, desired, str(b.unit, 120) || null, str(b.phone, 30) || me.phone || null, blood, str(b.experience) || null, str(b.certifications) || null, str(b.musif_code, 40) || null]);
+      [me.id, desired, str(b.unit, 120) || null, str(b.phone, 30) || me.phone || null, blood, str(b.experience) || null, str(b.certifications) || null, str(b.musif_code, 40) || null,
+       nationalId, idDoc, certDoc]);
     const admins = (await query(`SELECT user_id FROM srcs_members WHERE status='active' AND role='admin'`)).rows.map((x: any) => Number(x.user_id));
-    notifyUsers(admins, "🚑 طلب انضمام جديد", `${me.name} يطلب الانضمام ${desired === "paramedic" ? "كمسعف" : "كمتطوع"}`, { kind: "srcs_request" });
+    notifyUsers(admins, "🚑 طلب انضمام جديد", `${me.name} يطلب الانضمام ${desired === "paramedic" ? "كمسعف — المستندات مرفقة للمراجعة" : "كمتطوع"}`, { kind: "srcs_request" });
     return res.json({ membership: r.rows[0] });
   } catch (err) { return fail(res, err, "join"); }
 });
@@ -269,6 +280,7 @@ router.get("/public/srcs/verify/:token", async (req: Request, res: Response) => 
 ${c ? `<div class="r"><span>الاسم</span><b>${esc(c.name)}</b></div><div class="r"><span>الصفة</span><b>${esc(ROLE_LABEL[c.role as Role] || c.role)}</b></div>
 <div class="r"><span>رقم البطاقة</span><b dir="ltr">${esc(c.card_no)}</b></div>${c.blood_type ? `<div class="r"><span>فصيلة الدم</span><b dir="ltr">${esc(c.blood_type)}</b></div>` : ""}
 ${c.musif_code ? `<div class="r"><span>مستجيب في «مسعف»</span><b><a href="https://musif.app/v/${encodeURIComponent(c.musif_code)}">تحقق</a></b></div>` : ""}` : ""}
+${valid ? `<div style="margin:6px 16px 0;padding:12px;border-radius:14px;background:#FFF7D6;border:1px solid #FACC15;color:#3F1D0B;font-size:13.5px;line-height:1.9;font-weight:bold">⚠️ يُرجى تسهيل مهمة حامل هذه البطاقة والسماح له بدخول المرافق الصحية وجميع الأماكن عند الضرورة لتقديم العون والمساندة.</div>` : ""}
 <div class="f">صادرة عبر تطبيق حصاحيصاوي · ${new Date().toLocaleString("ar-EG")}</div></div></body></html>`);
   } catch (err) { logger.error({ err }, "[srcs] verify"); return res.status(500).send("خطأ"); }
 });

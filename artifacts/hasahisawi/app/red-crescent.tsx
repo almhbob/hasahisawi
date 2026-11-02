@@ -9,6 +9,8 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { StarPattern } from "@/components/ui/Ornament";
 import { notify } from "@/lib/xplatform";
+import * as ImagePicker from "expo-image-picker";
+import { uploadFile } from "@/lib/firebase/storage";
 import {
   srcsApi, openMusifOrHelp, ROLE_LABEL, ACTIVITY_TYPES, BLOOD_TYPES, SRCS_RED, SRCS_RED_DEEP,
   type SrcsOverview, type SrcsRole,
@@ -222,12 +224,40 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
   const [blood, setBlood] = useState("");
   const [experience, setExperience] = useState("");
   const [certs, setCerts] = useState("");
+  const [nid, setNid] = useState("");
+  const [idDoc, setIdDoc] = useState<string | null>(null);
+  const [certDoc, setCertDoc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<"" | "id" | "cert">("");
   const [busy, setBusy] = useState(false);
+  const medic = role === "paramedic";
+
+  // رفع صورة مستند (من الكاميرا أو المعرض) إلى التخزين ثم حفظ رابطها في الطلب
+  const pickDoc = async (kind: "id" | "cert", camera: boolean) => {
+    const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") { notify("الإذن مطلوب", camera ? "اسمح باستخدام الكاميرا لتصوير المستند" : "اسمح بالوصول إلى الصور لاختيار المستند"); return; }
+    const opts: any = { mediaTypes: (ImagePicker as any).MediaTypeOptions?.Images ?? ["images"], quality: 0.8, exif: false };
+    const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    if (r.canceled || !r.assets?.[0]) return;
+    setUploading(kind);
+    try {
+      const a = r.assets[0];
+      const url = await uploadFile(`srcs_docs/${user?.id ?? "u"}/${kind}_${Date.now()}.jpg`, a.uri, { fileName: `${kind}_${Date.now()}.jpg`, mimeType: a.mimeType || "image/jpeg" });
+      kind === "id" ? setIdDoc(url) : setCertDoc(url);
+    } catch (e: any) { notify("تعذّر رفع الصورة", e?.message || "حاول مجدداً"); }
+    finally { setUploading(""); }
+  };
+
   const submit = async () => {
     if (!token) return;
+    if (medic) {
+      if (!/^\d{6,20}$/.test(nid.replace(/\s/g, ""))) return notify("الرقم الوطني مطلوب", "أدخل الرقم الوطني بشكل صحيح (أرقام فقط).");
+      if (!idDoc) return notify("صورة الهوية مطلوبة", "ارفع صورة البطاقة القومية أو الرقم الوطني.");
+      if (!certDoc) return notify("صورة الشهادة مطلوبة", "ارفع صورة شهادة الإسعافات الأولية أو الدورة المعتمدة.");
+    }
     setBusy(true);
     try {
-      await srcsApi.join(token, { desired_role: role, unit, phone, blood_type: blood || null, experience, certifications: certs });
+      await srcsApi.join(token, { desired_role: role, unit, phone, blood_type: blood || null, experience, certifications: certs,
+        national_id_no: nid.replace(/\s/g, "") || null, id_doc_url: idDoc, cert_doc_url: certDoc });
       notify("تم إرسال طلبك", "ستراجعه إدارة الفرع ويصلك إشعار بالنتيجة.");
       onDone();
     } catch (e: any) { notify("تعذّر الإرسال", e?.message); }
@@ -266,7 +296,19 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
             <TextInput value={experience} onChangeText={setExperience} multiline style={[s.input, { height: 80, textAlignVertical: "top" }]} placeholderTextColor={Colors.textMuted} placeholder="اذكر خبرتك ومشاركاتك السابقة" />
             <Text style={s.label}>الشهادات والدورات</Text>
             <TextInput value={certs} onChangeText={setCerts} multiline style={[s.input, { height: 70, textAlignVertical: "top" }]} placeholderTextColor={Colors.textMuted} placeholder="مثال: إسعافات أولية — الهلال الأحمر 2024" />
-            <TouchableOpacity style={[s.primary, { marginTop: 6 }]} onPress={submit} disabled={busy}>
+            {/* المستندات — إلزامية للمسعفين وتُراجعها إدارة الفرع */}
+            <View style={s.docsBox}>
+              <View style={s.row}>
+                <Ionicons name="document-lock" size={18} color={SRCS_RED} />
+                <Text style={[s.cardTitle, { flex: 1 }]}>المستندات {medic ? "(إلزامية للمسعف)" : "(اختيارية)"}</Text>
+              </View>
+              <Text style={s.hint}>تُراجعها إدارة الفرع فقط للتحقق من هويتك ومؤهلك قبل إصدار البطاقة.</Text>
+              <Text style={s.label}>الرقم الوطني{medic ? " *" : ""}</Text>
+              <TextInput value={nid} onChangeText={(t) => setNid(t.replace(/[^\d\s]/g, ""))} keyboardType="number-pad" maxLength={24} style={[s.input, { textAlign: "center", letterSpacing: 1 }]} placeholderTextColor={Colors.textMuted} placeholder="أدخل الرقم الوطني" />
+              <DocSlot label={`صورة البطاقة القومية / الرقم الوطني${medic ? " *" : ""}`} url={idDoc} busy={uploading === "id"} onCamera={() => pickDoc("id", true)} onGallery={() => pickDoc("id", false)} onClear={() => setIdDoc(null)} />
+              <DocSlot label={`صورة الشهادة (إسعافات أولية / دورة معتمدة)${medic ? " *" : ""}`} url={certDoc} busy={uploading === "cert"} onCamera={() => pickDoc("cert", true)} onGallery={() => pickDoc("cert", false)} onClear={() => setCertDoc(null)} />
+            </View>
+            <TouchableOpacity style={[s.primary, { marginTop: 6 }, (busy || !!uploading) && { opacity: 0.6 }]} onPress={submit} disabled={busy || !!uploading}>
               {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryTxt}>إرسال الطلب</Text>}
             </TouchableOpacity>
           </ScrollView>
@@ -276,6 +318,29 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
   );
 }
 
+function DocSlot({ label, url, busy, onCamera, onGallery, onClear }: { label: string; url: string | null; busy: boolean; onCamera: () => void; onGallery: () => void; onClear: () => void }) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={s.label}>{label}</Text>
+      {busy ? (
+        <View style={s.docEmpty}><ActivityIndicator color={SRCS_RED} /><Text style={s.meta}>جارٍ الرفع…</Text></View>
+      ) : url ? (
+        <View style={s.docDone}>
+          <Image source={{ uri: url }} style={s.docThumb} resizeMode="cover" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <View style={s.row}><Ionicons name="checkmark-circle" size={16} color="#16A34A" /><Text style={[s.itemTitle, { fontSize: 13 }]}>تم الرفع</Text></View>
+            <TouchableOpacity onPress={onClear}><Text style={[s.metaStrong]}>استبدال الصورة</Text></TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+          <TouchableOpacity style={s.docBtn} onPress={onCamera}><Ionicons name="camera" size={18} color={SRCS_RED} /><Text style={s.ghostTxt}>تصوير</Text></TouchableOpacity>
+          <TouchableOpacity style={s.docBtn} onPress={onGallery}><Ionicons name="images" size={18} color={SRCS_RED} /><Text style={s.ghostTxt}>من المعرض</Text></TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
 
 const s = StyleSheet.create({
   ...srcsStyles,
@@ -304,4 +369,9 @@ const s = StyleSheet.create({
   actImg: { width: "100%", height: 170 },
   typePill: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: SRCS_RED + "14" },
   typeTxt: { fontFamily: "Cairo_700Bold", fontSize: 11, color: SRCS_RED },
+  docsBox: { gap: 8, padding: 12, borderRadius: 16, backgroundColor: SRCS_RED + "0A", borderWidth: 1, borderColor: SRCS_RED + "30" },
+  docBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, height: 48, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", borderColor: SRCS_RED + "80", backgroundColor: Colors.cardBg },
+  docEmpty: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, height: 64, borderRadius: 12, backgroundColor: Colors.cardBg },
+  docDone: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 8, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "#16A34A55" },
+  docThumb: { width: 72, height: 52, borderRadius: 8, backgroundColor: Colors.bg },
 });

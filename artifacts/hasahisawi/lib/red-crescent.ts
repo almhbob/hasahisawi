@@ -8,7 +8,8 @@ export type SrcsMember = {
   id: number; user_id: number; role: SrcsRole; desired_role: SrcsRole | null; status: "pending" | "active" | "suspended" | "rejected";
   unit: string | null; phone: string | null; blood_type: string | null; experience: string | null; certifications: string | null;
   musif_code: string | null; card_no: string | null; card_issued_at: string | null; card_expires_at: string | null;
-  admin_note: string | null; created_at: string; role_label?: string; card_url?: string | null;
+  admin_note: string | null; created_at: string;
+  national_id_no?: string | null; id_doc_url?: string | null; cert_doc_url?: string | null; role_label?: string; card_url?: string | null;
   name?: string; avatar_url?: string | null; account_phone?: string | null;
 };
 export type SrcsAnnouncement = { id: number; title: string; body: string; audience: string; pinned: boolean; created_at: string };
