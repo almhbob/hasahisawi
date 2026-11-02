@@ -160,8 +160,8 @@ export default function SrcsAdminScreen() {
                 </View>
                 {m.desired_role === "paramedic" && (!m.id_doc_url || !m.cert_doc_url) ? <Text style={[s.meta, { color: Colors.danger }]}>تنبيه: طلب مسعف بمستندات ناقصة — يُفضّل طلب استكمالها قبل القبول.</Text> : null}
               </View>
+              <TouchableOpacity style={[s.primary, { flex: 0 }]} onPress={() => updateMember(m, { status: "active", role: m.desired_role || "volunteer" }, "قُبل الطلب وأُصدرت البطاقة")}><Ionicons name="checkmark-circle" size={18} color="#fff" /><Text style={s.primaryTxt}>قبول وإصدار البطاقة</Text></TouchableOpacity>
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                <TouchableOpacity style={s.primary} onPress={() => updateMember(m, { status: "active", role: m.desired_role || "volunteer" }, "قُبل الطلب وأُصدرت البطاقة")}><Text style={s.primaryTxt}>قبول وإصدار البطاقة</Text></TouchableOpacity>
                 <TouchableOpacity style={s.ghost} onPress={async () => { if (await confirmAction("رفض الطلب", `رفض طلب ${m.name}؟`, "رفض", true)) updateMember(m, { status: "rejected" }); }}><Text style={s.ghostTxt}>رفض</Text></TouchableOpacity>
                 <TouchableOpacity style={s.ghost} onPress={async () => { if (await confirmAction("طلب استكمال المستندات", `إعادة الطلب إلى ${m.name} ليُرفق مستندات واضحة؟`, "إرسال")) updateMember(m, { status: "rejected", admin_note: "المستندات ناقصة أو غير واضحة — أعد التقديم مع صورة واضحة للهوية والشهادة" }); }}><Text style={s.ghostTxt}>استكمال</Text></TouchableOpacity>
               </View>
