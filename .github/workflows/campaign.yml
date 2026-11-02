@@ -1,0 +1,45 @@
+name: Hasahisawi ad campaign (daily)
+# ينشر منشور اليوم من campaign/calendar.json عبر خادم التطبيق (فيسبوك، إنستغرام، تيليجرام، إشعار التطبيق).
+# كل قناة تُنشر مرة واحدة يومياً (الخادم يمنع التكرار). القنوات تُفعَّل بمتغيرات البيئة في Vercel.
+on:
+  schedule:
+    - cron: '0 16 * * *'   # 7:00 مساءً بتوقيت الرياض
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'رقم اليوم (اتركه فارغاً لليوم الحالي)'
+        required: false
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: campaign, cancel-in-progress: false }
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post today's campaign item
+        env:
+          API: https://api-server-gilt-ten.vercel.app
+          DAY: ${{ github.event.inputs.day }}
+        run: |
+          set -euo pipefail
+          tok() { curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-campaign" | jq -r .value; }
+          BODY=$(jq -n --arg d "${DAY:-}" 'if $d == "" then {} else {day: ($d|tonumber)} end')
+          T=$(tok); echo "::add-mask::$T"
+          R=$(curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d "$BODY" "$API/api/campaign/run")
+          echo "$R" | jq .
+          echo "### حملة حصاحيصاوي — النشر" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY; echo "$R" | jq . >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+          if echo "$R" | jq -e '.instagram.container' >/dev/null 2>&1; then
+            for i in 1 2 3 4; do
+              sleep 90
+              T=$(tok); echo "::add-mask::$T"
+              P=$(curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d "$BODY" "$API/api/campaign/run?phase=publish")
+              echo "$P" | jq .
+              echo "$P" | jq -e '.instagram.waiting' >/dev/null 2>&1 || break
+            done
+            echo '```json' >> $GITHUB_STEP_SUMMARY; echo "$P" | jq . >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          if echo "$R" | jq -e '[.facebook, .telegram, .instagram, .push] | map(select(. != null and .error != null)) | length > 0' >/dev/null; then
+            echo "::warning::بعض القنوات فشلت — راجع الملخص"
+          fi
