@@ -10,7 +10,7 @@ import { openExternal } from "@/lib/xplatform";
 import { DOC_KIND_LABEL, ROLE_LABEL, SRCS_RED, type SrcsDoc, type SrcsDossier } from "@/lib/red-crescent";
 
 const d = (s?: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" }) : "—");
-const isImage = (u: string) => /\.(jpe?g|png|webp|heic|gif)(\?|$)/i.test(u) || /image/i.test(u);
+const isImage = (u: string) => /\.(jpe?g|png|webp|heic|gif)(\?|$)/i.test(u) || /image/i.test(u) || /\/pfile\//.test(u);
 const STATUS: Record<string, [string, string]> = {
   active: ["نشط", "#16A34A"], pending: ["قيد المراجعة", "#B45309"], suspended: ["موقوف", "#B45309"], rejected: ["مرفوض", "#6B7280"], banned: ["محظور", "#B91C1C"],
 };
@@ -61,7 +61,7 @@ export default function DossierView({ data, admin, onVerifyDoc, onDeleteDoc, sho
             </TouchableOpacity>
             <View style={{ flex: 1, gap: 1 }}>
               <Text style={s.docTitle} numberOfLines={2}>{doc.title}</Text>
-              <Text style={s.meta}>{DOC_KIND_LABEL[doc.kind] ?? "مستند"} · {d(doc.created_at)}{doc.profile_cert_id ? " · نسخة في الملف الشخصي" : ""}</Text>
+              <Text style={s.meta}>{(doc as any).url_private ? "🔒 " : ""}{DOC_KIND_LABEL[doc.kind] ?? "مستند"} · {d(doc.created_at)}{doc.profile_cert_id ? " · نسخة في الملف الشخصي" : ""}</Text>
               <View style={s.row}>
                 <Ionicons name={doc.verified ? "shield-checkmark" : "time-outline"} size={13} color={doc.verified ? "#16A34A" : Colors.textMuted} />
                 <Text style={[s.meta, { color: doc.verified ? "#16A34A" : Colors.textMuted }]}>{doc.verified ? "موثّق" : "بانتظار التوثيق"}</Text>

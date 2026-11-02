@@ -11,6 +11,7 @@ import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import UserAvatar from "@/components/UserAvatar";
 import { srcsStyles } from "@/components/srcs/styles";
 import DossierView from "@/components/srcs/DossierView";
+import { ExportButtons } from "@/components/srcs/AdminOps";
 import {
   srcsApi, ROLE_LABEL, PERM_LABEL, PERM_ICON, ROLE_DEFAULT_PERMS, SRCS_RED,
   type SrcsMember, type SrcsRole, type SrcsPerm, type SrcsCohort, type SrcsDossier, type SrcsSettings,
@@ -50,7 +51,8 @@ export function MembersList({ members, cohorts, perms, isAppAdmin, onChanged }: 
           {cohorts.map((c) => <TouchableOpacity key={c.id} onPress={() => setCohort(c.id)} style={[s.chip, cohort === c.id && s.chipOn]}><Text style={[s.chipTxt, cohort === c.id && { color: "#fff" }]}>{c.name}</Text></TouchableOpacity>)}
         </RtlScrollRow>
       ) : null}
-      <Text style={s.meta}>{list.length} عضو</Text>
+      <View style={s.row}><Text style={[s.meta, { flex: 1 }]}>{list.length} عضو</Text></View>
+      <ExportButtons kind="members" id={null} compact />
       {list.map((m) => (
         <View key={m.id} style={[s.card, (m.status === "banned" || m.revoked_at) && { borderColor: "#B91C1C55" }]}>
           <TouchableOpacity style={s.row} onPress={() => setDossierFor(m)}>
@@ -245,6 +247,7 @@ export function CohortsPanel({ cohorts, members, onChanged }: { cohorts: SrcsCoh
               <TouchableOpacity style={s.ghost} onPress={() => setAssign((v) => !v)}><Ionicons name="person-add" size={16} color={SRCS_RED} /><Text style={s.ghostTxt}>إضافة أعضاء للدفعة</Text></TouchableOpacity>
               <TouchableOpacity style={[s.ghost, { flex: 0, paddingHorizontal: 12 }]} onPress={async () => { if (open && await confirmAction("حذف الدفعة", "يبقى الأعضاء دون دفعة", "حذف", true)) { await srcsApi.admin.deleteCohort(token!, open.id); setOpen(null); onChanged(); } }}><Ionicons name="trash-outline" size={16} color={SRCS_RED} /></TouchableOpacity>
             </View>
+            {open ? <ExportButtons kind="cohort" id={open.id} compact /> : null}
             <ScrollView contentContainerStyle={{ gap: 6, paddingBottom: 20 }}>
               {assign ? unassigned.map((m) => (
                 <TouchableOpacity key={m.id} style={[s.row, { paddingVertical: 6 }]} onPress={async () => { await srcsApi.admin.updateCohort(token!, open!.id, { member_ids: [m.id] }); onChanged(); }}>

@@ -16,18 +16,19 @@ import ZoomViewer from "@/components/srcs/ZoomViewer";
 import DateTimeField, { fmtDateTime } from "@/components/srcs/DateTimeField";
 import AdminCourses, { PlaceChips } from "@/components/srcs/AdminCourses";
 import { MembersList, CohortsPanel, SettingsPanel } from "@/components/srcs/AdminMembers";
+import { CheckinScanner, ExportButtons, AuditPanel } from "@/components/srcs/AdminOps";
 import {
   srcsApi, ROLE_LABEL, ACTIVITY_TYPES, AUDIENCE_LABEL, SRCS_RED, PERM_LABEL,
   type SrcsMember, type SrcsMeeting, type SrcsActivity, type SrcsRole, type SrcsAnnouncement, type SrcsPerm, type SrcsCohort,
 } from "@/lib/red-crescent";
 
-type Tab = "dash" | "requests" | "members" | "cohorts" | "courses" | "meetings" | "announcements" | "activities" | "settings";
+type Tab = "dash" | "requests" | "members" | "cohorts" | "courses" | "meetings" | "announcements" | "activities" | "audit" | "settings";
 // كل تبويب يظهر لمن يملك إحدى صلاحياته؛ «الإعدادات» لمدير حصاحيصاوي فقط
 const TABS: [Tab, string, keyof typeof Ionicons.glyphMap, SrcsPerm[] | "app" | null][] = [
   ["dash", "اللوحة", "grid", null], ["requests", "الطلبات", "person-add", ["requests"]], ["members", "الأعضاء", "people", ["members"]],
   ["cohorts", "الدفعات والسجل", "albums", ["cohorts"]], ["courses", "الدورات والنتائج", "school", ["courses", "results", "certificates"]],
   ["meetings", "الاجتماعات", "calendar", ["meetings"]], ["announcements", "الإعلانات", "megaphone", ["announcements"]],
-  ["activities", "الأنشطة", "images", ["activities"]], ["settings", "الإعدادات", "settings", "app"],
+  ["activities", "الأنشطة", "images", ["activities"]], ["audit", "سجل التدقيق", "shield-checkmark", ["members"]], ["settings", "الإعدادات", "settings", "app"],
 ];
 const fmt = (s: string, time = false) => new Date(s).toLocaleString("ar-EG", time ? { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", year: "numeric" });
 
@@ -48,6 +49,7 @@ export default function SrcsAdminScreen() {
   const [perms, setPerms] = useState<SrcsPerm[]>([]);
   const [appAdmin, setAppAdmin] = useState(false);
   const [cohorts, setCohorts] = useState<SrcsCohort[]>([]);
+  const [scanFor, setScanFor] = useState<{ title: string; meeting_id?: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -171,6 +173,7 @@ export default function SrcsAdminScreen() {
         {tab === "cohorts" ? <CohortsPanel cohorts={cohorts} members={members} onChanged={load} /> : null}
         {tab === "courses" ? <AdminCourses perms={perms} isAppAdmin={appAdmin} cohorts={cohorts} members={members} /> : null}
         {tab === "settings" && appAdmin ? <SettingsPanel /> : null}
+        {tab === "audit" ? <AuditPanel /> : null}
 
         {tab === "meetings" ? (
           <>
@@ -182,7 +185,9 @@ export default function SrcsAdminScreen() {
                 <View style={s.row}><Ionicons name="location-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{mt.place || "لم يُحدد المكان"} · {AUDIENCE_LABEL[mt.audience]}</Text></View>
                 <Text style={s.meta}>سيحضر {mt.going ?? 0} · حضر فعلاً {mt.attended ?? 0}</Text>
                 {mt.minutes ? <Text style={s.body} numberOfLines={3}>المحضر: {mt.minutes}</Text> : null}
+                <ExportButtons kind="meeting" id={mt.id} compact />
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <TouchableOpacity style={s.ghost} onPress={() => setScanFor({ title: mt.title, meeting_id: mt.id })}><Ionicons name="qr-code" size={16} color={SRCS_RED} /><Text style={s.ghostTxt}>مسح الحضور</Text></TouchableOpacity>
                   <TouchableOpacity style={s.ghost} onPress={() => setAttendFor(mt)}><Text style={s.ghostTxt}>الحضور والمحضر</Text></TouchableOpacity>
                   <TouchableOpacity style={[s.ghost, { flex: 0, paddingHorizontal: 12 }]} onPress={async () => { if (await confirmAction("حذف الاجتماع", mt.title, "حذف", true)) { await srcsApi.admin.deleteMeeting(token!, mt.id); load(); } }}><Ionicons name="trash" size={16} color={SRCS_RED} /></TouchableOpacity>
                 </View>
@@ -223,6 +228,7 @@ export default function SrcsAdminScreen() {
         ) : null}
       </ScrollView>
 
+      <CheckinScanner target={scanFor} onClose={() => { setScanFor(null); load(); }} />
       <FormModal kind={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
       <AttendanceModal meeting={attendFor} onClose={() => setAttendFor(null)} onSaved={() => { setAttendFor(null); load(); }} />
       <ZoomViewer visible={!!docView} onClose={() => setDocView(null)} title={docView?.title} pages={docView ? [{ label: docView.title, ratio: 0.75, render: (w) => <Image source={{ uri: docView.url }} style={{ width: w, height: w * 0.75 }} resizeMode="contain" /> }] : []} />

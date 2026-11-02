@@ -12,6 +12,7 @@ import {
   ensureRedCrescentDb, requirePerm, permsOf, isAppAdmin, membership, notifyUsers, linkDocToProfile,
   ROLE_LABEL, API_PUBLIC_BASE,
 } from "./red-crescent";
+import { acceptDocRef, exposeRow, exposeRows, audit } from "../lib/srcs-shared";
 
 const router = Router();
 router.use(["/srcs", "/public/srcs"], async (_req, res, next) => {
@@ -55,6 +56,7 @@ router.patch("/srcs/admin/settings", writeLimiter, async (req, res) => {
     }
     if (b.cert_currency !== undefined) updates.push(["cert_currency", str(b.cert_currency, 10) || "SDG"]);
     if (b.cert_payment_info !== undefined) updates.push(["cert_payment_info", str(b.cert_payment_info, 1000)]);
+    if (updates.length) audit(Number(me!.id), "settings", "certificate", Object.fromEntries(updates));
     for (const [k, v] of updates)
       await query(`INSERT INTO srcs_settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value=$2, updated_by=$3, updated_at=NOW()`, [k, v, me!.id]);
     const s = await settings();
@@ -148,7 +150,7 @@ router.post("/srcs/courses/:id/certificate", writeLimiter, async (req, res) => {
     const price = Number(s.cert_price) || 0;
     if (price <= 0) { const r = await issueCertificate(e.id, null); return res.json({ enrollment: r, cert_url: r?.cert_token ? certUrl(r.cert_token) : null }); }
     const ref = str(req.body?.payment_ref, 120);
-    const proof = https(req.body?.payment_proof_url);
+    const proof = req.body?.payment_proof_url ? await acceptDocRef(req.body.payment_proof_url, Number(me.id)) : null;
     if (!ref && !proof) return res.status(400).json({ error: "أدخل رقم إيصال التحويل أو أرفق صورة الإشعار" });
     const r = await query(`UPDATE srcs_enrollments SET cert_status='pending', cert_amount=$2, payment_ref=$3, payment_proof_url=$4, cert_note=NULL WHERE id=$1 RETURNING *`,
       [e.id, price, ref || null, proof]);
@@ -235,12 +237,12 @@ async function dossier(userId: number, forAdmin: boolean) {
     query(`SELECT a.id, a.title, a.type, a.happened_at, p.points FROM srcs_activity_participants p JOIN srcs_activities a ON a.id=p.activity_id WHERE p.user_id=$1 ORDER BY a.happened_at DESC LIMIT 50`, [userId]),
     query(`SELECT COUNT(*) FILTER (WHERE attended)::int AS attended, COUNT(*)::int AS invited FROM srcs_meeting_rsvps WHERE user_id=$1`, [userId]),
   ]);
-  const member = m.rows[0] ?? null;
+  const member = exposeRow(m.rows[0] ?? null);
   if (member && !forAdmin) delete member.admin_note;
   return {
     member: member ? { ...member, role_label: ROLE_LABEL[member.role as keyof typeof ROLE_LABEL] } : null,
-    docs: docs.rows,
-    enrollments: enr.rows.map((e: any) => ({ ...e, score: e.results_published || forAdmin ? e.score : null, passed: e.results_published || forAdmin ? e.passed : null, cert_url: e.cert_status === "issued" && e.cert_token ? certUrl(e.cert_token) : null })),
+    docs: exposeRows(docs.rows),
+    enrollments: exposeRows(enr.rows).map((e: any) => ({ ...e, score: e.results_published || forAdmin ? e.score : null, passed: e.results_published || forAdmin ? e.passed : null, cert_url: e.cert_status === "issued" && e.cert_token ? certUrl(e.cert_token) : null })),
     activities: acts.rows, meetings: meets.rows[0],
     points: acts.rows.reduce((n: number, a: any) => n + (Number(a.points) || 0), 0),
   };
@@ -257,7 +259,7 @@ router.post("/srcs/me/docs", writeLimiter, async (req, res) => {
   try {
     const me = await sessionUser(req);
     if (!me) return res.status(401).json({ error: "سجّل الدخول" });
-    const url = https(req.body?.url);
+    const url = await acceptDocRef(req.body?.url, Number(me.id));
     const title = str(req.body?.title, 200);
     const kind = DOC_KINDS.includes(req.body?.kind) ? req.body.kind : "other";
     if (!url || title.length < 2) return res.status(400).json({ error: "اكتب اسم المستند وأرفق الملف" });
@@ -265,8 +267,8 @@ router.post("/srcs/me/docs", writeLimiter, async (req, res) => {
     if (n >= 60) return res.status(400).json({ error: "الحد الأقصى 60 مستنداً" });
     const r = await query(`INSERT INTO srcs_member_docs (user_id, kind, title, url) VALUES ($1,$2,$3,$4) ON CONFLICT (user_id, url) DO NOTHING RETURNING *`, [me.id, kind, title, url]);
     // الشهادات والرخص تُنسخ تلقائياً (خاصة) إلى «الشهادات» في الملف الشخصي بحصاحيصاوي
-    if (r.rows[0] && (kind === "certificate" || kind === "license")) await linkDocToProfile(Number(me.id), Number(r.rows[0].id), title, url, null, null, false);
-    return res.json({ doc: r.rows[0] ?? null });
+    if (r.rows[0] && (kind === "certificate" || kind === "license") && !url.startsWith("priv:")) await linkDocToProfile(Number(me.id), Number(r.rows[0].id), title, url, null, null, false);
+    return res.json({ doc: exposeRow(r.rows[0] ?? null) });
   } catch (err) { return fail(res, err, "doc add"); }
 });
 router.delete("/srcs/me/docs/:id", writeLimiter, async (req, res) => {
@@ -345,6 +347,7 @@ router.patch("/srcs/admin/courses/:id", writeLimiter, async (req, res) => {
     if (publishResults) { vals.push(b.results_published); sets.push(`results_published=$${vals.length}`); }
     if (!sets.length) return res.json({ course: cur });
     const r = await query(`UPDATE srcs_courses SET ${sets.join(", ")} WHERE id=$1 RETURNING *`, vals);
+    if (publishResults && b.results_published !== cur.results_published) audit(Number(me.id), b.results_published ? "results_publish" : "results_hide", `course:${cur.id} ${cur.title}`);
     if (publishResults && b.results_published && !cur.results_published) {
       const ids = (await query(`SELECT user_id FROM srcs_enrollments WHERE course_id=$1`, [cur.id])).rows.map((x: any) => Number(x.user_id));
       notifyUsers(ids, "📊 ظهرت النتيجة", `أُعلنت نتيجة «${String(cur.title).slice(0, 80)}» — اطّلع عليها الآن`, { kind: "srcs_results", id: cur.id });
@@ -358,6 +361,7 @@ router.delete("/srcs/admin/courses/:id", async (req, res) => {
     const issued = (await query(`SELECT COUNT(*)::int AS n FROM srcs_enrollments WHERE course_id=$1 AND cert_status='issued'`, [Number(req.params.id)])).rows[0].n;
     if (issued) return res.status(400).json({ error: "لا يمكن حذف دورة صدرت لها شهادات — أخفِها بدلاً من ذلك" });
     await query(`DELETE FROM srcs_courses WHERE id=$1`, [Number(req.params.id)]);
+    audit(Number((await sessionUser(req))?.id) || null, "course_delete", `course:${req.params.id}`);
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "course delete"); }
 });
@@ -368,7 +372,7 @@ router.get("/srcs/admin/courses/:id/enrollments", async (req, res) => {
       `SELECT e.*, u.name, u.avatar_url, m.role, m.unit, m.card_no, co.name AS cohort_name FROM srcs_enrollments e JOIN users u ON u.id=e.user_id
          LEFT JOIN srcs_members m ON m.user_id=e.user_id LEFT JOIN srcs_cohorts co ON co.id=m.cohort_id
         WHERE e.course_id=$1 ORDER BY u.name`, [Number(req.params.id)]);
-    return res.json({ enrollments: r.rows.map((e: any) => ({ ...e, cert_url: e.cert_token ? certUrl(e.cert_token) : null })) });
+    return res.json({ enrollments: exposeRows(r.rows).map((e: any) => ({ ...e, cert_url: e.cert_token ? certUrl(e.cert_token) : null })) });
   } catch (err) { return fail(res, err, "enrollments"); }
 });
 /** تسجيل أعضاء في دورة يدوياً (مثلاً كل أفراد دفعة) */
@@ -412,6 +416,7 @@ router.patch("/srcs/admin/enrollments/:id/certificate", writeLimiter, async (req
     const action = String(req.body?.action || "");
     const e = (await query(`SELECT e.*, c.title FROM srcs_enrollments e JOIN srcs_courses c ON c.id=e.course_id WHERE e.id=$1`, [Number(req.params.id)])).rows[0];
     if (!e) return res.status(404).json({ error: "غير موجود" });
+    audit(Number(me.id), `cert_${action}`, `enrollment:${e.id} ${e.title}`, { user_id: e.user_id, amount: e.cert_amount, ref: e.payment_ref, note: req.body?.note });
     if (action === "approve" || action === "issue") {
       if (!e.passed) return res.status(400).json({ error: "لا تُصدر الشهادة إلا للناجحين" });
       return res.json({ enrollment: await issueCertificate(e.id, Number(me.id)) });
@@ -436,7 +441,7 @@ router.get("/srcs/admin/certificates/pending", async (req, res) => {
     if (!(await requirePerm(req, res, "certificates"))) return;
     const r = await query(`SELECT e.*, u.name, c.title FROM srcs_enrollments e JOIN users u ON u.id=e.user_id JOIN srcs_courses c ON c.id=e.course_id
                             WHERE e.cert_status='pending' ORDER BY e.created_at`);
-    return res.json({ pending: r.rows });
+    return res.json({ pending: exposeRows(r.rows) });
   } catch (err) { return fail(res, err, "cert pending"); }
 });
 
@@ -478,6 +483,7 @@ router.delete("/srcs/admin/cohorts/:id", async (req, res) => {
     await query(`UPDATE srcs_members SET cohort_id=NULL WHERE cohort_id=$1`, [Number(req.params.id)]);
     await query(`UPDATE srcs_courses SET cohort_id=NULL WHERE cohort_id=$1`, [Number(req.params.id)]);
     await query(`DELETE FROM srcs_cohorts WHERE id=$1`, [Number(req.params.id)]);
+    audit(Number((await sessionUser(req))?.id) || null, "cohort_delete", `cohort:${req.params.id}`);
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "cohort delete"); }
 });
@@ -493,8 +499,9 @@ router.patch("/srcs/admin/docs/:id", writeLimiter, async (req, res) => {
   try {
     if (!(await requirePerm(req, res, "members", "requests", "cohorts"))) return;
     const r = await query(`UPDATE srcs_member_docs SET verified=$2 WHERE id=$1 RETURNING *`, [Number(req.params.id), !!req.body?.verified]);
+    audit(Number((await sessionUser(req))?.id) || null, req.body?.verified ? "doc_verify" : "doc_unverify", `doc:${req.params.id}`, { user_id: r.rows[0]?.user_id, title: r.rows[0]?.title });
     if (r.rows[0]?.profile_cert_id) await query(`UPDATE user_certificates SET reviewed=$2 WHERE id=$1`, [r.rows[0].profile_cert_id, !!req.body?.verified]).catch(() => {});
-    return res.json({ doc: r.rows[0] ?? null });
+    return res.json({ doc: exposeRow(r.rows[0] ?? null) });
   } catch (err) { return fail(res, err, "doc verify"); }
 });
 
@@ -515,7 +522,7 @@ router.get("/srcs/musif/profile", async (req, res) => {
       member: mem && { name: mem.name, role: mem.role, role_label: mem.role_label, status: mem.status, unit: mem.unit, affiliation: mem.affiliation, blood_type: mem.blood_type,
         card_no: mem.card_no, card_expires_at: mem.card_expires_at, revoked: !!mem.revoked_at || mem.status === "banned", cohort: mem.cohort_name,
         card_verify_url: mem.card_token ? `${API_PUBLIC_BASE}/api/public/srcs/verify/${mem.card_token}` : null },
-      documents: d.docs.map((x: any) => ({ kind: x.kind, title: x.title, url: x.url, verified: x.verified, created_at: x.created_at })),
+      documents: d.docs.map((x: any) => ({ private: !!x.url_private, kind: x.kind, title: x.title, url: x.url, verified: x.verified, created_at: x.created_at })),
       certificates: d.enrollments.filter((e: any) => e.cert_url).map((e: any) => ({ title: e.title, cert_no: e.cert_no, issued_at: e.cert_issued_at, url: e.cert_url })),
     });
   } catch (err) { return fail(res, err, "musif"); }

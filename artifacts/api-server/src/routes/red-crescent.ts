@@ -11,6 +11,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { logger } from "../lib/logger";
 import { query, sessionUser, dbEnabled, type SessionUser } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
+import { acceptDocRef, exposeRow, exposeRows, audit } from "../lib/srcs-shared";
 
 const router = Router();
 const ROLES = ["volunteer", "paramedic", "leader", "admin"] as const;
@@ -129,6 +130,16 @@ export function ensureRedCrescentDb(): Promise<void> {
         profile_cert_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (user_id, url))`);
       await query(`CREATE INDEX IF NOT EXISTS idx_srcs_docs_user ON srcs_member_docs(user_id)`);
       // إعدادات (سعر الشهادة الإلكترونية …) — يعدّلها مدير حصاحيصاوي فقط
+      await query(`CREATE TABLE IF NOT EXISTS srcs_private_files (
+        id UUID PRIMARY KEY, owner_id INTEGER NOT NULL, kind VARCHAR(20) NOT NULL DEFAULT 'other', mime VARCHAR(60) NOT NULL,
+        name VARCHAR(160), size INTEGER, data BYTEA NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_srcs_pfiles_owner ON srcs_private_files(owner_id)`);
+      await query(`CREATE TABLE IF NOT EXISTS srcs_audit (
+        id SERIAL PRIMARY KEY, actor_id INTEGER, action VARCHAR(60) NOT NULL, target VARCHAR(200) NOT NULL,
+        detail JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+      await query(`CREATE TABLE IF NOT EXISTS srcs_reminders_sent (
+        kind VARCHAR(20) NOT NULL, ref_id INTEGER NOT NULL, stage VARCHAR(40) NOT NULL, sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (kind, ref_id, stage))`);
       await query(`CREATE TABLE IF NOT EXISTS srcs_settings (key VARCHAR(60) PRIMARY KEY, value TEXT NOT NULL, updated_by INTEGER, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     })().catch((e) => { ready = null; throw e; });
   }
@@ -232,7 +243,7 @@ export async function syncJoinDocs(userId: number, idDoc: string | null, certDoc
     if (certDoc) {
       const d = await query(`INSERT INTO srcs_member_docs (user_id, kind, title, url, source) VALUES ($1,'certificate','شهادة الإسعافات الأولية / الدورة',$2,'join')
                              ON CONFLICT (user_id, url) DO NOTHING RETURNING id`, [userId, certDoc]);
-      if (d.rows[0]) await linkDocToProfile(userId, Number(d.rows[0].id), "شهادة إسعافات أولية (مرفقة بطلب الهلال الأحمر)", certDoc, null, null, false);
+      if (d.rows[0] && !certDoc.startsWith("priv:")) await linkDocToProfile(userId, Number(d.rows[0].id), "شهادة إسعافات أولية (مرفقة بطلب الهلال الأحمر)", certDoc, null, null, false);
     }
   } catch (err) { logger.warn({ err }, "[srcs] sync docs"); }
 }
@@ -276,7 +287,7 @@ router.get("/srcs/overview", async (req: Request, res: Response) => {
         ORDER BY mt.starts_at LIMIT 10`, [me!.id, aud])).rows : [];
     return res.json({
       stats: stats.rows[0], announcements: ann.rows, activities: acts.rows, meetings: myMeetings,
-      membership: m ? { ...m, role_label: ROLE_LABEL[m.role as Role], card_url: m.card_token ? cardUrl(m.card_token) : null } : null,
+      membership: m ? { ...exposeRow(m), role_label: ROLE_LABEL[m.role as Role], card_url: m.card_token ? cardUrl(m.card_token) : null } : null,
       isAdmin: admin || perms.length > 0, perms, isAppAdmin: isAppAdmin(me),
     });
   } catch (err) { return fail(res, err, "overview"); }
@@ -290,10 +301,9 @@ router.post("/srcs/join", writeLimiter, async (req: Request, res: Response) => {
     const b = req.body || {};
     const desired = ROLES.includes(b.desired_role) && b.desired_role !== "admin" ? b.desired_role : "volunteer";
     const blood = BLOOD.includes(String(b.blood_type)) ? String(b.blood_type) : null;
-    const docUrl = (v: unknown) => { const u = str(v, 600); return /^https:\/\//.test(u) ? u : null; };
     const nid = str(b.national_id_no, 30).replace(/\s/g, "");
     const nationalId = /^\d{6,20}$/.test(nid) ? nid : null;
-    const idDoc = docUrl(b.id_doc_url), certDoc = docUrl(b.cert_doc_url);
+    const idDoc = await acceptDocRef(b.id_doc_url, Number(me.id)), certDoc = await acceptDocRef(b.cert_doc_url, Number(me.id));
     if (desired === "paramedic" && (!nationalId || !idDoc || !certDoc))
       return res.status(400).json({ error: "طلب المسعف يتطلب الرقم الوطني وصورة الهوية وصورة الشهادة لمراجعتها" });
     const cur = await membership(me.id);
@@ -311,7 +321,7 @@ router.post("/srcs/join", writeLimiter, async (req: Request, res: Response) => {
     await syncJoinDocs(Number(me.id), idDoc, certDoc);
     const admins = (await query(`SELECT user_id FROM srcs_members WHERE status='active' AND role='admin'`)).rows.map((x: any) => Number(x.user_id));
     notifyUsers(admins, "🚑 طلب انضمام جديد", `${me.name} يطلب الانضمام ${desired === "paramedic" ? "كمسعف — المستندات مرفقة للمراجعة" : "كمتطوع"}`, { kind: "srcs_request" });
-    return res.json({ membership: r.rows[0] });
+    return res.json({ membership: exposeRow(r.rows[0]) });
   } catch (err) { return fail(res, err, "join"); }
 });
 
@@ -408,7 +418,7 @@ router.get("/srcs/admin/members", async (req, res) => {
       `SELECT m.*, u.name, u.avatar_url, u.phone AS account_phone, c.name AS cohort_name FROM srcs_members m JOIN users u ON u.id=m.user_id
          LEFT JOIN srcs_cohorts c ON c.id=m.cohort_id
         WHERE ($1::text IS NULL OR m.status=$1) ORDER BY (m.status='pending') DESC, m.created_at DESC LIMIT 1000`, [status]);
-    return res.json({ members: r.rows });
+    return res.json({ members: exposeRows(r.rows) });
   } catch (err) { return fail(res, err, "members"); }
 });
 
@@ -449,6 +459,12 @@ router.patch("/srcs/admin/members/:id", writeLimiter, async (req, res) => {
        cardNo, cardToken, issued, expires, me.id, b.affiliation === undefined ? cur.affiliation : str(b.affiliation, 160) || null, cohort, perms,
        revokedAt, revokeReason]);
     const uid = [Number(cur.user_id)];
+    const changed: Record<string, unknown> = {};
+    for (const [k, before, after] of [["status", cur.status, status], ["role", cur.role, role], ["unit", cur.unit, r.rows[0].unit], ["affiliation", cur.affiliation, r.rows[0].affiliation],
+      ["cohort_id", cur.cohort_id, cohort], ["perms", JSON.stringify(cur.perms), JSON.stringify(perms)], ["revoked", !!cur.revoked_at, !!revokedAt]] as const)
+      if (String(before ?? "") !== String(after ?? "")) changed[k] = { from: before, to: after };
+    if (b.renew_card) changed.renew_card = true;
+    if (Object.keys(changed).length) audit(Number(me.id), status === "banned" && cur.status !== "banned" ? "ban" : b.perms !== undefined && changed.perms ? "perms" : changed.revoked ? "card_revoke" : "member_update", `member:${cur.id} ${cur.name}`, { ...changed, reason: revokeReason && changed.revoked ? revokeReason : undefined });
     if (becameActive) await query(`UPDATE srcs_member_docs SET verified=TRUE WHERE user_id=$1 AND source='join'`, [cur.user_id]).catch(() => {});
     if (becameActive) notifyUsers(uid, "🚑 مرحباً بك في الهلال الأحمر", `قُبل طلبك بصفة ${ROLE_LABEL[role]} — بطاقتك جاهزة في التطبيق`, { kind: "srcs_accepted" });
     else if (status === "rejected" && cur.status !== "rejected") notifyUsers(uid, "طلب الانضمام للهلال الأحمر", "لم يُقبل طلبك حالياً" + (b.admin_note ? `: ${str(b.admin_note, 200)}` : ""), {});
@@ -456,7 +472,7 @@ router.patch("/srcs/admin/members/:id", writeLimiter, async (req, res) => {
     else if (b.revoke_card === true && !cur.revoked_at) notifyUsers(uid, "⛔ إلغاء بطاقة", `أُلغيت بطاقتك: ${revokeReason}`, {});
     else if (b.renew_card) notifyUsers(uid, "🪪 تجديد بطاقة المسعف", "جُدّدت بطاقتك لعام", {});
     if (b.perms !== undefined && JSON.stringify(perms) !== JSON.stringify(cur.perms)) notifyUsers(uid, "🔑 صلاحيات جديدة", "حُدّثت صلاحياتك في لوحة الهلال الأحمر", {});
-    return res.json({ member: r.rows[0] });
+    return res.json({ member: exposeRow(r.rows[0]) });
   } catch (err) { return fail(res, err, "member patch"); }
 });
 

@@ -1,0 +1,25 @@
+name: Red Crescent reminders (hourly)
+# تذكيرات تلقائية: الاجتماعات والدورات قبل يوم وقبل ساعة، والبطاقات قبل انتهائها بـ 30 و7 أيام.
+# الخادم يمنع تكرار أي تذكير. المصادقة برمز OIDC من هذا المستودع (audience hasahisawi-srcs).
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: srcs-reminders, cancel-in-progress: false }
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send due reminders
+        env:
+          API: https://api-server-gilt-ten.vercel.app
+        run: |
+          set -euo pipefail
+          T=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-srcs" | jq -r .value)
+          echo "::add-mask::$T"
+          R=$(curl -sS -X POST -H "Authorization: Bearer $T" "$API/api/srcs/cron/reminders")
+          echo "$R" | jq .
+          echo "$R" | jq -e '.ok == true' >/dev/null

@@ -84,6 +84,34 @@ async function call<T>(path: string, token?: string | null, init: RequestInit = 
 }
 const body = (b: unknown) => ({ body: JSON.stringify(b) });
 
+/**
+ * رفع مستند خاص (صورة الهوية، إشعار الدفع): يُحفظ في قاعدة البيانات لا في التخزين العام،
+ * ويُعرض فقط برابط موقّع قصير العمر لصاحبه وللإدارة المخوّلة. يُرجع مرجعاً "priv:…" يُرسل مع الطلب.
+ */
+export async function uploadPrivateDoc(token: string, uri: string, opts: { name?: string | null; mime?: string | null; kind: "national_id" | "payment_proof" | "other" }): Promise<{ ref: string; url: string }> {
+  const name = (opts.name || `doc_${Date.now()}.jpg`).replace(/[\\/]+/g, "_");
+  const type = opts.mime || (/\.pdf$/i.test(name) ? "application/pdf" : "image/jpeg");
+  const fd = new FormData();
+  fd.append("kind", opts.kind);
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(uri)).blob();
+    fd.append("file", blob, name);
+  } else {
+    fd.append("file", { uri, name, type } as any);
+  }
+  const res = await fetch(`${getApiUrl()}/api/srcs/private-upload`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((j as any)?.error || `تعذّر الرفع (${res.status})`);
+  return j as { ref: string; url: string };
+}
+export type SrcsAudit = { id: number; actor_id: number | null; actor_name: string | null; action: string; target: string; detail: Record<string, any>; created_at: string };
+export const AUDIT_LABEL: Record<string, string> = {
+  member_update: "تعديل عضو", perms: "تعديل صلاحيات", ban: "حظر", card_revoke: "إلغاء/إعادة بطاقة", settings: "تعديل سعر الشهادة",
+  cert_approve: "اعتماد دفع شهادة", cert_issue: "إصدار شهادة", cert_reject: "رفض دفع", cert_revoke: "إلغاء شهادة", cert_restore: "استعادة شهادة",
+  results_publish: "إعلان نتيجة", results_hide: "إخفاء نتيجة", course_delete: "حذف دورة", cohort_delete: "حذف دفعة",
+  doc_verify: "توثيق مستند", doc_unverify: "إلغاء توثيق", export: "تصدير", checkin: "تسجيل حضور بالمسح",
+};
+
 export const srcsApi = {
   overview: (token?: string | null) => call<SrcsOverview>(`/srcs/overview`, token),
   join: (token: string, b: Partial<SrcsMember> & { desired_role: SrcsRole }) => call<{ membership: SrcsMember }>(`/srcs/join`, token, { method: "POST", ...body(b) }),
@@ -129,6 +157,11 @@ export const srcsApi = {
     deleteCohort: (t: string, id: number) => call(`/srcs/admin/cohorts/${id}`, t, { method: "DELETE" }),
     dossier: (t: string, memberId: number) => call<SrcsDossier>(`/srcs/admin/members/${memberId}/dossier`, t),
     verifyDoc: (t: string, id: number, verified: boolean) => call(`/srcs/admin/docs/${id}`, t, { method: "PATCH", ...body({ verified }) }),
+    exportLink: (t: string, kind: "members" | "cohort" | "course" | "meeting", id: number | null, format: "csv" | "html") =>
+      call<{ url: string }>(`/srcs/admin/export-link`, t, { method: "POST", ...body({ kind, id, format }) }),
+    audit: (t: string) => call<{ entries: SrcsAudit[] }>(`/srcs/admin/audit`, t),
+    checkin: (t: string, b: { code: string; meeting_id?: number; course_id?: number }) =>
+      call<{ ok: boolean; member: { name: string; role_label: string; unit: string | null; card_no: string } }>(`/srcs/admin/checkin`, t, { method: "POST", ...body(b) }),
     participants: (t: string, id: number, user_ids: number[]) => call<{ participants: number; awarded: number }>(`/srcs/admin/activities/${id}/participants`, t, { method: "POST", ...body({ user_ids }) }),
   },
 };
