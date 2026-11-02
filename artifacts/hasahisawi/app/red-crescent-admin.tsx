@@ -12,6 +12,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { srcsStyles } from "@/components/srcs/styles";
 import { notify, confirmAction } from "@/lib/xplatform";
 import { uploadFile } from "@/lib/firebase/storage";
+import ZoomViewer from "@/components/srcs/ZoomViewer";
 import {
   srcsApi, ROLE_LABEL, ACTIVITY_TYPES, AUDIENCE_LABEL, SRCS_RED,
   type SrcsMember, type SrcsMeeting, type SrcsActivity, type SrcsRole, type SrcsAnnouncement,
@@ -39,6 +40,7 @@ export default function SrcsAdminScreen() {
   const [form, setForm] = useState<null | "meeting" | "announcement" | "activity">(null);
   const [attendFor, setAttendFor] = useState<SrcsMeeting | null>(null);
   const [partFor, setPartFor] = useState<SrcsActivity | null>(null);
+  const [docView, setDocView] = useState<{ title: string; url: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -109,9 +111,29 @@ export default function SrcsAdminScreen() {
               <Text style={s.body}>يرغب بصفة: <Text style={{ fontFamily: "Cairo_700Bold" }}>{ROLE_LABEL[(m.desired_role || "volunteer") as SrcsRole]}</Text>{m.blood_type ? ` · فصيلة ${m.blood_type}` : ""}{m.unit ? ` · ${m.unit}` : ""}</Text>
               {m.experience ? <Text style={s.body}>الخبرة: {m.experience}</Text> : null}
               {m.certifications ? <Text style={s.body}>الشهادات: {m.certifications}</Text> : null}
+              {/* المستندات للمراجعة */}
+              <View style={s.docsReview}>
+                <View style={s.row}>
+                  <Ionicons name="document-lock" size={16} color={SRCS_RED} />
+                  <Text style={[s.itemTitle, { flex: 1, fontSize: 13.5 }]}>المستندات</Text>
+                  {m.national_id_no ? <Text style={[s.metaStrong, { writingDirection: "ltr" }]} selectable>الرقم الوطني: {m.national_id_no}</Text> : <Text style={[s.meta, { color: Colors.danger }]}>بلا رقم وطني</Text>}
+                </View>
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  {([["صورة الهوية", m.id_doc_url], ["صورة الشهادة", m.cert_doc_url]] as const).map(([label, url]) => url ? (
+                    <TouchableOpacity key={label} style={s.docTile} onPress={() => setDocView({ title: `${label} — ${m.name}`, url })} accessibilityLabel={`عرض ${label} مكبّرة`}>
+                      <Image source={{ uri: url }} style={s.docImg} resizeMode="cover" />
+                      <View style={s.docCap}><Ionicons name="expand" size={12} color="#fff" /><Text style={s.docCapTxt}>{label}</Text></View>
+                    </TouchableOpacity>
+                  ) : (
+                    <View key={label} style={[s.docTile, s.docMissing]}><Ionicons name="alert-circle-outline" size={20} color={Colors.danger} /><Text style={[s.meta, { color: Colors.danger }]}>{label} غير مرفقة</Text></View>
+                  ))}
+                </View>
+                {m.desired_role === "paramedic" && (!m.id_doc_url || !m.cert_doc_url) ? <Text style={[s.meta, { color: Colors.danger }]}>تنبيه: طلب مسعف بمستندات ناقصة — يُفضّل طلب استكمالها قبل القبول.</Text> : null}
+              </View>
               <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                 <TouchableOpacity style={s.primary} onPress={() => updateMember(m, { status: "active", role: m.desired_role || "volunteer" }, "قُبل الطلب وأُصدرت البطاقة")}><Text style={s.primaryTxt}>قبول وإصدار البطاقة</Text></TouchableOpacity>
                 <TouchableOpacity style={s.ghost} onPress={async () => { if (await confirmAction("رفض الطلب", `رفض طلب ${m.name}؟`, "رفض", true)) updateMember(m, { status: "rejected" }); }}><Text style={s.ghostTxt}>رفض</Text></TouchableOpacity>
+                <TouchableOpacity style={s.ghost} onPress={async () => { if (await confirmAction("طلب استكمال المستندات", `إعادة الطلب إلى ${m.name} ليُرفق مستندات واضحة؟`, "إرسال")) updateMember(m, { status: "rejected", admin_note: "المستندات ناقصة أو غير واضحة — أعد التقديم مع صورة واضحة للهوية والشهادة" }); }}><Text style={s.ghostTxt}>استكمال</Text></TouchableOpacity>
               </View>
             </View>
           )) : <Text style={s.empty}>لا توجد طلبات معلّقة.</Text>
@@ -196,6 +218,7 @@ export default function SrcsAdminScreen() {
 
       <FormModal kind={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
       <AttendanceModal meeting={attendFor} onClose={() => setAttendFor(null)} onSaved={() => { setAttendFor(null); load(); }} />
+      <ZoomViewer visible={!!docView} onClose={() => setDocView(null)} title={docView?.title} pages={docView ? [{ label: docView.title, ratio: 0.75, render: (w) => <Image source={{ uri: docView.url }} style={{ width: w, height: w * 0.75 }} resizeMode="contain" /> }] : []} />
       <ParticipantsModal activity={partFor} members={members.filter((m) => m.status === "active")} onClose={() => setPartFor(null)} onSaved={() => { setPartFor(null); load(); }} />
     </View>
   );
@@ -386,4 +409,10 @@ const s = StyleSheet.create({
   tileNum: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.text },
   tileLbl: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   addImg: { width: 70, height: 70, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: SRCS_RED + "80", alignItems: "center", justifyContent: "center" },
+  docsReview: { gap: 8, padding: 10, borderRadius: 14, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.border },
+  docTile: { flex: 1, height: 96, borderRadius: 12, overflow: "hidden", backgroundColor: Colors.cardBg },
+  docImg: { width: "100%", height: "100%" },
+  docCap: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 3, backgroundColor: "rgba(0,0,0,0.5)" },
+  docCapTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
+  docMissing: { alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.danger + "66" },
 });
