@@ -78,6 +78,18 @@ export default function RedCrescentScreen() {
           ) : <ActivityIndicator color="#fff" style={{ margin: 16 }} />}
         </LinearGradient>
 
+        {/* اختصارات */}
+        <View style={s.quickRow}>
+          {([["school", "الدورات والورش", "/red-crescent-courses", null], ["folder-open", "ملفي ونتائجي", "/red-crescent-courses", "mine"],
+             ...(active ? [["card", "بطاقتي", "/red-crescent-card", null]] : []),
+             ...(data?.isAdmin ? [["grid", data?.isAppAdmin ? "الإدارة" : "لوحتي", "/red-crescent-admin", null]] : [])] as [string, string, string, string | null][]).map(([ic, l, path, tab]) => (
+            <TouchableOpacity key={l} style={s.quick} onPress={() => router.push((tab ? { pathname: path, params: { tab } } : path) as any)} accessibilityRole="button">
+              <View style={s.quickIcon}><Ionicons name={ic as any} size={20} color={SRCS_RED} /></View>
+              <Text style={s.quickTxt} numberOfLines={1}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* الطوارئ — تكامل مع «مسعف» */}
         <View style={s.emergency}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
@@ -117,6 +129,8 @@ export default function RedCrescentScreen() {
                 <Ionicons name="time" size={22} color={Colors.accent} />
                 <View style={{ flex: 1 }}><Text style={s.cardTitle}>طلبك قيد المراجعة</Text><Text style={s.hint}>ستصلك رسالة فور قبولك من إدارة الفرع.</Text></View>
               </View>
+            ) : m.status === "banned" ? (
+              <View style={s.row}><Ionicons name="ban" size={22} color={Colors.danger} /><View style={{ flex: 1 }}><Text style={s.cardTitle}>عضويتك محظورة وبطاقتك ملغاة</Text>{m.revoke_reason ? <Text style={s.hint}>السبب: {m.revoke_reason}</Text> : null}</View></View>
             ) : m.status === "suspended" ? (
               <View style={s.row}><Ionicons name="pause-circle" size={22} color={Colors.danger} /><Text style={[s.cardTitle, { flex: 1 }]}>عضويتك موقوفة مؤقتاً — راجع إدارة الفرع</Text></View>
             ) : (
@@ -125,7 +139,8 @@ export default function RedCrescentScreen() {
                   <View style={[s.badge, { backgroundColor: SRCS_RED + "18" }]}><Ionicons name="shield-checkmark" size={20} color={SRCS_RED} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.cardTitle}>عضويتك: {ROLE_LABEL[m.role]}</Text>
-                    <Text style={s.hint}>{m.unit ? `${m.unit} · ` : ""}{m.card_no ? `بطاقة ${m.card_no}` : ""}</Text>
+                    <Text style={s.hint}>{m.unit ? `${m.unit} · ` : ""}{m.affiliation ? `${m.affiliation} · ` : ""}{m.card_no ? `بطاقة ${m.card_no}` : ""}</Text>
+                    {m.revoked_at ? <Text style={[s.hint, { color: Colors.danger }]}>⛔ بطاقتك ملغاة{m.revoke_reason ? `: ${m.revoke_reason}` : ""}</Text> : null}
                   </View>
                 </View>
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
@@ -151,7 +166,8 @@ export default function RedCrescentScreen() {
                   <Ionicons name="calendar" size={18} color={SRCS_RED} />
                   <Text style={[s.itemTitle, { flex: 1 }]}>{mt.title}</Text>
                 </View>
-                <Text style={s.meta}>{fmtDate(mt.starts_at, true)}{mt.place ? ` · ${mt.place}` : ""}</Text>
+                <View style={s.row}><Ionicons name="time-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{fmtDate(mt.starts_at, true)}{mt.ends_at ? ` — ${new Date(mt.ends_at).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}` : ""}</Text></View>
+                {mt.place ? <View style={s.row}><Ionicons name="location-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{mt.place}</Text></View> : null}
                 {mt.agenda ? <Text style={s.body}>{mt.agenda}</Text> : null}
                 <View style={{ flexDirection: "row-reverse", gap: 6 }}>
                   {([["going", "سأحضر"], ["maybe", "ربما"], ["not_going", "معتذر"]] as const).map(([k, l]) => (
@@ -374,4 +390,8 @@ const s = StyleSheet.create({
   docEmpty: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, height: 64, borderRadius: 12, backgroundColor: Colors.cardBg },
   docDone: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 8, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "#16A34A55" },
   docThumb: { width: 72, height: 52, borderRadius: 8, backgroundColor: Colors.bg },
+  quickRow: { flexDirection: "row-reverse", gap: 8 },
+  quick: { flex: 1, alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
+  quickIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: SRCS_RED + "12", alignItems: "center", justifyContent: "center" },
+  quickTxt: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: Colors.text },
 });

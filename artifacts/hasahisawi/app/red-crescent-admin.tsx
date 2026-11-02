@@ -13,19 +13,23 @@ import { srcsStyles } from "@/components/srcs/styles";
 import { notify, confirmAction } from "@/lib/xplatform";
 import { uploadFile } from "@/lib/firebase/storage";
 import ZoomViewer from "@/components/srcs/ZoomViewer";
+import DateTimeField, { fmtDateTime } from "@/components/srcs/DateTimeField";
+import AdminCourses, { PlaceChips } from "@/components/srcs/AdminCourses";
+import { MembersList, CohortsPanel, SettingsPanel } from "@/components/srcs/AdminMembers";
 import {
-  srcsApi, ROLE_LABEL, ACTIVITY_TYPES, AUDIENCE_LABEL, SRCS_RED,
-  type SrcsMember, type SrcsMeeting, type SrcsActivity, type SrcsRole, type SrcsAnnouncement,
+  srcsApi, ROLE_LABEL, ACTIVITY_TYPES, AUDIENCE_LABEL, SRCS_RED, PERM_LABEL,
+  type SrcsMember, type SrcsMeeting, type SrcsActivity, type SrcsRole, type SrcsAnnouncement, type SrcsPerm, type SrcsCohort,
 } from "@/lib/red-crescent";
 
-type Tab = "dash" | "requests" | "members" | "meetings" | "announcements" | "activities";
-const TABS: [Tab, string, keyof typeof Ionicons.glyphMap][] = [
-  ["dash", "اللوحة", "grid"], ["requests", "الطلبات", "person-add"], ["members", "الأعضاء", "people"],
-  ["meetings", "الاجتماعات", "calendar"], ["announcements", "الإعلانات", "megaphone"], ["activities", "الأنشطة", "images"],
+type Tab = "dash" | "requests" | "members" | "cohorts" | "courses" | "meetings" | "announcements" | "activities" | "settings";
+// كل تبويب يظهر لمن يملك إحدى صلاحياته؛ «الإعدادات» لمدير حصاحيصاوي فقط
+const TABS: [Tab, string, keyof typeof Ionicons.glyphMap, SrcsPerm[] | "app" | null][] = [
+  ["dash", "اللوحة", "grid", null], ["requests", "الطلبات", "person-add", ["requests"]], ["members", "الأعضاء", "people", ["members"]],
+  ["cohorts", "الدفعات والسجل", "albums", ["cohorts"]], ["courses", "الدورات والنتائج", "school", ["courses", "results", "certificates"]],
+  ["meetings", "الاجتماعات", "calendar", ["meetings"]], ["announcements", "الإعلانات", "megaphone", ["announcements"]],
+  ["activities", "الأنشطة", "images", ["activities"]], ["settings", "الإعدادات", "settings", "app"],
 ];
 const fmt = (s: string, time = false) => new Date(s).toLocaleString("ar-EG", time ? { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", year: "numeric" });
-/** "2026-11-05 17:30" → ISO (الإدخال بتوقيت الهاتف) */
-const parseLocal = (v: string) => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/.exec(v.trim()); return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 9), +(m[5] ?? 0)).toISOString() : null; };
 
 export default function SrcsAdminScreen() {
   const insets = useSafeAreaInsets();
@@ -41,19 +45,31 @@ export default function SrcsAdminScreen() {
   const [attendFor, setAttendFor] = useState<SrcsMeeting | null>(null);
   const [partFor, setPartFor] = useState<SrcsActivity | null>(null);
   const [docView, setDocView] = useState<{ title: string; url: string } | null>(null);
+  const [perms, setPerms] = useState<SrcsPerm[]>([]);
+  const [appAdmin, setAppAdmin] = useState(false);
+  const [cohorts, setCohorts] = useState<SrcsCohort[]>([]);
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [d, mm, mt, ov] = await Promise.all([srcsApi.admin.dashboard(token), srcsApi.admin.members(token), srcsApi.admin.meetings(token), srcsApi.overview(token)]);
-      setDash(d); setMembers(mm.members); setMeetings(mt.meetings); setOverview({ announcements: ov.announcements, activities: ov.activities });
+      const d = await srcsApi.admin.dashboard(token);
+      const p = d.perms || [];
+      setDash(d); setPerms(p); setAppAdmin(!!d.isAppAdmin);
+      const has = (...k: SrcsPerm[]) => k.some((x) => p.includes(x));
+      const [mm, mt, ov, co] = await Promise.all([
+        has("requests", "members", "cohorts", "courses", "results", "activities", "meetings", "certificates") ? srcsApi.admin.members(token) : Promise.resolve({ members: [] as SrcsMember[] }),
+        has("meetings") ? srcsApi.admin.meetings(token) : Promise.resolve({ meetings: [] as SrcsMeeting[] }),
+        srcsApi.overview(token),
+        has("cohorts", "members", "courses") ? srcsApi.admin.cohorts(token) : Promise.resolve({ cohorts: [] as SrcsCohort[] }),
+      ]);
+      setMembers(mm.members); setMeetings(mt.meetings); setOverview({ announcements: ov.announcements, activities: ov.activities }); setCohorts(co.cohorts);
     } catch (e: any) { if (e?.status === 403) setDenied(true); else notify("تعذّر التحميل", e?.message); }
     finally { setRefreshing(false); }
   }, [token]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const pending = members.filter((x) => x.status === "pending");
-  const others = members.filter((x) => x.status !== "pending");
+  const tabs = TABS.filter(([, , , need]) => need === null || (need === "app" ? appAdmin : need.some((k) => perms.includes(k))));
   const updateMember = async (m: SrcsMember, b: Record<string, unknown>, msg?: string) => {
     try { await srcsApi.admin.updateMember(token!, m.id, b); if (msg) notify(msg); load(); } catch (e: any) { notify("تعذّر الحفظ", e?.message); }
   };
@@ -74,11 +90,11 @@ export default function SrcsAdminScreen() {
         <TouchableOpacity style={s.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/red-crescent" as any))} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>إدارة فرعية الهلال الأحمر</Text>
+        <Text style={s.title}>{appAdmin ? "إدارة الهلال الأحمر" : "لوحتي في الهلال الأحمر"}</Text>
         <View style={{ width: 44 }} />
       </View>
       <RtlScrollRow contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 8 }}>
-        {TABS.map(([k, l, ic]) => (
+        {tabs.map(([k, l, ic]) => (
           <TouchableOpacity key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: SRCS_RED, borderColor: SRCS_RED }]}>
             <Ionicons name={ic} size={14} color={tab === k ? "#fff" : Colors.textSecondary} />
             <Text style={[s.tabTxt, tab === k && { color: "#fff" }]}>{l}{k === "requests" && pending.length ? ` (${pending.length})` : ""}</Text>
@@ -91,10 +107,22 @@ export default function SrcsAdminScreen() {
         {!dash ? <ActivityIndicator color={SRCS_RED} style={{ marginTop: 30 }} /> : null}
 
         {tab === "dash" && dash ? (
+          <View style={s.permCard}>
+            <View style={s.row}><Ionicons name={appAdmin ? "shield-checkmark" : "key"} size={18} color={SRCS_RED} /><Text style={[s.cardTitle, { flex: 1 }]}>{appAdmin ? "مدير حصاحيصاوي — صلاحيات كاملة" : "صلاحياتك في هذه اللوحة"}</Text></View>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
+              {perms.map((p) => <View key={p} style={s.permPill}><Text style={s.permPillTxt}>{PERM_LABEL[p]}</Text></View>)}
+            </View>
+            {appAdmin ? <Text style={s.hint}>امنح الصلاحيات لأي فرد من تبويب «الأعضاء» ← «تعديل وصلاحيات». الحظر وإلغاء البطاقات وسعر الشهادة متاحة لك وحدك.</Text> : null}
+          </View>
+        ) : null}
+        {tab === "dash" && dash ? (
           <View style={s.grid}>
-            {[["طلبات معلّقة", dash.pending, "person-add", "requests"], ["أعضاء نشطون", dash.active, "people", "members"], ["مسعفون", dash.paramedics, "medkit", "members"],
-              ["بطاقات تنتهي خلال 30 يوماً", dash.cards_expiring, "card", "members"], ["اجتماعات قادمة", dash.upcoming_meetings, "calendar", "meetings"],
-              ["أنشطة موثّقة", dash.activities, "images", "activities"], ["مستفيدون", dash.beneficiaries, "heart", "activities"]].map(([l, n, ic, t]) => (
+            {([["طلبات معلّقة", dash.pending, "person-add", "requests"], ["أعضاء نشطون", dash.active, "people", "members"], ["مسعفون", dash.paramedics, "medkit", "members"],
+              ["بطاقات تنتهي خلال 30 يوماً", dash.cards_expiring, "card", "members"], ["دورات جارية", dash.open_courses, "school", "courses"],
+              ["مدفوعات شهادات معلّقة", dash.cert_pending, "ribbon", "courses"], ["الدفعات", dash.cohorts, "albums", "cohorts"],
+              ["اجتماعات قادمة", dash.upcoming_meetings, "calendar", "meetings"], ["أنشطة موثّقة", dash.activities, "images", "activities"],
+              ["مستفيدون", dash.beneficiaries, "heart", "activities"], ["بطاقات ملغاة / محظورون", dash.revoked, "ban", "members"]] as const)
+              .filter(([, , , t]) => tabs.some(([k]) => k === t)).map(([l, n, ic, t]) => (
               <TouchableOpacity key={String(l)} style={s.tile} onPress={() => setTab(t as Tab)}>
                 <Ionicons name={ic as any} size={20} color={SRCS_RED} />
                 <Text style={s.tileNum}>{Number(n).toLocaleString("ar-EG")}</Text>
@@ -139,32 +167,10 @@ export default function SrcsAdminScreen() {
           )) : <Text style={s.empty}>لا توجد طلبات معلّقة.</Text>
         ) : null}
 
-        {tab === "members" ? (
-          others.length ? others.map((m) => (
-            <View key={m.id} style={s.card}>
-              <MemberHead m={m} />
-              <Text style={s.meta}>{m.card_no ? `بطاقة ${m.card_no} · حتى ${m.card_expires_at ? fmt(m.card_expires_at) : "—"}` : "بلا بطاقة"}{m.musif_code ? " · مرتبط بمسعف" : ""}</Text>
-              <RtlScrollRow contentContainerStyle={{ gap: 6 }}>
-                {(Object.keys(ROLE_LABEL) as SrcsRole[]).map((r) => (
-                  <TouchableOpacity key={r} onPress={() => m.role !== r && updateMember(m, { role: r })} style={[s.chip, m.role === r && { backgroundColor: SRCS_RED, borderColor: SRCS_RED }]}>
-                    <Text style={[s.chipTxt, m.role === r && { color: "#fff" }]}>{ROLE_LABEL[r]}</Text>
-                  </TouchableOpacity>
-                ))}
-              </RtlScrollRow>
-              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                {m.status === "active" ? (
-                  <>
-                    <TouchableOpacity style={s.ghost} onPress={() => updateMember(m, { renew_card: true }, "جُدّدت البطاقة لعام")}><Text style={s.ghostTxt}>تجديد البطاقة</Text></TouchableOpacity>
-                    <TouchableOpacity style={s.ghost} onPress={async () => { if (await confirmAction("إيقاف العضوية", `إيقاف ${m.name} مؤقتاً؟`, "إيقاف", true)) updateMember(m, { status: "suspended" }); }}><Text style={s.ghostTxt}>إيقاف</Text></TouchableOpacity>
-                  </>
-                ) : (
-                  <TouchableOpacity style={s.primary} onPress={() => updateMember(m, { status: "active" }, "أُعيد تفعيل العضوية")}><Text style={s.primaryTxt}>تفعيل</Text></TouchableOpacity>
-                )}
-                <TouchableOpacity style={[s.ghost, { flex: 0, paddingHorizontal: 12 }]} onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(m.user_id) } })}><Ionicons name="person" size={16} color={SRCS_RED} /></TouchableOpacity>
-              </View>
-            </View>
-          )) : <Text style={s.empty}>لا يوجد أعضاء بعد.</Text>
-        ) : null}
+        {tab === "members" ? <MembersList members={members} cohorts={cohorts} perms={perms} isAppAdmin={appAdmin} onChanged={load} /> : null}
+        {tab === "cohorts" ? <CohortsPanel cohorts={cohorts} members={members} onChanged={load} /> : null}
+        {tab === "courses" ? <AdminCourses perms={perms} isAppAdmin={appAdmin} cohorts={cohorts} members={members} /> : null}
+        {tab === "settings" && appAdmin ? <SettingsPanel /> : null}
 
         {tab === "meetings" ? (
           <>
@@ -172,7 +178,8 @@ export default function SrcsAdminScreen() {
             {meetings.map((mt) => (
               <View key={mt.id} style={s.card}>
                 <Text style={s.itemTitle}>{mt.title}</Text>
-                <Text style={s.meta}>{fmt(mt.starts_at, true)}{mt.place ? ` · ${mt.place}` : ""} · {AUDIENCE_LABEL[mt.audience]}</Text>
+                <View style={s.row}><Ionicons name="time-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{fmtDateTime(mt.starts_at)}{mt.ends_at ? ` — حتى ${new Date(mt.ends_at).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}` : ""}</Text></View>
+                <View style={s.row}><Ionicons name="location-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{mt.place || "لم يُحدد المكان"} · {AUDIENCE_LABEL[mt.audience]}</Text></View>
                 <Text style={s.meta}>سيحضر {mt.going ?? 0} · حضر فعلاً {mt.attended ?? 0}</Text>
                 {mt.minutes ? <Text style={s.body} numberOfLines={3}>المحضر: {mt.minutes}</Text> : null}
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
@@ -256,16 +263,17 @@ function FormModal({ kind, onClose, onSaved }: { kind: null | "meeting" | "annou
     setBusy(true);
     try {
       if (kind === "meeting") {
-        const iso = parseLocal(String(f.when || ""));
-        if (!f.title || !iso) { notify("بيانات ناقصة", "اكتب العنوان والموعد بصيغة 2026-11-05 17:30"); return; }
-        await srcsApi.admin.createMeeting(token, { title: f.title, place: f.place, agenda: f.agenda, starts_at: iso, audience: f.audience });
+        if (!f.title?.trim()) { notify("بيانات ناقصة", "اكتب عنوان الاجتماع"); return; }
+        if (!f.starts_at) { notify("بيانات ناقصة", "حدّد تاريخ ووقت الاجتماع"); return; }
+        if (!f.place?.trim()) { notify("بيانات ناقصة", "حدّد مكان الاجتماع"); return; }
+        await srcsApi.admin.createMeeting(token, { title: f.title, place: f.place, agenda: f.agenda, starts_at: f.starts_at, ends_at: f.ends_at, audience: f.audience });
       } else if (kind === "announcement") {
         if (!f.title || !f.body) { notify("بيانات ناقصة", "العنوان والنص مطلوبان"); return; }
         await srcsApi.admin.createAnnouncement(token, { title: f.title, body: f.body, audience: f.audience, pinned: !!f.pinned });
       } else {
         if (!f.title) { notify("بيانات ناقصة", "العنوان مطلوب"); return; }
         await srcsApi.admin.createActivity(token, { title: f.title, type: f.type, place: f.place, description: f.description, images: f.images,
-          beneficiaries: Number(f.beneficiaries) || 0, points: Number(f.points) || 0, happened_at: f.when ? parseLocal(String(f.when)) : undefined });
+          beneficiaries: Number(f.beneficiaries) || 0, points: Number(f.points) || 0, happened_at: f.starts_at || undefined });
       }
       onSaved();
     } catch (e: any) { notify("تعذّر الحفظ", e?.message); }
@@ -282,7 +290,8 @@ function FormModal({ kind, onClose, onSaved }: { kind: null | "meeting" | "annou
             <TouchableOpacity onPress={onClose}><Ionicons name="close" size={22} color={Colors.text} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
-            <TextInput value={f.title || ""} onChangeText={(v) => set("title", v)} placeholder="العنوان" placeholderTextColor={Colors.textMuted} style={s.input} />
+            <Text style={s.label}>العنوان *</Text>
+            <TextInput value={f.title || ""} onChangeText={(v) => set("title", v)} placeholder={kind === "meeting" ? "مثال: الاجتماع الدوري لفريق الاستجابة" : "العنوان"} placeholderTextColor={Colors.textMuted} style={s.input} />
             {kind === "activity" ? (
               <RtlScrollRow contentContainerStyle={{ gap: 6 }}>
                 {Object.entries(ACTIVITY_TYPES).map(([k, t]) => (
@@ -290,8 +299,21 @@ function FormModal({ kind, onClose, onSaved }: { kind: null | "meeting" | "annou
                 ))}
               </RtlScrollRow>
             ) : null}
-            {kind !== "announcement" ? <TextInput value={f.when || ""} onChangeText={(v) => set("when", v)} placeholder={kind === "meeting" ? "الموعد: 2026-11-05 17:30" : "التاريخ (اختياري): 2026-11-01"} placeholderTextColor={Colors.textMuted} style={[s.input, { writingDirection: "ltr" }]} /> : null}
-            {kind !== "announcement" ? <TextInput value={f.place || ""} onChangeText={(v) => set("place", v)} placeholder="المكان" placeholderTextColor={Colors.textMuted} style={s.input} /> : null}
+            {kind === "meeting" ? (
+              <>
+                <DateTimeField label="موعد البدء" required value={f.starts_at} onChange={(v) => set("starts_at", v)} minDate={new Date()} />
+                <DateTimeField label="موعد الانتهاء (اختياري)" value={f.ends_at} onChange={(v) => set("ends_at", v)} minDate={f.starts_at ? new Date(f.starts_at) : new Date()} />
+              </>
+            ) : kind === "activity" ? (
+              <DateTimeField label="تاريخ النشاط" value={f.starts_at} onChange={(v) => set("starts_at", v)} placeholder="اليوم (افتراضياً)" />
+            ) : null}
+            {kind !== "announcement" ? (
+              <>
+                <Text style={s.label}>المكان{kind === "meeting" ? " *" : ""}</Text>
+                <TextInput value={f.place || ""} onChangeText={(v) => set("place", v)} placeholder={kind === "meeting" ? "القاعة أو العنوان أو رابط الاجتماع" : "موقع النشاط"} placeholderTextColor={Colors.textMuted} style={s.input} />
+                <PlaceChips onPick={(p) => set("place", p)} />
+              </>
+            ) : null}
             <TextInput value={(kind === "meeting" ? f.agenda : kind === "announcement" ? f.body : f.description) || ""} multiline
               onChangeText={(v) => set(kind === "meeting" ? "agenda" : kind === "announcement" ? "body" : "description", v)}
               placeholder={kind === "meeting" ? "جدول الأعمال" : kind === "announcement" ? "نص الإعلان" : "وصف النشاط وما أُنجز"} placeholderTextColor={Colors.textMuted} style={[s.input, { height: 110, textAlignVertical: "top" }]} />
@@ -415,4 +437,7 @@ const s = StyleSheet.create({
   docCap: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 3, backgroundColor: "rgba(0,0,0,0.5)" },
   docCapTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#fff" },
   docMissing: { alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderStyle: "dashed", borderColor: Colors.danger + "66" },
+  permCard: { padding: 14, borderRadius: 18, backgroundColor: SRCS_RED + "08", borderWidth: 1, borderColor: SRCS_RED + "30", gap: 8 },
+  permPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: SRCS_RED + "40" },
+  permPillTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SRCS_RED },
 });

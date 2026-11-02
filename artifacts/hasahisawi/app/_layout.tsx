@@ -414,6 +414,7 @@ function RootLayoutNav() {
         <Stack.Screen name="red-crescent"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="red-crescent-card"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="red-crescent-admin"       options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="red-crescent-courses"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="invite"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="get"                      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
