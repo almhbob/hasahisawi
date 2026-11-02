@@ -49,6 +49,7 @@ router.post("/srcs/private-upload", writeLimiter, async (req: Request, res: Resp
       return res.json({ ref: `${PRIV_PREFIX}${id}`, url: exposeUrl(`${PRIV_PREFIX}${id}`), size: f.size });
     } catch (e) { return fail(res, e, "private upload"); }
   });
+  return undefined;
 });
 
 router.get("/public/srcs/pfile/:id", async (req: Request, res: Response) => {
