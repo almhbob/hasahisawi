@@ -1,0 +1,21 @@
+cert pending
+shot 01-home
+shot 02-card
+tap miss اضغط للتكبير
+shot 03-card-zoom
+shot 04-courses
+shot 05-course-sheet
+shot 06-mine
+tap miss طلب الانضمام
+shot 07-join
+shot 08-admin-dash
+shot 09-admin-requests
+shot 10-admin-members
+shot 11-member-edit
+shot 12-meeting-form
+shot 13-datepicker
+shot 14-courses-admin
+shot 15-enrollments
+shot 16-cohorts
+shot 17-audit
+shot 18-settings
