@@ -1,0 +1,218 @@
+{
+ "name": "حملة حصاحيصاوي — ٢١ يوماً",
+ "base_url": "https://hasahisawi.pages.dev/campaign/media/",
+ "start_date": "2026-11-03",
+ "timezone": "Asia/Riyadh",
+ "items": [
+  {
+   "day": 1,
+   "type": "video",
+   "file": "v3-services.mp4",
+   "ig_file": "v3-services.mp4",
+   "caption": "📱 حصاحيصاوي… المدينة كلّها في تطبيق واحد!\n\nأكثر من ٣٠ خدمة بين يديك: مشاوير، سفر، صحة، سوق ومطاعم، وظائف، دردشة ومكالمات، ومواقيت الصلاة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "📱 حصاحيصاوي… المدينة كلّها في تطبيق واحد!\n\nأكثر من ٣٠ خدمة بين يديك: مشاوير، سفر، صحة، سوق ومطاعم، وظائف، دردشة ومكالمات، ومواقيت الصلاة.\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "📱 المدينة كلّها في تطبيق واحد",
+    "body": "اكتشف أكثر من ٣٠ خدمة في حصاحيصاوي — افتح التطبيق الآن"
+   }
+  },
+  {
+   "day": 2,
+   "type": "image",
+   "file": "03-ride.jpg",
+   "ig_file": "ig-03-ride.jpg",
+   "caption": "🛺 مشوارك علينا!\n\nاطلب رقشتك أو عربيتك لحدّ باب البيت، وتابع السائق على الخريطة لحظة بلحظة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🛺 مشوارك علينا!\n\nاطلب رقشتك أو عربيتك لحدّ باب البيت، وتابع السائق على الخريطة لحظة بلحظة.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 3,
+   "type": "image",
+   "file": "04-travel.jpg",
+   "ig_file": "ig-04-travel.jpg",
+   "caption": "🚌 مسافر؟\n\nاحجز تذكرتك بين المدن في ثوانٍ، واختر مقعدك، وشارك التذكرة كصورة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🚌 مسافر؟\n\nاحجز تذكرتك بين المدن في ثوانٍ، واختر مقعدك، وشارك التذكرة كصورة.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 4,
+   "type": "video",
+   "file": "v2-new-version.mp4",
+   "ig_file": "v2-new-version.mp4",
+   "caption": "🔥 حصاحيصاوي بنسخة جديدة!\n\nمكالمات صوتية من الدردشة، ملف مهني بشهادات قابلة للتحقق، أذان بالصوت اللي يناسبك، تطوع ومسابقات، ووضع داكن بضغطة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🔥 حصاحيصاوي بنسخة جديدة!\n\nمكالمات صوتية من الدردشة، ملف مهني بشهادات قابلة للتحقق، أذان بالصوت اللي يناسبك، تطوع ومسابقات، ووضع داكن بضغطة.\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "🔥 تحديث جديد لحصاحيصاوي",
+    "body": "مكالمات صوتية، مسابقات، تطوع وأكثر — حدّث التطبيق واكتشفها"
+   }
+  },
+  {
+   "day": 5,
+   "type": "image",
+   "file": "05-health.jpg",
+   "ig_file": "ig-05-health.jpg",
+   "caption": "🩺 موعدك مع الطبيب… بلا انتظار.\n\nاحجز موعدك في عيادات ومستشفيات الحصاحيصا من التطبيق مباشرة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🩺 موعدك مع الطبيب… بلا انتظار.\n\nاحجز موعدك في عيادات ومستشفيات الحصاحيصا من التطبيق مباشرة.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 6,
+   "type": "image",
+   "file": "06-market.jpg",
+   "ig_file": "ig-06-market.jpg",
+   "caption": "🛒 السوق والمطاعم في جيبك.\n\nمن محلات حيّك ومطاعم المدينة لحدّ بابك — اطلب بضغطة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🛒 السوق والمطاعم في جيبك.\n\nمن محلات حيّك ومطاعم المدينة لحدّ بابك — اطلب بضغطة.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 7,
+   "type": "image",
+   "file": "07-jobs.jpg",
+   "ig_file": "ig-07-jobs.jpg",
+   "caption": "💼 تبحث عن وظيفة؟\n\nفرص عمل من شركات ومدارس ومحلات الحصاحيصا، وسيرتك الذاتية PDF جاهزة من ملفك بضغطة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "💼 تبحث عن وظيفة؟\n\nفرص عمل من شركات ومدارس ومحلات الحصاحيصا، وسيرتك الذاتية PDF جاهزة من ملفك بضغطة.\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "💼 وظائف جديدة في مدينتك",
+    "body": "تصفّح فرص العمل وجهّز سيرتك الذاتية من حصاحيصاوي"
+   }
+  },
+  {
+   "day": 8,
+   "type": "video",
+   "file": "v1-updates.mp4",
+   "ig_file": "v1-updates.mp4",
+   "caption": "🕌 الأذان بصوت شيخ سوداني، وإشعارات بصوت حتى والتطبيق مغلق، وتقويم الأعياد والمناسبات… وأكثر.\n\nتعرّف على آخر إضافات حصاحيصاوي.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🕌 الأذان بصوت شيخ سوداني، وإشعارات بصوت حتى والتطبيق مغلق، وتقويم الأعياد والمناسبات… وأكثر.\n\nتعرّف على آخر إضافات حصاحيصاوي.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 9,
+   "type": "image",
+   "file": "08-chat-call.jpg",
+   "ig_file": "ig-08-chat-call.jpg",
+   "caption": "📞 دردشة ومكالمات صوتية مجانية عبر الإنترنت مع أهل مدينتك — من داخل المحادثة مباشرة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "📞 دردشة ومكالمات صوتية مجانية عبر الإنترنت مع أهل مدينتك — من داخل المحادثة مباشرة.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 10,
+   "type": "image",
+   "file": "09-prayer.jpg",
+   "ig_file": "ig-09-prayer.jpg",
+   "caption": "🕌 الأذان في موعده… أينما كنت.\n\nمواقيت دقيقة للحصاحيصا، وأذان بصوت شيخ سوداني، وتتحكم في مستوى الصوت كما تحب.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🕌 الأذان في موعده… أينما كنت.\n\nمواقيت دقيقة للحصاحيصا، وأذان بصوت شيخ سوداني، وتتحكم في مستوى الصوت كما تحب.\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "🕌 فعّل الأذان في حصاحيصاوي",
+    "body": "اختر صوت الأذان ومستواه من صفحة الصلاة"
+   }
+  },
+  {
+   "day": 11,
+   "type": "image",
+   "file": "02-services.jpg",
+   "ig_file": "ig-02-services.jpg",
+   "caption": "✨ +٣٠ خدمة في مكان واحد.\n\nأي خدمة تستخدم أكثر؟ قولها لينا في التعليقات 👇\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "✨ +٣٠ خدمة في مكان واحد.\n\nأي خدمة تستخدم أكثر؟ قولها لينا في التعليقات 👇\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 12,
+   "type": "image",
+   "file": "10-trust.jpg",
+   "ig_file": "ig-10-trust.jpg",
+   "caption": "🛡️ آمن · موثّق · ويعمل حتى بدون إنترنت.\n\nحصاحيصاوي مصمّم لأهل الحصاحيصا، وخصوصيتك أولاً.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🛡️ آمن · موثّق · ويعمل حتى بدون إنترنت.\n\nحصاحيصاوي مصمّم لأهل الحصاحيصا، وخصوصيتك أولاً.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 13,
+   "type": "image",
+   "file": "01-home.jpg",
+   "ig_file": "ig-01-home.jpg",
+   "caption": "🏙️ من أهل الحصاحيصا… لأهل الحصاحيصا.\n\nتطبيق مدينتك الأول، مجاناً على أندرويد والويب.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🏙️ من أهل الحصاحيصا… لأهل الحصاحيصا.\n\nتطبيق مدينتك الأول، مجاناً على أندرويد والويب.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 14,
+   "type": "video",
+   "file": "v2-new-version.mp4",
+   "ig_file": "v2-new-version.mp4",
+   "caption": "🎁 ادعُ أصدقاءك واجمع النقاط!\n\nكل صديق ينضم برمزك يضيف لك نقاط تلقائياً. شارك رابط التطبيق الآن.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🎁 ادعُ أصدقاءك واجمع النقاط!\n\nكل صديق ينضم برمزك يضيف لك نقاط تلقائياً. شارك رابط التطبيق الآن.\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "🎁 ادعُ أصدقاءك واجمع النقاط",
+    "body": "افتح «ادعُ أصدقاءك» من ملفك الشخصي وشارك رمزك"
+   }
+  },
+  {
+   "day": 15,
+   "type": "image",
+   "file": "03-ride.jpg",
+   "ig_file": "ig-03-ride.jpg",
+   "caption": "🛺 سائق رقشة أو عربية؟\n\nسجّل في «مشوارك علينا» واستقبل طلبات المشاوير من أهل مدينتك.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🛺 سائق رقشة أو عربية؟\n\nسجّل في «مشوارك علينا» واستقبل طلبات المشاوير من أهل مدينتك.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 16,
+   "type": "image",
+   "file": "07-jobs.jpg",
+   "ig_file": "ig-07-jobs.jpg",
+   "caption": "🏢 صاحب عمل؟\n\nانشر وظيفتك مجاناً في حصاحيصاوي ووصل لأهل المدينة مباشرة.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🏢 صاحب عمل؟\n\nانشر وظيفتك مجاناً في حصاحيصاوي ووصل لأهل المدينة مباشرة.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 17,
+   "type": "image",
+   "file": "06-market.jpg",
+   "ig_file": "ig-06-market.jpg",
+   "caption": "🏪 صاحب محل أو مطعم؟\n\nاعرض منتجاتك واستقبل الطلبات من التطبيق — متجرك صار في جيب كل زبون.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🏪 صاحب محل أو مطعم؟\n\nاعرض منتجاتك واستقبل الطلبات من التطبيق — متجرك صار في جيب كل زبون.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 18,
+   "type": "video",
+   "file": "v3-services.mp4",
+   "ig_file": "v3-services.mp4",
+   "caption": "🌟 المدينة كلّها… في تطبيق واحد.\n\nإذا ما جرّبت حصاحيصاوي لسه، هسّي وقتو!\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🌟 المدينة كلّها… في تطبيق واحد.\n\nإذا ما جرّبت حصاحيصاوي لسه، هسّي وقتو!\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "🌟 شارك حصاحيصاوي مع أهلك",
+    "body": "كل ما زاد المستخدمين زادت الخدمات — شارك التطبيق"
+   }
+  },
+  {
+   "day": 19,
+   "type": "image",
+   "file": "05-health.jpg",
+   "ig_file": "ig-05-health.jpg",
+   "caption": "❤️ صحتك أولاً.\n\nدليل الأطباء والصيدليات وحجز المواعيد — كلها في حصاحيصاوي.\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "❤️ صحتك أولاً.\n\nدليل الأطباء والصيدليات وحجز المواعيد — كلها في حصاحيصاوي.\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 20,
+   "type": "image",
+   "file": "feature.jpg",
+   "ig_file": null,
+   "caption": "📲 حصاحيصاوي متوفر الآن على Google Play والويب.\n\nحمّله وشارك رأيك في التقييمات ⭐\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "📲 حصاحيصاوي متوفر الآن على Google Play والويب.\n\nحمّله وشارك رأيك في التقييمات ⭐\n\nhttps://hasahisawi.pages.dev",
+   "push": null
+  },
+  {
+   "day": 21,
+   "type": "video",
+   "file": "v1-updates.mp4",
+   "ig_file": "v1-updates.mp4",
+   "caption": "🙏 شكراً لكل من انضم لحصاحيصاوي!\n\nمعاً نبني مجتمع مدينتنا الرقمي. والجاي أحلى 💚\n\n⬇️ حمّله مجاناً:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi\nhttps://hasahisawi.pages.dev\n\n#حصاحيصاوي #الحصاحيصا #السودان #تطبيق_مدينتي",
+   "caption_short": "🙏 شكراً لكل من انضم لحصاحيصاوي!\n\nمعاً نبني مجتمع مدينتنا الرقمي. والجاي أحلى 💚\n\nhttps://hasahisawi.pages.dev",
+   "push": {
+    "title": "💚 شكراً لأنك معنا",
+    "body": "قيّم حصاحيصاوي على Google Play وساعدنا نكبر"
+   }
+  }
+ ]
+}

@@ -1,0 +1,623 @@
+{
+ "name": "حملة حصاحيصاوي الإعلانية — نشر يومي تلقائي",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 19 * * *"
+      }
+     ]
+    }
+   },
+   "id": "359ccf8c-03c8-4f74-8f41-2a356d20b063",
+   "name": "كل يوم 7 مساءً",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "f90ecfc2-d52a-49d8-8bbe-13a559fa5726",
+   "name": "تجربة يدوية",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "21513de2-1d28-4de5-980d-6db3f5f7499c",
+       "name": "page_id",
+       "value": "ضع_معرف_صفحة_فيسبوك",
+       "type": "string"
+      },
+      {
+       "id": "4ba914ce-ebe1-4c3c-870b-3560d9233a8f",
+       "name": "ig_user_id",
+       "value": "ضع_معرف_حساب_إنستغرام_للأعمال",
+       "type": "string"
+      },
+      {
+       "id": "c2d9dc1f-58ba-4bbe-b8df-ed96146d5255",
+       "name": "telegram_chat_id",
+       "value": "@اسم_قناتك",
+       "type": "string"
+      },
+      {
+       "id": "bf104dc1-5216-4091-b375-829d11fba1e5",
+       "name": "api_base",
+       "value": "https://api-server-gilt-ten.vercel.app",
+       "type": "string"
+      },
+      {
+       "id": "58cb51a6-5e60-48a7-a88c-6041a04adf4c",
+       "name": "calendar_url",
+       "value": "https://hasahisawi.pages.dev/campaign/calendar.json",
+       "type": "string"
+      },
+      {
+       "id": "889faf04-4c5f-45ff-8001-25b7e7e46d45",
+       "name": "test_day",
+       "value": 0,
+       "type": "number"
+      },
+      {
+       "id": "7f93846b-4d28-4dbb-8dc3-d0fe0dd313d7",
+       "name": "enable_facebook",
+       "value": true,
+       "type": "boolean"
+      },
+      {
+       "id": "6a1fee0e-e9ae-4f15-adfb-96eab3a7d8a9",
+       "name": "enable_instagram",
+       "value": true,
+       "type": "boolean"
+      },
+      {
+       "id": "785b6944-8dc4-402b-a64c-adf6a28a05bb",
+       "name": "enable_telegram",
+       "value": true,
+       "type": "boolean"
+      },
+      {
+       "id": "485d70a7-58fd-41d8-a107-671d24407e3f",
+       "name": "enable_app_push",
+       "value": true,
+       "type": "boolean"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "459c3a02-ed84-4da2-a2de-402517d9b347",
+   "name": "الإعدادات",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    240,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "url": "={{ $json.calendar_url }}?t={{ Date.now() }}",
+    "options": {}
+   },
+   "id": "e60afaeb-0fcb-4cfe-b36f-4041e6433df5",
+   "name": "جلب تقويم الحملة",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    480,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// يختار منشور اليوم من تقويم الحملة (أو اليوم المحدد في test_day للتجربة)\nconst cfg = $('الإعدادات').first().json;\nconst cal = $input.first().json;\nconst tz = cal.timezone || 'Asia/Riyadh';\nconst now = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));\nconst today = new Date(now.getFullYear(), now.getMonth(), now.getDate());\nconst [y, m, d] = cal.start_date.split('-').map(Number);\nlet day = Math.round((today - new Date(y, m - 1, d)) / 86400000) + 1;\nif (Number(cfg.test_day) > 0) day = Number(cfg.test_day);\nconst it = (cal.items || []).find(x => x.day === day);\nif (!it) return []; // لا منشور اليوم (قبل البداية أو بعد نهاية الحملة)\nreturn [{ json: {\n  ...cfg, ...it,\n  url: cal.base_url + it.file,\n  ig_url: it.ig_file ? cal.base_url + it.ig_file : '',\n  has_push: !!(it.push && it.push.title),\n} }];"
+   },
+   "id": "29ed27c5-d91c-4db0-abd1-c7c981f95e38",
+   "name": "منشور اليوم",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    720,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "ffce5a82-4642-4e04-bca9-f48e4558b4fa",
+       "leftValue": "={{ $json.enable_facebook }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "rightValue": ""
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "085cc3ae-7c30-4fb3-95ed-2ce59da3ccae",
+   "name": "فيسبوك مفعّل؟",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    960,
+    -260
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/v21.0/{{ $json.page_id }}/{{ $json.type === 'video' ? 'videos' : 'photos' }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "facebookGraphApi",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.type === 'video' ? { file_url: $json.url, description: $json.caption } : { url: $json.url, caption: $json.caption }) }}",
+    "options": {}
+   },
+   "id": "866eda01-2835-4624-a022-20b1ba6d17cd",
+   "name": "نشر على فيسبوك",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1200,
+    -260
+   ],
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "3df9a452-ea8c-426d-9bf6-8f46ae96ca8c",
+       "leftValue": "={{ $json.enable_instagram && $json.ig_url !== '' }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "rightValue": ""
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "60722fac-e3da-4399-9059-ca2eb40b6d79",
+   "name": "إنستغرام مفعّل؟",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    960,
+    -40
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/v21.0/{{ $json.ig_user_id }}/media",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "facebookGraphApi",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.type === 'video' ? { media_type: 'REELS', video_url: $json.ig_url, caption: $json.caption, share_to_feed: true } : { image_url: $json.ig_url, caption: $json.caption }) }}",
+    "options": {}
+   },
+   "id": "f1c2a62d-56ab-45b1-bd1b-1c4a53cb9cc0",
+   "name": "إنستغرام: تجهيز المنشور",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1200,
+    -40
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "amount": "={{ $('منشور اليوم').item.json.type === 'video' ? 150 : 15 }}",
+    "unit": "seconds"
+   },
+   "id": "0cec104b-08d2-4323-959f-a95c207f8167",
+   "name": "انتظار المعالجة",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    1440,
+    -40
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/v21.0/{{ $('منشور اليوم').item.json.ig_user_id }}/media_publish",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "facebookGraphApi",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ creation_id: $json.id }) }}",
+    "options": {}
+   },
+   "id": "ec91abfe-18f9-4956-8d90-0d94c2c4afb8",
+   "name": "إنستغرام: نشر",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1680,
+    -40
+   ],
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "3cf5f437-cd0a-4d7b-9b36-26d46502b713",
+       "leftValue": "={{ $json.enable_telegram }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "rightValue": ""
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "ef2a738d-d5ff-4d74-a9b6-1dd8d7a4eb9f",
+   "name": "تيليجرام مفعّل؟",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    960,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "c7534677-72ca-401d-90f7-59bca5443c63",
+       "leftValue": "={{ $json.type }}",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       },
+       "rightValue": "video"
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "b71c6218-9f49-4c17-8f68-84944254555c",
+   "name": "فيديو أم صورة؟",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1200,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "sendVideo",
+    "chatId": "={{ $json.telegram_chat_id }}",
+    "file": "={{ $json.url }}",
+    "additionalFields": {
+     "caption": "={{ $json.caption }}"
+    }
+   },
+   "id": "e34167e7-eb78-4680-adb5-9a8b6f0099a2",
+   "name": "تيليجرام: فيديو",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1440,
+    120
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "operation": "sendPhoto",
+    "chatId": "={{ $json.telegram_chat_id }}",
+    "file": "={{ $json.url }}",
+    "additionalFields": {
+     "caption": "={{ $json.caption }}"
+    }
+   },
+   "id": "b4437758-7b49-4589-9636-fa6061ac3098",
+   "name": "تيليجرام: صورة",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1440,
+    280
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "d9799a41-86c3-4c52-82ac-ccf2b7581677",
+       "leftValue": "={{ $json.enable_app_push && $json.has_push }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "rightValue": ""
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "25597619-8171-4325-b4f8-3786a3caaddc",
+   "name": "إشعار التطبيق اليوم؟",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    960,
+    440
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.api_base }}/api/campaign/push",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ title: $json.push.title, body: $json.push.body, day: $json.day }) }}",
+    "options": {}
+   },
+   "id": "6ca964ac-6f29-45f1-b261-ab7298d118f9",
+   "name": "إشعار لكل مستخدمي التطبيق",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1200,
+    440
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "content": "## حملة حصاحيصاوي — ٢١ يوماً\n1. عدّل عقدة «الإعدادات» (معرّف الصفحة، حساب إنستغرام، قناة تيليجرام).\n2. أضف بيانات الدخول: Facebook Graph API (رمز الصفحة) لعقد فيسبوك وإنستغرام، Telegram لعقد تيليجرام، Header Auth لعقدة إشعار التطبيق.\n3. للتجربة: test_day = 1 ثم «تجربة يدوية». أعدها إلى 0 بعد التجربة.\n4. فعّل الـ workflow (Active).",
+    "height": 300,
+    "width": 520
+   },
+   "id": "264f310e-2292-4e83-b5d0-0254d219dd2c",
+   "name": "طريقة التشغيل",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    200,
+    -420
+   ]
+  }
+ ],
+ "connections": {
+  "كل يوم 7 مساءً": {
+   "main": [
+    [
+     {
+      "node": "الإعدادات",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "تجربة يدوية": {
+   "main": [
+    [
+     {
+      "node": "الإعدادات",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "الإعدادات": {
+   "main": [
+    [
+     {
+      "node": "جلب تقويم الحملة",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "جلب تقويم الحملة": {
+   "main": [
+    [
+     {
+      "node": "منشور اليوم",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "منشور اليوم": {
+   "main": [
+    [
+     {
+      "node": "فيسبوك مفعّل؟",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "إنستغرام مفعّل؟",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "تيليجرام مفعّل؟",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "إشعار التطبيق اليوم؟",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "فيسبوك مفعّل؟": {
+   "main": [
+    [
+     {
+      "node": "نشر على فيسبوك",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "إنستغرام مفعّل؟": {
+   "main": [
+    [
+     {
+      "node": "إنستغرام: تجهيز المنشور",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "إنستغرام: تجهيز المنشور": {
+   "main": [
+    [
+     {
+      "node": "انتظار المعالجة",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "انتظار المعالجة": {
+   "main": [
+    [
+     {
+      "node": "إنستغرام: نشر",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "تيليجرام مفعّل؟": {
+   "main": [
+    [
+     {
+      "node": "فيديو أم صورة؟",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "فيديو أم صورة؟": {
+   "main": [
+    [
+     {
+      "node": "تيليجرام: فيديو",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "تيليجرام: صورة",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "إشعار التطبيق اليوم؟": {
+   "main": [
+    [
+     {
+      "node": "إشعار لكل مستخدمي التطبيق",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Asia/Riyadh"
+ },
+ "pinData": {}
+}
