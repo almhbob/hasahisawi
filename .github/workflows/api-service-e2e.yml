@@ -103,3 +103,4 @@ jobs:
           NODE
           node qa/e2e-requests.mjs
           node qa/e2e-certificates.mjs
+          node qa/e2e-srcs.mjs
