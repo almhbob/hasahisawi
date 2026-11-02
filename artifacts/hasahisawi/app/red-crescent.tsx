@@ -12,7 +12,7 @@ import { notify } from "@/lib/xplatform";
 import * as ImagePicker from "expo-image-picker";
 import { uploadFile } from "@/lib/firebase/storage";
 import {
-  srcsApi, openMusifOrHelp, ROLE_LABEL, ACTIVITY_TYPES, BLOOD_TYPES, SRCS_RED, SRCS_RED_DEEP,
+  srcsApi, uploadPrivateDoc, openMusifOrHelp, ROLE_LABEL, ACTIVITY_TYPES, BLOOD_TYPES, SRCS_RED, SRCS_RED_DEEP,
   type SrcsOverview, type SrcsRole,
 } from "@/lib/red-crescent";
 import { srcsStyles } from "@/components/srcs/styles";
@@ -242,6 +242,7 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
   const [certs, setCerts] = useState("");
   const [nid, setNid] = useState("");
   const [idDoc, setIdDoc] = useState<string | null>(null);
+  const [idPreview, setIdPreview] = useState<string | null>(null);
   const [certDoc, setCertDoc] = useState<string | null>(null);
   const [uploading, setUploading] = useState<"" | "id" | "cert">("");
   const [busy, setBusy] = useState(false);
@@ -251,14 +252,21 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
   const pickDoc = async (kind: "id" | "cert", camera: boolean) => {
     const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== "granted") { notify("الإذن مطلوب", camera ? "اسمح باستخدام الكاميرا لتصوير المستند" : "اسمح بالوصول إلى الصور لاختيار المستند"); return; }
-    const opts: any = { mediaTypes: (ImagePicker as any).MediaTypeOptions?.Images ?? ["images"], quality: 0.8, exif: false };
+    // صورة الهوية تُضغط أكثر لأنها تُحفظ في التخزين الخاص (حد 4 ميجابايت)
+    const opts: any = { mediaTypes: (ImagePicker as any).MediaTypeOptions?.Images ?? ["images"], quality: kind === "id" ? 0.5 : 0.8, exif: false };
     const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
     if (r.canceled || !r.assets?.[0]) return;
     setUploading(kind);
     try {
       const a = r.assets[0];
-      const url = await uploadFile(`srcs_docs/${user?.id ?? "u"}/${kind}_${Date.now()}.jpg`, a.uri, { fileName: `${kind}_${Date.now()}.jpg`, mimeType: a.mimeType || "image/jpeg" });
-      kind === "id" ? setIdDoc(url) : setCertDoc(url);
+      if (kind === "id") {
+        // خاص: لا يراه إلا صاحبه وإدارة الفرع برابط مؤقت
+        const r = await uploadPrivateDoc(token!, a.uri, { name: `id_${Date.now()}.jpg`, mime: a.mimeType || "image/jpeg", kind: "national_id" });
+        setIdDoc(r.ref); setIdPreview(r.url);
+      } else {
+        const url = await uploadFile(`srcs_docs/${user?.id ?? "u"}/${kind}_${Date.now()}.jpg`, a.uri, { fileName: `${kind}_${Date.now()}.jpg`, mimeType: a.mimeType || "image/jpeg" });
+        setCertDoc(url);
+      }
     } catch (e: any) { notify("تعذّر رفع الصورة", e?.message || "حاول مجدداً"); }
     finally { setUploading(""); }
   };
@@ -318,10 +326,10 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
                 <Ionicons name="document-lock" size={18} color={SRCS_RED} />
                 <Text style={[s.cardTitle, { flex: 1 }]}>المستندات {medic ? "(إلزامية للمسعف)" : "(اختيارية)"}</Text>
               </View>
-              <Text style={s.hint}>تُراجعها إدارة الفرع فقط للتحقق من هويتك ومؤهلك قبل إصدار البطاقة.</Text>
+              <Text style={s.hint}>🔒 صورة الهوية تُحفظ في تخزين خاص لا يطّلع عليه إلا إدارة الفرع للتحقق قبل إصدار البطاقة.</Text>
               <Text style={s.label}>الرقم الوطني{medic ? " *" : ""}</Text>
               <TextInput value={nid} onChangeText={(t) => setNid(t.replace(/[^\d\s]/g, ""))} keyboardType="number-pad" maxLength={24} style={[s.input, { textAlign: "center", letterSpacing: 1 }]} placeholderTextColor={Colors.textMuted} placeholder="أدخل الرقم الوطني" />
-              <DocSlot label={`صورة البطاقة القومية / الرقم الوطني${medic ? " *" : ""}`} url={idDoc} busy={uploading === "id"} onCamera={() => pickDoc("id", true)} onGallery={() => pickDoc("id", false)} onClear={() => setIdDoc(null)} />
+              <DocSlot label={`صورة البطاقة القومية / الرقم الوطني${medic ? " *" : ""} 🔒`} url={idDoc ? idPreview : null} busy={uploading === "id"} onCamera={() => pickDoc("id", true)} onGallery={() => pickDoc("id", false)} onClear={() => { setIdDoc(null); setIdPreview(null); }} />
               <DocSlot label={`صورة الشهادة (إسعافات أولية / دورة معتمدة)${medic ? " *" : ""}`} url={certDoc} busy={uploading === "cert"} onCamera={() => pickDoc("cert", true)} onGallery={() => pickDoc("cert", false)} onClear={() => setCertDoc(null)} />
             </View>
             <TouchableOpacity style={[s.primary, { marginTop: 6 }, (busy || !!uploading) && { opacity: 0.6 }]} onPress={submit} disabled={busy || !!uploading}>

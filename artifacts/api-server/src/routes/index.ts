@@ -27,6 +27,7 @@ import zawajilAdminRouter from "./zawajil-admin";
 
 import redCrescentRouter, { ensureRedCrescentDb } from "./red-crescent";
 import redCrescentPlusRouter from "./red-crescent-plus";
+import redCrescentOpsRouter from "./red-crescent-ops";
 import invitesRouter, { ensureInvitesDb } from "./invites";
 const router: IRouter = Router();
 
@@ -51,6 +52,7 @@ router.use(socialPlusRouter);
 router.use(volunteerRouter);
 router.use(redCrescentRouter);
 router.use(redCrescentPlusRouter);
+router.use(redCrescentOpsRouter);
 router.use(invitesRouter);
 router.use(contestsRouter);
 router.use(callsRouter);

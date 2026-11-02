@@ -13,6 +13,7 @@ import { srcsStyles } from "@/components/srcs/styles";
 import DateTimeField, { fmtDateTime } from "@/components/srcs/DateTimeField";
 import ZoomViewer from "@/components/srcs/ZoomViewer";
 import { CERT_STATUS } from "@/components/srcs/DossierView";
+import { CheckinScanner, ExportButtons } from "@/components/srcs/AdminOps";
 import { srcsApi, SRCS_RED, type SrcsCourse, type SrcsEnrollment, type SrcsCohort, type SrcsFile, type SrcsPerm, type SrcsMember } from "@/lib/red-crescent";
 
 export default function AdminCourses({ perms, isAppAdmin, cohorts, members }: { perms: SrcsPerm[]; isAppAdmin: boolean; cohorts: SrcsCohort[]; members: SrcsMember[] }) {
@@ -214,6 +215,7 @@ function EnrollmentsModal({ course, perms, isAppAdmin, cohorts, members, onClose
   const [published, setPublished] = useState(false);
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [scan, setScan] = useState(false);
   const canResults = perms.includes("results") || perms.includes("courses");
   const canCerts = perms.includes("certificates");
   const load = useCallback(async () => {
@@ -257,6 +259,10 @@ function EnrollmentsModal({ course, perms, isAppAdmin, cohorts, members, onClose
             {perms.includes("courses") ? <TouchableOpacity style={s.ghost} onPress={() => setAdding((v) => !v)}><Ionicons name="person-add" size={16} color={SRCS_RED} /><Text style={s.ghostTxt}>إضافة مسجلين</Text></TouchableOpacity> : null}
             {canResults ? <TouchableOpacity style={[s.ghost, published && { backgroundColor: "#16A34A15", borderColor: "#16A34A" }]} onPress={togglePublish}><Ionicons name={published ? "eye" : "megaphone"} size={16} color={published ? "#16A34A" : SRCS_RED} /><Text style={[s.ghostTxt, published && { color: "#16A34A" }]}>{published ? "النتيجة معلنة" : "إعلان النتيجة"}</Text></TouchableOpacity> : null}
           </View>
+          <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+            {canResults ? <TouchableOpacity style={[s.ghost, { height: 38 }]} onPress={() => setScan(true)}><Ionicons name="qr-code" size={16} color={SRCS_RED} /><Text style={s.ghostTxt}>مسح الحضور</Text></TouchableOpacity> : null}
+          </View>
+          {course ? <ExportButtons kind="course" id={course.id} compact /> : null}
           {adding ? (
             <View style={s.filesBox}>
               {cohorts.length ? <Text style={s.label}>تسجيل دفعة كاملة</Text> : null}
@@ -304,6 +310,7 @@ function EnrollmentsModal({ course, perms, isAppAdmin, cohorts, members, onClose
               );
             })}
           </ScrollView>
+          <CheckinScanner target={scan && course ? { title: course.title, course_id: course.id } : null} onClose={() => { setScan(false); load(); }} />
           {canResults && rows?.length ? <TouchableOpacity style={s.primary} onPress={saveResults} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryTxt}>حفظ الحضور والدرجات</Text>}</TouchableOpacity> : null}
         </View>
       </KeyboardAvoidingView>

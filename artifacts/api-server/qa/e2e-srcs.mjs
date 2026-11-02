@@ -24,6 +24,8 @@ async function makeUser(name, role = "user") {
   await db.query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [u.rows[0].id, token]);
   return { id: u.rows[0].id, token };
 }
+// الروابط الموقّعة تُبنى على عنوان الإنتاج؛ نوجّهها إلى الخادم المحلي في الاختبار
+const local = (u) => String(u || "").replace(/^https?:\/\/[^/]+/, API);
 const DOC = (k) => `https://example.com/${k}-${Date.now()}.jpg`;
 
 const boss = await makeUser("مدير حصاحيصاوي", "admin");
@@ -124,6 +126,53 @@ check("my dossier: docs + certificate", r.json?.docs?.length === 3 && r.json?.en
 r = await call("GET", `/srcs/admin/members/${mMedic.id}/dossier`, boss.token);
 check("admin dossier includes cohort + national id", r.json?.member?.cohort_name === "دفعة 2026" && r.json?.member?.national_id_no === "1234567890", JSON.stringify(r.json?.member));
 
+// ── الملفات الخاصة ──
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+const fd = new FormData(); fd.append("kind", "national_id"); fd.append("file", new Blob([png], { type: "image/png" }), "id.png");
+let up = await fetch(API + "/api/srcs/private-upload", { method: "POST", headers: { Authorization: "Bearer " + medic.token }, body: fd }).then(async (x) => ({ status: x.status, json: await x.json().catch(() => null) }));
+check("private upload returns priv ref + signed url", up.status === 200 && /^priv:/.test(up.json?.ref) && /pfile\/.+sig=/.test(up.json?.url), JSON.stringify(up));
+const got = await fetch(local(up.json.url));
+check("signed url serves the file", got.status === 200 && (await got.arrayBuffer()).byteLength === png.length, got.status);
+const bad = await fetch(local(up.json.url).replace(/sig=[0-9a-f]+/, "sig=" + "0".repeat(40)));
+check("tampered signature → 403", bad.status === 403, bad.status);
+const unsigned = await fetch(local(up.json.url).split("?")[0]);
+check("no signature → 403", unsigned.status === 403, unsigned.status);
+const thief = await makeUser("متطفل");
+r = await call("POST", "/srcs/join", thief.token, { desired_role: "paramedic", national_id_no: "99999999", id_doc_url: up.json.ref, cert_doc_url: DOC("c2") });
+check("cannot attach someone else's private file", r.status === 400, r.text);
+r = await call("POST", "/srcs/me/docs", medic.token, { kind: "national_id", title: "هوية جديدة", url: up.json.ref });
+check("own private file accepted in dossier", r.status === 200 && /pfile/.test(r.json?.doc?.url || "") && r.json?.doc?.url_private === true, r.text);
+const rawDb = await db.query(`SELECT url FROM srcs_member_docs WHERE id=$1`, [r.json?.doc?.id]);
+check("db keeps private ref, not a public URL", /^priv:/.test(rawDb.rows[0]?.url || ""), rawDb.rows[0]?.url);
+
+// ── الحضور بالمسح ──
+const cardTok0 = (await db.query(`SELECT card_token, card_no FROM srcs_members WHERE id=$1`, [mMedic.id])).rows[0];
+const mt2 = (await call("POST", "/srcs/admin/meetings", leaderU.token, { title: "اجتماع المسح", place: "المقر", starts_at: new Date(Date.now() + 3600e3).toISOString() })).json?.meeting;
+r = await call("POST", "/srcs/admin/checkin", leaderU.token, { code: `https://x/api/public/srcs/verify/${cardTok0.card_token}`, meeting_id: mt2.id });
+check("check-in by scanning card QR", r.status === 200 && r.json?.member?.name === "المسعف", r.text);
+r = await call("POST", "/srcs/admin/checkin", leaderU.token, { code: cardTok0.card_no.toLowerCase(), meeting_id: mt2.id });
+check("check-in by typed card number", r.status === 200, r.text);
+const att = await db.query(`SELECT attended FROM srcs_meeting_rsvps WHERE meeting_id=$1 AND user_id=$2`, [mt2.id, medic.id]);
+check("attendance recorded", att.rows[0]?.attended === true);
+r = await call("POST", "/srcs/admin/checkin", leaderU.token, { code: "SRCS-HSH-0000-00000", meeting_id: mt2.id });
+check("unknown card → 404", r.status === 404, r.status);
+
+// ── التصدير ──
+r = await call("POST", "/srcs/admin/export-link", leaderU.token, { kind: "course", id: courseId, format: "csv" });
+const csv = r.json?.url ? await fetch(local(r.json.url)).then((x) => x.text()) : "";
+check("course results CSV export", csv.includes("المسعف") && csv.includes("ناجح"), csv.slice(0, 200));
+r = await call("POST", "/srcs/admin/export-link", leaderU.token, { kind: "members", format: "html" });
+check("leader without members perm cannot export members", r.status === 403, r.status);
+r = await call("POST", "/srcs/admin/export-link", boss.token, { kind: "meeting", id: mt2.id, format: "html" });
+const html = r.json?.url ? await fetch(local(r.json.url)).then((x) => x.text()) : "";
+check("printable attendance sheet", html.includes("كشف حضور") && html.includes("✔ حضر"), html.slice(0, 120));
+const exp = await fetch(local(r.json.url).replace(/sig=[0-9a-f]+/, "sig=" + "1".repeat(40)));
+check("export link tamper → 403", exp.status === 403, exp.status);
+
+// ── التذكيرات ──
+r = await call("POST", "/srcs/cron/reminders", null);
+check("reminders endpoint requires auth", r.status === 401, r.status);
+
 // ── الحظر وإلغاء البطاقة ──
 const cardTok = (await db.query(`SELECT card_token FROM srcs_members WHERE id=$1`, [mMedic.id])).rows[0].card_token;
 let v = await fetch(`${API}/api/public/srcs/verify/${cardTok}`).then((x) => x.text());
@@ -136,6 +185,13 @@ v = await fetch(`${API}/api/public/srcs/verify/${cardTok}`).then((x) => x.text()
 check("verify page shows revoked", v.includes("بطاقة ملغاة"));
 r = await call("POST", "/srcs/join", medic.token, { desired_role: "volunteer" });
 check("banned cannot rejoin", r.status === 403, r.status);
+
+// ── سجل التدقيق ──
+r = await call("GET", "/srcs/admin/audit", boss.token);
+const acts = (r.json?.entries || []).map((e) => e.action);
+check("audit log records sensitive actions", ["ban", "perms", "settings", "cert_approve", "results_publish", "checkin", "export"].every((a) => acts.includes(a)), JSON.stringify([...new Set(acts)]));
+r = await call("GET", "/srcs/admin/audit", leaderU.token);
+check("audit hidden from leader without members perm", r.status === 403, r.status);
 
 // ── مسعف ──
 r = await call("GET", "/srcs/musif/profile?code=X", null);

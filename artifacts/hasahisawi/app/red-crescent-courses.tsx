@@ -12,7 +12,7 @@ import { uploadFile } from "@/lib/firebase/storage";
 import { srcsStyles } from "@/components/srcs/styles";
 import { fmtDateTime } from "@/components/srcs/DateTimeField";
 import DossierView from "@/components/srcs/DossierView";
-import { srcsApi, SRCS_RED, SRCS_RED_DEEP, DOC_KIND_LABEL, type SrcsCourse, type SrcsDossier, type SrcsSettings } from "@/lib/red-crescent";
+import { srcsApi, uploadPrivateDoc, SRCS_RED, SRCS_RED_DEEP, DOC_KIND_LABEL, type SrcsCourse, type SrcsDossier, type SrcsSettings } from "@/lib/red-crescent";
 
 type Tab = "courses" | "mine";
 
@@ -148,7 +148,7 @@ function CourseSheet({ course, settings, onClose, onChanged }: { course: SrcsCou
     const r = await DocumentPicker.getDocumentAsync({ type: ["image/*", "application/pdf"], copyToCacheDirectory: true });
     if (r.canceled || !r.assets?.[0]) return;
     setBusy(true);
-    try { setProof(await uploadFile(`srcs_payments/${Date.now()}_${r.assets[0].name || "proof.jpg"}`, r.assets[0].uri, { fileName: r.assets[0].name, mimeType: r.assets[0].mimeType || null })); }
+    try { setProof((await uploadPrivateDoc(token!, r.assets[0].uri, { name: r.assets[0].name, mime: r.assets[0].mimeType || null, kind: "payment_proof" })).ref); }
     catch (e: any) { notify("تعذّر الرفع", e?.message); } finally { setBusy(false); }
   };
   const requestCert = async () => {
@@ -250,7 +250,14 @@ function AddDocModal({ visible, onClose, onSaved }: { visible: boolean; onClose:
     const r = await DocumentPicker.getDocumentAsync({ type: ["image/*", "application/pdf"], copyToCacheDirectory: true });
     if (r.canceled || !r.assets?.[0]) return;
     setBusy(true);
-    try { const a = r.assets[0]; setUrl(await uploadFile(`srcs_docs/${user?.id ?? "u"}/${Date.now()}_${a.name || "doc"}`, a.uri, { fileName: a.name, mimeType: a.mimeType || null })); if (!title) setTitle((a.name || "").replace(/\.[^.]+$/, "")); }
+    try {
+      const a = r.assets[0];
+      // الهوية تُحفظ خاصة؛ الشهادات والرخص عادية لأنها تُنسخ إلى ملفك الشخصي
+      setUrl(kind === "national_id" || kind === "photo"
+        ? (await uploadPrivateDoc(token!, a.uri, { name: a.name, mime: a.mimeType || null, kind: kind === "national_id" ? "national_id" : "other" })).ref
+        : await uploadFile(`srcs_docs/${user?.id ?? "u"}/${Date.now()}_${a.name || "doc"}`, a.uri, { fileName: a.name, mimeType: a.mimeType || null }));
+      if (!title) setTitle((a.name || "").replace(/\.[^.]+$/, ""));
+    }
     catch (e: any) { notify("تعذّر الرفع", e?.message); } finally { setBusy(false); }
   };
   const save = async () => {
