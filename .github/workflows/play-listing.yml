@@ -1,0 +1,66 @@
+name: Google Play store listing images
+# يرفع صور صفحة المتجر من مجلد store-listing/ إلى Google Play عند تغييرها على master.
+# - store-listing/feature-graphic.png  (1024×500)
+# - store-listing/phone/*.png          (لقطات الهاتف بالترتيب الأبجدي، حتى 8)
+on:
+  push:
+    branches: [master]
+    paths: ['store-listing/**', '.github/workflows/play-listing.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload listing images to Google Play
+        env:
+          PKG: com.almhbob.hasahisawi
+          API: https://api-server-gilt-ten.vercel.app
+        run: |
+          set -euo pipefail
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          RESP=$(curl -sS -X POST -H "Authorization: Bearer $OIDC" "$API/api/ci/play-token")
+          TOKEN=$(echo "$RESP" | jq -r '.access_token // empty')
+          [ -n "$TOKEN" ] || { echo "::error::No Google Play token: $(echo "$RESP" | jq -c 'del(.access_token)')"; exit 1; }
+          echo "::add-mask::$TOKEN"
+          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PKG"
+          UP="https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/$PKG"
+          AUTH="Authorization: Bearer $TOKEN"
+          fail() { echo "::error::$1 — $(echo "$2" | jq -r '.error.message // empty' 2>/dev/null | head -c 400)"; exit 1; }
+
+          R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: application/json" -d '{}' "$BASE/edits")
+          EDIT=$(echo "$R" | jq -r '.id // empty'); [ -n "$EDIT" ] || fail "edit" "$R"
+
+          LANGS=$(curl -sS -H "$AUTH" "$BASE/edits/$EDIT/listings" | jq -r '.listings[]?.language')
+          [ -n "$LANGS" ] || LANGS="ar"
+          echo "Listing languages: $LANGS"
+          for L in $LANGS; do
+            if [ -f store-listing/feature-graphic.png ]; then
+              curl -sS -X DELETE -H "$AUTH" "$BASE/edits/$EDIT/listings/$L/featureGraphic" >/dev/null
+              R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: image/png" --data-binary @store-listing/feature-graphic.png "$UP/edits/$EDIT/listings/$L/featureGraphic?uploadType=media")
+              echo "$R" | jq -e '.image' >/dev/null || fail "feature graphic ($L)" "$R"
+              echo "✓ $L featureGraphic"
+            fi
+            if ls store-listing/phone/*.png >/dev/null 2>&1; then
+              curl -sS -X DELETE -H "$AUTH" "$BASE/edits/$EDIT/listings/$L/phoneScreenshots" >/dev/null
+              for f in $(ls store-listing/phone/*.png | sort | head -8); do
+                R=$(curl -sS -X POST -H "$AUTH" -H "Content-Type: image/png" --data-binary @"$f" "$UP/edits/$EDIT/listings/$L/phoneScreenshots?uploadType=media")
+                echo "$R" | jq -e '.image' >/dev/null || fail "screenshot $f ($L)" "$R"
+                echo "✓ $L $(basename "$f")"
+              done
+            fi
+          done
+
+          R=$(curl -sS -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit")
+          if ! echo "$R" | jq -e '.id' >/dev/null && echo "$R" | grep -q "changesNotSentForReview"; then
+            R=$(curl -sS -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit?changesNotSentForReview=true")
+            echo "$R" | jq -e '.id' >/dev/null || fail "commit" "$R"
+            echo "::warning title=Google Play::صور المتجر محفوظة — أرسلها للمراجعة من Play Console ← نظرة عامة على النشر"
+            exit 0
+          fi
+          echo "$R" | jq -e '.id' >/dev/null || fail "commit" "$R"
+          echo "### ✅ Google Play: store listing images updated" >> $GITHUB_STEP_SUMMARY
