@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -105,8 +105,29 @@ function Input({ value, onChange, placeholder, keyboardType, multiline, numberOf
 // ═══════════════════════════════════════════════════════════════════════
 export default function StudentUnionJoinScreen() {
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, isGuest } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+
+  // إن كان للمستخدم طلب قائم (معلّق أو مقبول) نعرض حالته بدل استمارة فارغة؛
+  // ويُسمح بإعادة التقديم فقط إن رُفض الطلب السابق.
+  const [checkingExisting, setCheckingExisting] = useState(!!token && !isGuest);
+  const [prevRejectedNote, setPrevRejectedNote] = useState<string | null>(null);
+  const [prevRejected, setPrevRejected] = useState(false);
+  useEffect(() => {
+    if (!token || isGuest) { setCheckingExisting(false); return; }
+    let alive = true;
+    fetch(`${getApiUrl()}/api/student-union/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!alive || !d?.application) return;
+        if (!d.can_apply) { router.replace("/student-union-status" as any); return; }
+        setPrevRejected(true);
+        setPrevRejectedNote(d.application.note ?? null);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setCheckingExisting(false); });
+    return () => { alive = false; };
+  }, [token, isGuest]);
 
   const [section, setSection] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -261,7 +282,7 @@ export default function StudentUnionJoinScreen() {
           Alert.alert(
             "تم الإرسال بنجاح",
             "تم تقديم استمارة عضوية اتحاد الطلاب بنجاح.\nسيتم مراجعتها والرد عليك خلال 48 ساعة.",
-            [{ text: "حسناً", onPress: () => router.back() }]
+            [{ text: token ? "متابعة حالة الطلب" : "حسناً", onPress: () => token ? router.replace("/student-union-status" as any) : router.back() }]
           );
         }
       } else {
@@ -319,6 +340,17 @@ export default function StudentUnionJoinScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {checkingExisting && <ActivityIndicator color={UC} style={{ marginBottom: 14 }} />}
+        {prevRejected && section === 1 && (
+          <View style={s.prevBox}>
+            <Ionicons name="information-circle-outline" size={20} color="#B45309" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.prevTitle}>لم يُقبل طلبك السابق — يمكنك التقديم مجدداً</Text>
+              {prevRejectedNote ? <Text style={s.prevNote}>ملاحظة الإدارة: {prevRejectedNote}</Text> : null}
+            </View>
+          </View>
+        )}
+
         {/* رأس القسم */}
         <Animated.View entering={FadeInDown.springify()} style={s.sectionHeader}>
           <View style={s.sectionBadge}>
@@ -514,8 +546,8 @@ export default function StudentUnionJoinScreen() {
             <Text style={s.webSuccessMsg}>
               تم تقديم استمارة عضوية اتحاد الطلاب بنجاح.{"\n"}سيتم مراجعتها والرد عليك خلال 48 ساعة.
             </Text>
-            <TouchableOpacity onPress={() => router.back()} style={s.webSuccessBtn}>
-              <Text style={s.webSuccessBtnText}>حسناً</Text>
+            <TouchableOpacity onPress={() => token ? router.replace("/student-union-status" as any) : router.back()} style={s.webSuccessBtn}>
+              <Text style={s.webSuccessBtnText}>{token ? "متابعة حالة الطلب" : "حسناً"}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -571,6 +603,9 @@ export default function StudentUnionJoinScreen() {
 
 // ── الأنماط ──────────────────────────────────────────────────────────
 const s = StyleSheet.create({
+  prevBox: { flexDirection: "row-reverse", gap: 10, alignItems: "flex-start", backgroundColor: "#F59E0B14", borderWidth: 1, borderColor: "#F59E0B40", borderRadius: 14, padding: 12, marginBottom: 14 },
+  prevTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.text, textAlign: "right" },
+  prevNote: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2, lineHeight: 20 },
   header: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingBottom: 16, gap: 8,

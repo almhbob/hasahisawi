@@ -3566,9 +3566,13 @@ router.delete("/map/places/:id", async (req: Request, res: Response) => {
 
 // ══════════════════════════════════════════════════════
 
-router.get("/notifications", async (_req: Request, res: Response) => {
+router.get("/notifications", async (req: Request, res: Response) => {
   try {
-    const result = await query(`SELECT * FROM notifications ORDER BY created_at DESC`);
+    // الإشعارات العامة (user_id فارغ) للجميع، والإشعارات الشخصية لصاحبها فقط — لا تُكشف إشعارات المستخدمين الآخرين
+    const me = await sessionUser(req).catch(() => null);
+    const result = me
+      ? await query(`SELECT * FROM notifications WHERE user_id IS NULL OR user_id=$1 ORDER BY created_at DESC LIMIT 300`, [me.id])
+      : await query(`SELECT * FROM notifications WHERE user_id IS NULL ORDER BY created_at DESC LIMIT 200`);
     return res.json(result.rows);
   } catch (err) {
     logger.error({ err }, "route error");
@@ -16667,14 +16671,11 @@ router.patch("/student-union/applications/:id/status", async (req: Request, res:
     if (!["approved","rejected"].includes(status ?? "")) {
       return res.status(400).json({ error: "الحالة يجب أن تكون approved أو rejected" });
     }
-    const result = await query(
-      `UPDATE student_union_applications
-       SET status=$1, admin_note=$2, reviewed_by=$3, reviewed_at=NOW()
-       WHERE id=$4 RETURNING *`,
-      [status, admin_note?.trim()||null, admin?.id??null, id]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
-    return res.json({ application: result.rows[0] });
+    // نفس منطق مدير الاتحاد: رقم العضوية + البطاقة + إشعار صاحب الطلب
+    const app = await onStudentUnionDecision(id, status!, admin_note?.trim() || null, null);
+    if (!app) return res.status(404).json({ error: "الطلب غير موجود" });
+    if (admin?.id) await query(`UPDATE student_union_applications SET reviewed_by=$1 WHERE id=$2`, [admin.id, id]).catch(() => {});
+    return res.json({ application: app });
   } catch (e: any) {
     logger.error({ err: e?.message }, "[student-union/status]");
     return res.status(500).json({ error: "Server error" });
@@ -18757,12 +18758,12 @@ router.get("/union-manager/requests", async (req: Request, res: Response) => {
   const mgr = await getUnionMgr(req);
   if (!mgr) return res.status(401).json({ error: "غير مصرح" });
   try {
-    await ensureUnionMgrTables();
+    await ensureStudentUnionPlus();
     const status = (req.query.status as string) || "pending";
     if (!["pending","approved","rejected"].includes(status))
       return res.status(400).json({ error: "حالة غير صالحة" });
     const students = await query(
-      `SELECT id,full_name,phone,email,institution,major,year,motivation,status,created_at,'student' AS type
+      `SELECT id,full_name,phone,email,institution,major,year,motivation,status,created_at,admin_note,member_no,'student' AS type
        FROM student_union_applications WHERE status=$1 ORDER BY created_at DESC`,
       [status]
     );
@@ -18794,16 +18795,16 @@ router.patch("/union-manager/requests/student/:id/status", async (req: Request, 
   const mgr = await getUnionMgr(req);
   if (!mgr) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const { status } = req.body;
+    const { status, admin_note } = req.body ?? {};
     if (!["approved","rejected","pending"].includes(status))
       return res.status(400).json({ error: "حالة غير صالحة" });
-    const r = await query(
-      `UPDATE student_union_applications SET status=$1, reviewed_at=NOW() WHERE id=$2 RETURNING id,full_name,status`,
-      [status, req.params.id]
-    );
-    if (!r.rows.length) return res.status(404).json({ error: "الطلب غير موجود" });
-    logger.info({ mgr_id: mgr.id, app_id: req.params.id, status }, "[union-mgr] student request reviewed");
-    return res.json({ success: true, application: r.rows[0] });
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const note = typeof admin_note === "string" && admin_note.trim() ? admin_note.trim().slice(0, 1000) : null;
+    const app = await onStudentUnionDecision(id, status, note, mgr.id);
+    if (!app) return res.status(404).json({ error: "الطلب غير موجود" });
+    logger.info({ mgr_id: mgr.id, app_id: id, status }, "[union-mgr] student request reviewed");
+    return res.json({ success: true, application: { id: app.id, full_name: app.full_name, status: app.status, member_no: app.member_no ?? null } });
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -18855,6 +18856,356 @@ router.patch("/union-manager/staff/:id/permissions", async (req: Request, res: R
     if (!r.rows.length) return res.status(404).json({ error: "الموظف غير موجود" });
     logger.info({ mgr_id: mgr.id, staff_id: req.params.id }, "[union-mgr] permissions updated");
     return res.json(r.rows[0]);
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// اتحاد الطلاب — حالة الطلب، بطاقة العضوية، صندوق رسائل الطلاب، الأخبار
+// كل ما يخص الاتحاد يصل لمدير الاتحاد (بوابته) لا لإدارة التطبيق.
+// ══════════════════════════════════════════════════════════════════
+let _suPlusReady: Promise<void> | null = null;
+function ensureStudentUnionPlus(): Promise<void> {
+  if (!_suPlusReady) _suPlusReady = (async () => {
+    await ensureUnionTables();
+    await ensureUnionMgrTables();
+    for (const [col, typ] of [
+      ["member_no", "VARCHAR(40)"], ["card_token", "VARCHAR(40)"],
+      ["card_issued_at", "TIMESTAMPTZ"], ["card_expires_at", "TIMESTAMPTZ"],
+      ["reviewed_by_manager", "INTEGER"],
+    ]) await query(`ALTER TABLE student_union_applications ADD COLUMN IF NOT EXISTS ${col} ${typ}`);
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_sua_card_token ON student_union_applications(card_token) WHERE card_token IS NOT NULL`);
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_sua_member_no ON student_union_applications(member_no) WHERE member_no IS NOT NULL`);
+    await query(`CREATE SEQUENCE IF NOT EXISTS student_union_member_seq START 1`);
+    await query(`CREATE TABLE IF NOT EXISTS student_union_inbox (
+      id          SERIAL PRIMARY KEY,
+      user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name        VARCHAR(200) NOT NULL,
+      phone       VARCHAR(40)  NOT NULL,
+      subject     VARCHAR(200),
+      message     TEXT NOT NULL,
+      extra       JSONB NOT NULL DEFAULT '{}'::jsonb,
+      status      VARCHAR(20) NOT NULL DEFAULT 'open',
+      reply       TEXT,
+      replied_by  INTEGER REFERENCES union_managers(id) ON DELETE SET NULL,
+      replied_at  TIMESTAMPTZ,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sui_status ON student_union_inbox(status, created_at DESC)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sui_user   ON student_union_inbox(user_id)`);
+    await query(`CREATE TABLE IF NOT EXISTS student_union_posts (
+      id          SERIAL PRIMARY KEY,
+      manager_id  INTEGER REFERENCES union_managers(id) ON DELETE SET NULL,
+      title       VARCHAR(200) NOT NULL,
+      body        TEXT NOT NULL,
+      image_url   TEXT,
+      is_pinned   BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sup_order ON student_union_posts(is_pinned DESC, created_at DESC)`);
+  })().catch((e) => { _suPlusReady = null; throw e; });
+  return _suPlusReady;
+}
+ensureStudentUnionPlus().catch((e) => logger.warn({ err: e?.message }, "[student-union+] init failed"));
+
+const SU_STATUS_LABEL: Record<string, string> = { pending: "قيد المراجعة", approved: "مقبول", rejected: "مرفوض" };
+const suDigits = (p: unknown) => String(p ?? "").replace(/\D/g, "").slice(-9);
+
+/** إشعار داخل التطبيق + Push لمستخدم واحد */
+async function notifyUnionUser(userId: number, type: string, title: string, body: string, data: Record<string, unknown>): Promise<void> {
+  try {
+    await query(`INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
+      [userId, type, title, body, JSON.stringify(data)]);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[student-union] notification insert failed"); }
+  void sendPushToUser(userId, title, body, { ...data, type });
+}
+
+/** صاحب الطلب: user_id المخزّن، وإلا مطابقة رقم الهاتف مع users.phone (ويُربط الطلب به) */
+async function suResolveApplicant(app: Record<string, any>): Promise<number | null> {
+  if (app.user_id) return Number(app.user_id);
+  const d = suDigits(app.phone);
+  if (d.length < 9) return null;
+  const u = await query(`SELECT id FROM users WHERE right(regexp_replace(COALESCE(phone,''),'\\D','','g'),9)=$1 ORDER BY id LIMIT 2`, [d]);
+  if (u.rows.length !== 1) return null; // لا نخمّن عند تعدد التطابق
+  const uid = Number(u.rows[0].id);
+  await query(`UPDATE student_union_applications SET user_id=$1 WHERE id=$2 AND user_id IS NULL`, [uid, app.id]).catch(() => {});
+  return uid;
+}
+
+/** يُستدعى بعد قبول/رفض طلب طالب (من مدير الاتحاد أو مدير التطبيق) */
+async function onStudentUnionDecision(appId: number, status: string, note: string | null, managerId: number | null): Promise<Record<string, any> | null> {
+  await ensureStudentUnionPlus();
+  let r = await query(
+    `UPDATE student_union_applications SET status=$1, admin_note=COALESCE($2, admin_note), reviewed_at=NOW(),
+            reviewed_by_manager=COALESCE($3, reviewed_by_manager) WHERE id=$4 RETURNING *`,
+    [status, note, managerId, appId]);
+  let app = r.rows[0];
+  if (!app) return null;
+  if (status === "approved" && !app.member_no) {
+    const seq = (await query(`SELECT nextval('student_union_member_seq') AS n`)).rows[0].n;
+    const memberNo = `HSW-SU-${new Date().getFullYear()}-${String(seq).padStart(4, "0")}`;
+    r = await query(
+      `UPDATE student_union_applications SET member_no=$1, card_token=$2, card_issued_at=NOW(),
+              card_expires_at=NOW() + INTERVAL '1 year' WHERE id=$3 RETURNING *`,
+      [memberNo, randomBytes(12).toString("hex"), appId]);
+    app = r.rows[0];
+  } else if (status === "approved" && app.card_expires_at && new Date(app.card_expires_at) < new Date()) {
+    r = await query(`UPDATE student_union_applications SET card_issued_at=NOW(), card_expires_at=NOW() + INTERVAL '1 year' WHERE id=$1 RETURNING *`, [appId]);
+    app = r.rows[0];
+  }
+  if (status === "approved" || status === "rejected") {
+    const uid = await suResolveApplicant(app);
+    if (uid) {
+      const title = status === "approved" ? "🎉 تم قبول عضويتك في اتحاد الطلاب" : "طلب عضوية اتحاد الطلاب";
+      const body = status === "approved"
+        ? `مبروك ${app.full_name}! رقم عضويتك ${app.member_no}. بطاقتك الرقمية جاهزة في التطبيق.`
+        : `نعتذر، لم يُقبل طلبك هذه المرة.${app.admin_note ? ` الملاحظة: ${String(app.admin_note).slice(0, 120)}` : ""} يمكنك التقديم مجدداً.`;
+      await notifyUnionUser(uid, "student_union_decision", title, body, { screen: "student-union-status", id: app.id, status });
+    }
+  }
+  return app;
+}
+
+function suCardPayload(req: Request, app: Record<string, any>) {
+  if (app.status !== "approved" || !app.card_token) return null;
+  const verifyUrl = `${memberCardBase(req)}/api/public/student-union/verify/${app.card_token}`;
+  const valid = !!app.card_expires_at && new Date(app.card_expires_at) > new Date();
+  return {
+    member_no: app.member_no, full_name: app.full_name, institution: app.institution,
+    major: app.major, year: app.year, study_stage: app.study_stage,
+    issued_at: app.card_issued_at, expires_at: app.card_expires_at, valid, verify_url: verifyUrl,
+    share_text: `بطاقة عضوية اتحاد طلاب محلية الحصاحيصا\n${app.full_name} — رقم العضوية ${app.member_no}\nتحقق من البطاقة: ${verifyUrl}`,
+  };
+}
+
+// GET /api/student-union/me — آخر طلب عضوية للمستخدم الحالي + البطاقة إن قُبل
+router.get("/student-union/me", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "سجّل الدخول أولاً" });
+  try {
+    await ensureStudentUnionPlus();
+    let r = await query(`SELECT * FROM student_union_applications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1`, [user.id]);
+    if (!r.rows.length && suDigits(user.phone).length === 9) {
+      r = await query(
+        `SELECT * FROM student_union_applications WHERE user_id IS NULL
+           AND right(regexp_replace(phone,'\\D','','g'),9)=$1 ORDER BY created_at DESC LIMIT 1`, [suDigits(user.phone)]);
+      if (r.rows[0]) await query(`UPDATE student_union_applications SET user_id=$1 WHERE id=$2 AND user_id IS NULL`, [user.id, r.rows[0].id]).catch(() => {});
+    }
+    const a = r.rows[0];
+    if (!a) return res.json({ application: null, card: null, can_apply: true });
+    return res.json({
+      application: {
+        id: a.id, full_name: a.full_name, institution: a.institution, major: a.major, year: a.year,
+        study_stage: a.study_stage, status: a.status, status_label: SU_STATUS_LABEL[a.status] ?? a.status,
+        submitted_at: a.created_at, reviewed_at: a.reviewed_at, note: a.admin_note ?? null,
+        national_id_masked: maskNationalId(a.national_id),
+      },
+      card: suCardPayload(req, a),
+      can_apply: a.status === "rejected",
+    });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/me]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/public/student-union/verify/:token — صفحة تحقق عامة (هدف رمز QR)
+router.get("/public/student-union/verify/:token", async (req: Request, res: Response) => {
+  const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Robots-Tag", "noindex");
+  try {
+    await ensureStudentUnionPlus();
+    const t = String(req.params.token ?? "").slice(0, 40).toLowerCase();
+    const r = /^[0-9a-f]{24}$/.test(t)
+      ? await query(`SELECT full_name, institution, major, year, status, member_no, card_issued_at, card_expires_at FROM student_union_applications WHERE card_token=$1`, [t])
+      : { rows: [] as any[] };
+    const c = r.rows[0];
+    const fmt = (d: unknown) => new Date(String(d)).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+    const valid = c && c.status === "approved" && c.card_expires_at && new Date(c.card_expires_at) > new Date();
+    const state = !c ? ["بطاقة غير موجودة", "#B91C1C", "لم نعثر على بطاقة عضوية بهذا الرمز."]
+      : c.status !== "approved" ? ["عضوية غير فعّالة", "#B91C1C", "هذه العضوية موقوفة أو أُلغيت من إدارة الاتحاد."]
+      : valid ? ["عضوية سارية", "#15803D", `صالحة حتى ${fmt(c.card_expires_at)}`]
+      : ["عضوية منتهية", "#B45309", "انتهت صلاحية البطاقة، يلزم التجديد لدى الاتحاد."];
+    return res.send(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>التحقق من عضوية اتحاد الطلاب — حصاحيصاوي</title>
+<style>body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#EEF3F8;color:#0B1224;display:flex;min-height:100vh;align-items:center;justify-content:center}
+.c{background:#fff;max-width:420px;width:92%;border-radius:22px;box-shadow:0 10px 30px #0002;overflow:hidden}
+.h{background:linear-gradient(135deg,#0B1224,#1F5C8A);color:#fff;padding:20px;text-align:center}
+.s{margin:16px;padding:12px;border-radius:14px;text-align:center;font-weight:bold;color:#fff;background:${state[1]}}
+.r{display:flex;justify-content:space-between;gap:12px;padding:10px 18px;border-top:1px solid #EDF1F5}.r b{color:#1F5C8A;text-align:left}
+.f{font-size:12px;color:#64748B;text-align:center;padding:14px}</style></head><body><div class="c">
+<div class="h"><div style="font-size:34px">🎓</div><div style="font-size:13px;opacity:.85">الاتحاد العام للطلاب السودانيين — محلية الحصاحيصا</div><div style="font-size:20px;font-weight:bold;margin-top:4px">التحقق من بطاقة العضوية</div></div>
+<div class="s">${esc(state[0])}<div style="font-weight:normal;font-size:13px;margin-top:4px">${esc(state[2])}</div></div>
+${c ? `<div class="r"><span>الاسم</span><b>${esc(c.full_name)}</b></div>
+<div class="r"><span>المؤسسة</span><b>${esc(c.institution)}</b></div>
+<div class="r"><span>التخصص</span><b>${esc(c.major)}${c.year ? ` — ${esc(c.year)}` : ""}</b></div>
+${c.member_no ? `<div class="r"><span>رقم العضوية</span><b dir="ltr">${esc(c.member_no)}</b></div>` : ""}
+${c.card_issued_at ? `<div class="r"><span>تاريخ الإصدار</span><b>${esc(fmt(c.card_issued_at))}</b></div>` : ""}` : ""}
+<div class="f">صادرة عبر تطبيق حصاحيصاوي · ${esc(new Date().toLocaleString("ar-EG"))}</div></div></body></html>`);
+  } catch (e: any) { logger.error({ err: e?.message }, "[student-union] verify"); return res.status(500).send("خطأ"); }
+});
+
+// POST /api/student-union/contact — رسالة طالب إلى الاتحاد (مسجّل أو زائر برقم هاتف)
+router.post("/student-union/contact", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureStudentUnionPlus();
+    const user = await getSessionUser(req);
+    const b = (req.body ?? {}) as Record<string, any>;
+    const name = String(b.name ?? user?.name ?? "").trim().slice(0, 200);
+    const phone = String(b.phone ?? user?.phone ?? "").trim().slice(0, 40);
+    const subject = String(b.subject ?? "").trim().slice(0, 200) || "استفسار عام";
+    const message = String(b.message ?? "").trim();
+    if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+    if (!user && suDigits(phone).length < 9) return res.status(400).json({ error: "رقم هاتف صحيح مطلوب" });
+    if (message.length < 3) return res.status(400).json({ error: "الرسالة مطلوبة" });
+    if (message.length > 3000) return res.status(400).json({ error: "الرسالة طويلة جداً (3000 حرف كحد أقصى)" });
+    const mod = await checkContent(`${subject}\n${message}`);
+    if (!mod.allowed) return res.status(422).json({ error: "تم رفض الرسالة", reason: mod.reason ?? "تحتوي الرسالة على محتوى مخالف", blocked: true });
+    const extra: Record<string, string> = {};
+    for (const k of ["whatsapp", "email", "locality", "best_time"]) {
+      const v = String(b[k] ?? "").trim().slice(0, 200);
+      if (v) extra[k] = v;
+    }
+    const r = await query(
+      `INSERT INTO student_union_inbox (user_id, name, phone, subject, message, extra) VALUES ($1,$2,$3,$4,$5,$6::jsonb)
+       RETURNING id, name, subject, message, status, created_at`,
+      [user?.id ?? null, name, phone || "—", subject, message, JSON.stringify(extra)]);
+    void sendPushToUnionManagers("✉️ رسالة طالب جديدة", `${name} — ${subject}`, { type: "student_union_inbox", id: r.rows[0].id });
+    return res.status(201).json({ message: r.rows[0] });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "[student-union/contact]");
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/student-union/contact/mine — رسائلي للاتحاد وردودها
+router.get("/student-union/contact/mine", async (req: Request, res: Response) => {
+  const user = await getSessionUser(req);
+  if (!user) return res.status(401).json({ error: "سجّل الدخول أولاً" });
+  try {
+    await ensureStudentUnionPlus();
+    const r = await query(
+      `SELECT id, subject, message, status, reply, replied_at, created_at FROM student_union_inbox
+        WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`, [user.id]);
+    return res.json({ messages: r.rows });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/union-manager/inbox?status=open|answered|closed|all
+router.get("/union-manager/inbox", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureStudentUnionPlus();
+    const st = singleQueryValue(req.query.status) || "all";
+    const params: unknown[] = [];
+    let where = "";
+    if (["open", "answered", "closed"].includes(st)) { where = "WHERE status=$1"; params.push(st); }
+    const r = await query(`SELECT * FROM student_union_inbox ${where} ORDER BY (status='open') DESC, created_at DESC LIMIT 200`, params);
+    const c = await query(`SELECT COUNT(*)::int AS n FROM student_union_inbox WHERE status='open'`);
+    return res.json({ messages: r.rows, open_count: c.rows[0].n });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/union-manager/inbox/:id — { reply?, status? } الرد يُشعر الطالب
+router.patch("/union-manager/inbox/:id", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureStudentUnionPlus();
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return res.status(400).json({ error: "معرّف غير صالح" });
+    const reply = typeof req.body?.reply === "string" ? req.body.reply.trim().slice(0, 3000) : "";
+    const reqStatus = String(req.body?.status ?? "");
+    if (!reply && !["open", "answered", "closed"].includes(reqStatus)) return res.status(400).json({ error: "أدخل رداً أو حالة صالحة" });
+    const status = reqStatus && ["open", "answered", "closed"].includes(reqStatus) ? reqStatus : "answered";
+    const r = reply
+      ? await query(`UPDATE student_union_inbox SET reply=$1, replied_by=$2, replied_at=NOW(), status=$3 WHERE id=$4 RETURNING *`, [reply, mgr.id, status, id])
+      : await query(`UPDATE student_union_inbox SET status=$1 WHERE id=$2 RETURNING *`, [status, id]);
+    const row = r.rows[0];
+    if (!row) return res.status(404).json({ error: "الرسالة غير موجودة" });
+    if (reply && row.user_id) {
+      await notifyUnionUser(Number(row.user_id), "student_union_reply", "💬 ردّ اتحاد الطلاب على رسالتك",
+        `${row.subject ? row.subject + ": " : ""}${reply.slice(0, 140)}`, { screen: "student-union-contact", id: row.id });
+    }
+    return res.json({ message: row });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/student-union/posts — أخبار وإعلانات الاتحاد (عام)
+router.get("/student-union/posts", async (req: Request, res: Response) => {
+  try {
+    await ensureStudentUnionPlus();
+    const limit = Math.min(Math.max(parseInt(singleQueryValue(req.query.limit) || "30", 10) || 30, 1), 100);
+    const r = await query(
+      `SELECT p.id, p.title, p.body, p.image_url, p.is_pinned, p.created_at, m.full_name AS author_name, m.title AS author_title
+         FROM student_union_posts p LEFT JOIN union_managers m ON m.id=p.manager_id
+        ORDER BY p.is_pinned DESC, p.created_at DESC LIMIT $1`, [limit]);
+    return res.json({ posts: r.rows });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/union-manager/posts — نشر خبر/إعلان (يُشعر الأعضاء المقبولين)
+router.post("/union-manager/posts", writeLimiter, async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureStudentUnionPlus();
+    const title = String(req.body?.title ?? "").trim().slice(0, 200);
+    const body = String(req.body?.body ?? "").trim().slice(0, 5000);
+    const img = String(req.body?.image_url ?? "").trim();
+    if (!title || !body) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+    if (img && !/^https:\/\/\S+$/i.test(img)) return res.status(400).json({ error: "رابط الصورة يجب أن يبدأ بـ https://" });
+    const r = await query(
+      `INSERT INTO student_union_posts (manager_id, title, body, image_url, is_pinned) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [mgr.id, title, body, img || null, req.body?.is_pinned === true]);
+    const post = r.rows[0];
+    // إشعار الأعضاء المقبولين
+    const members = await query(`SELECT DISTINCT user_id FROM student_union_applications WHERE status='approved' AND user_id IS NOT NULL`);
+    const ids = members.rows.map((x: any) => Number(x.user_id));
+    if (ids.length) {
+      const nTitle = `📢 اتحاد الطلاب: ${title}`.slice(0, 200);
+      const nBody = body.slice(0, 160);
+      const data = { screen: "student-union-news", id: post.id };
+      await query(`INSERT INTO notifications (user_id, type, title, body, data) SELECT u, 'student_union_post', $2, $3, $4 FROM unnest($1::int[]) AS u`,
+        [ids, nTitle, nBody, JSON.stringify(data)]).catch(() => {});
+      const tk = await query(`SELECT DISTINCT token FROM push_tokens WHERE user_id = ANY($1::int[]) AND token LIKE 'ExponentPushToken[%'`, [ids]).catch(() => ({ rows: [] as any[] }));
+      for (let i = 0; i < tk.rows.length; i += 90) {
+        void fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(tk.rows.slice(i, i + 90).map((t: any) => ({
+            to: t.token, title: nTitle, body: nBody, sound: pushSound("hasahisawi-default"), channelId: chanV2("hasahisawi-default"),
+            priority: "high", data: { ...data, type: "student_union_post", channelId: chanV2("hasahisawi-default") },
+          }))),
+        }).catch(() => {});
+      }
+    }
+    return res.status(201).json({ post, notified: ids.length });
+  } catch (e: any) { logger.error({ err: e?.message }, "[union-manager/posts]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/union-manager/posts/:id/pin — تثبيت/إلغاء تثبيت
+router.patch("/union-manager/posts/:id/pin", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureStudentUnionPlus();
+    const r = await query(`UPDATE student_union_posts SET is_pinned=NOT is_pinned WHERE id=$1 RETURNING *`, [parseInt(String(req.params.id), 10) || 0]);
+    if (!r.rows.length) return res.status(404).json({ error: "الخبر غير موجود" });
+    return res.json({ post: r.rows[0] });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/union-manager/posts/:id
+router.delete("/union-manager/posts/:id", async (req: Request, res: Response) => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    await ensureStudentUnionPlus();
+    const r = await query(`DELETE FROM student_union_posts WHERE id=$1 RETURNING id`, [parseInt(String(req.params.id), 10) || 0]);
+    if (!r.rows.length) return res.status(404).json({ error: "الخبر غير موجود" });
+    return res.json({ ok: true });
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
 

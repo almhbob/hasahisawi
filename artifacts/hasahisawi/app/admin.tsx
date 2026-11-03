@@ -7028,7 +7028,16 @@ export default function AdminDashboard() {
           ── إتحاد الطلاب
       ═══════════════════════════════════════════════════════ */}
       {tab === "student_union" && isAdmin && (
-        <AdminStudentUnionTab token={token!} apiBase={getApiUrl()} />
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            onPress={() => router.push("/student-union-admin" as any)}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#1F5C8A18", borderWidth: 1, borderColor: "#1F5C8A40" }}
+          >
+            <Ionicons name="open-outline" size={18} color="#1F5C8A" />
+            <Text style={{ flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13.5, color: "#1F5C8A", textAlign: "right" }}>لوحة طلبات عضوية الإتحاد (تفاصيل كاملة ومنح صلاحية مدير)</Text>
+          </TouchableOpacity>
+          <AdminStudentUnionTab token={token!} apiBase={getApiUrl()} />
+        </View>
       )}
 
       {/* ═══════════════════════════════════════════════════════

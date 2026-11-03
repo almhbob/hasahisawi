@@ -864,7 +864,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetchWithTimeout(`${base}/api/notifications`);
+      const res = await fetchWithTimeout(`${base}/api/notifications`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) setNotifications(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);

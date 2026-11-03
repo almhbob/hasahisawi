@@ -1896,6 +1896,15 @@ export default function StudentScreen() {
   const nav = useRouter();
 
   const [activeTab, setActiveTab]         = useState<Tab>("services");
+  // أخبار وإعلانات اتحاد الطلاب (أحدث 3) — تُجلب عند فتح تبويب الإتحاد
+  const [unionPosts, setUnionPosts] = useState<{ id: number; title: string; body: string; is_pinned: boolean; created_at: string }[]>([]);
+  useEffect(() => {
+    if (activeTab !== "union") return;
+    let alive = true;
+    fetch(`${getApiUrl()}/api/student-union/posts?limit=3`).then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive && d?.posts) setUnionPosts(d.posts); }).catch(() => {});
+    return () => { alive = false; };
+  }, [activeTab]);
   const [instFilter, setInstFilter]       = useState<"all" | InstType>("all");
   const [institutions, setInstitutions]   = useState<Institution[]>([]);
   const [requests, setRequests]           = useState<JoinRequest[]>([]);
@@ -2762,10 +2771,35 @@ export default function StudentScreen() {
             </LinearGradient>
           </Animated.View>
 
+          {/* أخبار وإعلانات الاتحاد */}
+          {unionPosts.length > 0 && (
+            <Animated.View entering={FadeInDown.springify()} style={{ marginBottom: 18 }}>
+              <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary, textAlign:"right" }}>📢 الأخبار والإعلانات</Text>
+                <AnimatedPress onPress={() => nav.push("/student-union-news" as any)}>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#1F5C8A" }}>كل الأخبار</Text>
+                </AnimatedPress>
+              </View>
+              {unionPosts.map(p => (
+                <AnimatedPress key={p.id} onPress={() => nav.push("/student-union-news" as any)}>
+                  <View style={{ backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, borderWidth:1, borderColor: p.is_pinned ? "#F59E0B55" : Colors.divider, padding:14, marginBottom:10 }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                      {p.is_pinned && <Ionicons name="pin" size={13} color="#F59E0B" />}
+                      <Text style={{ flex:1, fontFamily:"Cairo_700Bold", fontSize:14.5, color:Colors.textPrimary, textAlign:"right" }} numberOfLines={1}>{p.title}</Text>
+                    </View>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, textAlign:"right", lineHeight:20, marginTop:3 }} numberOfLines={2}>{p.body}</Text>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11.5, color:Colors.textMuted, textAlign:"right", marginTop:4 }}>{new Date(p.created_at).toLocaleDateString("ar-EG", { day:"numeric", month:"long" })}</Text>
+                  </View>
+                </AnimatedPress>
+              ))}
+            </Animated.View>
+          )}
+
           {[
             { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#1F5C8A", route:"/student-union-join" },
-            { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد واستفسر عن الأنشطة والعضوية",      icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
-            { title:"إدارة الإتحاد",       sub:"لوحة مشرفي الإتحاد لمراجعة طلبات الانضمام",    icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/student-union-admin" },
+            { title:"عضويتي وبطاقتي",      sub:"تابع حالة طلبك واعرض بطاقة العضوية الرقمية",     icon:"id-card-outline",         color:"#0E7490", route:"/student-union-status" },
+            { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد وتابع ردوده على رسائلك",            icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
+            { title:"إدارة الإتحاد",       sub:"بوابة مدير الإتحاد: الطلبات والرسائل والأخبار", icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/union-manager-portal" },
           ].map((item, i) => (
             <Animated.View key={item.route} entering={FadeInDown.delay(i*80).springify()}>
               <AnimatedPress onPress={() => { if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); nav.push(item.route as any); }}>

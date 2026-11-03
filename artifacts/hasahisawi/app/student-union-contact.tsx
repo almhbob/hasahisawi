@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking,
@@ -11,6 +11,19 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { useAuth } from "@/lib/auth-context";
+import { notify } from "@/lib/xplatform";
+
+type MyMsg = { id: number; subject?: string | null; message: string; status: "open" | "answered" | "closed"; reply?: string | null; replied_at?: string | null; created_at: string };
+const MSG_STATUS: Record<string, { label: string; color: string }> = {
+  open: { label: "بانتظار الرد", color: "#F59E0B" },
+  answered: { label: "تم الرد", color: "#22C55E" },
+  closed: { label: "مغلقة", color: "#94A3B8" },
+};
+function fmtDate(s?: string | null) {
+  if (!s) return "";
+  try { return new Date(s).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" }); } catch { return s; }
+}
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -64,9 +77,27 @@ const UNION_PHONE    = "+249923000000";
 
 export default function StudentUnionContactScreen() {
   const insets = useSafeAreaInsets();
+  const { user, token, isGuest } = useAuth();
+  const signedIn = !!token && !isGuest;
 
-  const [name, setName]             = useState("");
-  const [phone, setPhone]           = useState("");
+  const [name, setName]             = useState(signedIn ? (user?.name ?? "") : "");
+  const [phone, setPhone]           = useState(signedIn ? (user?.phone ?? "") : "");
+  const [mine, setMine]             = useState<MyMsg[]>([]);
+
+  const loadMine = useCallback(async () => {
+    if (!signedIn) return;
+    try {
+      const r = await fetch(`${getApiUrl()}/api/student-union/contact/mine`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setMine((await r.json()).messages || []);
+    } catch {}
+  }, [signedIn, token]);
+  useEffect(() => { loadMine(); }, [loadMine]);
+  // تعبئة الاسم والهاتف من الحساب حين يكتمل تحميله
+  useEffect(() => {
+    if (!signedIn || !user) return;
+    setName(n => n || user.name || "");
+    setPhone(p => p || user.phone || "");
+  }, [signedIn, user]);
   const [whatsapp, setWhatsapp]     = useState("");
   const [email, setEmail]           = useState("");
   const [locality, setLocality]     = useState("");
@@ -76,42 +107,51 @@ export default function StudentUnionContactScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!name.trim())    { Alert.alert("تنبيه", "الاسم مطلوب"); return; }
-    if (!phone.trim())   { Alert.alert("تنبيه", "رقم الهاتف مطلوب"); return; }
-    if (!message.trim()) { Alert.alert("تنبيه", "رسالة الاستفسار مطلوبة"); return; }
+    if (!name.trim())    { notify("تنبيه", "الاسم مطلوب"); return; }
+    if (!phone.trim() && !signedIn) { notify("تنبيه", "رقم الهاتف مطلوب"); return; }
+    if (!message.trim()) { notify("تنبيه", "رسالة الاستفسار مطلوبة"); return; }
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/contact-messages`, {
+      // تصل الرسالة إلى صندوق رسائل مدير الاتحاد (لا إلى إدارة التطبيق)
+      const res = await fetch(`${getApiUrl()}/api/student-union/contact`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(signedIn ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          sender_name: name.trim(),
+          name: name.trim(),
           phone: phone.trim(),
           whatsapp: whatsapp.trim() || null,
           email: email.trim() || null,
           locality: locality.trim() || null,
-          category: inquiryType || "استفسار عام",
+          subject: inquiryType || "استفسار عام",
           message: message.trim(),
-          best_contact_time: bestTime || null,
-          source: "student_union",
+          best_time: bestTime || null,
         }),
       });
 
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          "تم الإرسال",
-          "تم استلام رسالتك بنجاح. سيتواصل معك فريق اتحاد الطلاب في أقرب وقت.",
-          [{ text: "حسناً", onPress: () => router.back() }]
-        );
+        setMessage(""); setInquiry("");
+        if (signedIn) {
+          loadMine();
+          notify("تم الإرسال", "وصلت رسالتك إلى إدارة الاتحاد، وستجد الرد هنا في «رسائلي» مع إشعار عند وصوله.");
+        } else if (Platform.OS === "web") {
+          notify("تم الإرسال", "تم استلام رسالتك بنجاح. سيتواصل معك فريق اتحاد الطلاب في أقرب وقت.");
+          router.back();
+        } else {
+          Alert.alert(
+            "تم الإرسال",
+            "تم استلام رسالتك بنجاح. سيتواصل معك فريق اتحاد الطلاب في أقرب وقت.",
+            [{ text: "حسناً", onPress: () => router.back() }]
+          );
+        }
       } else {
         const d = await res.json().catch(() => ({}));
         throw new Error(d?.error || "فشل إرسال الرسالة");
       }
     } catch (e: any) {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("خطأ", e.message || "تعذر إرسال الرسالة، يرجى المحاولة مرة أخرى");
+      notify("خطأ", e.message || "تعذر إرسال الرسالة، يرجى المحاولة مرة أخرى");
     } finally {
       setSubmitting(false);
     }
@@ -152,6 +192,31 @@ export default function StudentUnionContactScreen() {
           </View>
         </Animated.View>
 
+        {/* رسائلي السابقة وردود الاتحاد */}
+        {signedIn && mine.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(30).springify()} style={s.sectionBox}>
+            <Text style={s.sectionBoxTitle}>رسائلي وردود الاتحاد</Text>
+            {mine.map(m => (
+              <View key={m.id} style={s.myMsg}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <Text style={s.myMsgSubject} numberOfLines={1}>{m.subject || "استفسار"}</Text>
+                  <View style={[s.myBadge, { backgroundColor: (MSG_STATUS[m.status]?.color ?? "#94A3B8") + "22" }]}>
+                    <Text style={[s.myBadgeText, { color: MSG_STATUS[m.status]?.color ?? "#94A3B8" }]}>{MSG_STATUS[m.status]?.label ?? m.status}</Text>
+                  </View>
+                </View>
+                <Text style={s.myMsgText}>{m.message}</Text>
+                <Text style={s.myMsgDate}>{fmtDate(m.created_at)}</Text>
+                {m.reply ? (
+                  <View style={s.replyBox}>
+                    <Text style={s.replyLabel}>ردّ الاتحاد · {fmtDate(m.replied_at)}</Text>
+                    <Text style={s.replyText}>{m.reply}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
         {/* بيانات المرسِل */}
         <Animated.View entering={FadeInDown.delay(60).springify()} style={s.sectionBox}>
           <Text style={s.sectionBoxTitle}>بيانات المرسِل</Text>
@@ -159,7 +224,7 @@ export default function StudentUnionContactScreen() {
           <FieldLabel text="الاسم" required />
           <Input value={name} onChange={setName} placeholder="اسمك الكامل" />
 
-          <FieldLabel text="رقم الهاتف" required />
+          <FieldLabel text="رقم الهاتف" required={!signedIn} />
           <Input value={phone} onChange={setPhone} placeholder="09XXXXXXXX" keyboardType="phone-pad" />
 
           <FieldLabel text="رقم الواتساب" />
@@ -283,4 +348,13 @@ const s = StyleSheet.create({
     gap: 10, paddingVertical: 16,
   },
   submitText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+  myMsg: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.borderSubtle, gap: 4 },
+  myMsgSubject: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right" },
+  myBadge: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 10 },
+  myBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 11.5 },
+  myMsgText: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.text, textAlign: "right", lineHeight: 21 },
+  myMsgDate: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
+  replyBox: { marginTop: 6, padding: 10, borderRadius: 12, backgroundColor: UC + "14", borderRightWidth: 3, borderRightColor: UC },
+  replyLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: UC2, textAlign: "right" },
+  replyText: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.text, textAlign: "right", lineHeight: 22, marginTop: 2 },
 });

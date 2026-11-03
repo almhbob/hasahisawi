@@ -18,7 +18,7 @@ const APP_LOGO = require("@/assets/images/logo.png");
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, authHeader } from "@/lib/query-client";
 
 function normalizeHomeGender(value: string | null | undefined) {
   const g = String(value ?? "").trim().toLowerCase();
@@ -181,7 +181,7 @@ export default function HomeScreen() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(`${getApiUrl()}/api/notifications`);
+        const res = await fetch(`${getApiUrl()}/api/notifications`, { headers: await authHeader() });
         if (!res.ok) return;
         const data = await res.json();
         if (alive && Array.isArray(data)) setUnread(data.filter((n: any) => !n?.is_read).length);

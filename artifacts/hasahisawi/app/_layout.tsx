@@ -186,8 +186,14 @@ function AuthGate() {
           return;
         }
 
+        // ── اتحاد الطلاب (للطالب): قرار العضوية، ردّ على رسالته، خبر جديد ──
+        if (screen === "student-union-status" || type === "student_union_decision") { router.push("/student-union-status" as any); return; }
+        if (screen === "student-union-contact" || type === "student_union_reply") { router.push("/student-union-contact" as any); return; }
+        if (screen === "student-union-news" || type === "student_union_post") { router.push("/student-union-news" as any); return; }
+
         // ── الإتحاد ──
         if (
+          type === "student_union_inbox" ||
           type === "student_union_application" ||
           type === "union_employee_application" ||
           type === "union_partnership_application" ||
@@ -427,6 +433,8 @@ function RootLayoutNav() {
         <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-contact" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-admin"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-status"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-news"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-manager-apply"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-manager-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />
