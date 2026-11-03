@@ -11,6 +11,7 @@ import { notify } from "@/lib/xplatform";
 import { membersApi, REF_KEY, type MemberCategory, type MembershipMe } from "@/lib/lit-members";
 import { WINE, INK } from "@/lib/lit";
 import { Pill, ithraaStyles as u } from "@/components/ithraa/ui";
+import { COUNTRIES, countryOf, flagOf } from "@/lib/countries";
 
 type W = { type: "diwan" | "external"; text_id?: number; title: string; kind: string; where: string; year: string; link: string; excerpt: string; pledged: boolean };
 const emptyWork = (): W => ({ type: "diwan", title: "", kind: "", where: "", year: "", link: "", excerpt: "", pledged: false });
@@ -25,8 +26,10 @@ export default function ApplyScreen() {
   const [step, setStep] = useState(0);
   const [f, setF] = useState({
     category: "", tier: "professional", full_name: (user as any)?.name || "", pen_name: "", phone: "", email: "", city: "الحصاحيصا", birth_year: "",
-    bio: "", genres: [] as string[], publications: "", press_org: "", press_role: "", press_card_no: "", press_years: "",
+    bio: "", genres: [] as string[], publications: "", press_org: "", press_role: "", press_card_no: "", press_years: "", country: "SD", name_en: "",
   });
+  const [cPick, setCPick] = useState(false);
+  const [cQ, setCQ] = useState("");
   const [works, setWorks] = useState<W[]>([emptyWork(), emptyWork(), emptyWork()]);
   const [pledge, setPledge] = useState({ own_works: false, accurate: false, charter: false, signature: "" });
   const [saving, setSaving] = useState(false);
@@ -38,7 +41,7 @@ export default function ApplyScreen() {
       setMe(x);
       if (!x.my_texts.length) setWorks((ws) => ws.map((w) => ({ ...w, type: "external" })));
       const p = x.member;
-      if (p) setF((o) => ({ ...o, category: p.category, tier: p.tier === "affiliate" ? "affiliate" : "professional", full_name: p.full_name, pen_name: p.pen_name || "", phone: p.phone || "", email: p.email || "", city: p.city || "", bio: p.bio || "", genres: p.genres, publications: p.publications || "", press_org: p.press_org || "", press_role: p.press_role || "", press_card_no: p.press_card_no || "" }));
+      if (p) setF((o) => ({ ...o, category: p.category, tier: p.tier === "affiliate" ? "affiliate" : "professional", full_name: p.full_name, pen_name: p.pen_name || "", phone: p.phone || "", email: p.email || "", country: p.country || "SD", name_en: p.name_en || "", city: p.city || "", bio: p.bio || "", genres: p.genres, publications: p.publications || "", press_org: p.press_org || "", press_role: p.press_role || "", press_card_no: p.press_card_no || "" }));
     }).catch(() => {});
   }, [token]);
 
@@ -53,6 +56,7 @@ export default function ApplyScreen() {
       if (f.full_name.trim().split(/\s+/).length < 2) return "اكتب اسمك الكامل";
       if (f.phone.replace(/\D/g, "").length < 9) return "رقم الهاتف مطلوب";
       if (f.bio.trim().length < 40) return "النبذة التعريفية 40 حرفاً على الأقل";
+      if (f.country !== "SD" && !/^[A-Za-z][A-Za-z .'-]+ [A-Za-z][A-Za-z .'-]+$/.test(f.name_en.trim())) return "للانتساب الدولي اكتب اسمك الكامل بالحروف الإنجليزية كما في جواز السفر";
       if (journalist && (f.press_org.trim().length < 2 || f.press_role.trim().length < 2)) return "اذكر المؤسسة الإعلامية وصفتك المهنية";
     }
     if (s === 2) {
@@ -145,6 +149,37 @@ export default function ApplyScreen() {
               <View style={{ flex: 1 }}><Field l="الهاتف *" v={f.phone} on={(t) => set("phone", t)} k="phone-pad" /></View>
               <View style={{ flex: 1 }}><Field l="سنة الميلاد" v={f.birth_year} on={(t) => set("birth_year", t.replace(/\D/g, "").slice(0, 4))} k="number-pad" /></View>
             </View>
+            {/* دولة الإقامة — خارج السودان تصدر بطاقة انتساب دولية ثنائية اللغة */}
+            <View>
+              <Text style={u.label}>دولة الإقامة *</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="اختيار الدولة" onPress={() => setCPick((v) => !v)} style={[u.input, { flexDirection: "row-reverse", alignItems: "center", gap: 8 }]}>
+                <Text style={{ fontSize: 20 }}>{flagOf(f.country)}</Text>
+                <Text style={{ flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>{countryOf(f.country).ar}</Text>
+                <Ionicons name={cPick ? "chevron-up" : "chevron-down"} size={18} color={Colors.textSecondary} />
+              </Pressable>
+              {cPick && (
+                <View style={st.cBox}>
+                  <TextInput value={cQ} onChangeText={setCQ} placeholder="ابحث عن دولة… / Search" placeholderTextColor={Colors.textMuted} style={[u.input, { marginBottom: 6 }]} />
+                  <ScrollView style={{ maxHeight: 240 }} nestedScrollEnabled>
+                    {COUNTRIES.filter((c) => !cQ.trim() || c.ar.includes(cQ.trim()) || c.en.toLowerCase().includes(cQ.trim().toLowerCase())).map((c) => (
+                      <Pressable key={c.code} onPress={() => { set("country", c.code); if (c.code === "SD") set("city", f.city || "الحصاحيصا"); setCPick(false); setCQ(""); }}
+                        style={[st.cRow, f.country === c.code && { backgroundColor: color + "12" }]}>
+                        <Text style={{ fontSize: 18 }}>{flagOf(c.code)}</Text>
+                        <Text style={st.cAr}>{c.ar}</Text>
+                        <Text style={st.cEn}>{c.en}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              {f.country !== "SD" && (
+                <View style={st.intl}>
+                  <Ionicons name="globe-outline" size={16} color={color} />
+                  <Text style={st.intlT}>انتساب دولي: تصدر لك بطاقة انتساب دولية ثنائية اللغة (عربي/إنجليزي) باسم دولتك وعلمها، قابلة للتحقق برمز QR من أي مكان.</Text>
+                </View>
+              )}
+            </View>
+            <Field l={f.country !== "SD" ? "الاسم بالإنجليزية (كما في جواز السفر) *" : "الاسم بالإنجليزية (اختياري — يظهر على الوجه الدولي للبطاقة)"} v={f.name_en} on={(t) => set("name_en", t.replace(/[^A-Za-z .'-]/g, ""))} p="e.g. Mohamed Ahmed Elhassan" />
             <View style={[u.rowR, { gap: 8 }]}>
               <View style={{ flex: 1 }}><Field l="المدينة" v={f.city} on={(t) => set("city", t)} /></View>
               <View style={{ flex: 1 }}><Field l="البريد" v={f.email} on={(t) => set("email", t)} k="email-address" /></View>
@@ -261,6 +296,12 @@ function Field({ l, v, on, p, multi, k }: { l: string; v: string; on: (t: string
 }
 
 const st = StyleSheet.create({
+  cBox: { borderWidth: 1, borderColor: Colors.divider, borderRadius: 12, padding: 8, marginTop: 6, backgroundColor: Colors.cardBg },
+  cRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 9, paddingHorizontal: 8, borderRadius: 8 },
+  cAr: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  cEn: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  intl: { flexDirection: "row-reverse", gap: 6, alignItems: "flex-start", marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
+  intlT: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textPrimary, textAlign: "right", lineHeight: 20 },
   bar: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 8, backgroundColor: Colors.cardBg },
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: INK },
