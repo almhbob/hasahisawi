@@ -62,6 +62,7 @@ const SERVICES: Service[] = [
   { id: "writers", label: "ديوان الكُتّاب", short: "الديوان", sub: "قصة وشعر وخواطر موثّقة", keywords: "ديوان كاتب كتاب شعر قصيدة قصة خاطرة هايكو دوبيت مسدار مسابقة ادبية", icon: "create", iconType: "ionicons", group: "health", route: "/writers", isNew: true },
   { id: "student", label: "الخدمات الطلابية", short: "الطلاب", sub: "مدارس ومعاهد", keywords: "مدرسة جامعة معهد تعليم", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
   // المجتمع
+  { id: "press", label: "نافذة الصحافة", short: "الصحافة", sub: "بيانات النقابة ودليل الصحفيين", keywords: "صحافة صحفي نقابة الصحفيين بيان خبر عاجل مراسل اعلام ارشيف", icon: "newspaper", iconType: "ionicons", group: "community", route: "/press", isNew: true },
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },
   { id: "women", label: "قسم المرأة", short: "المرأة", sub: "متاجر وخدمات نسائية", keywords: "نساء", icon: "face-woman", iconType: "material", group: "community", route: "/(tabs)/women" },
   { id: "volunteer", label: "التطوع", short: "التطوع", sub: "مهام ونقاط وبطاقة متطوع", keywords: "تطوع متطوع مبادرة نقاط عمل خيري", icon: "hand-heart-outline", iconType: "material", group: "community", route: "/volunteer", isNew: true },

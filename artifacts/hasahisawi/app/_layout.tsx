@@ -265,7 +265,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership"];
+    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -416,6 +416,9 @@ function RootLayoutNav() {
         <Stack.Screen name="ithraa-submit"            options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="ithraa-admin"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="press" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="press-post" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="press-admin" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers-membership" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers-apply" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers-members-admin" options={{ headerShown: false, animation: "slide_from_right" }} />
