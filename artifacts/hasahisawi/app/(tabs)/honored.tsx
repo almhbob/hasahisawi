@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import ViewCount from "@/components/ViewCount";
+import { trackOpen } from "@/lib/views";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, Image, Modal,
@@ -77,6 +79,7 @@ function FigureCard({ figure, index, onPress }: {
         <View style={fc.info}>
           <View style={fc.nameRow}>
             <Text style={fc.name} numberOfLines={2}>{figure.name}</Text>
+            <ViewCount kind="honored" id={String(figure.id)} />
             {figure.is_current && (
               <View style={fc.currentBadge}>
                 <Text style={fc.currentBadgeText}>المكرَّم الحالي</Text>
@@ -175,6 +178,7 @@ function DetailModal({ figure, onClose }: { figure: Figure; onClose: () => void 
             {/* الاسم */}
             <Animated.View entering={FadeInUp.delay(100).springify()} style={dm.nameSection}>
               <Text style={dm.name}>{figure.name}</Text>
+              <ViewCount kind="honored" id={String(figure.id)} style={{ alignSelf: "center" }} />
               {!!figure.title && (
                 <View style={dm.titleRow}>
                   <View style={dm.titleLine} />
@@ -345,7 +349,7 @@ export default function HonoredScreen() {
           {current ? (
             <Animated.View entering={FadeInDown.delay(80).springify()}>
               <TouchableOpacity
-                onPress={() => setSelected(current)}
+                onPress={() => { trackOpen("honored", String(current.id)); setSelected(current); }}
                 activeOpacity={0.92}
               >
                 <View style={s.sectionHeader}>
@@ -390,7 +394,7 @@ export default function HonoredScreen() {
                     <View style={s.yearLine} />
                   </View>
                   {list.map((f, i) => (
-                    <FigureCard key={f.id} figure={f} index={i} onPress={setSelected} />
+                    <FigureCard key={f.id} figure={f} index={i} onPress={(fg) => { trackOpen("honored", String(fg.id)); setSelected(fg); }} />
                   ))}
                 </View>
               ))}

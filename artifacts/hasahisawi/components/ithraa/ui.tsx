@@ -1,5 +1,6 @@
 // عناصر واجهة «إثراء» المشتركة: غلاف الكتاب، بطاقة المقال، رف التصنيف، شارات.
 import React from "react";
+import ViewCount from "@/components/ViewCount";
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,6 +40,7 @@ export function BookTile({ item, color, onPress, width = 112 }: { item: IthraaIt
       </View>
       <Text numberOfLines={2} style={s.tileTitle}>{item.title}</Text>
       <Text numberOfLines={1} style={s.tileSub}>{item.author_name || item.category_label}</Text>
+      <ViewCount count={item.views} size={11} />
     </Pressable>
   );
 }
@@ -84,6 +86,7 @@ export function ItemRow({ item, color, onPress, footer }: { item: IthraaItem; co
           {!!item.file_format && <Meta icon="document-outline" text={item.file_format.toUpperCase()} />}
           {!!item.pages && <Meta icon="layers-outline" text={`${item.pages} صفحة`} />}
           <Meta icon="download-outline" text={String(item.downloads)} />
+          <Meta icon="eye-outline" text={String(item.views)} />
         </View>
         {footer}
       </View>

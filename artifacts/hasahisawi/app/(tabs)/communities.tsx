@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { trackOpen } from "@/lib/views";
+import ViewCount from "@/components/ViewCount";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, TextInput, ScrollView, Pressable, Alert, Platform, Linking,
@@ -78,6 +80,7 @@ function CommunityCard({ c, index, onPress }: { c: Community; index: number; onP
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardName}>{c.name}</Text>
+            <ViewCount kind="community" id={String(c.id)} />
             {c.origin ? <Text style={styles.cardOrigin}>{c.origin}</Text> : null}
           </View>
           <View style={[styles.catBadge, { backgroundColor: meta.bg }]}>
@@ -811,7 +814,7 @@ export default function CommunitiesScreen() {
             </Animated.View><OrgInviteCard /></>
           }
           renderItem={({ item, index }) => (
-            <CommunityCard c={item} index={index} onPress={() => setSelected(item)} />
+            <CommunityCard c={item} index={index} onPress={() => { trackOpen("community", String(item.id)); setSelected(item); }} />
           )}
         />
       )}

@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import ViewCount from "@/components/ViewCount";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -258,6 +259,7 @@ function MenScreen() {
                   <View style={s.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.cardName}>{item.name}</Text>
+                      <ViewCount kind="men_service" id={String(item.id)} track />
                       <View style={s.cardMeta}>
                         <View style={[s.typeBadge, { backgroundColor: cfg.color + "20" }]}>
                           <MaterialCommunityIcons name={cfg.icon as any} size={12} color={cfg.color} />

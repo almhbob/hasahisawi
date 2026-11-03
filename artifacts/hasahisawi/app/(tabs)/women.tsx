@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import ViewCount from "@/components/ViewCount";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -670,6 +671,7 @@ function WomenScreen() {
                     <View style={s.cardHeader}>
                       <View style={{ flex: 1 }}>
                         <Text style={s.cardName}>{item.name}</Text>
+                        <ViewCount kind="women_service" id={String(item.id)} track />
                         <View style={s.cardMeta}>
                           <View style={[s.typeBadge, { backgroundColor: cfg.color + "20" }]}>
                             <MaterialCommunityIcons name={cfg.icon as any} size={12} color={cfg.color} />
@@ -778,6 +780,7 @@ function WomenScreen() {
                   <View style={s.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.cardName}>{item.name}</Text>
+                      <ViewCount kind="women_service" id={String(item.id)} track />
                       <Text style={s.cardDesc}>{item.description}</Text>
                     </View>
                     <View style={[s.iconCircle, { backgroundColor: cfg.color + "18", borderColor: cfg.color + "30" }]}>
@@ -867,6 +870,7 @@ function WomenScreen() {
                   <View style={s.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.cardName}>{item.name}</Text>
+                      <ViewCount kind="women_service" id={String(item.id)} track />
                       <Text style={s.cardDesc}>{item.description}</Text>
                     </View>
                     <View style={[s.iconCircle, { backgroundColor: cfg.color + "18", borderColor: cfg.color + "30" }]}>
@@ -960,6 +964,7 @@ function WomenScreen() {
                   <View style={s.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.cardName}>{item.name}</Text>
+                      <ViewCount kind="women_service" id={String(item.id)} track />
                       <View style={s.ratingRow}>
                         <Ionicons name="star" size={13} color={Colors.accent} />
                         <Text style={s.ratingText}>{item.rating}</Text>
@@ -1103,6 +1108,7 @@ function WomenScreen() {
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                             <Text style={sp.shopName}>{shop.name}</Text>
+                            <ViewCount kind="women_service" id={`s-${shop.id}`} track />
                             {shop.is_featured && (
                               <View style={sp.featuredBadge}>
                                 <MaterialCommunityIcons name="star" size={10} color="#F0A500" />

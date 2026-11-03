@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import ViewCount from "@/components/ViewCount";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -149,6 +150,7 @@ function ShopCard({ shop, index }: { shop: OccasionShop; index: number }) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.shopName}>{shop.shop_name}</Text>
+            <ViewCount kind="occasion" id={`s-${shop.id}`} track />
             <Text style={s.shopOwner}>{shop.owner_name}</Text>
             {shop.city_area ? <Text style={s.shopArea}>{shop.city_area}</Text> : null}
           </View>
@@ -243,6 +245,7 @@ function TransportCard({ t, index }: { t: OccasionTransport; index: number }) {
 
         <View style={s.transportBody}>
           <Text style={s.transportName}>{t.owner_name}</Text>
+          <ViewCount kind="occasion" id={`t-${t.id}`} track />
           <Text style={[s.transportType, { color: vehicle.color }]}>{vehicle.label}</Text>
           {t.vehicle_desc ? <Text style={s.transportDesc}>{t.vehicle_desc}</Text> : null}
 

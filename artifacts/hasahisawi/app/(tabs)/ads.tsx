@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import ViewCount from "@/components/ViewCount";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, TextInput, ScrollView, Pressable, Alert, Platform,
@@ -181,6 +182,7 @@ function AdCard({ ad, index }: { ad: Ad; index: number }) {
           </View>
           <Text style={s.adInstitution}>{ad.institution_name}</Text>
           <Text style={s.adTitle}>{ad.title}</Text>
+          <ViewCount kind="ad" id={String(ad.id)} track />
           {ad.description ? (
             <Text style={s.adDesc} numberOfLines={3}>{ad.description}</Text>
           ) : null}

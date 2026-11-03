@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import ViewCount from "@/components/ViewCount";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, TextInput,
@@ -82,6 +83,7 @@ function CropCard({ item }: { item: any }) {
         )}
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
+      <ViewCount kind="farmer" id={`crop-${item.id}`} track />
       {item.description ? <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text> : null}
       <View style={styles.cardMeta}>
         <View style={styles.metaRow}>
@@ -147,6 +149,7 @@ function LandCard({ item }: { item: any }) {
         ) : null}
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
+      <ViewCount kind="farmer" id={`land-${item.id}`} track />
       {item.description ? <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text> : null}
       <View style={styles.cardMeta}>
         <View style={styles.metaRow}>
@@ -202,6 +205,7 @@ function ToolCard({ item }: { item: any }) {
         </View>
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
+      <ViewCount kind="farmer" id={`tool-${item.id}`} track />
       {item.description ? <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text> : null}
       <View style={styles.cardMeta}>
         <View style={styles.metaRow}>
@@ -255,6 +259,7 @@ function WorkerCard({ item }: { item: any }) {
         )}
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
+      <ViewCount kind="farmer" id={`worker-${item.id}`} track />
       {item.description ? <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text> : null}
       <View style={styles.cardMeta}>
         <View style={styles.metaRow}>

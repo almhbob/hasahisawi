@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -121,6 +122,7 @@ export default function RestaurantsScreen() {
                     <View style={{ marginTop: -34 }}><View style={s.logoRing}><BizLogo b={b} size={58} /></View></View>
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={s.name} numberOfLines={1}>{b.name}</Text>
+                      <ViewCount kind="restaurant" id={String(b.id)} track />
                       <Text style={s.meta} numberOfLines={1}>{TYPE_META[b.business_type]?.label}{b.district ? ` · ${b.district}` : ""}{b.product_count ? ` · ${b.product_count} صنف` : ""}</Text>
                       {modes ? <Text style={s.modes} numberOfLines={1}>{modes}{b.delivery_enabled && b.delivery_fee ? ` · رسوم التوصيل ${fmtMoney(b.delivery_fee)}` : ""}</Text> : null}
                     </View>

@@ -1,4 +1,6 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { trackOpen } from "@/lib/views";
+import ViewCount from "@/components/ViewCount";
 import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -137,6 +139,7 @@ function FactoryCard({ factory, onPress, index }: { factory: Factory; onPress: (
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.factoryName}>{factory.name}</Text>
+            <ViewCount kind="factory" id={`f-${factory.id}`} />
             {factory.promo_tagline ? (
               <Text style={[styles.promoTagline, { color: co }]} numberOfLines={1}>{factory.promo_tagline}</Text>
             ) : (
@@ -194,6 +197,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           )}
         </View>
         <Text style={styles.productName}>{product.name}</Text>
+        <ViewCount kind="factory" id={`p-${product.id}`} track />
         {product.description && <Text style={styles.productDesc} numberOfLines={2}>{product.description}</Text>}
         <View style={styles.productFooter}>
           <View>
@@ -529,7 +533,7 @@ function FactoriesScreen() {
                 <>
                   {filteredFactories.map((f, i) => (
                     <FactoryCard key={f.id} factory={f} index={i}
-                      onPress={() => { setSelectedFactory(f); setModalVisible(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} />
+                      onPress={() => { trackOpen("factory", `f-${f.id}`); setSelectedFactory(f); setModalVisible(true); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} />
                   ))}
                   {/* دعوة للتسجيل */}
                   <TouchableOpacity style={[styles.joinCta, { borderColor: FAC + "40" }]} onPress={() => setPkgModal(true)} activeOpacity={0.85}>

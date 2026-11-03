@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
+import ViewCount from "@/components/ViewCount";
+import { trackOpen } from "@/lib/views";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, RefreshControl,
@@ -281,7 +283,7 @@ export default function EventsScreen() {
           ) : (
             <View style={styles.eventsGrid}>
               {filteredEvents.map((ev, i) => (
-                <EventCard key={ev.id} event={ev} index={i} onPress={() => setSelectedEvt(ev)} />
+                <EventCard key={ev.id} event={ev} index={i} onPress={() => { trackOpen("event", ev.id); setSelectedEvt(ev); }} />
               ))}
             </View>
           )}
@@ -334,7 +336,7 @@ export default function EventsScreen() {
           ) : (
             filteredRentals.map((item, i) => (
               <Animated.View key={item.id} entering={FadeInDown.delay(i * 60)}>
-                <RentalCard item={item} onPress={() => setSelectedRent(item)} />
+                <RentalCard item={item} onPress={() => { trackOpen("rental", `ev-${item.id}`); setSelectedRent(item); }} />
               </Animated.View>
             ))
           )}
@@ -454,6 +456,7 @@ function EventCard({ event, index, onPress }: { event: Event; index: number; onP
 
           {/* العنوان */}
           <Text style={styles.eventTitle}>{event.title}</Text>
+          <ViewCount kind="event" id={event.id} color="rgba(255,255,255,0.7)" style={{ alignSelf: "flex-end" }} />
 
           {/* التفاصيل */}
           <View style={styles.eventMeta}>
@@ -510,6 +513,7 @@ function RentalCard({ item, onPress }: { item: RentalItem; onPress: () => void }
             </View>
           </View>
           <Text style={styles.rentalProvider}>🏪 {item.provider_name}</Text>
+          <ViewCount kind="rental" id={`ev-${item.id}`} color="rgba(255,255,255,0.7)" />
           {item.description ? <Text style={styles.rentalDesc} numberOfLines={3}>{item.description}</Text> : null}
           <View style={styles.rentalPriceRow}>
             <View style={styles.rentalPrice}>

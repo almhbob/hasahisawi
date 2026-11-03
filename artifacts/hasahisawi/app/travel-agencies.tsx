@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Modal, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, Linking,
@@ -383,6 +384,7 @@ function FeaturedCard({ agency: a, onWA }: { agency: Agency; onWA: (w: string) =
         <Text style={{ fontSize: 26 }}>{cfg.emoji}</Text>
       </View>
       <Text style={fc.name} numberOfLines={2}>{a.name}</Text>
+      <ViewCount kind="travel" id={`ag-${a.id}`} track />
       {a.city && <Text style={fc.city}>📍 {a.city}</Text>}
       {a.specialties?.length > 0 && (
         <View style={fc.chips}>
@@ -423,6 +425,7 @@ function AgencyCard({ agency: a, onWA }: { agency: Agency; onWA: (w: string) => 
         </View>
         <View style={{ flex: 1 }}>
           <Text style={ac.name} numberOfLines={2}>{a.name}</Text>
+          <ViewCount kind="travel" id={`ag-${a.id}`} track />
           {a.name_en && <Text style={ac.nameEn}>{a.name_en}</Text>}
           <View style={[ac.typePill, { backgroundColor: cfg.color + "20" }]}>
             <Text style={[ac.typePillText, { color: cfg.color }]}>{cfg.labelFull}</Text>

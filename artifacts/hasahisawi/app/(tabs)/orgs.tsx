@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import ViewCount from "@/components/ViewCount";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -275,6 +276,7 @@ function OrgsScreen() {
                       <View style={{ flex: 1 }}>
                         <View style={s.nameRow}>
                           <Text style={s.cardName}>{org.name}</Text>
+                          <ViewCount kind="organization" id={`o-${org.id}`} track />
                           {org.isVerified && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
                         </View>
                         <View style={s.cardMeta}>
@@ -359,6 +361,7 @@ function OrgsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.eventTitle}>{ev.title}</Text>
+                    <ViewCount kind="organization" id={`e-${ev.id}`} track />
                     <Text style={[s.eventOrg, { color: ev.color }]}>{ev.orgName}</Text>
                   </View>
                 </View>
@@ -408,6 +411,7 @@ function OrgsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.campTitle}>{camp.title}</Text>
+                    <ViewCount kind="organization" id={`c-${camp.id}`} track />
                     <Text style={[s.campOrg, { color: camp.color }]}>{camp.orgName}</Text>
                     <View style={[s.campTarget, { backgroundColor: camp.color + "15" }]}>
                       <Text style={[s.campTargetText, { color: camp.color }]}>الهدف: {camp.target}</Text>

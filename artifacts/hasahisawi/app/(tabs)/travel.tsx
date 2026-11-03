@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import ViewCount from "@/components/ViewCount";
 import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 // @ts-ignore
@@ -977,6 +978,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
           </View>
           <View style={{ flex:1 }}>
             <Text style={styles.companyCardName}>{c.name}</Text>
+            <ViewCount kind="travel" id={`co-${c.id}`} track />
             <Text style={styles.companyCardOwner}>{c.owner_name}</Text>
             <View style={styles.companyCardMeta}>
               {!showPricing ? null : c.subscription_type === "commission" ? (
