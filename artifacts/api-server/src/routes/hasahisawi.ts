@@ -2273,6 +2273,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
     ["volunteer",         "التطوع",                     "Volunteering",            true, false, 44],
     ["red-crescent",      "الهلال الأحمر السوداني",     "Sudanese Red Crescent",   true, false, 45],
     ["ithraa",            "إثراء — المكتبة الثقافية",    "Ithraa Library",          true, false, 46],
+    ["press",             "نافذة الصحافة",               "Press Window",            true, false, 47],
   ];
   for (const [key, name, name_en, visible, requires, order] of sectionDefaults) {
     await query(
