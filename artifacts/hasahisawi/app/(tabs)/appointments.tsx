@@ -123,8 +123,15 @@ function AppointmentsScreen() {
   const [service, setService] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [patientName, setPatientName] = useState("");
-  const [phone, setPhone] = useState("");
+  // تُعبّأ تلقائياً من حساب حصاحيصاوي (يمكن تعديلها عند الحجز لشخص آخر)
+  const accountName = user?.name || "";
+  const accountPhone = (user as any)?.phone || "";
+  const [patientName, setPatientName] = useState(accountName);
+  const [phone, setPhone] = useState(accountPhone);
+  useEffect(() => {
+    if (accountName && !patientName) setPatientName(accountName);
+    if (accountPhone && !phone) setPhone(accountPhone);
+  }, [accountName, accountPhone]); // eslint-disable-line react-hooks/exhaustive-deps
   const [notes, setNotes] = useState("");
 
   // My appointments
@@ -175,7 +182,7 @@ function AppointmentsScreen() {
   const resetBooking = () => {
     setStep("category"); setCategory(null); setFacility(null);
     setService(""); setDate(""); setTime("");
-    setPatientName(""); setPhone(""); setNotes("");
+    setPatientName(accountName); setPhone(accountPhone); setNotes("");
   };
 
   const confirmBooking = async () => {

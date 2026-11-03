@@ -1,5 +1,6 @@
 // عضوية ديوان الكُتّاب: التعريف بالفئات والمزايا، حالة طلبي، بطاقتي، مؤشر النشاط (30 يوماً)، الأوسمة والجوائز، والتجديد.
 import React, { useCallback, useEffect, useState } from "react";
+import ShareBar from "@/components/lit/ShareBar";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, Share, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -88,6 +89,8 @@ export default function MembershipScreen() {
               <View style={[u.rowR, { gap: 8, marginTop: 14 }]}>
                 <Stat n={me!.stats.texts} l="نص منشور" /><Stat n={me!.stats.likes} l="إعجاب" /><Stat n={me!.badges.length + me!.awards.length} l="وساماً" />
               </View>
+              <ShareBar url={`https://hasahisawi.pages.dev/writers?author=${m.user_id}`} text={`${m.pen_name || m.full_name} — ${m.category_title} في ديوان الكُتّاب على حصاحيصاوي. اقرأ نصوصي:`} title="شارك ملفك ونصوصك على مواقع التواصل" />
+              {!!m.card_url && <ShareBar url={m.card_url} text={`بطاقة عضويتي في ديوان الكُتّاب — ${m.category_title} · ${m.member_no}`} title="شارك بطاقة العضوية (رابط تحقق)" />}
               {!!m.card_url && (
                 <Pressable onPress={() => Share.share({ message: `بطاقة عضويتي في ديوان الكُتّاب — ${m.category_title}\n${m.member_no}\nتحقق: ${m.card_url}` }).catch(() => {})} style={[u.primaryBtn, { backgroundColor: m.color, marginTop: 12 }]}>
                   <Ionicons name="share-social" size={18} color="#fff" /><Text style={u.primaryText}>مشاركة البطاقة</Text>
