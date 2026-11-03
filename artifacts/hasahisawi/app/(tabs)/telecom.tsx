@@ -1,4 +1,6 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { trackOpen } from "@/lib/views";
+import ViewCount from "@/components/ViewCount";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform,
@@ -127,6 +129,7 @@ function OfferCard({ offer, index }: { offer: Offer; index: number }) {
           )}
         </View>
         <Text style={styles.offerTitle}>{offer.title}</Text>
+        <ViewCount kind="telecom" id={`o-${offer.id}`} track />
         <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
         <View style={styles.offerFooter}>
           <View>
@@ -158,6 +161,7 @@ function EventCard({ event, index }: { event: TcEvent; index: number }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.eventTitle}>{event.title}</Text>
+          <ViewCount kind="telecom" id={`e-${event.id}`} track />
           {event.company_name && <Text style={[styles.eventCompany, { color }]}>{event.company_name}</Text>}
           <Text style={styles.eventDesc} numberOfLines={2}>{event.description}</Text>
           {event.location && (
@@ -197,6 +201,7 @@ function CompanyCard({ company, onPress, index }: { company: Company; onPress: (
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.companyName}>{company.name}</Text>
+            <ViewCount kind="telecom" id={`c-${company.id}`} />
             {company.promo_tagline ? (
               <Text style={[styles.promoTagline, { color: company.brand_color }]}>{company.promo_tagline}</Text>
             ) : (
@@ -436,7 +441,7 @@ function TelecomScreen() {
               {companies.map((c, i) => (
                 <CompanyCard key={c.id} company={c} index={i} onPress={() => {
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedCompany(c); setModalVisible(true);
+                  trackOpen("telecom", `c-${c.id}`); setSelectedCompany(c); setModalVisible(true);
                 }} />
               ))}
 

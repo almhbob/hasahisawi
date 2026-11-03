@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
+import ViewCount from "@/components/ViewCount";
+import { trackOpen } from "@/lib/views";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, Alert, ActivityIndicator, Linking,
@@ -374,7 +376,7 @@ export default function RentalScreen() {
 
   // ── Listing Card ────────────────────────────────────────────────
   const ListingCard = ({ item }: { item: Listing }) => (
-    <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.85}>
+    <TouchableOpacity style={styles.card} onPress={() => { trackOpen("rental", String(item.id)); setSelected(item); }} activeOpacity={0.85}>
       <View style={styles.cardHeader}>
         <View style={[styles.typeBadge, { backgroundColor: typeColor(item.rental_type) + "22" }]}>
           <Text style={[styles.typeBadgeText, { color: typeColor(item.rental_type) }]}>{typeLabel(item.rental_type)}</Text>
@@ -387,6 +389,7 @@ export default function RentalScreen() {
         )}
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
+      <ViewCount kind="rental" id={String(item.id)} />
       {item.sub_type ? <Text style={styles.cardSub}>{item.sub_type}</Text> : null}
       <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
       <View style={styles.cardFooter}>
@@ -665,6 +668,7 @@ export default function RentalScreen() {
               <View style={{ width: 24 }} />
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+              <ViewCount kind="rental" id={String(selected.id)} style={{ marginBottom: 8 }} />
               <View style={[styles.typeBadge, { alignSelf: "flex-start", marginBottom: 12, backgroundColor: typeColor(selected.rental_type) + "22" }]}>
                 <Text style={[styles.typeBadgeText, { color: typeColor(selected.rental_type) }]}>{typeLabel(selected.rental_type)}{selected.sub_type ? ` · ${selected.sub_type}` : ""}</Text>
               </View>

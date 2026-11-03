@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
+import ViewCount from "@/components/ViewCount";
 import {
   View,
   Text,
@@ -157,6 +158,7 @@ function CenterCard({ center, onCall }: { center: CulturalCenter; onCall: (p: st
         </AnimatedPress>
         <View style={[styles.cardInfo, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
           <Text style={[styles.cardName, { textAlign: isRTL ? "right" : "left" }]}>{center.name}</Text>
+          <ViewCount kind="culture" id={`c-${center.id}`} track />
           <View style={[styles.typeRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Ionicons name={getCenterTypeIcon(center.type) as any} size={13} color={color} />
             <Text style={[styles.typeLabel, { color }]}>{getCenterLabel(center.type)}</Text>
@@ -202,6 +204,7 @@ function EventCard({ event, onCall }: { event: CulturalEvent; onCall: (p: string
           <Text style={[styles.eventBadgeText, { color }]}>{getEventLabel(event.type)}</Text>
         </View>
         <Text style={[styles.eventTitle, { textAlign: isRTL ? "right" : "left" }]}>{event.title}</Text>
+        <ViewCount kind="culture" id={`e-${event.id}`} track />
       </View>
       <View style={styles.eventDetails}>
         <View style={[styles.detailRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>

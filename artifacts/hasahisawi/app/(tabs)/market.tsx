@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
+import ViewCount from "@/components/ViewCount";
 import { fetchWithTimeout } from "@/lib/query-client";
 import {
   View,
@@ -559,6 +560,7 @@ function FamilyCard({
             </Text>
           </View>
           <Text style={[styles.sellerName, { textAlign: isRTL ? "right" : "left" }]}>{item.sellerName}</Text>
+          <ViewCount kind="market" id={`f-${item.id}`} track />
           <Text style={[styles.cardDesc, { textAlign: isRTL ? "right" : "left" }]} numberOfLines={2}>{item.description}</Text>
         </View>
       </View>
@@ -641,6 +643,7 @@ function AuctionCard({
             </Text>
           </View>
           {/* Direct-owner badge */}
+          <ViewCount kind="market" id={`a-${item.id}`} track />
           <View style={[styles.ownerRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={styles.ownerBadge}>
               <Ionicons name="person-circle-outline" size={12} color={Colors.primary} />
@@ -737,6 +740,7 @@ function CarpentryCard({
         </View>
         <View style={[styles.carpHeaderInfo, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
           <Text style={[styles.carpShopName, { textAlign: isRTL ? "right" : "left" }]}>{item.shopName}</Text>
+          <ViewCount kind="market" id={`c-${item.id}`} track />
           <View style={[styles.carpTagsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={[styles.carpSpecBadge, { backgroundColor: catColor + "18", borderColor: catColor + "40" }]}>
               <MaterialCommunityIcons name={icon as any} size={11} color={catColor} />

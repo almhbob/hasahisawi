@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
+import ViewCount from "@/components/ViewCount";
+import { trackOpen } from "@/lib/views";
 import {
   View,
   Text,
@@ -531,13 +533,14 @@ export default function JobsScreen() {
           return (
             <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
             <AnimatedPress
-              onPress={() => setExpandedId(isExpanded ? null : item.id)}
+              onPress={() => { if (!isExpanded) trackOpen("job", item.id, auth.token); setExpandedId(isExpanded ? null : item.id); }}
             >
               <View style={styles.jobCard}>
               <View style={[styles.accentBar, { backgroundColor: color }]} />
               <View style={[styles.jobCardTop, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                 <View style={[styles.jobMeta, { alignItems: isRTL ? "flex-start" : "flex-end" }]}>
                   <Text style={styles.timeAgo}>{timeAgo(item.createdAt)}</Text>
+                  <ViewCount kind="job" id={item.id} />
                   {!item.id.startsWith("sample") && (
                     <AnimatedPress onPress={() => deleteJob(item.id)}>
                       <Ionicons name="trash-outline" size={16} color={Colors.danger} />

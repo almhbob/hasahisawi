@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import {
   View,
   Text,
@@ -136,6 +137,7 @@ function ItemCard({ item, onMarkFound, onDelete, myUserId }: {
               <Text style={[styles.catTagText, { color }]}>{CATEGORY_LABELS[item.category] || "أخرى"}</Text>
             </View>
             <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
+            <ViewCount kind="missing" id={String(item.id)} track />
           </View>
           <Text style={styles.descText} numberOfLines={3}>{item.description}</Text>
           {item.last_seen ? (
