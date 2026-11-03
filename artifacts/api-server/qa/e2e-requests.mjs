@@ -56,7 +56,9 @@ for (const [kind, path, who, body] of joins) {
   const r = await call("POST", path, who.token, body);
   const after = await alertCount(kind);
   check(`join ${path} → ${r.status}`, r.status >= 200 && r.status < 300, r.status >= 300 ? r.text : "");
-  if (r.status < 300) check(`  alert recorded for ${kind}`, after === before + 1, `${before}→${after}`);
+  // طلبات اتحاد الطلاب وطاقمه تخص مدير الاتحاد وحده (تصله عبر sendPushToUnionManagers)، فلا تُسجَّل لمسؤول التطبيق
+  const unionOnly = kind === "student_union" || kind === "union_staff";
+  if (r.status < 300) check(unionOnly ? `  no app-admin alert for ${kind} (union manager only)` : `  alert recorded for ${kind}`, after === before + (unionOnly ? 0 : 1), `${before}→${after}`);
 }
 
 // ── 1b) generic join request aliases ────────────────────────────────────────
