@@ -3102,6 +3102,18 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             )}
 
+            {/* ── دعوات الأقسام الرسمية (للمدير فقط) ── */}
+            {isAdmin && (
+              <TouchableOpacity style={[sub_s.rideCard, { flexDirection: "row-reverse", alignItems: "center", gap: 10 }]} onPress={() => router.push("/admin-invites" as any)} activeOpacity={0.85}>
+                <MaterialCommunityIcons name="email-fast-outline" size={22} color="#0B6B49" />
+                <View style={{ flex: 1 }}>
+                  <Text style={sub_s.rideCardTitle}>دعوات الأقسام</Text>
+                  <Text style={sub_s.rideCardSub}>أرسل دعوة انضمام رسمية باسم شخص أو جهة لأي قسم، برابط مباشر وبطاقة أنيقة، وتابع من فتحها وقبلها</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+
             {/* ── إظهار الباقات والاشتراكات ── */}
             {isAdmin && (
               <View style={sub_s.rideCard}>
