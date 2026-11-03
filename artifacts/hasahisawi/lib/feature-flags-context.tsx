@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { AppState } from "react-native";
 import { fetch } from "@/lib/net-fetch";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -15,7 +16,11 @@ export type FeatureFlags = {
   gov_appointments_enabled: boolean;
   gov_reports_enabled: boolean;
   ride_status: RideStatus;
+  /** عرض الباقات والأسعار والاشتراكات لمقدّمي الخدمات (تتحكم بها الإدارة) */
+  pricing_visible: boolean;
   sections: Record<string, SectionConfig>;
+  /** إعادة التحميل فوراً (بعد تعديل الإدارة) */
+  refresh?: () => void;
 };
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -23,6 +28,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   gov_appointments_enabled: true,
   gov_reports_enabled: true,
   ride_status: "soon",
+  pricing_visible: false,
   sections: {},
 };
 
@@ -31,15 +37,14 @@ const FeatureFlagsContext = createContext<FeatureFlags>(DEFAULT_FLAGS);
 export function FeatureFlagsProvider({ children }: { children: React.ReactNode }) {
   const [flags, setFlags] = useState<FeatureFlags>(DEFAULT_FLAGS);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     const baseUrl = getApiUrl();
     if (!baseUrl) return;
-
-    // تحميل علامات الميزات والأقسام معاً
+    // cache: "no-store" حتى لا تُعرض حالة قديمة بعد أن تغيّرها الإدارة
     Promise.all([
-      fetch(`${baseUrl}/api/app/feature-flags`, { credentials: "include" })
+      fetch(`${baseUrl}/api/app/feature-flags`, { credentials: "include", cache: "no-store" } as any)
         .then(r => r.json()).catch(() => ({})),
-      fetch(`${baseUrl}/api/app/section-configs`, { credentials: "include" })
+      fetch(`${baseUrl}/api/app/section-configs`, { credentials: "include", cache: "no-store" } as any)
         .then(r => r.json()).catch(() => ({})),
     ]).then(([flagsData, sectionsData]) => {
       setFlags(prev => ({
@@ -49,14 +54,23 @@ export function FeatureFlagsProvider({ children }: { children: React.ReactNode }
           gov_appointments_enabled: flagsData.gov_appointments_enabled ?? prev.gov_appointments_enabled,
           gov_reports_enabled:      flagsData.gov_reports_enabled      ?? prev.gov_reports_enabled,
           ride_status:              flagsData.ride_status               ?? prev.ride_status,
+          pricing_visible:          flagsData.pricing_visible === true,
         } : {}),
         sections: sectionsData && typeof sectionsData === "object" ? sectionsData : prev.sections,
       }));
     });
   }, []);
 
+  useEffect(() => {
+    load();
+    // تحديث عند العودة للتطبيق وكل 3 دقائق — كانت تُحمَّل مرة واحدة فقط عند فتح التطبيق
+    const sub = AppState.addEventListener("change", (st) => { if (st === "active") load(); });
+    const t = setInterval(load, 3 * 60_000);
+    return () => { sub.remove(); clearInterval(t); };
+  }, [load]);
+
   return (
-    <FeatureFlagsContext.Provider value={flags}>
+    <FeatureFlagsContext.Provider value={{ ...flags, refresh: load }}>
       {children}
     </FeatureFlagsContext.Provider>
   );
@@ -76,4 +90,9 @@ export function useSectionVisible(key: string, defaultValue = true): boolean {
 export function useSectionContractStatus(key: string): ContractStatus {
   const { sections } = useFeatureFlags();
   return sections[key]?.contract_status ?? "none";
+}
+
+// مساعد: هل تُعرض الباقات والاشتراكات؟ (مخفية افتراضياً)
+export function usePricingVisible(): boolean {
+  return useFeatureFlags().pricing_visible;
 }

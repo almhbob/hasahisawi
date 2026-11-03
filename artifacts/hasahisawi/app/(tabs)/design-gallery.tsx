@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
@@ -259,6 +260,7 @@ function DesignGalleryScreen() {
 
   // تبويبات
   const [activeTab, setActiveTab] = useState<"gallery"|"designers"|"subscribe">("gallery");
+  const showPricing = usePricingVisible();
 
   // فئة المعرض
   const [selCat, setSelCat] = useState("all");
@@ -279,6 +281,8 @@ function DesignGalleryScreen() {
 
   // نموذج الاشتراك
   const [selPkg, setSelPkg]         = useState<Package|null>(null);
+  // عند إخفاء الباقات: تُختار الباقة الأساسية تلقائياً ويظهر نموذج الانضمام مباشرة
+  useEffect(() => { if (!showPricing && !selPkg && packages.length) setSelPkg(packages[0]); }, [showPricing, selPkg, packages]);
   const [shopName, setShopName]     = useState("");
   const [bio, setBio]               = useState("");
   const [whatsapp, setWhatsapp]     = useState("");
@@ -445,7 +449,7 @@ function DesignGalleryScreen() {
         {[
           { key: "gallery",    label: "المعرض",     icon: "grid-outline" },
           { key: "designers",  label: "المصممون",   icon: "people-outline" },
-          { key: "subscribe",  label: "اشتراك المصممين", icon: "ribbon-outline" },
+          { key: "subscribe",  label: showPricing ? "اشتراك المصممين" : "انضم كمصمم", icon: "ribbon-outline" },
         ].map(t => (
           <Pressable key={t.key} style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
             onPress={() => setActiveTab(t.key as any)}>
@@ -538,7 +542,7 @@ function DesignGalleryScreen() {
           <View style={styles.howSection}>
             <Text style={styles.sectionTitle}>كيف يعمل المعرض؟</Text>
             {[
-              { n: "1", t: "اختر باقتك", s: "حدد الباقة المناسبة لحجم عملك" },
+              showPricing ? { n: "1", t: "اختر باقتك", s: "حدد الباقة المناسبة لحجم عملك" } : { n: "1", t: "عرّف بنفسك", s: "اسم متجرك وتخصصك ووسائل التواصل" },
               { n: "2", t: "أرسل طلبك", s: "أدخل بيانات متجرك وانتظر التفعيل" },
               { n: "3", t: "أضف تصاميمك", s: "ارفع صور أعمالك وحدد الأسعار" },
               { n: "4", t: "استقبل الطلبات", s: "يتواصل معك الزبائن مباشرة" },
@@ -555,16 +559,16 @@ function DesignGalleryScreen() {
             ))}
           </View>
 
-          {/* الباقات */}
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>اختر باقتك</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          {/* الباقات — مخفية حتى تُظهرها الإدارة */}
+          {showPricing && <Text style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>اختر باقتك</Text>}
+          {showPricing && <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 14, paddingHorizontal: 16, paddingBottom: 8 }}>
             {packages.map(pkg => (
               <PackageCard key={pkg.id} pkg={pkg}
                 selected={selPkg?.id === pkg.id}
                 onSelect={() => setSelPkg(pkg)} />
             ))}
-          </ScrollView>
+          </ScrollView>}
 
           {/* نموذج الاشتراك */}
           {selPkg && !subDone && (

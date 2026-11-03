@@ -57,90 +57,20 @@ type Appointment = {
 // ══════════════════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════════════════
-const FACILITIES: BookingFacility[] = [
-  // ── صحية ──
-  {
-    id: "f1", name: "مستشفى الحصاحيصا الحكومي",
-    category: "health", subcategory: "مستشفى",
-    address: "المنطقة المركزية، الحصاحيصا", phone: "+249912345682",
-    icon: "hospital-building", color: "#3E9CBF",
-    services: ["طوارئ", "جراحة عامة", "أطفال", "نساء وتوليد", "باطنية", "أشعة وتحاليل"],
-    workDays: "السبت - الخميس", hours: "24 ساعة",
-  },
-  {
-    id: "f2", name: "مستشفى الخيرية الأهلي",
-    category: "health", subcategory: "مستشفى",
-    address: "حي السلام، الحصاحيصا", phone: "+249912345683",
-    icon: "hospital-building", color: "#3E9CBF",
-    services: ["باطنية", "أطفال", "تحاليل مخبرية", "مراجعة عامة"],
-    workDays: "السبت - الخميس", hours: "7ص - 5م",
-  },
-  {
-    id: "f3", name: "عيادة الدكتور أحمد - طب عام",
-    category: "health", subcategory: "عيادة",
-    address: "شارع النيل، الحصاحيصا", phone: "+249912345684",
-    icon: "stethoscope", color: "#3B78A6",
-    services: ["مراجعة طب عام", "متابعة مزمن", "شهادة صحية"],
-    workDays: "السبت - الخميس", hours: "4م - 9م",
-  },
-  {
-    id: "f4", name: "عيادة الأطفال المتخصصة",
-    category: "health", subcategory: "عيادة",
-    address: "الحي الغربي، الحصاحيصا", phone: "+249912345685",
-    icon: "stethoscope", color: "#3B78A6",
-    services: ["متابعة أطفال", "تطعيمات", "استشارة طبية"],
-    workDays: "السبت - الخميس", hours: "5م - 9م",
-  },
-  {
-    id: "f5", name: "مركز صحة الأسرة",
-    category: "health", subcategory: "مركز صحي",
-    address: "حي الضحى، الحصاحيصا", phone: "+249912345686",
-    icon: "heart-pulse", color: "#27AE68",
-    services: ["رعاية الأم والطفل", "تخطيط الأسرة", "تطعيمات", "صحة المدرسة"],
-    workDays: "السبت - الخميس", hours: "8ص - 2م",
-  },
-  // ── حكومية ──
-  {
-    id: "g1", name: "محلية الحصاحيصا",
-    category: "government", subcategory: "محلية",
-    address: "مقر المحلية، الحصاحيصا", phone: "+249912345690",
-    icon: "office-building", color: "#F0A500",
-    services: ["تسجيل عقارات", "رخص تشغيل", "شهادات إقامة", "تسجيل مواليد", "دفن الموتى", "خدمات عامة"],
-    workDays: "السبت - الخميس", hours: "8ص - 2م",
-  },
-  {
-    id: "g2", name: "سجل مدني - الحصاحيصا",
-    category: "government", subcategory: "سجل مدني",
-    address: "مبنى السجل المدني، الحصاحيصا", phone: "+249912345691",
-    icon: "card-account-details", color: "#F0A500",
-    services: ["استخراج بطاقة شخصية", "تجديد بطاقة", "شهادة ميلاد", "شهادة زواج", "شهادة وفاة"],
-    workDays: "السبت - الخميس", hours: "8ص - 2م",
-  },
-  {
-    id: "g3", name: "مكتب الأراضي والتخطيط",
-    category: "government", subcategory: "أراضي",
-    address: "مجمع الدوائر الحكومية، الحصاحيصا", phone: "+249912345692",
-    icon: "map-marker-radius", color: "#FF6B35",
-    services: ["تسجيل قطعة", "استخراج شهادة حيازة", "رسم خرائط", "تقسيم أراضي"],
-    workDays: "السبت - الخميس", hours: "8ص - 2م",
-  },
-  {
-    id: "g4", name: "المحكمة العامة",
-    category: "government", subcategory: "قضاء",
-    address: "مبنى المحكمة، الحصاحيصا", phone: "+249912345693",
-    icon: "scale-balance", color: Colors.textSecondary,
-    services: ["حضور جلسة", "تقديم دعوى", "طلب وثائق قانونية", "توثيق عقود"],
-    workDays: "السبت - الخميس", hours: "8ص - 2م",
-  },
-  {
-    id: "g5", name: "مكتب الشؤون الاجتماعية",
-    category: "government", subcategory: "اجتماعي",
-    address: "مجمع الخدمات، الحصاحيصا", phone: "+249912345694",
-    icon: "account-group", color: "#27AE68",
-    services: ["طلب إعانة", "تسجيل أسرة", "شهادة عوز", "خدمات ذوي الإعاقة"],
-    workDays: "السبت - الخميس", hours: "8ص - 2م",
-  },
-];
+// الجهات تُحمَّل من الخادم (تديرها الإدارة) — لا بيانات وهمية داخل التطبيق
+type ApiEntity = { id: number; category: FacilityCategory; name: string; subcategory: string | null; address: string | null; phone: string | null;
+  services: string[]; work_days: string | null; hours: string | null; slots: string[]; is_active: boolean };
+const ENTITY_STYLE: Record<string, { icon: string; color: string }> = {
+  "مستشفى": { icon: "hospital-building", color: "#2E7D9A" }, "عيادة": { icon: "stethoscope", color: "#3B78A6" }, "مركز صحي": { icon: "heart-pulse", color: "#1F8A5B" },
+  "صيدلية": { icon: "medical-bag", color: "#0E8A5F" }, "مختبر": { icon: "flask-outline", color: "#6B5B95" },
+};
+function toFacility(e: ApiEntity): BookingFacility {
+  const st = ENTITY_STYLE[e.subcategory || ""] || (e.category === "health" ? { icon: "hospital-building", color: "#2E7D9A" } : { icon: "office-building", color: "#B7791F" });
+  return { id: `e${e.id}`, name: e.name, category: e.category, subcategory: e.subcategory || (e.category === "health" ? "مرفق صحي" : "جهة"),
+    address: e.address || "", phone: e.phone || "", icon: st.icon, color: st.color, services: e.services?.length ? e.services : ["مراجعة"],
+    workDays: e.work_days || "", hours: e.hours || "" } as BookingFacility;
+}
+const CANCEL_REASONS = ["ظرف طارئ", "تحسّنت الحالة / لم أعد بحاجة للموعد", "حجزت موعداً آخر", "تعذّر الوصول أو المواصلات", "الوقت لم يعد مناسباً", "سبب آخر"];
 
 const TIME_SLOTS = [
   "8:00 ص", "8:30 ص", "9:00 ص", "9:30 ص", "10:00 ص", "10:30 ص",
@@ -201,6 +131,11 @@ function AppointmentsScreen() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [apptStatus, setApptStatus] = useState<"loading" | "error" | "ok">("loading");
   const [apptFilter, setApptFilter] = useState<AppStatus | "all">("all");
+  const [facilities, setFacilities] = useState<BookingFacility[]>([]);
+  const [entitiesState, setEntitiesState] = useState<"loading" | "ok" | "error">("loading");
+  const [cancelFor, setCancelFor] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelNote, setCancelNote] = useState("");
 
   const authHeaders = (): Record<string, string> => ({
     "Content-Type": "application/json",
@@ -226,6 +161,15 @@ function AppointmentsScreen() {
   };
 
   useEffect(() => { loadAppointments(); }, []);
+  const loadEntities = useCallback(async () => {
+    try {
+      const res = await fetchWithTimeout(`${getApiUrl()}/api/appointments/entities`);
+      const d = await res.json();
+      setFacilities((d.entities ?? []).map(toFacility));
+      setEntitiesState("ok");
+    } catch { setEntitiesState("error"); }
+  }, []);
+  useEffect(() => { loadEntities(); }, [loadEntities]);
   useFocusEffect(useCallback(() => { loadAppointments(); }, []));
 
   const resetBooking = () => {
@@ -274,27 +218,23 @@ function AppointmentsScreen() {
     }
   };
 
-  const cancelAppointment = async (id: number) => {
-    Alert.alert("إلغاء الموعد", "هل تريد إلغاء هذا الموعد؟", [
-      { text: "لا", style: "cancel" },
-      {
-        text: "نعم، ألغِ", style: "destructive", onPress: async () => {
-          try {
-            await fetch(`${getApiUrl()}/api/appointments/${id}/cancel`, {
-              method: "PATCH",
-              headers: authHeaders(),
-            });
-            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "cancelled" as AppStatus } : a));
-          } catch { Alert.alert("خطأ", "تعذّر الإلغاء"); }
-        }
-      }
-    ]);
+  const cancelAppointment = (id: number) => { setCancelFor(id); setCancelReason(""); setCancelNote(""); };
+  const submitCancel = async () => {
+    if (!cancelFor || !cancelReason) { Alert.alert("سبب الإلغاء", "اختر سبب الإلغاء ليصل للجهة"); return; }
+    const reason = cancelNote.trim() ? `${cancelReason} — ${cancelNote.trim()}` : cancelReason;
+    try {
+      const res = await fetch(`${getApiUrl()}/api/appointments/${cancelFor}/cancel`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ reason }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((d as any)?.error || "تعذّر الإلغاء");
+      setAppointments(prev => prev.map(a => a.id === cancelFor ? { ...a, status: "cancelled" as AppStatus, cancel_reason: reason } as any : a));
+      setCancelFor(null);
+    } catch (e: any) { Alert.alert("خطأ", e?.message || "تعذّر الإلغاء"); }
   };
 
   const filteredAppts = appointments.filter(a => apptFilter === "all" || a.status === apptFilter);
 
-  const healthFacilities = FACILITIES.filter(f => f.category === "health");
-  const govFacilities = FACILITIES.filter(f => f.category === "government");
+  const healthFacilities = facilities.filter(f => f.category === "health");
+  const govFacilities = facilities.filter(f => f.category === "government");
 
   if (isGuest) {
     return (
@@ -382,45 +322,15 @@ function AppointmentsScreen() {
             <Animated.View entering={FadeInDown.springify()} style={{ gap: 16 }}>
               <Text style={s.stepTitle}>اختر نوع الخدمة</Text>
 
-              <AnimatedPress onPress={() => { setCategory("health"); setStep("facility"); }}>
-                <LinearGradient
-                  colors={["#3E9CBF18", "#3E9CBF08"]}
-                  style={[s.catCard, { borderColor: "#3E9CBF40" }]}
-                >
-                  <View style={[s.catIcon, { backgroundColor: "#3E9CBF20" }]}>
-                    <MaterialCommunityIcons name="hospital-building" size={36} color="#3E9CBF" />
-                  </View>
-                  <View style={s.catInfo}>
-                    <Text style={s.catTitle}>المرافق الصحية</Text>
-                    <Text style={s.catSub}>مستشفيات · عيادات · مراكز صحية</Text>
-                    <View style={s.catCount}>
-                      <Text style={[s.catCountText, { color: "#3E9CBF" }]}>{healthFacilities.length} مرافق متاحة</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={22} color="#3E9CBF" />
-                </LinearGradient>
-              </AnimatedPress>
+              <CategoryCard color="#2E7D9A" icon="hospital-building" title="المرافق الصحية" sub="مستشفيات · عيادات · مراكز صحية"
+                count={entitiesState === "loading" ? "…" : `${healthFacilities.length} ${healthFacilities.length === 1 ? "مرفق" : "مرافق"} متاحة`}
+                onPress={() => { setCategory("health"); setStep("facility"); }} />
 
               {gov_appointments_enabled && (
                 <>
-                  <AnimatedPress onPress={() => { setCategory("government"); setStep("facility"); }}>
-                    <LinearGradient
-                      colors={[Colors.accent + "18", Colors.accent + "08"]}
-                      style={[s.catCard, { borderColor: Colors.accent + "40" }]}
-                    >
-                      <View style={[s.catIcon, { backgroundColor: Colors.accent + "20" }]}>
-                        <MaterialCommunityIcons name="office-building" size={36} color={Colors.accent} />
-                      </View>
-                      <View style={s.catInfo}>
-                        <Text style={s.catTitle}>الجهات والمرافق المحلية</Text>
-                        <Text style={s.catSub}>محلية · سجل مدني · أراضي · قضاء</Text>
-                        <View style={s.catCount}>
-                          <Text style={[s.catCountText, { color: Colors.accent }]}>{govFacilities.length} جهات متاحة</Text>
-                        </View>
-                      </View>
-                      <Ionicons name="chevron-forward" size={22} color={Colors.accent} />
-                    </LinearGradient>
-                  </AnimatedPress>
+                  <CategoryCard color="#B7791F" icon="office-building" title="الجهات والمرافق المحلية" sub="محلية · سجل مدني · أراضي · قضاء"
+                    count={entitiesState === "loading" ? "…" : `${govFacilities.length} ${govFacilities.length === 1 ? "جهة" : "جهات"} متاحة`}
+                    onPress={() => { setCategory("government"); setStep("facility"); }} />
 
                   <View style={[s.infoBox, { backgroundColor: "#6B728012", borderColor: "#6B728030" }]}>
                     <Ionicons name="information-circle-outline" size={18} color={Colors.textSecondary} />
@@ -445,6 +355,13 @@ function AppointmentsScreen() {
                 </TouchableOpacity>
                 <Text style={s.stepTitle}>اختر المرفق</Text>
               </View>
+              {(category === "health" ? healthFacilities : govFacilities).length === 0 && (
+                <View style={[s.infoBox, { flexDirection: "column", alignItems: "center", paddingVertical: 24 }]}>
+                  <MaterialCommunityIcons name="calendar-blank-outline" size={40} color={Colors.textMuted} />
+                  <Text style={[s.infoText, { textAlign: "center", fontFamily: "Cairo_700Bold", color: Colors.textPrimary }]}>لا توجد جهات متاحة للحجز بعد</Text>
+                  <Text style={[s.infoText, { textAlign: "center" }]}>تُضاف المرافق المعتمدة فقط بعد التحقق منها. إن كنت تدير منشأة، قدّم طلب انضمام من الدليل الطبي.</Text>
+                </View>
+              )}
               {(category === "health" ? healthFacilities : govFacilities).map((f, i) => (
                 <Animated.View key={f.id} entering={FadeInDown.delay(i * 60).springify()}>
                   <AnimatedPress onPress={() => { setFacility(f); setStep("service"); }}>
@@ -717,7 +634,13 @@ function AppointmentsScreen() {
                         </View>
                       ))}
                     </View>
-                    {appt.status !== "cancelled" && (
+                    {appt.status === "cancelled" && !!(appt as any).cancel_reason && (
+                      <View style={[s.apptRow, { backgroundColor: Colors.danger + "0D", borderRadius: 10, padding: 8, marginTop: 6 }]}>
+                        <Text style={[s.apptRowVal, { color: Colors.danger }]}>سبب الإلغاء{(appt as any).cancelled_by === "admin" ? " (من الجهة)" : ""}: {(appt as any).cancel_reason}</Text>
+                        <Ionicons name="information-circle-outline" size={14} color={Colors.danger} />
+                      </View>
+                    )}
+                    {appt.status !== "cancelled" && (appt.status as string) !== "completed" && (
                       <TouchableOpacity style={s.cancelBtn} onPress={() => cancelAppointment(appt.id as number)}>
                         <Ionicons name="close-circle-outline" size={16} color={Colors.danger} />
                         <Text style={s.cancelBtnText}>إلغاء الموعد</Text>
@@ -731,13 +654,73 @@ function AppointmentsScreen() {
 </ScrollView>
         </View>
       )}
+
+      {/* ورقة إلغاء الموعد مع السبب */}
+      <Modal visible={cancelFor !== null} transparent animationType="slide" onRequestClose={() => setCancelFor(null)}>
+        <View style={s.sheetBackdrop}>
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>إلغاء الموعد</Text>
+            <Text style={s.sheetSub}>اختر السبب — يصل للجهة حتى تتيح الموعد لغيرك</Text>
+            <View style={{ gap: 8, marginTop: 10 }}>
+              {CANCEL_REASONS.map((r) => (
+                <TouchableOpacity key={r} onPress={() => setCancelReason(r)} style={[s.reasonRow, cancelReason === r && { borderColor: Colors.danger, backgroundColor: Colors.danger + "0D" }]}>
+                  <Text style={[s.reasonText, cancelReason === r && { color: Colors.danger }]}>{r}</Text>
+                  <Ionicons name={cancelReason === r ? "radio-button-on" : "radio-button-off"} size={20} color={cancelReason === r ? Colors.danger : Colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput value={cancelNote} onChangeText={setCancelNote} placeholder={cancelReason === "سبب آخر" ? "اكتب السبب" : "توضيح إضافي (اختياري)"} placeholderTextColor={Colors.textMuted}
+              style={s.reasonInput} multiline maxLength={200} textAlign="right" />
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity onPress={submitCancel} style={[s.sheetBtn, { backgroundColor: Colors.danger, opacity: cancelReason && (cancelReason !== "سبب آخر" || cancelNote.trim()) ? 1 : 0.5 }]}
+                disabled={!cancelReason || (cancelReason === "سبب آخر" && !cancelNote.trim())}>
+                <Text style={s.sheetBtnText}>تأكيد الإلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setCancelFor(null)} style={[s.sheetBtn, { backgroundColor: Colors.divider }]}>
+                <Text style={[s.sheetBtnText, { color: Colors.textPrimary }]}>تراجع</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
+  );
+}
+
+// بطاقة نوع الخدمة — بطاقة صلبة واضحة (كانت تدرّجاً شفافاً مع ظل يرسم إطاراً رمادياً مزدوجاً على أندرويد)
+function CategoryCard({ color, icon, title, sub, count, onPress }: { color: string; icon: string; title: string; sub: string; count: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[s.catCard, { borderColor: color + "33" }]} accessibilityRole="button" accessibilityLabel={title}>
+      <View style={[s.catAccent, { backgroundColor: color }]} />
+      <View style={[s.catIcon, { backgroundColor: color + "14" }]}>
+        <MaterialCommunityIcons name={icon as any} size={32} color={color} />
+      </View>
+      <View style={s.catInfo}>
+        <Text style={s.catTitle}>{title}</Text>
+        <Text style={s.catSub}>{sub}</Text>
+        <View style={[s.catCount, { backgroundColor: color + "12" }]}>
+          <Text style={[s.catCountText, { color }]}>{count}</Text>
+        </View>
+      </View>
+      <Ionicons name="chevron-back" size={20} color={color} />
+    </TouchableOpacity>
   );
 }
 
 // ══════════════════════════════════════════════════════════
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: Colors.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 },
+  sheetHandle: { width: 44, height: 5, borderRadius: 3, backgroundColor: Colors.divider, alignSelf: "center", marginBottom: 12 },
+  sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
+  sheetSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  reasonRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider },
+  reasonText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+  reasonInput: { marginTop: 10, minHeight: 56, borderWidth: 1, borderColor: Colors.divider, borderRadius: 14, padding: 12, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlignVertical: "top" },
+  sheetBtn: { flex: 1, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  sheetBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
   // Header
   resetBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: Colors.radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
@@ -766,15 +749,15 @@ const s = StyleSheet.create({
 
   // Category cards
   catCard: {
-    flexDirection: "row", alignItems: "center", gap: 14, padding: 18,
-    borderRadius: Colors.radius.xl, borderWidth: 1, overflow: "hidden",
-    ...Colors.shadow.card,
+    flexDirection: "row", alignItems: "center", gap: 14, padding: 16, paddingStart: 20,
+    borderRadius: 20, borderWidth: 1, backgroundColor: Colors.cardBg, overflow: "hidden",
   },
+  catAccent: { position: "absolute", top: 0, bottom: 0, right: 0, width: 4 },
   catIcon: { width: 64, height: 64, borderRadius: Colors.radius.lg, justifyContent: "center", alignItems: "center" },
   catInfo: { flex: 1, gap: 4 },
   catTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
   catSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
-  catCount: { marginTop: 4 },
+  catCount: { marginTop: 4, alignSelf: "flex-end", paddingHorizontal: 10, paddingVertical: 2, borderRadius: 10 },
   catCountText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "right" },
 
   infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: Colors.primary + "10", borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.primary + "30" },

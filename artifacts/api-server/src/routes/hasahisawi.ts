@@ -24,6 +24,8 @@ import { logger } from "../lib/logger";
 import { stripSslParams } from "../lib/pg-url";
 import { curriculumMaxFileMb, CLOUDINARY_RAW_LIMIT_MB } from "./curriculum-upload";
 
+// البيانات التجريبية معطّلة في الإنتاج — تُفعّل فقط للتطوير المحلي
+const DEMO_SEED = process.env.SEED_DEMO_DATA === "1";
 const router = Router();
 
 // DB init runs eagerly at module load — idempotent, non-blocking.
@@ -705,7 +707,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
   await query(`ALTER TABLE ratings ADD COLUMN IF NOT EXISTS device_id VARCHAR(200)`);
   await (async () => {
     const seedCheck = await query(`SELECT COUNT(*)::int as c FROM rated_entities`);
-    if (seedCheck.rows[0].c === 0) {
+    if (DEMO_SEED && seedCheck.rows[0].c === 0) {
       const seeds = [
         ["institution","محكمة الحصاحيصا","جهاز حكومي","محاكم","وسط المدينة","خدمات قانونية وقضائية"],
         ["institution","مستشفى الحصاحيصا","مستشفى","صحة","حي المستشفى","رعاية صحية شاملة"],
@@ -1336,7 +1338,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
   // seed lawyers + forms (مرة واحدة)
   await (async () => {
     const c = await query(`SELECT COUNT(*)::int AS c FROM lawyers`);
-    if (c.rows[0].c === 0) {
+    if (DEMO_SEED && c.rows[0].c === 0) {
       const seedLawyers = [
         ["د. عبدالله محمد الحاج",  "محامي ومستشار قانوني", "قضايا تجارية, عقارات, شركات",         "خبرة 15 عاماً في القضايا التجارية والعقارية. مستشار قانوني لعدد من الشركات بالحصاحيصا.", "0912345001","0912345001","abdullah@law.sd","شارع النيل — أمام محكمة الحصاحيصا","وسط المدينة","BAR-2010-0521", 15, "العربية, English","استشارة 30 دقيقة: 5,000 ج.س", true,  true],
         ["أ. فاطمة عثمان",          "محامية أحوال شخصية",   "أحوال شخصية, نفقة, حضانة, ميراث",     "متخصصة في قضايا الأسرة والأحوال الشخصية، تركز على حقوق المرأة والطفل.",                "0912345002","0912345002","fatima@law.sd","حي الشرق — مجمع المحامين","حي الشرق","BAR-2014-0233", 11, "العربية",        "استشارة 30 دقيقة: 4,000 ج.س", true,  true],
@@ -1758,7 +1760,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
     )
   `);
   const { rows: orgCheck } = await query(`SELECT COUNT(*) as cnt FROM organizations`);
-  if (parseInt(orgCheck[0].cnt, 10) === 0) {
+  if (DEMO_SEED && parseInt(orgCheck[0].cnt, 10) === 0) {
     const seedOrgs = [
       ["مبادرة شباب الحصاحيصا","initiative","مبادرة شبابية تهدف لتطوير الخدمات المجتمعية","مبادرة شبابية تطوعية تهدف إلى تطوير الخدمات في مدينة الحصاحيصا ومناطقها القريبة، تتبنى مشاريع البنية التحتية والتوعية الاجتماعية وتنظيم الفعاليات الثقافية والرياضية.","+249912345611","",120,"2019",["تطوير الخدمات المجتمعية","توعية الشباب","دعم المحتاجين"],["متطوعون","تمويل مشاريع","معدات وأدوات"],4.9,true],
       ["جمعية البر الخيرية","charity","جمعية مسجلة تكفل الأيتام وتساعد الأسر المتعففة","جمعية خيرية مسجلة رسمياً تعنى بكفالة الأيتام ومساعدة الأسر المتعففة والمحتاجين في مدينة الحصاحيصا وقراها.","+249912345612","",45,"2015",["كفالة الأيتام","دعم الأسر المحتاجة","التعليم للجميع"],["تبرعات مالية","ملابس وأغذية","متطوعون"],4.7,true],
@@ -1826,7 +1828,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
     )
   `);
   const { rows: eduCheck } = await query(`SELECT COUNT(*) as cnt FROM educational_institutions`);
-  if (parseInt(eduCheck[0].cnt, 10) === 0) {
+  if (DEMO_SEED && parseInt(eduCheck[0].cnt, 10) === 0) {
     const seedEdu = [
       ["مدرسة الحصاحيصا الأساسية","primary","وسط المدينة، شارع المدارس","0111100001","أحمد عبدالله",null,null,"مدرسة حكومية أساسية للبنين والبنات","الصف الأول – الثامن","صباحي ومسائي",["results","enrollment","transfer","textbooks"],"active"],
       ["ثانوية الحصاحيصا للبنين","secondary","حي الضحى","0111100002","محمد إبراهيم",null,null,"ثانوية حكومية للبنين","الصف التاسع – الثاني عشر","صباحي",["results","enrollment","exam","guidance"],"active"],
@@ -1954,7 +1956,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
     )
   `);
   const { rows: wsCheck } = await query(`SELECT COUNT(*) as cnt FROM women_services`);
-  if (parseInt(wsCheck[0].cnt, 10) === 0) {
+  if (DEMO_SEED && parseInt(wsCheck[0].cnt, 10) === 0) {
     const seedWS = [
       ["صالون ليلى للسيدات","salon","حي السلام","0912000011","8ص – 9م","صالون نسائي متكامل، خدمات حلاقة وتجميل وعناية بالبشرة",4.8,["صالون","تجميل","حلاقة"]],
       ["أتيليه بنات النيل","sewing","وسط المدينة","0912000012","9ص – 5م","خياطة ملابس سودانية وعصرية، توب وجلابية وعرائس",4.7,["خياطة","تصميم","توب"]],
@@ -2189,7 +2191,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
 
   // بيانات افتراضية للشركة
   const { rows: tcCheck } = await query(`SELECT COUNT(*) as cnt FROM travel_companies`);
-  if (parseInt(tcCheck[0].cnt, 10) === 0) {
+  if (DEMO_SEED && parseInt(tcCheck[0].cnt, 10) === 0) {
     const { rows: compRows } = await query(
       `INSERT INTO travel_companies (name, owner_name, phone, wa_number, commission_pct, subscription_type, active, contract_signed_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,NOW()) RETURNING id`,
@@ -2505,7 +2507,7 @@ router.patch("/admin/app/version", async (req: Request, res: Response) => {
 router.get("/app/feature-flags", async (_req: Request, res: Response) => {
   try {
     const rows = await query(
-      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled','ride_status')`
+      `SELECT key, value FROM admin_settings WHERE key IN ('gov_services_enabled','gov_appointments_enabled','gov_reports_enabled','ride_status','pricing_visible','transport_status')`
     );
     const map: Record<string, string> = {};
     for (const r of rows.rows) map[r.key] = r.value;
@@ -2513,7 +2515,11 @@ router.get("/app/feature-flags", async (_req: Request, res: Response) => {
       gov_services_enabled:      map.gov_services_enabled      !== "false",
       gov_appointments_enabled:  map.gov_appointments_enabled  !== "false",
       gov_reports_enabled:       map.gov_reports_enabled       !== "false",
-      ride_status:               (map.ride_status as "soon" | "maintenance" | "available") || "soon",
+      // مصدر الحقيقة: transport_status (الذي تقرؤه شاشة المشاوير) — ride_status للتوافق فقط
+      ride_status:               map.transport_status === "available" ? "available" : map.transport_status === "maintenance" ? "maintenance"
+                                   : map.transport_status === "coming_soon" ? "soon" : ((map.ride_status as "soon" | "maintenance" | "available") || "soon"),
+      // الباقات والاشتراكات مخفية افتراضياً — تُظهرها الإدارة متى شاءت
+      pricing_visible:           map.pricing_visible === "true",
     });
   } catch (err) {
     logger.error({ err }, "route error");
@@ -2525,7 +2531,10 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
   try {
     const me = await getSessionUser(req);
     if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
-    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled, ride_status } = req.body;
+    const { gov_services_enabled, gov_appointments_enabled, gov_reports_enabled, ride_status, pricing_visible } = req.body;
+    if (pricing_visible !== undefined) {
+      await query(`INSERT INTO admin_settings (key,value) VALUES ('pricing_visible',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [pricing_visible ? "true" : "false"]);
+    }
     if (gov_services_enabled !== undefined) {
       await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_services_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_services_enabled ? "true" : "false"]);
     }
@@ -2536,7 +2545,11 @@ router.patch("/admin/feature-flags", async (req: Request, res: Response) => {
       await query(`INSERT INTO admin_settings (key,value) VALUES ('gov_reports_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [gov_reports_enabled ? "true" : "false"]);
     }
     if (ride_status !== undefined && ["soon","maintenance","available"].includes(ride_status)) {
-      await query(`INSERT INTO admin_settings (key,value) VALUES ('ride_status',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [ride_status]);
+      // كانت تُحدّث ride_status وحدها فتبقى شاشة المشاوير «متاحة» دائماً — نزامن الحالتين معاً
+      const ts = ride_status === "soon" ? "coming_soon" : ride_status;
+      for (const [k, v] of [["ride_status", ride_status], ["transport_status", ts], ["transport_enabled", String(ts === "available")]]) {
+        await query(`INSERT INTO admin_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2`, [k, v]);
+      }
     }
     return res.json({ ok: true });
   } catch (err) {
@@ -7792,10 +7805,17 @@ router.patch("/appointments/:id/cancel", async (req: Request, res: Response) => 
   try {
     const user = await getSessionUser(req);
     if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
-    await query(
-      `UPDATE appointments SET status='cancelled', cancelled_at=NOW() WHERE id=$1 AND user_id=$2`,
-      [req.params.id, user.id]
+    // إلغاء بسبب: سبب مختار من القائمة + توضيح اختياري (يصل للجهة والإدارة)
+    const reason = String(req.body?.reason ?? "").trim().slice(0, 300);
+    if (reason.length < 3) return res.status(400).json({ error: "اختر سبب الإلغاء" });
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancel_reason TEXT`).catch(() => {});
+    await query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_by VARCHAR(10)`).catch(() => {});
+    const r = await query(
+      `UPDATE appointments SET status='cancelled', cancelled_at=NOW(), cancel_reason=$3, cancelled_by='user'
+       WHERE id=$1 AND user_id=$2 AND status NOT IN ('cancelled','completed') RETURNING id`,
+      [req.params.id, user.id, reason]
     );
+    if (!r.rowCount) return res.status(409).json({ error: "لا يمكن إلغاء هذا الموعد" });
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
@@ -12094,7 +12114,7 @@ async function ensureUnionsTables() {
 
   // بيانات أولية — تُضاف مرة واحدة فقط إذا كانت الجداول فارغة
   const cnt = await query(`SELECT COUNT(*) FROM unions`);
-  if (parseInt(cnt.rows[0].count, 10) === 0) {
+  if (DEMO_SEED && parseInt(cnt.rows[0].count, 10) === 0) {
     const seedUnions = [
       { name: "نقابة المعلمين السودانيين",       short: "نقابة المعلمين",  field: "التعليم",          phone: "0912345601", founded: "1958", members: "450+ عضو",  desc: "تمثل المعلمين وتدافع عن حقوقهم المهنية والمادية في الحصاحيصا والجزيرة" },
       { name: "نقابة الأطباء السودانيين",         short: "نقابة الأطباء",   field: "الصحة والطب",       phone: "0912345602", founded: "1946", members: "120+ عضو",  desc: "تنظيم مهني يضم أطباء الحصاحيصا ويضمن الالتزام بأخلاقيات المهنة" },

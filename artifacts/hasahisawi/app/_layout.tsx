@@ -417,6 +417,7 @@ function RootLayoutNav() {
         <Stack.Screen name="ithraa-admin"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="press" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="admin-listings" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="press-post" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="press-admin" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers-membership" options={{ headerShown: false, animation: "slide_from_right" }} />

@@ -1,3 +1,4 @@
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -129,7 +130,13 @@ function SvcIcon({ item, size, color }: { item: Service; size: number; color: st
     : <MaterialCommunityIcons name={item.icon} size={size} color={color} />;
 }
 
+const RIDE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  soon: { label: "قريباً", color: "#946B00", bg: "#FFF4D6" },
+  maintenance: { label: "صيانة", color: "#B42323", bg: "#FDECEC" },
+};
 function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => void }) {
+  const { ride_status } = useFeatureFlags();
+  const ride = item.id === "transport" ? RIDE_BADGE[ride_status] : undefined;
   return (
     <View style={styles.cardWrap}>
     <AnimatedPress onPress={() => onOpen(item)}>
@@ -138,7 +145,8 @@ function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => v
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
-            {item.isNew ? <View style={styles.newBadge}><Text style={styles.newBadgeText}>جديد</Text></View> : null}
+            {ride ? <View style={[styles.newBadge, { backgroundColor: ride.bg }]}><Text style={[styles.newBadgeText, { color: ride.color }]}>{ride.label}</Text></View>
+              : item.isNew ? <View style={styles.newBadge}><Text style={styles.newBadgeText}>جديد</Text></View> : null}
           </View>
           <Text style={styles.cardSub} numberOfLines={1}>{item.sub}</Text>
         </View>

@@ -34,6 +34,8 @@ import ithraaWritersRouter from "./ithraa-writers";
 import litContestRouter, { ensureLitContestDb } from "./lit-contest";
 import litMembersRouter, { ensureMembersDb } from "./lit-members";
 import pressRouter, { ensurePressDb } from "./press";
+import demoCleanupRouter, { purgeDemoData } from "./demo-cleanup";
+import bookingEntitiesRouter, { ensureBookingEntities } from "./booking-entities";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -64,6 +66,8 @@ router.use(ithraaWritersRouter);
 router.use(litContestRouter);
 router.use(litMembersRouter);
 router.use(pressRouter);
+router.use(demoCleanupRouter);
+router.use(bookingEntitiesRouter);
 router.use(contestsRouter);
 router.use(callsRouter);
 router.use(campaignRouter);
@@ -95,6 +99,8 @@ async function initializeDatabaseSchemas() {
   await ensureLitContestDb();
   await ensureMembersDb();
   await ensurePressDb();
+  await purgeDemoData().catch(() => {});
+  await ensureBookingEntities().catch(() => {});
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();

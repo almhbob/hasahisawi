@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -62,6 +63,7 @@ function ChipSelect({ options, value, onSelect }: { options: string[]; value: st
 }
 
 export default function UnionPartnershipApplyScreen() {
+  const showPricing = usePricingVisible();
   const insets = useSafeAreaInsets();
 
   const [unionName, setUnionName]         = useState("");
@@ -190,8 +192,8 @@ export default function UnionPartnershipApplyScreen() {
           <Input value={email} onChange={setEmail} placeholder="contact@union.org" keyboardType="email-address" />
         </Animated.View>
 
-        {/* باقة الاشتراك */}
-        <Animated.View entering={FadeInDown.delay(180).springify()} style={s.sectionBox}>
+        {/* باقة الاشتراك — مخفية حتى تُظهرها الإدارة */}
+        {showPricing && <Animated.View entering={FadeInDown.delay(180).springify()} style={s.sectionBox}>
           <Text style={s.sectionBoxTitle}>باقة الاشتراك المطلوبة</Text>
           <Text style={s.hintText}>
             سيحدد فريق الإدارة الرسوم السنوية بناءً على الباقة المختارة وحجم الجهة.
@@ -212,7 +214,7 @@ export default function UnionPartnershipApplyScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </Animated.View>
+        </Animated.View>}
 
         {/* الشروط والأحكام */}
         <Animated.View entering={FadeInDown.delay(240).springify()} style={s.contractBox}>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
@@ -1155,13 +1156,29 @@ export default function SettingsScreen() {
   // ── حالة مشوارك علينا ──
   const [rideStatus, setRideStatus] = useState<"soon" | "maintenance" | "available">("soon");
   const [rideStatusLoading, setRideStatusLoading] = useState(false);
+  const flagsCtx = useFeatureFlags();
+  // ── إظهار الباقات والاشتراكات لمقدّمي الخدمات (مخفية افتراضياً) ──
+  const [pricingVisible, setPricingVisible] = useState(false);
+  const togglePricing = async () => {
+    const base = getApiUrl();
+    if (!base || !auth.token) return;
+    const next = !pricingVisible;
+    setPricingVisible(next);
+    try {
+      await fetchWithTimeout(new URL("/api/admin/feature-flags", base).toString(), {
+        method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({ pricing_visible: next }),
+      });
+      flagsCtx.refresh?.();
+    } catch { setPricingVisible(!next); }
+  };
 
   useEffect(() => {
     const base = getApiUrl();
     if (!base) return;
     fetch(new URL("/api/app/feature-flags", base).toString())
       .then(r => r.json())
-      .then((d: any) => { if (d?.ride_status) setRideStatus(d.ride_status); })
+      .then((d: any) => { if (d?.ride_status) setRideStatus(d.ride_status); setPricingVisible(d?.pricing_visible === true); })
       .catch(() => {});
   }, []);
 
@@ -1176,6 +1193,7 @@ export default function SettingsScreen() {
         body: JSON.stringify({ ride_status: status }),
       });
       setRideStatus(status);
+      flagsCtx.refresh?.();
     } finally { setRideStatusLoading(false); }
   };
 
@@ -3065,6 +3083,42 @@ export default function SettingsScreen() {
                       >
                         <MaterialCommunityIcons name={cfg.icon as any} size={16} color={active ? cfg.color : Colors.textMuted} />
                         <Text style={[sub_s.rideToggleText, active && { color: cfg.color }]}>{cfg.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* ── إدارة المحتوى العام (حذف الوهمي/المخالف) ── */}
+            {isAdmin && (
+              <TouchableOpacity style={[sub_s.rideCard, { flexDirection: "row-reverse", alignItems: "center", gap: 10 }]} onPress={() => router.push("/admin-listings" as any)} activeOpacity={0.85}>
+                <MaterialCommunityIcons name="delete-sweep-outline" size={22} color="#B42318" />
+                <View style={{ flex: 1 }}>
+                  <Text style={sub_s.rideCardTitle}>إدارة المحتوى العام</Text>
+                  <Text style={sub_s.rideCardSub}>حذف المستشفيات والمتاجر والجهات الوهمية أو المخالفة من كل الأقسام، وإضافة جهات حجز المواعيد</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+
+            {/* ── إظهار الباقات والاشتراكات ── */}
+            {isAdmin && (
+              <View style={sub_s.rideCard}>
+                <View style={sub_s.rideCardHeader}>
+                  <MaterialCommunityIcons name="tag-multiple-outline" size={20} color="#C99A2E" />
+                  <Text style={sub_s.rideCardTitle}>الباقات والاشتراكات للعامة</Text>
+                </View>
+                <Text style={sub_s.rideCardSub}>مخفية افتراضياً حتى لا تُنفّر مقدّمي الخدمات من الانضمام (المنشآت الطبية، المصانع، الوكالات، المصممون، النقابات). أظهرها متى شئت.</Text>
+                <View style={sub_s.rideToggleRow}>
+                  {[false, true].map((v) => {
+                    const active = pricingVisible === v;
+                    const color = v ? "#2EAD6B" : "#7A8794";
+                    return (
+                      <TouchableOpacity key={String(v)} style={[sub_s.rideToggleBtn, active && { backgroundColor: color + "25", borderColor: color }]}
+                        onPress={() => { if (!active) togglePricing(); }} activeOpacity={0.8}>
+                        <MaterialCommunityIcons name={v ? "eye-outline" : "eye-off-outline"} size={16} color={active ? color : Colors.textMuted} />
+                        <Text style={[sub_s.rideToggleText, active && { color }]}>{v ? "ظاهرة" : "مخفية"}</Text>
                       </TouchableOpacity>
                     );
                   })}

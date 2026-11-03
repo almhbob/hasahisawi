@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform,
@@ -339,6 +340,7 @@ function FactoryModal({ factory, visible, onClose, products }: {
 
 // ── PackagesModal ──────────────────────────────────────────────────────────────
 function PackagesModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const showPricing = usePricingVisible();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose} />
@@ -346,11 +348,11 @@ function PackagesModal({ visible, onClose }: { visible: boolean; onClose: () => 
         <LinearGradient colors={[FAC + "20", Colors.surface3, Colors.bg]} style={StyleSheet.absoluteFill} />
         <View style={[styles.dragBar, { backgroundColor: FAC + "60" }]} />
         <View style={{ padding: 20 }}>
-          <Text style={[styles.modalTitle, { marginBottom: 4 }]}>📋 باقات انضمام المصانع</Text>
-          <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 20 }}>اختر الباقة المناسبة لتسويق منتجاتك مباشرة للمواطنين</Text>
+          <Text style={[styles.modalTitle, { marginBottom: 4 }]}>{showPricing ? "📋 باقات انضمام المصانع" : "🏭 انضم بمصنعك إلى حصاحيصاوي"}</Text>
+          <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 20 }}>{showPricing ? "اختر الباقة المناسبة لتسويق منتجاتك مباشرة للمواطنين" : "سوّق منتجاتك مباشرة للمواطنين عبر لوحة تحكم خاصة بمصنعك"}</Text>
         </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 0 }}>
-          {PLAN_PACKAGES.map((pkg, i) => (
+          {showPricing && PLAN_PACKAGES.map((pkg, i) => (
             <Animated.View key={pkg.name} entering={FadeInDown.delay(i * 100).springify()}>
               <View style={[styles.pkgCard, { borderColor: pkg.color + "50" }]}>
                 <LinearGradient colors={[pkg.color + "18", Colors.surface2]} style={StyleSheet.absoluteFill} />
@@ -392,6 +394,7 @@ function PackagesModal({ visible, onClose }: { visible: boolean; onClose: () => 
 // الشاشة الرئيسية
 // ══════════════════════════════════════════════════════════════════
 function FactoriesScreen() {
+  const showPricing = usePricingVisible();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
 
@@ -453,8 +456,8 @@ function FactoriesScreen() {
           <TouchableOpacity
             style={styles.pkgBtn}
             onPress={() => { if (Platform.OS !== "web") Haptics.selectionAsync(); setPkgModal(true); }}>
-            <Ionicons name="pricetags-outline" size={13} color="#fff" />
-            <Text style={styles.pkgBtnText}>الباقات</Text>
+            <Ionicons name={showPricing ? "pricetags-outline" : "add-circle-outline"} size={13} color="#fff" />
+            <Text style={styles.pkgBtnText}>{showPricing ? "الباقات" : "انضم"}</Text>
           </TouchableOpacity>
         }
       >
@@ -534,7 +537,7 @@ function FactoriesScreen() {
                     <MaterialCommunityIcons name="factory" size={28} color={FAC} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.joinCtaTitle, { color: FAC }]}>سجّل مصنعك في حصاحيصاوي</Text>
-                      <Text style={styles.joinCtaDesc}>تسويق مباشر لمنتجاتك · باقات تنافسية · لوحة تحكم احترافية</Text>
+                      <Text style={styles.joinCtaDesc}>تسويق مباشر لمنتجاتك{showPricing ? " · باقات تنافسية" : ""} · لوحة تحكم احترافية</Text>
                     </View>
                     <Ionicons name="arrow-back-outline" size={18} color={FAC} />
                   </TouchableOpacity>

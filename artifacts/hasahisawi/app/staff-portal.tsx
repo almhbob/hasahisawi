@@ -41,7 +41,7 @@ function RegisterStaff({ onDone }: { onDone: () => void }) {
 
   const TYPES: { key: StaffType; label: string; icon: any; color: string }[] = [
     { key: "doctor",     label: "طبيب",    icon: "medkit-outline",      color: "#3B82F6" },
-    { key: "lab",        label: "معمل",    icon: "flask-outline",       color: "#1F5C8A" },
+    { key: "lab",        label: "معمل",    icon: "flask-outline",       color: "#2E7D9A" },
     { key: "pharmacist", label: "صيدلاني", icon: "medical-outline",     color: "#10B981" },
     { key: "nurse",      label: "تمريض",  icon: "heart-outline",       color: "#F59E0B" },
   ];
@@ -492,7 +492,6 @@ export default function StaffPortalScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <LinearGradient colors={["#020C1B", "#061525"]} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={s.header}>
@@ -551,14 +550,14 @@ function statusLabel(s: string) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root:   { flex: 1 },
+  root:   { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: "rgba(37,99,235,0.15)",
+    borderBottomWidth: 1, borderBottomColor: Colors.divider, backgroundColor: Colors.cardBg,
   },
   headerTitle: { color: Colors.textPrimary, fontSize: 17, fontFamily: "Cairo_600SemiBold" },
-  backBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(37,99,235,0.12)", justifyContent: "center", alignItems: "center" },
+  backBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "14", justifyContent: "center", alignItems: "center" },
   reRegBtn: { width: 36, height: 36, justifyContent: "center", alignItems: "center" },
   center:   { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   emptyTxt: { color: Colors.textMuted, fontSize: 15, fontFamily: "Cairo_400Regular" },
@@ -574,15 +573,15 @@ const s = StyleSheet.create({
 });
 
 const dr = StyleSheet.create({
-  tabRow: { flexDirection: "row-reverse", borderBottomWidth: 1, borderBottomColor: "rgba(37,99,235,0.12)" },
+  tabRow: { flexDirection: "row-reverse", borderBottomWidth: 1, borderBottomColor: Colors.divider, backgroundColor: Colors.cardBg },
   tabBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10 },
   tabActive: { borderBottomWidth: 2, borderBottomColor: Colors.primary },
   tabTxt: { color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_600SemiBold" },
-  card: { backgroundColor: "rgba(10,31,54,0.80)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(37,99,235,0.15)" },
+  card: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.divider },
   cardTitle: { color: Colors.textPrimary, fontSize: 15, fontFamily: "Cairo_700Bold", textAlign: "right", marginBottom: 10 },
   input: {
-    backgroundColor: "rgba(37,99,235,0.08)", borderRadius: 10, borderWidth: 1,
-    borderColor: "rgba(37,99,235,0.20)", paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1,
+    borderColor: Colors.divider, paddingHorizontal: 12, paddingVertical: 10,
     color: Colors.textPrimary, fontSize: 14, fontFamily: "Cairo_400Regular",
   },
   fieldLabel: { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_600SemiBold", textAlign: "right", marginBottom: 4 },
@@ -590,12 +589,12 @@ const dr = StyleSheet.create({
   submitTxt: { color: "#fff", fontSize: 14, fontFamily: "Cairo_600SemiBold" },
   sectionTitle: { color: Colors.textPrimary, fontSize: 15, fontFamily: "Cairo_700Bold", textAlign: "right" },
   empty: { color: Colors.textMuted, fontSize: 14, fontFamily: "Cairo_400Regular", textAlign: "center", paddingVertical: 20 },
-  listCard: { backgroundColor: "rgba(10,31,54,0.80)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "rgba(37,99,235,0.12)" },
+  listCard: { backgroundColor: Colors.cardBg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: Colors.divider },
   listTitle: { color: Colors.textPrimary, fontSize: 14, fontFamily: "Cairo_600SemiBold", textAlign: "right" },
   listSub:   { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_400Regular", textAlign: "right", marginTop: 2 },
   listDetail:{ color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_400Regular", textAlign: "right", marginTop: 2 },
-  patientRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, marginTop: 4, backgroundColor: "rgba(37,99,235,0.05)" },
-  patientRowSel: { backgroundColor: "rgba(37,99,235,0.15)", borderWidth: 1, borderColor: Colors.primary },
+  patientRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, marginTop: 4, backgroundColor: Colors.bg },
+  patientRowSel: { backgroundColor: Colors.primary + "14", borderWidth: 1, borderColor: Colors.primary },
   patientName: { color: Colors.textPrimary, fontSize: 13, fontFamily: "Cairo_600SemiBold", flex: 1, textAlign: "right" },
   patientPhone:{ color: Colors.textMuted, fontSize: 13, fontFamily: "Cairo_400Regular" },
   selectedBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "#22C55E15", borderRadius: 8, padding: 8, marginTop: 6 },
@@ -614,8 +613,8 @@ const reg = StyleSheet.create({
   label:  { color: Colors.textSecondary, fontSize: 13, fontFamily: "Cairo_600SemiBold", textAlign: "right", marginBottom: 4 },
   field:  { marginTop: 8 },
   input: {
-    backgroundColor: "rgba(37,99,235,0.08)", borderRadius: 10, borderWidth: 1,
-    borderColor: "rgba(37,99,235,0.20)", paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: Colors.bg, borderRadius: 10, borderWidth: 1,
+    borderColor: Colors.divider, paddingHorizontal: 12, paddingVertical: 10,
     color: Colors.textPrimary, fontSize: 14, fontFamily: "Cairo_400Regular",
   },
   btn:    { backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20 },

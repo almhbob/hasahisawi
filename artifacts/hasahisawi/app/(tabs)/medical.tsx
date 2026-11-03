@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Linking, Platform, Alert, Modal,
@@ -97,6 +98,7 @@ const CLINIC_PLANS = [
 
 function MedicalJoinBanner() {
   const router = useRouter();
+  const showPricing = usePricingVisible();
   const waLink = `https://wa.me/249597083352?text=${encodeURIComponent("مرحباً، أريد تسجيل منشأتي الطبية في حصاحيصاوي")}`;
   return (
     <Animated.View entering={FadeIn.delay(150).duration(400)} style={mj.wrapper}>
@@ -128,7 +130,8 @@ function MedicalJoinBanner() {
           ))}
         </View>
 
-        {/* باقات الاشتراك */}
+        {/* باقات الاشتراك — مخفية حتى تُظهرها الإدارة */}
+        {showPricing && <>
         <Text style={[mj.freeNote, { marginBottom: 8, marginTop: 4, color: Colors.textMuted, fontFamily: "Cairo_700Bold" }]}>
           اختر الباقة المناسبة لمنشأتك:
         </Text>
@@ -144,6 +147,7 @@ function MedicalJoinBanner() {
             </View>
           ))}
         </RtlScrollRow>
+        </>}
 
         <View style={mj.typesRow}>
           {[
@@ -176,7 +180,7 @@ function MedicalJoinBanner() {
             </View>
           </TouchableOpacity>
         </View>
-        <Text style={mj.freeNote}>الباقة المجانية متاحة دائماً · موافقة خلال ٣-٥ أيام · عقد رسمي موثّق</Text>
+        <Text style={mj.freeNote}>{showPricing ? "الباقة المجانية متاحة دائماً · " : "التسجيل مجاني · "}موافقة خلال ٣-٥ أيام · توثيق رسمي</Text>
       </LinearGradient>
     </Animated.View>
   );
