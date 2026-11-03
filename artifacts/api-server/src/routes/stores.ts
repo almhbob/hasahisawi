@@ -38,6 +38,12 @@ export function ensureStoresDb(): Promise<void> {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
       await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_stores_owner ON stores(owner_id)`);
+      // إعدادات صاحب المتجر: الفتح/الإغلاق، استقبال الطلبات، وسائل الدفع، أيام العمل، إعلان المتجر
+      for (const col of ["is_open BOOLEAN NOT NULL DEFAULT TRUE", "accepts_orders BOOLEAN NOT NULL DEFAULT TRUE", "pickup_available BOOLEAN NOT NULL DEFAULT TRUE",
+        "whatsapp VARCHAR(40)", "payment_methods TEXT[] NOT NULL DEFAULT '{cash}'", "bank_account VARCHAR(160)", "working_days VARCHAR(80)",
+        "announcement VARCHAR(200)", "prep_minutes INTEGER", "notify_orders BOOLEAN NOT NULL DEFAULT TRUE"]) {
+        await query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+      }
       await query(`CREATE INDEX IF NOT EXISTS idx_stores_status ON stores(status,type)`);
       await query(`CREATE TABLE IF NOT EXISTS store_categories(
         id SERIAL PRIMARY KEY,
@@ -232,7 +238,29 @@ router.put("/store/my", wrap(async (req, res) => {
      b.delivery_available !== undefined ? bool(b.delivery_available) : s.delivery_available,
      b.min_order !== undefined ? num(b.min_order) : s.min_order, b.delivery_fee !== undefined ? num(b.delivery_fee) : s.delivery_fee,
      logo, cover, status, s.id]);
-  return res.json(storeRow(r.rows[0]));
+  // الإعدادات الإضافية (اختيارية — تُحدَّث فقط إن أُرسلت)
+  const PAY = ["cash", "bankak", "fawry", "ocash", "transfer"];
+  const ex: [string, unknown][] = [];
+  if (b.is_open !== undefined) ex.push(["is_open", bool(b.is_open)]);
+  if (b.accepts_orders !== undefined) ex.push(["accepts_orders", bool(b.accepts_orders)]);
+  if (b.pickup_available !== undefined) ex.push(["pickup_available", bool(b.pickup_available)]);
+  if (b.notify_orders !== undefined) ex.push(["notify_orders", bool(b.notify_orders)]);
+  if (b.whatsapp !== undefined) ex.push(["whatsapp", str(b.whatsapp, 40) || null]);
+  if (b.bank_account !== undefined) ex.push(["bank_account", str(b.bank_account, 160) || null]);
+  if (b.working_days !== undefined) ex.push(["working_days", str(b.working_days, 80) || null]);
+  if (b.announcement !== undefined) ex.push(["announcement", str(b.announcement, 200) || null]);
+  if (b.prep_minutes !== undefined) ex.push(["prep_minutes", Math.max(0, Math.min(600, Math.round(num(b.prep_minutes)))) || null]);
+  if (b.payment_methods !== undefined) {
+    const raw = Array.isArray(b.payment_methods) ? b.payment_methods : String(b.payment_methods).split(",");
+    const pm = raw.map((x: unknown) => String(x).trim()).filter((x: string) => PAY.includes(x));
+    ex.push(["payment_methods", pm.length ? pm : ["cash"]]);
+  }
+  let row = r.rows[0];
+  if (ex.length) {
+    const sets = ex.map(([k], i) => `${k}=$${i + 1}`).join(",");
+    row = (await query(`UPDATE stores SET ${sets}, updated_at=NOW() WHERE id=$${ex.length + 1} RETURNING *`, [...ex.map(([, v]) => v), s.id])).rows[0];
+  }
+  return res.json(storeRow(row));
 }));
 
 // ── categories ────────────────────────────────────────────────────────────────
@@ -370,6 +398,7 @@ router.get("/stores", wrap(async (req, res) => {
   const r = await query(
     `SELECT s.id,s.name,s.type,s.description,s.logo_url,s.cover_url,s.phone,s.address,s.working_hours,s.delivery_available,
             s.min_order,s.delivery_fee,s.status,s.women_only,s.created_at,u.name AS owner_name,
+            s.is_open,s.accepts_orders,s.pickup_available,s.whatsapp,s.payment_methods,s.working_days,s.announcement,s.prep_minutes,
             (SELECT COUNT(*) FROM store_products p WHERE p.store_id=s.id AND p.is_available) AS product_count
      FROM stores s LEFT JOIN users u ON u.id=s.owner_id WHERE ${where} ORDER BY s.id DESC LIMIT 200`, params);
   return res.json(r.rows.map(storeRow));
@@ -393,6 +422,7 @@ router.post("/stores/:id/orders", wrap(async (req, res) => {
   const id = Number(req.params.id);
   const sr = await query(`SELECT * FROM stores WHERE id=$1 AND status='active'`, [id]);
   const s = sr.rows[0]; if (!s) return res.status(404).json({ error: "المتجر غير متاح" });
+  if (s.is_open === false || s.accepts_orders === false) return res.status(409).json({ error: s.is_open === false ? "المتجر مغلق الآن — جرّب لاحقاً" : "المتجر لا يستقبل طلبات حالياً" });
   const u = await sessionUser(req);
   if (s.women_only && !canSeeWomenStore(u)) return res.status(403).json({ error: "هذا المتجر خاص بالنساء" });
   const b = req.body || {};
@@ -416,7 +446,7 @@ router.post("/stores/:id/orders", wrap(async (req, res) => {
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [id, u?.id ?? null, name, phone, address, str(b.customer_notes, 500), JSON.stringify(items), subtotal, fee, subtotal + fee]);
   const o = orderRow(r.rows[0]);
-  await pushToUser(s.owner_id, "🛒 طلب جديد في متجرك", `${name} — ${o.total} ج.س`, { type: "store_order", order_id: o.id });
+  if (s.notify_orders !== false) await pushToUser(s.owner_id, "🛒 طلب جديد في متجرك", `${name} — ${o.total} ج.س`, { type: "store_order", order_id: o.id });
   return res.status(201).json({ ok: true, order: o, id: o.id });
 }));
 
