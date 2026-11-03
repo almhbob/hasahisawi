@@ -18,7 +18,8 @@ type Tab = "diwan" | "mine" | "review";
 export default function WritersScreen() {
   const insets = useSafeAreaInsets();
   const { token, isGuest } = useAuth();
-  const params = useLocalSearchParams<{ tab?: string; group?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; group?: string; author?: string }>();
+  const authorId = params.author && /^\d+$/.test(String(params.author)) ? Number(params.author) : undefined;
   const signedIn = !!token && !isGuest;
   const [tab, setTab] = useState<Tab>((["mine", "review"].includes(String(params.tab)) ? params.tab : "diwan") as Tab);
   const [meta, setMeta] = useState<LitMeta | null>(null);
@@ -45,7 +46,7 @@ export default function WritersScreen() {
       if (m) setMeta(m);
       if (tab === "diwan") {
         const [l, f, w, cs] = await Promise.all([
-          litApi.texts({ group: group || undefined, form: form || undefined, q: query || undefined, sort }, token).catch(() => ({ texts: [] as LitText[] })),
+          litApi.texts({ group: group || undefined, form: form || undefined, q: query || undefined, sort, author: authorId }, token).catch(() => ({ texts: [] as LitText[] })),
           litApi.texts({ featured: true, limit: 8 }, token).catch(() => ({ texts: [] as LitText[] })),
           litApi.top().catch(() => ({ writers: [] })),
           litApi.contests(token).catch(() => ({ contests: [] as Contest[] })),
@@ -60,7 +61,7 @@ export default function WritersScreen() {
       }
     } catch (e: any) { notify("تعذّر التحميل", e?.message); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [tab, group, form, query, sort, token, signedIn, rstatus]);
+  }, [tab, group, form, query, sort, token, signedIn, rstatus, authorId]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const open = (t: LitText) => router.push({ pathname: "/writers-text", params: { id: String(t.id) } } as any);
@@ -93,7 +94,7 @@ export default function WritersScreen() {
             </Pressable>
           </View>
           <Text style={s.kicker}>إثراء · منصة حصاحيصاوي</Text>
-          <Text style={s.heroTitle}>ديوان الكُتّاب</Text>
+          <Text style={s.heroTitle}>{authorId && texts[0]?.author_id === authorId ? `نصوص ${texts[0].author_name}` : "ديوان الكُتّاب"}</Text>
           <Text style={s.heroSub}>قصةٌ وشعرٌ وخاطرة… بأقلام أبناء الحصاحيصا. كل نص موثّق برقم يحفظ حق كاتبه.</Text>
           <View style={[u.rowR, { gap: 8, marginTop: 14 }]}>
             <Stat n={meta?.totals.texts ?? 0} l="نصاً منشوراً" />

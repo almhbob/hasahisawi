@@ -1,5 +1,6 @@
 // قراءة نص من ديوان الكُتّاب: عرض أدبي بحسب الجنس، توثيق، إعجاب، مشاركة، وإجراءات المشرف وطلب المراجعة.
 import React, { useCallback, useState } from "react";
+import ShareBar from "@/components/lit/ShareBar";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, Share, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -91,6 +92,8 @@ export default function WritersText() {
           <Pressable onPress={share} style={st.action}><Ionicons name="share-social-outline" size={20} color={INK} /><Text style={st.actionT}>مشاركة</Text></Pressable>
         </View>
 
+        <ShareBar url={`${WEB}/writers-text?id=${t.id}`} text={`✒️ «${t.title}» — ${t.author_name}\n${t.form_label} في ديوان الكُتّاب على حصاحيصاوي`} title="شارك النص على مواقع التواصل" />
+        {d.is_owner && <ShareBar url={`${WEB}/writers?author=${t.author_id}`} text={`اقرأ نصوصي في ديوان الكُتّاب على حصاحيصاوي — ${t.author_name}`} title="شارك ملفك ككاتب (كل نصوصك)" />}
         {!!t.doc_no && (
           <Pressable onPress={() => router.push({ pathname: "/writers-cert", params: { no: t.doc_no! } } as any)} style={st.docBox}>
             <Ionicons name="shield-checkmark" size={22} color={WINE} />
