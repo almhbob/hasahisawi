@@ -18,6 +18,8 @@ import { useAuth } from "@/lib/auth-context";
 import { profileApi } from "@/lib/profile-api";
 import { volunteerApi } from "@/lib/volunteer";
 import { cvFromProfile } from "@/lib/cv-from-profile";
+import { usePricingVisible } from "@/lib/feature-flags-context";
+import { getApiUrl } from "@/lib/query-client";
 
 const CV_STEPS = [
   { id: 0, label: "النموذج", icon: "albums-outline" as const },
@@ -80,6 +82,49 @@ export default function CVBuilderScreen() {
   const [filling, setFilling] = useState(false);
   const [fillMsg, setFillMsg] = useState("");
   const autoTried = useRef(false);
+  // ── القوالب المميزة: تُفتح بطلب تعتمده الإدارة ──
+  const pricingVisible = usePricingVisible();
+  const isAdminUser = user?.role === "admin";
+  const [unlocked, setUnlocked] = useState<string[]>([]);
+  const [premReqs, setPremReqs] = useState<{ template_id: string; status: string; admin_note?: string | null }[]>([]);
+  const [premBusy, setPremBusy] = useState(false);
+  const [adminReqs, setAdminReqs] = useState<any[]>([]);
+  async function loadPremium() {
+    if (!token || isGuest) return;
+    try {
+      const r = await fetch(`${getApiUrl()}/api/cv/premium/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { const d = await r.json(); setUnlocked(d.unlocked || []); setPremReqs(d.requests || []); }
+      if (isAdminUser) {
+        const a = await fetch(`${getApiUrl()}/api/admin/cv/premium/requests?status=pending`, { headers: { Authorization: `Bearer ${token}` } });
+        if (a.ok) setAdminReqs((await a.json()).requests || []);
+      }
+    } catch {}
+  }
+  useEffect(() => { loadPremium(); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function requestPremium(templateId: string) {
+    if (!token || isGuest) return Alert.alert("سجّل الدخول", "سجّل الدخول لطلب القالب المميز");
+    setPremBusy(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/cv/premium/request`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ template_id: templateId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "تعذّر إرسال الطلب");
+      Alert.alert("تم", d.message || "أُرسل طلبك للإدارة");
+      loadPremium();
+    } catch (e: any) { Alert.alert("خطأ", e?.message || "تعذّر إرسال الطلب"); }
+    finally { setPremBusy(false); }
+  }
+  async function reviewPremium(id: number, action: "approve" | "reject", all = false) {
+    try {
+      await fetch(`${getApiUrl()}/api/admin/cv/premium/requests/${id}`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, all }),
+      });
+      loadPremium();
+    } catch { Alert.alert("خطأ", "تعذّر التنفيذ"); }
+  }
   const cvRef = useRef(cv);
   cvRef.current = cv;
 
@@ -132,7 +177,9 @@ export default function CVBuilderScreen() {
   }, [cv, tmpl, color, restored]);
 
   const hasData = !!(cv.name.trim() || cv.title.trim() || cv.experience.some((x) => x.position));
-  const previewHtml = useMemo(() => buildCVHtml(hasData ? cv : { ...SAMPLE_CV, showPhoto: tmpl.photo }, tmpl.id, color), [cv, tmpl, color, hasData]);
+  const locked = !!tmpl.premium && !isAdminUser && !unlocked.includes(tmpl.id);
+  const myPremReq = premReqs.find((r) => r.template_id === tmpl.id || r.template_id === "all");
+  const previewHtml = useMemo(() => buildCVHtml(hasData ? cv : { ...SAMPLE_CV, showPhoto: tmpl.photo }, tmpl.id, color, undefined, { watermark: locked }), [cv, tmpl, color, hasData, locked]);
 
   function updateCv(field: keyof CVData, value: any) { setCv(prev => ({ ...prev, [field]: value })); }
   function updateEducation(index: number, field: keyof EducationItem, value: string) { const arr = [...cv.education]; arr[index] = { ...arr[index], [field]: value }; updateCv("education", arr); }
@@ -163,6 +210,12 @@ export default function CVBuilderScreen() {
 
   async function handleDownload() {
     if (!cv.name.trim()) { setStep(1); return Alert.alert("تنبيه", "اكتب الاسم الكامل أولاً"); }
+    if (locked) {
+      if (myPremReq?.status === "pending") return Alert.alert("قيد المراجعة", "طلب فتح هذا القالب لدى الإدارة — سيصلك إشعار فور الموافقة.");
+      return Alert.alert("قالب مميز", `«${tmpl.name}» من القوالب المميزة. اطلب فتحه وسيُراجع طلبك من الإدارة، أو اختر أحد القوالب المجانية.`, [
+        { text: "إلغاء", style: "cancel" }, { text: "اطلب القالب", onPress: () => requestPremium(tmpl.id) },
+      ]);
+    }
     setLoading(true);
     try {
       const html = buildCVHtml(cv, tmpl.id, color, await photoDataUri());
@@ -197,7 +250,7 @@ export default function CVBuilderScreen() {
       <Animated.View entering={FadeInDown.duration(350)}>
         <ModernHeader
           title="السيرة الذاتية"
-          subtitle="6 نماذج عصرية · مجانية · PDF مطابق للمعاينة"
+          subtitle={`${CV_TEMPLATES.length} نماذج عصرية · منها مميزة · PDF مطابق للمعاينة`}
           showBack
           onBack={() => router.back()}
           rightSlot={
@@ -221,6 +274,12 @@ export default function CVBuilderScreen() {
                 return (
                   <TouchableOpacity key={t.id} onPress={() => chooseTemplate(t)} style={[s.tmplChip, on && { borderColor: t.colors[0], backgroundColor: t.colors[0] }]}>
                     <Text style={[s.tmplChipTxt, on && { color: "#fff" }]}>{t.name}</Text>
+                    {t.premium ? (
+                      <View style={[s.premBadge, on && { backgroundColor: "rgba(255,255,255,0.25)" }]}>
+                        <Ionicons name={isAdminUser || unlocked.includes(t.id) ? "star" : "lock-closed"} size={9} color={on ? "#fff" : "#9A6B00"} />
+                        <Text style={[s.premBadgeTxt, on && { color: "#fff" }]}>مميز</Text>
+                      </View>
+                    ) : null}
                   </TouchableOpacity>
                 );
               })}
@@ -229,6 +288,42 @@ export default function CVBuilderScreen() {
               <Text style={s.tmplName}>{tmpl.name} <Text style={s.tmplDesc}>— {tmpl.desc}</Text></Text>
               <Text style={s.tmplBest}>مناسب لـ: {tmpl.bestFor}</Text>
             </View>
+            {tmpl.premium ? (
+              <View style={s.premCard}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                  <Ionicons name={locked ? "lock-closed" : "star"} size={18} color="#9A6B00" />
+                  <Text style={s.premTitle}>{locked ? "قالب مميز" : "قالب مميز — مفتوح لك"}{pricingVisible ? " · مدفوع" : ""}</Text>
+                </View>
+                <Text style={s.premTxt}>
+                  {!locked ? "يمكنك تحميل سيرتك بهذا القالب بلا علامة معاينة."
+                    : myPremReq?.status === "pending" ? "طلبك قيد المراجعة لدى الإدارة — ستُفتح لك المعاينة الكاملة والتحميل فور الموافقة."
+                    : myPremReq?.status === "rejected" ? `لم تتم الموافقة على الطلب السابق${myPremReq.admin_note ? `: ${myPremReq.admin_note}` : ""}. يمكنك الطلب مجدداً.`
+                    : "المعاينة تظهر بعلامة «معاينة». اطلب فتح القالب لتحميله بجودة كاملة، أو اختر قالباً مجانياً."}
+                </Text>
+                {locked && myPremReq?.status !== "pending" ? (
+                  <TouchableOpacity style={s.premBtn} onPress={() => requestPremium(tmpl.id)} disabled={premBusy} accessibilityRole="button">
+                    <Ionicons name="sparkles" size={15} color="#fff" />
+                    <Text style={s.premBtnTxt}>{premBusy ? "جارٍ الإرسال…" : "اطلب القالب"}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : null}
+            {isAdminUser && adminReqs.length > 0 ? (
+              <View style={[s.premCard, { borderColor: Colors.primary + "55", backgroundColor: Colors.primary + "0D" }]}>
+                <Text style={[s.premTitle, { color: Colors.primary }]}>طلبات القوالب المميزة ({adminReqs.length})</Text>
+                {adminReqs.map((r) => (
+                  <View key={r.id} style={s.premReqRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.premReqName}>{r.user_name}{r.user_phone ? ` · ${r.user_phone}` : ""}</Text>
+                      <Text style={s.premTxt}>{CV_TEMPLATES.find((t) => t.id === r.template_id)?.name || r.template_id}{r.payment_ref ? ` · مرجع: ${r.payment_ref}` : ""}{r.note ? ` · ${r.note}` : ""}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => reviewPremium(r.id, "approve")} style={[s.premMini, { backgroundColor: Colors.primary }]}><Text style={s.premBtnTxt}>موافقة</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => reviewPremium(r.id, "approve", true)} style={[s.premMini, { backgroundColor: "#9A6B00" }]}><Text style={s.premBtnTxt}>كل القوالب</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => reviewPremium(r.id, "reject")} style={[s.premMini, { backgroundColor: "#B42318" }]}><Text style={s.premBtnTxt}>رفض</Text></TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : null}
             <View style={s.colorRow}>
               <Text style={s.fieldLabel}>اللون:</Text>
               {tmpl.colors.map(c => <TouchableOpacity key={c} onPress={() => setColor(c)} accessibilityLabel={`لون ${c}`} style={[s.colorDot, { backgroundColor: c }, color === c && s.colorDotOn]} />)}
@@ -329,7 +424,7 @@ const s = StyleSheet.create({
   freeNoticeText: { fontFamily: "Cairo_600SemiBold", color: "#22C55E", fontSize: 13, flex: 1, textAlign: "right" },
   colorRow: { flexDirection: "row-reverse", flexWrap: "wrap", alignItems: "center", gap: 10, marginVertical: 12 },
   tmplRow: { flexDirection: "row-reverse", gap: 8, paddingBottom: 4 },
-  tmplChip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.cardBg },
+  tmplChip: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.cardBg },
   tmplChipTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
   tmplInfo: { marginTop: 12, gap: 2 },
   tmplName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
@@ -342,6 +437,16 @@ const s = StyleSheet.create({
   groupIdx: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textMuted },
   colorDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
   colorDotOn: { borderWidth: 3, borderColor: Colors.accent, transform: [{ scale: 1.06 }] },
+  premBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: "#F6E7B8", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, marginRight: 6 },
+  premBadgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#9A6B00" },
+  premCard: { marginTop: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: "#E9C46A", backgroundColor: "#FFF8E6", gap: 6 },
+  premTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#7A5400", textAlign: "right" },
+  premTxt: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
+  premBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#9A6B00", borderRadius: 12, paddingVertical: 10, marginTop: 4 },
+  premBtnTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
+  premReqRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 6, borderTopWidth: 1, borderTopColor: Colors.divider },
+  premReqName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  premMini: { borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
   templateCard: { minHeight: 112, borderRadius: Colors.radius.xl, borderWidth: 1, borderColor: Colors.borderSubtle || Colors.border, backgroundColor: Colors.glassCard || Colors.cardBg, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 12, overflow: "hidden", ...Colors.shadow.card },
   templateMock: { width: 82, height: 92, borderRadius: Colors.radius.md, padding: 7, justifyContent: "center" },
   mockPaper: { flex: 1, borderRadius: 8, backgroundColor: "#fff", flexDirection: "row", overflow: "hidden" },

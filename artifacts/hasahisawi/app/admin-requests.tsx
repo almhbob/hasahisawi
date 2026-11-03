@@ -37,6 +37,7 @@ const SCREEN_ROUTE: Record<string, { path: string; params?: Record<string, strin
   srcs: { path: "/red-crescent-admin", label: "الهلال الأحمر" },
   volunteer: { path: "/volunteer-admin", label: "التطوع" },
   ithraa: { path: "/ithraa-admin", label: "إشراف إثراء" },
+  cv: { path: "/(tabs)/cv-builder", label: "قوالب السيرة المميزة" },
 };
 
 const STORE_TYPE_AR: Record<string, string> = {

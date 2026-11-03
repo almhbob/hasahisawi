@@ -41,6 +41,7 @@ export const ALERT_RULES: Rule[] = [
   { re: /^\/volunteer\/card\/request\/?$/,                kind: "volunteer_card",  title: "🎖️ طلب بطاقة متطوع",           screen: "volunteer" },
   { re: /^\/ithraa\/items\/?$/,                           kind: "ithraa_item",     title: "📚 مساهمة جديدة في إثراء",      screen: "ithraa" },
   { re: /^\/profile\/me\/verification\/?$/,                kind: "verification",    title: "✔️ طلب توثيق حساب",            screen: "verify" },
+  { re: /^\/cv\/premium\/request\/?$/,                   kind: "cv_premium",      title: "📄 طلب قالب سيرة مميز",        screen: "cv" },
 ];
 
 const NAME_KEYS = ["full_name", "owner_name", "applicant_name", "inst_name", "org_name", "agency_name", "store_name",
