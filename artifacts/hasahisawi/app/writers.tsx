@@ -1,5 +1,6 @@
 // «ديوان الكُتّاب» — قصة وشعر وخواطر يكتبها أبناء الحصاحيصا، موثّقة برقم، مع المسابقة الأدبية والمراجعة.
 import React, { useCallback, useEffect, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import { View, Text, ScrollView, Pressable, TextInput, ActivityIndicator, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -159,6 +160,7 @@ export default function WritersScreen() {
                           <Text style={s.featTitle} numberOfLines={2}>{t.title}</Text>
                           <Text style={s.featBody} numberOfLines={4}>{t.excerpt}</Text>
                           <Text style={s.featAuthor} numberOfLines={1}>— {t.author_name}</Text>
+                          <ViewCount count={t.views} color="rgba(255,255,255,0.8)" />
                         </Pressable>
                       </View>
                     ))}

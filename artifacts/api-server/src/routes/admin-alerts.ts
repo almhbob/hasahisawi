@@ -39,6 +39,8 @@ export const ALERT_RULES: Rule[] = [
   { re: /^\/lit\/membership\/apply\/?$/,                  kind: "writer_member",   title: "🪪 طلب عضوية ديوان الكُتّاب",   screen: "writers" },
   { re: /^\/srcs\/join\/?$/,                              kind: "srcs_member",     title: "🚑 طلب انضمام للهلال الأحمر",   screen: "srcs" },
   { re: /^\/volunteer\/card\/request\/?$/,                kind: "volunteer_card",  title: "🎖️ طلب بطاقة متطوع",           screen: "volunteer" },
+  { re: /^\/edu\/institutions\/?$/,                      kind: "edu_inst",        title: "🏫 طلب انضمام مؤسسة تعليمية",     screen: "edu_inst" },
+  { re: /^\/contractors\/register\/?$/,                  kind: "contractor",      title: "🏗️ تسجيل شركة مقاولات",          screen: "contractors" },
   { re: /^\/ithraa\/items\/?$/,                           kind: "ithraa_item",     title: "📚 مساهمة جديدة في إثراء",      screen: "ithraa" },
   { re: /^\/profile\/me\/verification\/?$/,                kind: "verification",    title: "✔️ طلب توثيق حساب",            screen: "verify" },
   { re: /^\/cv\/premium\/request\/?$/,                   kind: "cv_premium",      title: "📄 طلب قالب سيرة مميز",        screen: "cv" },

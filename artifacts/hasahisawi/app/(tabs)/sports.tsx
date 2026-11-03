@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { trackOpen } from "@/lib/views";
+import ViewCount from "@/components/ViewCount";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform,
   Linking, Alert, TextInput, Modal, Pressable, Image, KeyboardAvoidingView,
@@ -143,6 +145,7 @@ function PostCard({ post, onLike, onPress, admin, onDelete }:{
           </View>
         </View>
         <Text style={pc.title}>{post.title}</Text>
+        <ViewCount kind="sports_club" id={`p-${post.id}`} />
         <Text style={pc.bodyTxt} numberOfLines={3}>{post.body}</Text>
         <View style={pc.footer}>
           <View style={{flexDirection:"row-reverse",alignItems:"center",gap:4}}>
@@ -494,6 +497,7 @@ function ClubCard({ club }:{ club:SportClub }) {
         <Ionicons name={expanded?"chevron-up":"chevron-down"} size={18} color={Colors.textMuted} />
         <View style={{flex:1}}>
           <Text style={cc.name}>{club.name}</Text>
+          <ViewCount kind="sports_club" id={`c-${club.id}`} track />
           <View style={cc.tagRow}>
             <View style={[cc.tag,{backgroundColor:c+"18"}]}>
               <Ionicons name={getSportIcon(club.sport) as any} size={11} color={c} />
@@ -1270,7 +1274,7 @@ export default function SportsScreen() {
           )}
           {filteredPosts.map((p,i)=>(
             <Animated.View key={p.id} entering={FadeInDown.delay(i*50).springify().damping(18)}>
-              <PostCard post={p} onLike={()=>likePost(p.id)} onPress={()=>{setSelPost(p);setPostDet(true);}} admin={isAdmin} onDelete={()=>deletePost(p.id)} />
+              <PostCard post={p} onLike={()=>likePost(p.id)} onPress={()=>{trackOpen("sports_club", `p-${p.id}`);setSelPost(p);setPostDet(true);}} admin={isAdmin} onDelete={()=>deletePost(p.id)} />
             </Animated.View>
           ))}
         </ScrollView>

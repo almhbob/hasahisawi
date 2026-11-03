@@ -1,5 +1,6 @@
 // «إثراء» — المكتبة الثقافية: رفوف مصنّفة، كتب ومقالات، بحث، مساهماتي، وقائمة المراجعة للمشرفين.
 import React, { useCallback, useEffect, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import { View, Text, ScrollView, Pressable, TextInput, ActivityIndicator, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -305,6 +306,7 @@ function FeaturedArticle({ item, onPress }: { item: IthraaItem; onPress: () => v
       <Ionicons name="newspaper" size={22} color="rgba(255,255,255,0.9)" style={{ alignSelf: "flex-end" }} />
       <Text numberOfLines={4} style={s.featTitle}>{item.title}</Text>
       <Text numberOfLines={1} style={s.featSub}>{item.author_name || item.uploader_name} · {item.read_minutes} د</Text>
+      <ViewCount count={item.views} color="rgba(255,255,255,0.85)" />
     </Pressable>
   );
 }

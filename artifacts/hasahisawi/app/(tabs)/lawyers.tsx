@@ -1,4 +1,6 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { trackOpen } from "@/lib/views";
+import ViewCount from "@/components/ViewCount";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
@@ -285,6 +287,7 @@ function LawyersScreen() {
   useEffect(() => { if (tab === "contracts") loadMyContracts(); }, [tab, loadMyContracts]);
 
   const openLawyer = useCallback(async (lw: Lawyer) => {
+    trackOpen("lawyer", String(lw.id));
     setSelected(lw); setDetailLoading(true);
     try {
       const r = await apiFetch(`/api/lawyers/${lw.id}`);
@@ -941,6 +944,7 @@ function LawyersScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
                         <Stars value={item.avg_rating} size={12} />
                         <Text style={s.lawyerMeta}>{item.avg_rating.toFixed(1)} ({item.review_count})</Text>
+                        <ViewCount kind="lawyer" id={String(item.id)} />
                         <Text style={s.lawyerMeta}>· {item.experience_y} سنة خبرة</Text>
                       </View>
                     </View>

@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput,
 } from "react-native";
@@ -161,6 +162,7 @@ function TasksTab({ tasks, busy, onToggle }: { tasks: VolunteerTask[]; busy: num
               </View>
             </View>
             <Text style={s.taskTitle}>{t.title}</Text>
+            <ViewCount kind="volunteer_task" id={String(t.id)} track />
             {t.description ? <Text style={s.body} numberOfLines={4}>{t.description}</Text> : null}
             <View style={s.meta}>
               {t.location ? <Meta icon="location-outline" text={t.location} /> : null}

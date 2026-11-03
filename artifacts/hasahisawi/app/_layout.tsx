@@ -196,6 +196,14 @@ function AuthGate() {
           return;
         }
 
+        // ── المؤسسات التعليمية ──
+        if (screen && ["edu-institution", "edu-admin", "edu-timetable", "edu-transfer"].includes(screen)) {
+          const params: Record<string, string> = {};
+          for (const k of ["id", "tab", "ws", "student", "class_id", "teacher_id"]) if (data?.[k] != null) params[k] = String(data[k]);
+          router.push({ pathname: "/" + screen, params } as any);
+          return;
+        }
+        if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
         if (type === "volunteer") { router.push("/volunteer" as any); return; }
         if (type === "contest" && data?.contest_id) { router.push({ pathname: "/contest", params: { id: String(data.contest_id) } } as any); return; }
         // ── متابع جديد → ملفه الشخصي ──
@@ -265,7 +273,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post"];
+    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -417,6 +425,15 @@ function RootLayoutNav() {
         <Stack.Screen name="ithraa-admin"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="writers" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="press" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="edu-institution" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="edu-admin" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="edu-timetable" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="edu-transfer" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="edu-inst-admin" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contractors" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contractor" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contractor-portal" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="contractors-admin" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-listings" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="designer-portal" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="press-post" options={{ headerShown: false, animation: "slide_from_right" }} />

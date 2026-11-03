@@ -15,7 +15,7 @@ import type { AdminAlert } from "@/components/AdminAlertsWatcher";
 type Tab = "feed" | "stores" | "women" | "general" | "verify";
 
 const SCREEN_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  designers: "color-palette-outline", writers: "id-card-outline", srcs: "medkit-outline", volunteer: "hand-left-outline", ithraa: "library-outline", verify: "shield-checkmark-outline",
+  designers: "color-palette-outline", writers: "id-card-outline", srcs: "medkit-outline", volunteer: "hand-left-outline", ithraa: "library-outline", verify: "shield-checkmark-outline", contractors: "construct-outline", edu_inst: "school-outline",
   lawyers: "briefcase-outline", institutions: "business-outline", women: "flower-outline", stores: "storefront-outline",
   transport: "car-outline", travel: "bus-outline", unions: "people-outline", education: "school-outline",
   partnerships: "git-network-outline", zawajil: "heart-outline", ads: "megaphone-outline", requests: "document-text-outline",
@@ -38,6 +38,8 @@ const SCREEN_ROUTE: Record<string, { path: string; params?: Record<string, strin
   volunteer: { path: "/volunteer-admin", label: "التطوع" },
   ithraa: { path: "/ithraa-admin", label: "إشراف إثراء" },
   cv: { path: "/(tabs)/cv-builder", label: "قوالب السيرة المميزة" },
+  contractors: { path: "/contractors-admin", label: "شركات المقاولات" },
+  edu_inst: { path: "/edu-inst-admin", label: "المؤسسات التعليمية" },
 };
 
 const STORE_TYPE_AR: Record<string, string> = {

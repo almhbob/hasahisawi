@@ -78,6 +78,14 @@ export default function EduHub() {
         <Segmented value={role} onChange={setRole} options={[{ key: "student", label: "🎓 أنا طالب" }, { key: "teacher", label: "👨‍🏫 أنا معلم" }]} />
       </ModernHeader>
       <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 40 }}>
+        <Pressable onPress={() => router.push("/edu-institution" as any)} style={({ pressed }) => [st.instCard, pressed && { opacity: 0.9 }]}>
+          <Ionicons name="business" size={26} color="#fff" />
+          <View style={{ flex: 1 }}>
+            <Text style={st.instT}>المدارس والجامعات</Text>
+            <Text style={st.instS}>بوابتي المدرسية · الجداول · النتائج · نقل الطالب · تسجيل مؤسستك</Text>
+          </View>
+          <Ionicons name="chevron-back" size={20} color="#fff" />
+        </Pressable>
         <View style={st.stats}>
           {stats.map(([v, l]) => (
             <View key={String(l)} style={st.stat}><Text style={st.statV}>{v}</Text><Text style={st.statL}>{l}</Text></View>
@@ -103,6 +111,9 @@ export default function EduHub() {
 }
 
 const st = StyleSheet.create({
+  instCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#0F766E", borderRadius: 16, padding: 16 },
+  instT: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right" },
+  instS: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.85)", textAlign: "right" },
   stats: { flexDirection: "row-reverse", gap: 8 },
   stat: { flex: 1, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: EDU.line, paddingVertical: 10, alignItems: "center" },
   statV: { fontFamily: "Cairo_700Bold", fontSize: 18, color: EDU.ink },

@@ -1,4 +1,6 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { trackOpen } from "@/lib/views";
+import ViewCount from "@/components/ViewCount";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
@@ -398,7 +400,7 @@ function UnionsScreen() {
       <Animated.View entering={FadeInDown.delay(idx * 80).springify()}>
         <Pressable
           style={styles.unionCard}
-          onPress={() => { setSelectedUnion(u); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          onPress={() => { trackOpen("union", `u-${u.id}`); setSelectedUnion(u); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
         >
           <LinearGradient colors={[UC + "22", "#0A1628"]} style={styles.unionCardGrad}>
             <View style={styles.unionCardRow}>
@@ -407,6 +409,7 @@ function UnionsScreen() {
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.unionName}>{u.name}</Text>
+                <ViewCount kind="union" id={`u-${u.id}`} />
                 {u.field && <Text style={styles.unionField}>{u.field}</Text>}
                 {u.description && (
                   <Text style={styles.unionDesc} numberOfLines={2}>{u.description}</Text>
@@ -458,6 +461,7 @@ function UnionsScreen() {
             </View>
           )}
           <Text style={styles.annTitle}>{a.title}</Text>
+          <ViewCount kind="union" id={`a-${a.id}`} track />
           {a.union_name && <Text style={styles.annUnion}>📌 {a.union_name}</Text>}
           {a.body && <Text style={styles.annBody}>{a.body}</Text>}
           <Text style={styles.annDate}>{dateStr}</Text>

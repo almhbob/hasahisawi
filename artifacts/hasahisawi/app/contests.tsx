@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import ViewCount from "@/components/ViewCount";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -120,6 +121,7 @@ export default function ContestsScreen() {
                       <Text style={s.type}>{c.type === "quiz" ? "أسئلة" : "مشاركة"}</Text>
                     </View>
                     <Text style={s.cardTitle} numberOfLines={2}>{c.title}</Text>
+                    <ViewCount kind="contest" id={String(c.id)} track />
                     {c.prize ? (
                       <View style={[s.prize, { backgroundColor: t.accent }]}><Text style={s.prizeText} numberOfLines={1}>🎁 {c.prize}</Text></View>
                     ) : null}
