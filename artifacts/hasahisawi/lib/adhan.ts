@@ -30,8 +30,8 @@ export type AdhanVoice = {
 
 export const ADHAN_VOICES: AdhanVoice[] = [
   {
-    id: "sudani", name: "أذان بصوت شيخ سوداني", desc: "أذان كامل بالمقام السوداني (حوالي دقيقتين)",
-    sound: "hasahisawi_adhan_sd", channel: "adhan-sd-v4",
+    id: "sudani", name: "أذان بصوت شيخ سوداني", desc: "أذان كامل بالمقام السوداني — الصوت الافتراضي (حوالي دقيقتين)",
+    sound: "hasahisawi_adhan_sd", channel: "adhan-sd-v5",
     asset: () => require("../assets/sounds/adhan/sd.mp3"), available: true,
   },
   {
@@ -138,6 +138,10 @@ async function ensureChannels() {
   } catch {}
   // القناة القديمة كانت بصوت النظام الافتراضي
   Notifications.deleteNotificationChannelAsync("adhan-channel").catch(() => {});
+  // قنوات الأذان السوداني السابقة (التسجيل القديم) — صوت القناة لا يتغيّر بعد إنشائها
+  for (const old of ["adhan-sd-v4", "adhan-sd-v4-low", "adhan-sd-v4-med", "adhan-sd-v4-max"]) {
+    Notifications.deleteNotificationChannelAsync(old).catch(() => {});
+  }
 }
 
 export async function requestAdhanPermission(): Promise<boolean> {
