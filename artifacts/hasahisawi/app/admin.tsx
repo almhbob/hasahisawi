@@ -10,7 +10,7 @@ import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Colors, { withAlpha } from "@/constants/colors";
@@ -2767,7 +2767,9 @@ function WomenStoresAdminTab({ token, apiBase }: { token: string; apiBase: strin
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const { user, token, isLoading: authLoading, refreshBackendToken, loginAdmin } = useAuth();
-  const [tab, setTab] = useState<Tab>("overview");
+  // يفتح القسم مباشرة عند القدوم من مركز الطلبات: /admin?tab=lawyers_admin
+  const adminParams = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(((adminParams.tab as Tab) || "overview"));
 
   // ── Overview ──
   const [stats, setStats] = useState<Stats | null>(null);

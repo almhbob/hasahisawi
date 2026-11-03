@@ -1,3 +1,4 @@
+import designerShopRouter from "./designer-shop";
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import adminUsersFirebaseRouter from "./admin-users-firebase";
@@ -44,6 +45,8 @@ router.use(womenCornerGuard);
 router.use(genderLockGuard);
 router.use(captureAdminAlerts);
 router.use(adminAlertsRouter);
+// بوابة المصمم (قبل hasahisawiRouter لأنها تضيف وسيط إشعار على مسار الطلبات القائم)
+router.use(designerShopRouter);
 router.use(accessGuardsRouter);
 router.use(uploadRouter);
 router.use(storesRouter);

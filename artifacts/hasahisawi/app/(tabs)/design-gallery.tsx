@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { router } from "expo-router";
 import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -437,12 +438,24 @@ function DesignGalleryScreen() {
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>{packages.length}</Text>
-              <Text style={styles.heroStatLabel}>باقة</Text>
+              <Text style={styles.heroStatNum}>{showPricing ? packages.length : "✓"}</Text>
+              <Text style={styles.heroStatLabel}>{showPricing ? "باقة" : "انضمام مجاني"}</Text>
             </View>
           </View>
         </Animated.View>
       </LinearGradient>
+
+      {/* ═══ بوابة المصمم: دخول المصمم لمتجره ومنتجاته وطلباته ═══ */}
+      <Pressable onPress={() => router.push("/designer-portal" as any)} accessibilityRole="button"
+        style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 14,
+          backgroundColor: "#3B78A612", borderWidth: 1, borderColor: "#3B78A655" }}>
+        <Ionicons name="color-palette" size={22} color="#3B78A6" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>بوابة المصمم</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>أدر متجرك: أضف تصاميمك وتابع طلبات الزبائن</Text>
+        </View>
+        <Ionicons name="chevron-back" size={18} color="#3B78A6" />
+      </Pressable>
 
       {/* ═══ تبويبات ═══ */}
       <View style={styles.tabBar}>
