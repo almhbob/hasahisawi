@@ -17,15 +17,16 @@ import DateTimeField, { fmtDateTime } from "@/components/srcs/DateTimeField";
 import AdminCourses, { PlaceChips } from "@/components/srcs/AdminCourses";
 import { MembersList, CohortsPanel, SettingsPanel } from "@/components/srcs/AdminMembers";
 import { CheckinScanner, ExportButtons, AuditPanel } from "@/components/srcs/AdminOps";
+import { UnitFilterRow, UnitPicker, UnitsPanel, writeOptions, defaultUnit, unitLabel, type UnitOption } from "@/components/srcs/AdminUnits";
 import {
   srcsApi, ROLE_LABEL, ACTIVITY_TYPES, AUDIENCE_LABEL, SRCS_RED, PERM_LABEL,
-  type SrcsMember, type SrcsMeeting, type SrcsActivity, type SrcsRole, type SrcsAnnouncement, type SrcsPerm, type SrcsCohort,
+  type SrcsMember, type SrcsMeeting, type SrcsActivity, type SrcsRole, type SrcsAnnouncement, type SrcsPerm, type SrcsCohort, type SrcsScope, type UnitFilter,
 } from "@/lib/red-crescent";
 
-type Tab = "dash" | "requests" | "members" | "cohorts" | "courses" | "meetings" | "announcements" | "activities" | "audit" | "settings";
-// كل تبويب يظهر لمن يملك إحدى صلاحياته؛ «الإعدادات» لمدير حصاحيصاوي فقط
-const TABS: [Tab, string, keyof typeof Ionicons.glyphMap, SrcsPerm[] | "app" | null][] = [
-  ["dash", "اللوحة", "grid", null], ["requests", "الطلبات", "person-add", ["requests"]], ["members", "الأعضاء", "people", ["members"]],
+type Tab = "dash" | "units" | "requests" | "members" | "cohorts" | "courses" | "meetings" | "announcements" | "activities" | "audit" | "settings";
+// كل تبويب يظهر لمن يملك إحدى صلاحياته؛ «الوحدات» لمستوى إدارة الفرع؛ «الإعدادات» لمدير حصاحيصاوي فقط
+const TABS: [Tab, string, keyof typeof Ionicons.glyphMap, SrcsPerm[] | "app" | "branch" | null][] = [
+  ["dash", "اللوحة", "grid", null], ["units", "الوحدات", "git-network", "branch"], ["requests", "الطلبات", "person-add", ["requests"]], ["members", "الأعضاء", "people", ["members"]],
   ["cohorts", "الدفعات والسجل", "albums", ["cohorts"]], ["courses", "الدورات والنتائج", "school", ["courses", "results", "certificates"]],
   ["meetings", "الاجتماعات", "calendar", ["meetings"]], ["announcements", "الإعلانات", "megaphone", ["announcements"]],
   ["activities", "الأنشطة", "images", ["activities"]], ["audit", "سجل التدقيق", "shield-checkmark", ["members"]], ["settings", "الإعدادات", "settings", "app"],
@@ -50,28 +51,42 @@ export default function SrcsAdminScreen() {
   const [appAdmin, setAppAdmin] = useState(false);
   const [cohorts, setCohorts] = useState<SrcsCohort[]>([]);
   const [scanFor, setScanFor] = useState<{ title: string; meeting_id?: number } | null>(null);
+  // نطاق الإدارة (فرع أو وحدات) ومرشّح الوحدة الحالي — الخادم يرشّح كل القوائم بحسب النطاق في كل الأحوال
+  const [scope, setScope] = useState<SrcsScope | null>(null);
+  const [unitF, setUnitF] = useState<UnitFilter>(undefined);
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const d = await srcsApi.admin.dashboard(token);
+      const sc = await srcsApi.admin.myScope(token);
+      setScope(sc);
+      const d = await srcsApi.admin.dashboard(token, unitF);
       const p = d.perms || [];
       setDash(d); setPerms(p); setAppAdmin(!!d.isAppAdmin);
       const has = (...k: SrcsPerm[]) => k.some((x) => p.includes(x));
-      const [mm, mt, ov, co] = await Promise.all([
-        has("requests", "members", "cohorts", "courses", "results", "activities", "meetings", "certificates") ? srcsApi.admin.members(token) : Promise.resolve({ members: [] as SrcsMember[] }),
-        has("meetings") ? srcsApi.admin.meetings(token) : Promise.resolve({ meetings: [] as SrcsMeeting[] }),
-        srcsApi.overview(token),
-        has("cohorts", "members", "courses") ? srcsApi.admin.cohorts(token) : Promise.resolve({ cohorts: [] as SrcsCohort[] }),
+      const [mm, mt, an, ac, co] = await Promise.all([
+        has("requests", "members", "cohorts", "courses", "results", "activities", "meetings", "certificates") ? srcsApi.admin.members(token, undefined, unitF) : Promise.resolve({ members: [] as SrcsMember[] }),
+        has("meetings") ? srcsApi.admin.meetings(token, unitF) : Promise.resolve({ meetings: [] as SrcsMeeting[] }),
+        has("announcements") ? srcsApi.admin.announcements(token, unitF) : Promise.resolve({ announcements: [] as SrcsAnnouncement[] }),
+        has("activities") ? srcsApi.admin.activities(token, unitF) : Promise.resolve({ activities: [] as SrcsActivity[] }),
+        has("cohorts", "members", "courses") ? srcsApi.admin.cohorts(token, unitF) : Promise.resolve({ cohorts: [] as SrcsCohort[] }),
       ]);
-      setMembers(mm.members); setMeetings(mt.meetings); setOverview({ announcements: ov.announcements, activities: ov.activities }); setCohorts(co.cohorts);
+      setMembers(mm.members); setMeetings(mt.meetings); setOverview({ announcements: an.announcements, activities: ac.activities }); setCohorts(co.cohorts);
     } catch (e: any) { if (e?.status === 403) setDenied(true); else notify("تعذّر التحميل", e?.message); }
     finally { setRefreshing(false); }
-  }, [token]);
+  }, [token, unitF]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const pending = members.filter((x) => x.status === "pending");
-  const tabs = TABS.filter(([, , , need]) => need === null || (need === "app" ? appAdmin : need.some((k) => perms.includes(k))));
+  const branchLevel = scope?.level === "branch";
+  const tabs = TABS.filter(([, , , need]) => need === null || (need === "app" ? appAdmin : need === "branch" ? !!scope?.isBranchAdmin : need.some((k) => perms.includes(k))));
+  // خيارات الوحدة في نماذج الإنشاء ونقل الأعضاء
+  const createUnits = writeOptions(scope);
+  const memberUnits = writeOptions(scope).map((o) => (o.id === 0 ? { ...o, name: "بلا وحدة" } : o));
+  const newUnit = defaultUnit(createUnits, unitF);
+  const myUnitNames = scope && !branchLevel ? scope.units.map((u) => u.name) : [];
+  const headerTitle = appAdmin ? "إدارة الهلال الأحمر" : branchLevel ? "إدارة الفرع — الهلال الأحمر"
+    : myUnitNames.length === 1 ? `إدارة وحدة: ${myUnitNames[0]}` : myUnitNames.length ? "إدارة وحداتي" : "لوحتي في الهلال الأحمر";
   const updateMember = async (m: SrcsMember, b: Record<string, unknown>, msg?: string) => {
     try { await srcsApi.admin.updateMember(token!, m.id, b); if (msg) notify(msg); load(); } catch (e: any) { notify("تعذّر الحفظ", e?.message); }
   };
@@ -92,7 +107,7 @@ export default function SrcsAdminScreen() {
         <TouchableOpacity style={s.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/red-crescent" as any))} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>{appAdmin ? "إدارة الهلال الأحمر" : "لوحتي في الهلال الأحمر"}</Text>
+        <Text style={[s.title, { flex: 1, textAlign: "center" }]} numberOfLines={1}>{headerTitle}</Text>
         <View style={{ width: 44 }} />
       </View>
       <RtlScrollRow contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 8 }}>
@@ -103,6 +118,7 @@ export default function SrcsAdminScreen() {
           </TouchableOpacity>
         ))}
       </RtlScrollRow>
+      {scope && tab !== "units" && tab !== "settings" ? <UnitFilterRow scope={scope} value={unitF} onChange={setUnitF} /> : null}
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 6, paddingBottom: insets.bottom + 40, gap: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={SRCS_RED} />}>
@@ -111,6 +127,11 @@ export default function SrcsAdminScreen() {
         {tab === "dash" && dash ? (
           <View style={s.permCard}>
             <View style={s.row}><Ionicons name={appAdmin ? "shield-checkmark" : "key"} size={18} color={SRCS_RED} /><Text style={[s.cardTitle, { flex: 1 }]}>{appAdmin ? "مدير حصاحيصاوي — صلاحيات كاملة" : "صلاحياتك في هذه اللوحة"}</Text></View>
+            {scope && !branchLevel ? (
+              <Text style={s.hint}>نطاقك: {myUnitNames.join("، ")} — ترى وتدير أعضاء {myUnitNames.length > 1 ? "وحداتك" : "وحدتك"} ومحتواها فقط.</Text>
+            ) : scope && unitF !== undefined ? (
+              <Text style={s.hint}>الأرقام أدناه مرشّحة لـ: {unitF === 0 ? "المحتوى العام للفرع" : scope.units.find((u) => u.id === unitF)?.name}</Text>
+            ) : null}
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
               {perms.map((p) => <View key={p} style={s.permPill}><Text style={s.permPillTxt}>{PERM_LABEL[p]}</Text></View>)}
             </View>
@@ -138,7 +159,8 @@ export default function SrcsAdminScreen() {
           pending.length ? pending.map((m) => (
             <View key={m.id} style={s.card}>
               <MemberHead m={m} />
-              <Text style={s.body}>يرغب بصفة: <Text style={{ fontFamily: "Cairo_700Bold" }}>{ROLE_LABEL[(m.desired_role || "volunteer") as SrcsRole]}</Text>{m.blood_type ? ` · فصيلة ${m.blood_type}` : ""}{m.unit ? ` · ${m.unit}` : ""}</Text>
+              <Text style={s.body}>يرغب بصفة: <Text style={{ fontFamily: "Cairo_700Bold" }}>{ROLE_LABEL[(m.desired_role || "volunteer") as SrcsRole]}</Text>{m.blood_type ? ` · فصيلة ${m.blood_type}` : ""}</Text>
+              <View style={s.row}><Ionicons name="people-circle-outline" size={15} color={SRCS_RED} /><Text style={[s.metaStrong, { flex: 1 }]}>{m.unit_name || m.unit || "لم يحدد وحدة — تراجعه إدارة الفرع"}</Text></View>
               {m.experience ? <Text style={s.body}>الخبرة: {m.experience}</Text> : null}
               {m.certifications ? <Text style={s.body}>الشهادات: {m.certifications}</Text> : null}
               {/* المستندات للمراجعة */}
@@ -169,18 +191,19 @@ export default function SrcsAdminScreen() {
           )) : <Text style={s.empty}>لا توجد طلبات معلّقة.</Text>
         ) : null}
 
-        {tab === "members" ? <MembersList members={members} cohorts={cohorts} perms={perms} isAppAdmin={appAdmin} onChanged={load} /> : null}
-        {tab === "cohorts" ? <CohortsPanel cohorts={cohorts} members={members} onChanged={load} /> : null}
-        {tab === "courses" ? <AdminCourses perms={perms} isAppAdmin={appAdmin} cohorts={cohorts} members={members} /> : null}
+        {tab === "units" && scope?.isBranchAdmin ? <UnitsPanel members={members} onChanged={load} /> : null}
+        {tab === "members" ? <MembersList members={members} cohorts={cohorts} perms={perms} isAppAdmin={appAdmin} canGrantAdmin={!!scope?.isBranchAdmin} units={memberUnits} unitFilter={unitF} onChanged={load} /> : null}
+        {tab === "cohorts" ? <CohortsPanel cohorts={cohorts} members={members} units={createUnits} defaultUnitId={newUnit} onChanged={load} /> : null}
+        {tab === "courses" ? <AdminCourses perms={perms} isAppAdmin={appAdmin} cohorts={cohorts} members={members} units={createUnits} defaultUnitId={newUnit} unitFilter={unitF} /> : null}
         {tab === "settings" && appAdmin ? <SettingsPanel /> : null}
-        {tab === "audit" ? <AuditPanel /> : null}
+        {tab === "audit" ? <AuditPanel unit={unitF} /> : null}
 
         {tab === "meetings" ? (
           <>
             <TouchableOpacity style={s.primary} onPress={() => setForm("meeting")}><Ionicons name="add" size={18} color="#fff" /><Text style={s.primaryTxt}>اجتماع جديد</Text></TouchableOpacity>
             {meetings.map((mt) => (
               <View key={mt.id} style={s.card}>
-                <Text style={s.itemTitle}>{mt.title}</Text>
+                <View style={s.row}><Text style={[s.itemTitle, { flex: 1 }]}>{mt.title}</Text><UnitTag name={mt.unit_name} /></View>
                 <View style={s.row}><Ionicons name="time-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{fmtDateTime(mt.starts_at)}{mt.ends_at ? ` — حتى ${new Date(mt.ends_at).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}` : ""}</Text></View>
                 <View style={s.row}><Ionicons name="location-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{mt.place || "لم يُحدد المكان"} · {AUDIENCE_LABEL[mt.audience]}</Text></View>
                 <Text style={s.meta}>سيحضر {mt.going ?? 0} · حضر فعلاً {mt.attended ?? 0}</Text>
@@ -201,7 +224,7 @@ export default function SrcsAdminScreen() {
             <TouchableOpacity style={s.primary} onPress={() => setForm("announcement")}><Ionicons name="add" size={18} color="#fff" /><Text style={s.primaryTxt}>إعلان جديد</Text></TouchableOpacity>
             {overview.announcements.map((a) => (
               <View key={a.id} style={s.card}>
-                <View style={s.row}>{a.pinned ? <Ionicons name="pin" size={14} color={Colors.accent} /> : null}<Text style={[s.itemTitle, { flex: 1 }]}>{a.title}</Text><Text style={s.meta}>{AUDIENCE_LABEL[a.audience]}</Text></View>
+                <View style={s.row}>{a.pinned ? <Ionicons name="pin" size={14} color={Colors.accent} /> : null}<Text style={[s.itemTitle, { flex: 1 }]}>{a.title}</Text><UnitTag name={a.unit_name} /><Text style={s.meta}>{AUDIENCE_LABEL[a.audience]}</Text></View>
                 <Text style={s.body}>{a.body}</Text>
                 <TouchableOpacity style={[s.ghost, { flex: 0 }]} onPress={async () => { if (await confirmAction("حذف الإعلان", a.title, "حذف", true)) { await srcsApi.admin.deleteAnnouncement(token!, a.id); load(); } }}><Text style={s.ghostTxt}>حذف</Text></TouchableOpacity>
               </View>
@@ -215,7 +238,7 @@ export default function SrcsAdminScreen() {
             {overview.activities.map((a) => (
               <View key={a.id} style={s.card}>
                 {a.images?.[0] ? <Image source={{ uri: a.images[0] }} style={{ width: "100%", height: 140, borderRadius: 12 }} /> : null}
-                <Text style={s.itemTitle}>{a.title}</Text>
+                <View style={s.row}><Text style={[s.itemTitle, { flex: 1 }]}>{a.title}</Text><UnitTag name={a.unit_name} /></View>
                 <Text style={s.meta}>{(ACTIVITY_TYPES[a.type] ?? ACTIVITY_TYPES.other).label} · {fmt(a.happened_at)}{a.place ? ` · ${a.place}` : ""} · {a.beneficiaries} مستفيد · {a.volunteers ?? 0} مشارك{a.points ? ` · ${a.points} نقطة للمشارك` : ""}</Text>
                 <View style={{ flexDirection: "row-reverse", gap: 8 }}>
                   <TouchableOpacity style={s.ghost} onPress={() => setPartFor(a)}><Text style={s.ghostTxt}>تسجيل المشاركين</Text></TouchableOpacity>
@@ -229,12 +252,16 @@ export default function SrcsAdminScreen() {
       </ScrollView>
 
       <CheckinScanner target={scanFor} onClose={() => { setScanFor(null); load(); }} />
-      <FormModal kind={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
+      <FormModal kind={form} units={createUnits} defaultUnitId={newUnit} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
       <AttendanceModal meeting={attendFor} onClose={() => setAttendFor(null)} onSaved={() => { setAttendFor(null); load(); }} />
       <ZoomViewer visible={!!docView} onClose={() => setDocView(null)} title={docView?.title} pages={docView ? [{ label: docView.title, ratio: 0.75, render: (w) => <Image source={{ uri: docView.url }} style={{ width: w, height: w * 0.75 }} resizeMode="contain" /> }] : []} />
-      <ParticipantsModal activity={partFor} members={members.filter((m) => m.status === "active")} onClose={() => setPartFor(null)} onSaved={() => { setPartFor(null); load(); }} />
+      <ParticipantsModal activity={partFor} members={members.filter((m) => m.status === "active" && (!partFor?.unit_id || m.unit_id === partFor.unit_id))} onClose={() => setPartFor(null)} onSaved={() => { setPartFor(null); load(); }} />
     </View>
   );
+}
+
+function UnitTag({ name }: { name?: string | null }) {
+  return <View style={s.unitTag}><Text style={s.unitTagTxt}>{unitLabel(name)}</Text></View>;
 }
 
 function MemberHead({ m }: { m: SrcsMember }) {
@@ -249,11 +276,14 @@ function MemberHead({ m }: { m: SrcsMember }) {
   );
 }
 
-function FormModal({ kind, onClose, onSaved }: { kind: null | "meeting" | "announcement" | "activity"; onClose: () => void; onSaved: () => void }) {
+function FormModal({ kind, units, defaultUnitId, onClose, onSaved }: { kind: null | "meeting" | "announcement" | "activity"; units: UnitOption[]; defaultUnitId: number; onClose: () => void; onSaved: () => void }) {
   const { token } = useAuth();
   const [f, setF] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setF(kind === "activity" ? { type: "awareness", points: "10", images: [] } : kind === "announcement" ? { audience: "members" } : kind === "meeting" ? { audience: "members" } : {}); }, [kind]);
+  useEffect(() => {
+    const base = { unit_id: defaultUnitId };
+    setF(kind === "activity" ? { ...base, type: "awareness", points: "10", images: [] } : kind === "announcement" ? { ...base, audience: "members" } : kind === "meeting" ? { ...base, audience: "members" } : {});
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
 
   const addImage = async () => {
@@ -272,21 +302,22 @@ function FormModal({ kind, onClose, onSaved }: { kind: null | "meeting" | "annou
         if (!f.title?.trim()) { notify("بيانات ناقصة", "اكتب عنوان الاجتماع"); return; }
         if (!f.starts_at) { notify("بيانات ناقصة", "حدّد تاريخ ووقت الاجتماع"); return; }
         if (!f.place?.trim()) { notify("بيانات ناقصة", "حدّد مكان الاجتماع"); return; }
-        await srcsApi.admin.createMeeting(token, { title: f.title, place: f.place, agenda: f.agenda, starts_at: f.starts_at, ends_at: f.ends_at, audience: f.audience });
+        await srcsApi.admin.createMeeting(token, { title: f.title, place: f.place, agenda: f.agenda, starts_at: f.starts_at, ends_at: f.ends_at, audience: f.audience, unit_id: f.unit_id || null });
       } else if (kind === "announcement") {
         if (!f.title || !f.body) { notify("بيانات ناقصة", "العنوان والنص مطلوبان"); return; }
-        await srcsApi.admin.createAnnouncement(token, { title: f.title, body: f.body, audience: f.audience, pinned: !!f.pinned });
+        await srcsApi.admin.createAnnouncement(token, { title: f.title, body: f.body, audience: f.audience, pinned: !!f.pinned, unit_id: f.unit_id || null });
       } else {
         if (!f.title) { notify("بيانات ناقصة", "العنوان مطلوب"); return; }
         await srcsApi.admin.createActivity(token, { title: f.title, type: f.type, place: f.place, description: f.description, images: f.images,
-          beneficiaries: Number(f.beneficiaries) || 0, points: Number(f.points) || 0, happened_at: f.starts_at || undefined });
+          beneficiaries: Number(f.beneficiaries) || 0, points: Number(f.points) || 0, happened_at: f.starts_at || undefined, unit_id: f.unit_id || null });
       }
       onSaved();
     } catch (e: any) { notify("تعذّر الحفظ", e?.message); }
     finally { setBusy(false); }
   };
 
-  const audiences = kind === "announcement" ? ["public", "members", "paramedics", "admins"] : ["members", "paramedics", "admins"];
+  // محتوى الوحدة لا يكون «للجميع» خارجها
+  const audiences = kind === "announcement" && !f.unit_id ? ["public", "members", "paramedics", "admins"] : ["members", "paramedics", "admins"];
   return (
     <Modal visible={!!kind} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.modalBg}>
@@ -296,6 +327,7 @@ function FormModal({ kind, onClose, onSaved }: { kind: null | "meeting" | "annou
             <TouchableOpacity onPress={onClose}><Ionicons name="close" size={22} color={Colors.text} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+            <UnitPicker options={units} value={f.unit_id ?? defaultUnitId} onChange={(id) => setF((p) => ({ ...p, unit_id: id, audience: id && p.audience === "public" ? "members" : p.audience }))} />
             <Text style={s.label}>العنوان *</Text>
             <TextInput value={f.title || ""} onChangeText={(v) => set("title", v)} placeholder={kind === "meeting" ? "مثال: الاجتماع الدوري لفريق الاستجابة" : "العنوان"} placeholderTextColor={Colors.textMuted} style={s.input} />
             {kind === "activity" ? (
@@ -446,4 +478,6 @@ const s = StyleSheet.create({
   permCard: { padding: 14, borderRadius: 18, backgroundColor: SRCS_RED + "08", borderWidth: 1, borderColor: SRCS_RED + "30", gap: 8 },
   permPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: SRCS_RED + "40" },
   permPillTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: SRCS_RED },
+  unitTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 10, backgroundColor: SRCS_RED + "12" },
+  unitTagTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SRCS_RED },
 });

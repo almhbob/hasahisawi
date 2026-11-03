@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════
 // 🚑 الهلال الأحمر — الدورات والورش، النتائج، الشهادات الإلكترونية المدفوعة،
 //    سجل الدفعات، ملف مستندات العضو، الإعدادات، ومزامنة «مسعف».
-// الصلاحيات من red-crescent.ts (permsOf/requirePerm). السعر والحظر لمدير حصاحيصاوي فقط.
+// الصلاحيات ونطاق الوحدات من red-crescent.ts (scopeOf/requireScope). السعر والحظر لمدير حصاحيصاوي فقط.
 // ════════════════════════════════════════════════════════════════
 import { Router, type Request, type Response } from "express";
 import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
@@ -9,8 +9,9 @@ import { logger } from "../lib/logger";
 import { query, sessionUser, dbEnabled } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
 import {
-  ensureRedCrescentDb, requirePerm, permsOf, isAppAdmin, membership, notifyUsers, linkDocToProfile,
-  ROLE_LABEL, API_PUBLIC_BASE,
+  ensureRedCrescentDb, isAppAdmin, membership, notifyUsers, linkDocToProfile,
+  ROLE_LABEL, API_PUBLIC_BASE, scopeOf, access, requireScope, narrowUnits, unitCond, canTouch, loadScoped, pickWriteUnit, permsForUnit,
+  unitManagerIds, type Access,
 } from "./red-crescent";
 import { acceptDocRef, exposeRow, exposeRows, audit } from "../lib/srcs-shared";
 
@@ -65,24 +66,29 @@ router.patch("/srcs/admin/settings", writeLimiter, async (req, res) => {
 });
 
 // ═══ الدورات والورش (للجميع/الأعضاء) ═════════════════════════════
-const COURSE_COLS = `c.*, (SELECT COUNT(*)::int FROM srcs_enrollments e WHERE e.course_id=c.id) AS enrolled, co.name AS cohort_name`;
+const COURSE_COLS = `c.*, (SELECT COUNT(*)::int FROM srcs_enrollments e WHERE e.course_id=c.id) AS enrolled, co.name AS cohort_name, un.name AS unit_name`;
 
 router.get("/srcs/courses", async (req, res) => {
   try {
     const me = await sessionUser(req);
-    const m = me ? await membership(me.id) : null;
+    const sc = await scopeOf(me);
+    const m = sc.member;
     const member = !!m && m.status === "active";
-    const admin = (await permsOf(me)).includes("courses");
+    const ca = access(sc, ["courses"]);
+    const admin = !!ca?.all;
+    const managed = ca && !ca.all ? ca.unitIds : [];
+    // دورات الوحدة لأعضائها (ولمدرائها) فقط؛ والدورات العامة للفرع للجميع
+    const vis: number[] | null = admin ? null : [...new Set([0, ...(member && m.unit_id ? [Number(m.unit_id)] : []), ...managed])];
     const r = await query(
       `SELECT ${COURSE_COLS}, e.id AS my_enrollment_id, e.status AS my_status, e.attended AS my_attended,
               CASE WHEN c.results_published THEN e.score END AS my_score, CASE WHEN c.results_published THEN e.passed END AS my_passed,
               e.cert_status AS my_cert_status, e.cert_token AS my_cert_token
-         FROM srcs_courses c LEFT JOIN srcs_cohorts co ON co.id=c.cohort_id
+         FROM srcs_courses c LEFT JOIN srcs_cohorts co ON co.id=c.cohort_id LEFT JOIN srcs_units un ON un.id=c.unit_id
          LEFT JOIN srcs_enrollments e ON e.course_id=c.id AND e.user_id=$1
-        WHERE (c.published OR $2) AND (c.audience='public' OR $3 OR $2)
+        WHERE (c.published OR $2 OR c.unit_id = ANY($5::int[])) AND (c.audience='public' OR $3 OR $2) AND ${unitCond("c.unit_id", 4)}
         ORDER BY (c.ends_at IS NULL OR c.ends_at > NOW()) DESC, c.starts_at DESC NULLS LAST, c.id DESC LIMIT 100`,
-      [me?.id ?? 0, admin, member]);
-    return res.json({ courses: r.rows.map((c: any) => ({ ...c, files: c.my_enrollment_id || admin ? c.files : [], files_count: (c.files || []).length, my_cert_url: c.my_cert_token ? certUrl(c.my_cert_token) : null })) });
+      [me?.id ?? 0, admin, member, vis, managed]);
+    return res.json({ courses: r.rows.map((c: any) => ({ ...c, files: c.my_enrollment_id || admin || managed.includes(Number(c.unit_id)) ? c.files : [], files_count: (c.files || []).length, my_cert_url: c.my_cert_token ? certUrl(c.my_cert_token) : null })) });
   } catch (err) { return fail(res, err, "courses"); }
 });
 
@@ -95,6 +101,7 @@ router.post("/srcs/courses/:id/enroll", writeLimiter, async (req, res) => {
     const c = (await query(`SELECT c.*, (SELECT COUNT(*)::int FROM srcs_enrollments e WHERE e.course_id=c.id) AS enrolled FROM srcs_courses c WHERE id=$1 AND published`, [Number(req.params.id)])).rows[0];
     if (!c) return res.status(404).json({ error: "الدورة غير موجودة" });
     if (c.audience !== "public" && m?.status !== "active") return res.status(403).json({ error: "هذه الدورة لأعضاء الجمعية فقط" });
+    if (c.unit_id && !(m?.status === "active" && Number(m.unit_id) === Number(c.unit_id))) return res.status(403).json({ error: "هذه الدورة لأعضاء وحدتها فقط" });
     if (!c.registration_open) return res.status(400).json({ error: "التسجيل مغلق" });
     if (c.seats > 0 && c.enrolled >= c.seats) return res.status(400).json({ error: "اكتمل العدد" });
     const r = await query(`INSERT INTO srcs_enrollments (course_id, user_id) VALUES ($1,$2) ON CONFLICT (course_id, user_id) DO NOTHING RETURNING *`, [c.id, me.id]);
@@ -138,7 +145,7 @@ router.post("/srcs/courses/:id/certificate", writeLimiter, async (req, res) => {
     const me = await sessionUser(req);
     if (!me) return res.status(401).json({ error: "سجّل الدخول" });
     const e = (await query(
-      `SELECT e.*, c.results_published, c.cert_enabled FROM srcs_enrollments e JOIN srcs_courses c ON c.id=e.course_id WHERE e.course_id=$1 AND e.user_id=$2`,
+      `SELECT e.*, c.results_published, c.cert_enabled, c.unit_id FROM srcs_enrollments e JOIN srcs_courses c ON c.id=e.course_id WHERE e.course_id=$1 AND e.user_id=$2`,
       [Number(req.params.id), me.id])).rows[0];
     if (!e) return res.status(404).json({ error: "لست مسجلاً في هذه الدورة" });
     if (!e.cert_enabled) return res.status(400).json({ error: "لا تُصدر شهادة لهذه الدورة" });
@@ -156,7 +163,7 @@ router.post("/srcs/courses/:id/certificate", writeLimiter, async (req, res) => {
       [e.id, price, ref || null, proof]);
     // إشعار من يملك صلاحية الشهادات
     const admins = (await query(`SELECT user_id FROM srcs_members WHERE status='active' AND (role='admin' OR 'certificates' = ANY(perms))`)).rows.map((x: any) => Number(x.user_id));
-    notifyUsers(admins, "💳 طلب شهادة مدفوعة", `${me.name} أرسل إثبات دفع ${price} ${s.cert_currency}`, { kind: "srcs_cert_payment" });
+    notifyUsers([...new Set([...admins, ...(await unitManagerIds(e.unit_id, "certificates"))])], "💳 طلب شهادة مدفوعة", `${me.name} أرسل إثبات دفع ${price} ${s.cert_currency}`, { kind: "srcs_cert_payment" });
     return res.json({ enrollment: r.rows[0] });
   } catch (err) { return fail(res, err, "cert request"); }
 });
@@ -282,14 +289,17 @@ router.delete("/srcs/me/docs/:id", writeLimiter, async (req, res) => {
   } catch (err) { return fail(res, err, "doc delete"); }
 });
 
-// ═══ إدارة: الدورات والنتائج والشهادات ═════════════════════════════
+// ═══ إدارة: الدورات والنتائج والشهادات (ضمن نطاق الوحدة) ═════════════════
 router.get("/srcs/admin/courses", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "courses", "results", "certificates"))) return;
+    const ctx = await requireScope(req, res, "courses", "results", "certificates"); if (!ctx) return;
+    const U = narrowUnits(ctx.acc, req.query.unit_id);
+    if (U === false) return res.status(403).json({ error: "هذه الوحدة خارج نطاق إدارتك" });
     const r = await query(`SELECT ${COURSE_COLS},
         (SELECT COUNT(*)::int FROM srcs_enrollments e WHERE e.course_id=c.id AND e.passed) AS passed_count,
         (SELECT COUNT(*)::int FROM srcs_enrollments e WHERE e.course_id=c.id AND e.cert_status='pending') AS cert_pending
-      FROM srcs_courses c LEFT JOIN srcs_cohorts co ON co.id=c.cohort_id ORDER BY c.starts_at DESC NULLS FIRST, c.id DESC LIMIT 200`);
+      FROM srcs_courses c LEFT JOIN srcs_cohorts co ON co.id=c.cohort_id LEFT JOIN srcs_units un ON un.id=c.unit_id
+      WHERE ${unitCond("c.unit_id", 1)} ORDER BY c.starts_at DESC NULLS FIRST, c.id DESC LIMIT 200`, [U]);
     return res.json({ courses: r.rows });
   } catch (err) { return fail(res, err, "admin courses"); }
 });
@@ -309,20 +319,31 @@ function courseFields(b: any) {
     published: typeof b.published === "boolean" ? b.published : undefined,
   };
 }
+/** الدفعة المرتبطة يجب أن تكون ضمن النطاق ومن نفس وحدة الدورة (أو عامة) */
+async function cohortFits(cohortId: number | null | undefined, unitId: number | null, acc: Access): Promise<string | null> {
+  if (!cohortId) return null;
+  const co = (await query(`SELECT unit_id FROM srcs_cohorts WHERE id=$1`, [cohortId])).rows[0];
+  if (!co || (co.unit_id !== null && !canTouch(acc, co.unit_id))) return "الدفعة غير موجودة أو خارج نطاقك";
+  if (co.unit_id && Number(co.unit_id) !== Number(unitId)) return "هذه الدفعة تخص وحدة أخرى";
+  return null;
+}
 router.post("/srcs/admin/courses", writeLimiter, async (req, res) => {
   try {
-    const me = await requirePerm(req, res, "courses"); if (!me) return;
+    const ctx = await requireScope(req, res, "courses"); if (!ctx) return;
+    const { me, acc } = ctx;
     const f = courseFields(req.body || {});
     if (!f.title) return res.status(400).json({ error: "عنوان الدورة مطلوب" });
     if (!f.starts_at) return res.status(400).json({ error: "حدّد تاريخ ووقت البدء" });
     if (f.ends_at && f.ends_at < f.starts_at) return res.status(400).json({ error: "تاريخ الانتهاء قبل البدء" });
+    const unitId = await pickWriteUnit(acc, req.body?.unit_id, res); if (unitId === undefined) return;
+    const coErr = await cohortFits(f.cohort_id, unitId, acc); if (coErr) return res.status(400).json({ error: coErr });
     const r = await query(
-      `INSERT INTO srcs_courses (title, kind, description, trainer, place, starts_at, ends_at, seats, cohort_id, cover_url, files, audience, registration_open, pass_mark, max_score, cert_enabled, cert_hours, published, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::jsonb,'[]'),$12,$13,COALESCE($14,50),COALESCE($15,100),$16,$17,$18,$19) RETURNING *`,
+      `INSERT INTO srcs_courses (title, kind, description, trainer, place, starts_at, ends_at, seats, cohort_id, cover_url, files, audience, registration_open, pass_mark, max_score, cert_enabled, cert_hours, published, created_by, unit_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::jsonb,'[]'),$12,$13,COALESCE($14,50),COALESCE($15,100),$16,$17,$18,$19,$20) RETURNING *`,
       [f.title, f.kind ?? "course", f.description ?? null, f.trainer ?? null, f.place ?? null, f.starts_at, f.ends_at ?? null, f.seats ?? 0, f.cohort_id ?? null, f.cover_url ?? null,
-       f.files ?? null, f.audience ?? "public", f.registration_open ?? true, f.pass_mark ?? null, f.max_score ?? null, f.cert_enabled ?? true, f.cert_hours ?? null, f.published ?? true, me.id]);
+       f.files ?? null, f.audience ?? "public", f.registration_open ?? true, f.pass_mark ?? null, f.max_score ?? null, f.cert_enabled ?? true, f.cert_hours ?? null, f.published ?? true, me.id, unitId]);
     if (r.rows[0].published) {
-      const ids = (await query(`SELECT user_id FROM srcs_members WHERE status='active'`)).rows.map((x: any) => Number(x.user_id));
+      const ids = (await query(`SELECT user_id FROM srcs_members WHERE status='active' AND ($1::int IS NULL OR unit_id=$1)`, [unitId])).rows.map((x: any) => Number(x.user_id));
       notifyUsers(ids, r.rows[0].kind === "workshop" ? "🛠️ ورشة تدريبية جديدة" : "🎓 دورة تدريبية جديدة", `${f.title} — سجّل الآن`, { kind: "srcs_course", id: r.rows[0].id });
     }
     return res.json({ course: r.rows[0] });
@@ -330,12 +351,13 @@ router.post("/srcs/admin/courses", writeLimiter, async (req, res) => {
 });
 router.patch("/srcs/admin/courses/:id", writeLimiter, async (req, res) => {
   try {
-    const me = await requirePerm(req, res, "courses", "results"); if (!me) return;
-    const mine = await permsOf(me);
+    const ctx = await requireScope(req, res, "courses", "results"); if (!ctx) return;
+    const { me, sc, acc } = ctx;
+    const cur = await loadScoped("srcs_courses", req.params.id, acc, res); if (!cur) return;
+    const mine = permsForUnit(sc, cur.unit_id);
     const b = req.body || {};
     const f = courseFields(b);
-    const cur = (await query(`SELECT * FROM srcs_courses WHERE id=$1`, [Number(req.params.id)])).rows[0];
-    if (!cur) return res.status(404).json({ error: "غير موجودة" });
+    if (f.cohort_id !== undefined && f.cohort_id !== cur.cohort_id) { const coErr = await cohortFits(f.cohort_id, cur.unit_id, acc); if (coErr) return res.status(400).json({ error: coErr }); }
     const sets: string[] = []; const vals: unknown[] = [cur.id];
     const editable = mine.includes("courses") ? Object.keys(f) : [];
     for (const k of editable) {
@@ -347,7 +369,7 @@ router.patch("/srcs/admin/courses/:id", writeLimiter, async (req, res) => {
     if (publishResults) { vals.push(b.results_published); sets.push(`results_published=$${vals.length}`); }
     if (!sets.length) return res.json({ course: cur });
     const r = await query(`UPDATE srcs_courses SET ${sets.join(", ")} WHERE id=$1 RETURNING *`, vals);
-    if (publishResults && b.results_published !== cur.results_published) audit(Number(me.id), b.results_published ? "results_publish" : "results_hide", `course:${cur.id} ${cur.title}`);
+    if (publishResults && b.results_published !== cur.results_published) audit(Number(me.id), b.results_published ? "results_publish" : "results_hide", `course:${cur.id} ${cur.title}`, {}, cur.unit_id);
     if (publishResults && b.results_published && !cur.results_published) {
       const ids = (await query(`SELECT user_id FROM srcs_enrollments WHERE course_id=$1`, [cur.id])).rows.map((x: any) => Number(x.user_id));
       notifyUsers(ids, "📊 ظهرت النتيجة", `أُعلنت نتيجة «${String(cur.title).slice(0, 80)}» — اطّلع عليها الآن`, { kind: "srcs_results", id: cur.id });
@@ -357,33 +379,41 @@ router.patch("/srcs/admin/courses/:id", writeLimiter, async (req, res) => {
 });
 router.delete("/srcs/admin/courses/:id", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "courses"))) return;
-    const issued = (await query(`SELECT COUNT(*)::int AS n FROM srcs_enrollments WHERE course_id=$1 AND cert_status='issued'`, [Number(req.params.id)])).rows[0].n;
+    const ctx = await requireScope(req, res, "courses"); if (!ctx) return;
+    const c = await loadScoped("srcs_courses", req.params.id, ctx.acc, res); if (!c) return;
+    const issued = (await query(`SELECT COUNT(*)::int AS n FROM srcs_enrollments WHERE course_id=$1 AND cert_status='issued'`, [c.id])).rows[0].n;
     if (issued) return res.status(400).json({ error: "لا يمكن حذف دورة صدرت لها شهادات — أخفِها بدلاً من ذلك" });
-    await query(`DELETE FROM srcs_courses WHERE id=$1`, [Number(req.params.id)]);
-    audit(Number((await sessionUser(req))?.id) || null, "course_delete", `course:${req.params.id}`);
+    await query(`DELETE FROM srcs_courses WHERE id=$1`, [c.id]);
+    audit(Number(ctx.me.id), "course_delete", `course:${c.id} ${c.title}`, {}, c.unit_id);
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "course delete"); }
 });
 router.get("/srcs/admin/courses/:id/enrollments", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "courses", "results", "certificates"))) return;
+    const ctx = await requireScope(req, res, "courses", "results", "certificates"); if (!ctx) return;
+    const c = await loadScoped("srcs_courses", req.params.id, ctx.acc, res); if (!c) return;
     const r = await query(
       `SELECT e.*, u.name, u.avatar_url, m.role, m.unit, m.card_no, co.name AS cohort_name FROM srcs_enrollments e JOIN users u ON u.id=e.user_id
          LEFT JOIN srcs_members m ON m.user_id=e.user_id LEFT JOIN srcs_cohorts co ON co.id=m.cohort_id
-        WHERE e.course_id=$1 ORDER BY u.name`, [Number(req.params.id)]);
+        WHERE e.course_id=$1 ORDER BY u.name`, [c.id]);
     return res.json({ enrollments: exposeRows(r.rows).map((e: any) => ({ ...e, cert_url: e.cert_token ? certUrl(e.cert_token) : null })) });
   } catch (err) { return fail(res, err, "enrollments"); }
 });
-/** تسجيل أعضاء في دورة يدوياً (مثلاً كل أفراد دفعة) */
+/** تسجيل أعضاء في دورة يدوياً (مثلاً كل أفراد دفعة) — مدير الوحدة يسجّل أعضاء وحدته فقط */
 router.post("/srcs/admin/courses/:id/enroll", writeLimiter, async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "courses"))) return;
+    const ctx = await requireScope(req, res, "courses"); if (!ctx) return;
+    const c = await loadScoped("srcs_courses", req.params.id, ctx.acc, res); if (!c) return;
     let ids: number[] = (Array.isArray(req.body?.user_ids) ? req.body.user_ids : []).map(Number).filter(Number.isFinite).slice(0, 1000);
-    if (req.body?.cohort_id) ids = ids.concat((await query(`SELECT user_id FROM srcs_members WHERE cohort_id=$1 AND status='active'`, [Number(req.body.cohort_id)])).rows.map((x: any) => Number(x.user_id)));
+    if (req.body?.cohort_id) {
+      const co = await loadScoped("srcs_cohorts", req.body.cohort_id, ctx.acc, res); if (!co) return;
+      ids = ids.concat((await query(`SELECT user_id FROM srcs_members WHERE cohort_id=$1 AND status='active'`, [co.id])).rows.map((x: any) => Number(x.user_id)));
+    }
+    ids = [...new Set(ids)];
+    if (!ctx.acc.all) ids = (await query(`SELECT user_id FROM srcs_members WHERE user_id = ANY($1::int[]) AND unit_id=$2`, [ids, c.unit_id])).rows.map((x: any) => Number(x.user_id));
     let added = 0;
     for (const uid of [...new Set(ids)]) {
-      const r = await query(`INSERT INTO srcs_enrollments (course_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`, [Number(req.params.id), uid]);
+      const r = await query(`INSERT INTO srcs_enrollments (course_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`, [c.id, uid]);
       if (r.rows[0]) added++;
     }
     return res.json({ ok: true, added });
@@ -392,9 +422,8 @@ router.post("/srcs/admin/courses/:id/enroll", writeLimiter, async (req, res) => 
 /** رصد النتائج دفعة واحدة: [{id, score, attended, note}] */
 router.post("/srcs/admin/courses/:id/results", writeLimiter, async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "results", "courses"))) return;
-    const c = (await query(`SELECT * FROM srcs_courses WHERE id=$1`, [Number(req.params.id)])).rows[0];
-    if (!c) return res.status(404).json({ error: "غير موجودة" });
+    const ctx = await requireScope(req, res, "results", "courses"); if (!ctx) return;
+    const c = await loadScoped("srcs_courses", req.params.id, ctx.acc, res); if (!c) return;
     const rows = (Array.isArray(req.body?.rows) ? req.body.rows : []).slice(0, 1000);
     let saved = 0;
     for (const row of rows) {
@@ -412,11 +441,12 @@ router.post("/srcs/admin/courses/:id/results", writeLimiter, async (req, res) =>
 /** مراجعة دفع الشهادة: approve / reject / issue (مجاناً) / revoke (لمدير حصاحيصاوي فقط) */
 router.patch("/srcs/admin/enrollments/:id/certificate", writeLimiter, async (req, res) => {
   try {
-    const me = await requirePerm(req, res, "certificates"); if (!me) return;
+    const ctx = await requireScope(req, res, "certificates"); if (!ctx) return;
+    const { me } = ctx;
     const action = String(req.body?.action || "");
-    const e = (await query(`SELECT e.*, c.title FROM srcs_enrollments e JOIN srcs_courses c ON c.id=e.course_id WHERE e.id=$1`, [Number(req.params.id)])).rows[0];
-    if (!e) return res.status(404).json({ error: "غير موجود" });
-    audit(Number(me.id), `cert_${action}`, `enrollment:${e.id} ${e.title}`, { user_id: e.user_id, amount: e.cert_amount, ref: e.payment_ref, note: req.body?.note });
+    const e = (await query(`SELECT e.*, c.title, c.unit_id FROM srcs_enrollments e JOIN srcs_courses c ON c.id=e.course_id WHERE e.id=$1`, [Number(req.params.id) || 0])).rows[0];
+    if (!e || !canTouch(ctx.acc, e.unit_id)) return res.status(404).json({ error: "غير موجود أو خارج نطاق وحدتك" });
+    audit(Number(me.id), `cert_${action}`, `enrollment:${e.id} ${e.title}`, { user_id: e.user_id, amount: e.cert_amount, ref: e.payment_ref, note: req.body?.note }, e.unit_id);
     if (action === "approve" || action === "issue") {
       if (!e.passed) return res.status(400).json({ error: "لا تُصدر الشهادة إلا للناجحين" });
       return res.json({ enrollment: await issueCertificate(e.id, Number(me.id)) });
@@ -438,68 +468,79 @@ router.patch("/srcs/admin/enrollments/:id/certificate", writeLimiter, async (req
 });
 router.get("/srcs/admin/certificates/pending", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "certificates"))) return;
-    const r = await query(`SELECT e.*, u.name, c.title FROM srcs_enrollments e JOIN users u ON u.id=e.user_id JOIN srcs_courses c ON c.id=e.course_id
-                            WHERE e.cert_status='pending' ORDER BY e.created_at`);
+    const ctx = await requireScope(req, res, "certificates"); if (!ctx) return;
+    const U = narrowUnits(ctx.acc, req.query.unit_id);
+    if (U === false) return res.status(403).json({ error: "هذه الوحدة خارج نطاق إدارتك" });
+    const r = await query(`SELECT e.*, u.name, c.title, c.unit_id FROM srcs_enrollments e JOIN users u ON u.id=e.user_id JOIN srcs_courses c ON c.id=e.course_id
+                            WHERE e.cert_status='pending' AND ${unitCond("c.unit_id", 1)} ORDER BY e.created_at`, [U]);
     return res.json({ pending: exposeRows(r.rows) });
   } catch (err) { return fail(res, err, "cert pending"); }
 });
 
-// ═══ إدارة: الدفعات وسجل الأعضاء ═══════════════════════════════════
+// ═══ إدارة: الدفعات وسجل الأعضاء (ضمن نطاق الوحدة) ═════════════════════
 router.get("/srcs/admin/cohorts", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "cohorts", "members", "courses"))) return;
-    const r = await query(`SELECT co.*, (SELECT COUNT(*)::int FROM srcs_members m WHERE m.cohort_id=co.id) AS members,
-        (SELECT COUNT(*)::int FROM srcs_courses c WHERE c.cohort_id=co.id) AS courses FROM srcs_cohorts co ORDER BY co.year DESC NULLS LAST, co.id DESC`);
+    const ctx = await requireScope(req, res, "cohorts", "members", "courses"); if (!ctx) return;
+    const U = narrowUnits(ctx.acc, req.query.unit_id);
+    if (U === false) return res.status(403).json({ error: "هذه الوحدة خارج نطاق إدارتك" });
+    const r = await query(`SELECT co.*, un.name AS unit_name, (SELECT COUNT(*)::int FROM srcs_members m WHERE m.cohort_id=co.id) AS members,
+        (SELECT COUNT(*)::int FROM srcs_courses c WHERE c.cohort_id=co.id) AS courses FROM srcs_cohorts co LEFT JOIN srcs_units un ON un.id=co.unit_id
+       WHERE ${unitCond("co.unit_id", 1)} ORDER BY co.year DESC NULLS LAST, co.id DESC`, [U]);
     return res.json({ cohorts: r.rows });
   } catch (err) { return fail(res, err, "cohorts"); }
 });
 router.post("/srcs/admin/cohorts", writeLimiter, async (req, res) => {
   try {
-    const me = await requirePerm(req, res, "cohorts"); if (!me) return;
+    const ctx = await requireScope(req, res, "cohorts"); if (!ctx) return;
     const name = str(req.body?.name, 120);
     if (name.length < 2) return res.status(400).json({ error: "اسم الدفعة مطلوب" });
-    const r = await query(`INSERT INTO srcs_cohorts (name, year, notes, created_by) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [name, Number(req.body?.year) || new Date().getFullYear(), str(req.body?.notes, 2000) || null, me.id]);
+    const unitId = await pickWriteUnit(ctx.acc, req.body?.unit_id, res); if (unitId === undefined) return;
+    const r = await query(`INSERT INTO srcs_cohorts (name, year, notes, created_by, unit_id) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [name, Number(req.body?.year) || new Date().getFullYear(), str(req.body?.notes, 2000) || null, ctx.me.id, unitId]);
     return res.json({ cohort: r.rows[0] });
   } catch (err) { return fail(res, err, "cohort create"); }
 });
 router.patch("/srcs/admin/cohorts/:id", writeLimiter, async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "cohorts"))) return;
+    const ctx = await requireScope(req, res, "cohorts"); if (!ctx) return;
+    const co = await loadScoped("srcs_cohorts", req.params.id, ctx.acc, res); if (!co) return;
     const b = req.body || {};
     const r = await query(`UPDATE srcs_cohorts SET name=COALESCE($2,name), year=COALESCE($3,year), notes=COALESCE($4,notes) WHERE id=$1 RETURNING *`,
-      [Number(req.params.id), b.name ? str(b.name, 120) : null, b.year ? Number(b.year) : null, b.notes === undefined ? null : str(b.notes, 2000)]);
+      [co.id, b.name ? str(b.name, 120) : null, b.year ? Number(b.year) : null, b.notes === undefined ? null : str(b.notes, 2000)]);
     if (Array.isArray(b.member_ids)) {
       const ids = b.member_ids.map(Number).filter(Number.isFinite).slice(0, 2000);
-      await query(`UPDATE srcs_members SET cohort_id=$1 WHERE id = ANY($2::int[])`, [Number(req.params.id), ids]);
+      // الأعضاء ضمن نطاق المدير، ودفعة الوحدة لا تضم إلا أعضاء وحدتها
+      await query(`UPDATE srcs_members SET cohort_id=$1 WHERE id = ANY($2::int[]) AND ${unitCond("unit_id", 3)} AND ($4::int IS NULL OR unit_id=$4)`,
+        [co.id, ids, ctx.acc.unitIds, co.unit_id]);
     }
     return res.json({ cohort: r.rows[0] });
   } catch (err) { return fail(res, err, "cohort patch"); }
 });
 router.delete("/srcs/admin/cohorts/:id", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "cohorts"))) return;
-    await query(`UPDATE srcs_members SET cohort_id=NULL WHERE cohort_id=$1`, [Number(req.params.id)]);
-    await query(`UPDATE srcs_courses SET cohort_id=NULL WHERE cohort_id=$1`, [Number(req.params.id)]);
-    await query(`DELETE FROM srcs_cohorts WHERE id=$1`, [Number(req.params.id)]);
-    audit(Number((await sessionUser(req))?.id) || null, "cohort_delete", `cohort:${req.params.id}`);
+    const ctx = await requireScope(req, res, "cohorts"); if (!ctx) return;
+    const co = await loadScoped("srcs_cohorts", req.params.id, ctx.acc, res); if (!co) return;
+    await query(`UPDATE srcs_members SET cohort_id=NULL WHERE cohort_id=$1`, [co.id]);
+    await query(`UPDATE srcs_courses SET cohort_id=NULL WHERE cohort_id=$1`, [co.id]);
+    await query(`DELETE FROM srcs_cohorts WHERE id=$1`, [co.id]);
+    audit(Number(ctx.me.id), "cohort_delete", `cohort:${co.id} ${co.name}`, {}, co.unit_id);
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "cohort delete"); }
 });
 router.get("/srcs/admin/members/:id/dossier", async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "members", "cohorts", "requests"))) return;
-    const m = (await query(`SELECT user_id FROM srcs_members WHERE id=$1`, [Number(req.params.id)])).rows[0];
-    if (!m) return res.status(404).json({ error: "العضو غير موجود" });
+    const ctx = await requireScope(req, res, "members", "cohorts", "requests"); if (!ctx) return;
+    const m = await loadScoped("srcs_members", req.params.id, ctx.acc, res); if (!m) return;
     return res.json(await dossier(Number(m.user_id), true));
   } catch (err) { return fail(res, err, "dossier"); }
 });
 router.patch("/srcs/admin/docs/:id", writeLimiter, async (req, res) => {
   try {
-    if (!(await requirePerm(req, res, "members", "requests", "cohorts"))) return;
-    const r = await query(`UPDATE srcs_member_docs SET verified=$2 WHERE id=$1 RETURNING *`, [Number(req.params.id), !!req.body?.verified]);
-    audit(Number((await sessionUser(req))?.id) || null, req.body?.verified ? "doc_verify" : "doc_unverify", `doc:${req.params.id}`, { user_id: r.rows[0]?.user_id, title: r.rows[0]?.title });
+    const ctx = await requireScope(req, res, "members", "requests", "cohorts"); if (!ctx) return;
+    const d = (await query(`SELECT d.id, m.unit_id FROM srcs_member_docs d LEFT JOIN srcs_members m ON m.user_id=d.user_id WHERE d.id=$1`, [Number(req.params.id) || 0])).rows[0];
+    if (!d || !canTouch(ctx.acc, d.unit_id)) return res.status(404).json({ error: "غير موجود أو خارج نطاق وحدتك" });
+    const r = await query(`UPDATE srcs_member_docs SET verified=$2 WHERE id=$1 RETURNING *`, [d.id, !!req.body?.verified]);
+    audit(Number(ctx.me.id), req.body?.verified ? "doc_verify" : "doc_unverify", `doc:${d.id}`, { user_id: r.rows[0]?.user_id, title: r.rows[0]?.title }, d.unit_id);
     if (r.rows[0]?.profile_cert_id) await query(`UPDATE user_certificates SET reviewed=$2 WHERE id=$1`, [r.rows[0].profile_cert_id, !!req.body?.verified]).catch(() => {});
     return res.json({ doc: exposeRow(r.rows[0] ?? null) });
   } catch (err) { return fail(res, err, "doc verify"); }

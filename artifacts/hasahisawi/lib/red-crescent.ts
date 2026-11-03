@@ -26,14 +26,33 @@ export type SrcsMember = {
   national_id_no?: string | null; id_doc_url?: string | null; cert_doc_url?: string | null;
   affiliation?: string | null; cohort_id?: number | null; cohort_name?: string | null; perms?: SrcsPerm[]; revoked_at?: string | null; revoke_reason?: string | null; card_token?: string | null; role_label?: string; card_url?: string | null;
   name?: string; avatar_url?: string | null; account_phone?: string | null;
+  unit_id?: number | null; unit_name?: string | null;
 };
-export type SrcsAnnouncement = { id: number; title: string; body: string; audience: string; pinned: boolean; created_at: string };
-export type SrcsActivity = { id: number; title: string; type: string; description: string | null; place: string | null; happened_at: string; images: string[]; beneficiaries: number; published: boolean; points: number; volunteers?: number };
-export type SrcsMeeting = { id: number; title: string; agenda: string | null; place: string | null; starts_at: string; ends_at?: string | null; audience: string; minutes?: string | null; my_rsvp?: string | null; going?: number; attended?: number };
+/** الوحدة: كيان مستقل له مدراء يديرون أعضاءه ومحتواه فقط */
+export type SrcsUnit = { id: number; name: string; code: string | null; description: string | null; members: number };
+export type SrcsUnitManager = { user_id: number; name: string; avatar_url: string | null; perms: SrcsPerm[] };
+export type SrcsAdminUnit = SrcsUnit & { is_active: boolean; pending: number; managers: SrcsUnitManager[]; created_at: string };
+/** نطاق الإدارة: الفرع كله، أو وحدات محددة بصلاحياتها */
+export type SrcsScope = {
+  level: "branch" | "unit"; isAppAdmin: boolean; isBranchAdmin: boolean; branchPerms: SrcsPerm[]; perms: SrcsPerm[];
+  units: { id: number; name: string; code: string | null; is_active: boolean; perms: SrcsPerm[] }[];
+};
+/** مرشّح الوحدة في لوحة الإدارة: undefined = الكل، 0 = العام للفرع */
+export type UnitFilter = number | undefined;
+const uq = (unit?: UnitFilter, extra: Record<string, string | undefined> = {}) => {
+  const p = new URLSearchParams();
+  if (unit !== undefined) p.set("unit_id", unit === 0 ? "none" : String(unit));
+  for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v);
+  const q = p.toString();
+  return q ? `?${q}` : "";
+};
+export type SrcsAnnouncement = { id: number; title: string; body: string; audience: string; pinned: boolean; created_at: string; unit_id?: number | null; unit_name?: string | null };
+export type SrcsActivity = { id: number; title: string; type: string; description: string | null; place: string | null; happened_at: string; images: string[]; beneficiaries: number; published: boolean; points: number; volunteers?: number; unit_id?: number | null; unit_name?: string | null };
+export type SrcsMeeting = { id: number; title: string; agenda: string | null; place: string | null; starts_at: string; ends_at?: string | null; audience: string; minutes?: string | null; my_rsvp?: string | null; going?: number; attended?: number; unit_id?: number | null; unit_name?: string | null };
 export type SrcsOverview = {
   stats: { members: number; paramedics: number; activities: number; beneficiaries: number };
   announcements: SrcsAnnouncement[]; activities: SrcsActivity[]; meetings: SrcsMeeting[];
-  membership: SrcsMember | null; isAdmin: boolean; perms?: SrcsPerm[]; isAppAdmin?: boolean;
+  membership: SrcsMember | null; isAdmin: boolean; perms?: SrcsPerm[]; isAppAdmin?: boolean; managedUnits?: number[];
 };
 export type SrcsFile = { name: string; url: string; size?: number | null; type?: string | null };
 export type SrcsCourse = {
@@ -42,7 +61,7 @@ export type SrcsCourse = {
   cover_url: string | null; files: SrcsFile[]; files_count?: number; audience: "public" | "members"; registration_open: boolean;
   pass_mark: number; max_score: number; results_published: boolean; cert_enabled: boolean; cert_hours: number | null; published: boolean;
   my_enrollment_id?: number | null; my_status?: string | null; my_score?: number | null; my_passed?: boolean | null; my_cert_status?: string | null; my_cert_url?: string | null;
-  passed_count?: number; cert_pending?: number;
+  passed_count?: number; cert_pending?: number; unit_id?: number | null; unit_name?: string | null;
 };
 export type SrcsEnrollment = {
   id: number; course_id: number; user_id: number; status: string; attended: boolean; score: number | null; passed: boolean | null; result_note: string | null;
@@ -52,7 +71,7 @@ export type SrcsEnrollment = {
   title?: string; kind?: string; starts_at?: string | null; results_published?: boolean; max_score?: number; pass_mark?: number;
 };
 export type SrcsDoc = { id: number; user_id: number; kind: string; title: string; url: string; verified: boolean; source: string; profile_cert_id: number | null; created_at: string };
-export type SrcsCohort = { id: number; name: string; year: number | null; notes: string | null; members: number; courses: number };
+export type SrcsCohort = { id: number; name: string; year: number | null; notes: string | null; members: number; courses: number; unit_id?: number | null; unit_name?: string | null };
 export type SrcsDossier = {
   member: (SrcsMember & { email?: string | null }) | null; docs: SrcsDoc[]; enrollments: SrcsEnrollment[];
   activities: { id: number; title: string; type: string; happened_at: string; points: number }[]; meetings: { attended: number; invited: number }; points: number;
@@ -104,16 +123,18 @@ export async function uploadPrivateDoc(token: string, uri: string, opts: { name?
   if (!res.ok) throw new Error((j as any)?.error || `تعذّر الرفع (${res.status})`);
   return j as { ref: string; url: string };
 }
-export type SrcsAudit = { id: number; actor_id: number | null; actor_name: string | null; action: string; target: string; detail: Record<string, any>; created_at: string };
+export type SrcsAudit = { id: number; actor_id: number | null; actor_name: string | null; action: string; target: string; detail: Record<string, any>; created_at: string; unit_id?: number | null; unit_name?: string | null };
 export const AUDIT_LABEL: Record<string, string> = {
   member_update: "تعديل عضو", perms: "تعديل صلاحيات", ban: "حظر", card_revoke: "إلغاء/إعادة بطاقة", settings: "تعديل سعر الشهادة",
   cert_approve: "اعتماد دفع شهادة", cert_issue: "إصدار شهادة", cert_reject: "رفض دفع", cert_revoke: "إلغاء شهادة", cert_restore: "استعادة شهادة",
   results_publish: "إعلان نتيجة", results_hide: "إخفاء نتيجة", course_delete: "حذف دورة", cohort_delete: "حذف دفعة",
   doc_verify: "توثيق مستند", doc_unverify: "إلغاء توثيق", export: "تصدير", checkin: "تسجيل حضور بالمسح",
+  unit_create: "إنشاء وحدة", unit_update: "تعديل وحدة", unit_manager_add: "تعيين مدير وحدة", unit_manager_perms: "تعديل صلاحيات مدير وحدة", unit_manager_remove: "إعفاء مدير وحدة",
 };
 
 export const srcsApi = {
   overview: (token?: string | null) => call<SrcsOverview>(`/srcs/overview`, token),
+  units: () => call<{ units: SrcsUnit[] }>(`/srcs/units`),
   join: (token: string, b: Partial<SrcsMember> & { desired_role: SrcsRole }) => call<{ membership: SrcsMember }>(`/srcs/join`, token, { method: "POST", ...body(b) }),
   updateMe: (token: string, b: Partial<Pick<SrcsMember, "musif_code" | "blood_type" | "phone">>) => call<{ membership: SrcsMember }>(`/srcs/me`, token, { method: "PATCH", ...body(b) }),
   settings: () => call<SrcsSettings>(`/srcs/settings`),
@@ -127,10 +148,19 @@ export const srcsApi = {
   deleteDoc: (token: string, id: number) => call(`/srcs/me/docs/${id}`, token, { method: "DELETE" }),
   rsvp: (token: string, id: number, status: "going" | "not_going" | "maybe") => call(`/srcs/meetings/${id}/rsvp`, token, { method: "POST", ...body({ status }) }),
   admin: {
-    dashboard: (t: string) => call<Record<string, number> & { perms?: SrcsPerm[]; isAppAdmin?: boolean }>(`/srcs/admin/dashboard`, t),
-    members: (t: string, status?: string) => call<{ members: SrcsMember[] }>(`/srcs/admin/members${status ? `?status=${status}` : ""}`, t),
+    myScope: (t: string) => call<SrcsScope>(`/srcs/admin/my-scope`, t),
+    dashboard: (t: string, unit?: UnitFilter) => call<Record<string, number> & { perms?: SrcsPerm[]; isAppAdmin?: boolean; level?: "branch" | "unit" }>(`/srcs/admin/dashboard${uq(unit)}`, t),
+    members: (t: string, status?: string, unit?: UnitFilter) => call<{ members: SrcsMember[] }>(`/srcs/admin/members${uq(unit, { status })}`, t),
+    units: (t: string) => call<{ units: SrcsAdminUnit[]; perms: SrcsPerm[]; defaultPerms: SrcsPerm[] }>(`/srcs/admin/units`, t),
+    createUnit: (t: string, b: { name: string; code?: string; description?: string }) => call<{ unit: SrcsAdminUnit }>(`/srcs/admin/units`, t, { method: "POST", ...body(b) }),
+    updateUnit: (t: string, id: number, b: Partial<{ name: string; code: string; description: string; is_active: boolean }>) => call<{ unit: SrcsAdminUnit }>(`/srcs/admin/units/${id}`, t, { method: "PATCH", ...body(b) }),
+    setUnitManager: (t: string, unitId: number, userId: number, perms: SrcsPerm[]) => call(`/srcs/admin/units/${unitId}/managers/${userId}`, t, { method: "PUT", ...body({ perms }) }),
+    removeUnitManager: (t: string, unitId: number, userId: number) => call(`/srcs/admin/units/${unitId}/managers/${userId}`, t, { method: "DELETE" }),
+    searchUsers: (t: string, q: string) => call<{ users: { id: number; name: string; avatar_url: string | null; phone: string | null; member_status: string | null; unit_name: string | null }[] }>(`/srcs/admin/users?q=${encodeURIComponent(q)}`, t),
+    announcements: (t: string, unit?: UnitFilter) => call<{ announcements: SrcsAnnouncement[] }>(`/srcs/admin/announcements${uq(unit)}`, t),
+    activities: (t: string, unit?: UnitFilter) => call<{ activities: SrcsActivity[] }>(`/srcs/admin/activities${uq(unit)}`, t),
     updateMember: (t: string, id: number, b: Record<string, unknown>) => call<{ member: SrcsMember }>(`/srcs/admin/members/${id}`, t, { method: "PATCH", ...body(b) }),
-    meetings: (t: string) => call<{ meetings: SrcsMeeting[] }>(`/srcs/admin/meetings`, t),
+    meetings: (t: string, unit?: UnitFilter) => call<{ meetings: SrcsMeeting[] }>(`/srcs/admin/meetings${uq(unit)}`, t),
     createMeeting: (t: string, b: Record<string, unknown>) => call<{ meeting: SrcsMeeting }>(`/srcs/admin/meetings`, t, { method: "POST", ...body(b) }),
     updateMeeting: (t: string, id: number, b: Record<string, unknown>) => call(`/srcs/admin/meetings/${id}`, t, { method: "PATCH", ...body(b) }),
     deleteMeeting: (t: string, id: number) => call(`/srcs/admin/meetings/${id}`, t, { method: "DELETE" }),
@@ -141,7 +171,7 @@ export const srcsApi = {
     updateActivity: (t: string, id: number, b: Record<string, unknown>) => call(`/srcs/admin/activities/${id}`, t, { method: "PATCH", ...body(b) }),
     deleteActivity: (t: string, id: number) => call(`/srcs/admin/activities/${id}`, t, { method: "DELETE" }),
     settings: (t: string, b: Partial<SrcsSettings>) => call<SrcsSettings>(`/srcs/admin/settings`, t, { method: "PATCH", ...body(b) }),
-    courses: (t: string) => call<{ courses: SrcsCourse[] }>(`/srcs/admin/courses`, t),
+    courses: (t: string, unit?: UnitFilter) => call<{ courses: SrcsCourse[] }>(`/srcs/admin/courses${uq(unit)}`, t),
     createCourse: (t: string, b: Record<string, unknown>) => call<{ course: SrcsCourse }>(`/srcs/admin/courses`, t, { method: "POST", ...body(b) }),
     updateCourse: (t: string, id: number, b: Record<string, unknown>) => call<{ course: SrcsCourse }>(`/srcs/admin/courses/${id}`, t, { method: "PATCH", ...body(b) }),
     deleteCourse: (t: string, id: number) => call(`/srcs/admin/courses/${id}`, t, { method: "DELETE" }),
@@ -150,16 +180,16 @@ export const srcsApi = {
     saveResults: (t: string, id: number, rows: { id: number; score: number | null; attended?: boolean; note?: string }[]) => call<{ saved: number }>(`/srcs/admin/courses/${id}/results`, t, { method: "POST", ...body({ rows }) }),
     certAction: (t: string, enrollmentId: number, action: "approve" | "reject" | "issue" | "revoke" | "restore", note?: string) =>
       call<{ enrollment: SrcsEnrollment }>(`/srcs/admin/enrollments/${enrollmentId}/certificate`, t, { method: "PATCH", ...body({ action, note }) }),
-    pendingCerts: (t: string) => call<{ pending: SrcsEnrollment[] }>(`/srcs/admin/certificates/pending`, t),
-    cohorts: (t: string) => call<{ cohorts: SrcsCohort[] }>(`/srcs/admin/cohorts`, t),
-    createCohort: (t: string, b: { name: string; year?: number; notes?: string }) => call<{ cohort: SrcsCohort }>(`/srcs/admin/cohorts`, t, { method: "POST", ...body(b) }),
+    pendingCerts: (t: string, unit?: UnitFilter) => call<{ pending: SrcsEnrollment[] }>(`/srcs/admin/certificates/pending${uq(unit)}`, t),
+    cohorts: (t: string, unit?: UnitFilter) => call<{ cohorts: SrcsCohort[] }>(`/srcs/admin/cohorts${uq(unit)}`, t),
+    createCohort: (t: string, b: { name: string; year?: number; notes?: string; unit_id?: number | null }) => call<{ cohort: SrcsCohort }>(`/srcs/admin/cohorts`, t, { method: "POST", ...body(b) }),
     updateCohort: (t: string, id: number, b: Record<string, unknown>) => call(`/srcs/admin/cohorts/${id}`, t, { method: "PATCH", ...body(b) }),
     deleteCohort: (t: string, id: number) => call(`/srcs/admin/cohorts/${id}`, t, { method: "DELETE" }),
     dossier: (t: string, memberId: number) => call<SrcsDossier>(`/srcs/admin/members/${memberId}/dossier`, t),
     verifyDoc: (t: string, id: number, verified: boolean) => call(`/srcs/admin/docs/${id}`, t, { method: "PATCH", ...body({ verified }) }),
-    exportLink: (t: string, kind: "members" | "cohort" | "course" | "meeting", id: number | null, format: "csv" | "html") =>
-      call<{ url: string }>(`/srcs/admin/export-link`, t, { method: "POST", ...body({ kind, id, format }) }),
-    audit: (t: string) => call<{ entries: SrcsAudit[] }>(`/srcs/admin/audit`, t),
+    exportLink: (t: string, kind: "members" | "cohort" | "course" | "meeting", id: number | null, format: "csv" | "html", unit?: UnitFilter) =>
+      call<{ url: string }>(`/srcs/admin/export-link`, t, { method: "POST", ...body({ kind, id, format, unit_id: unit === undefined ? undefined : unit === 0 ? "none" : unit }) }),
+    audit: (t: string, unit?: UnitFilter) => call<{ entries: SrcsAudit[] }>(`/srcs/admin/audit${uq(unit)}`, t),
     checkin: (t: string, b: { code: string; meeting_id?: number; course_id?: number }) =>
       call<{ ok: boolean; member: { name: string; role_label: string; unit: string | null; card_no: string } }>(`/srcs/admin/checkin`, t, { method: "POST", ...body(b) }),
     participants: (t: string, id: number, user_ids: number[]) => call<{ participants: number; awarded: number }>(`/srcs/admin/activities/${id}/participants`, t, { method: "POST", ...body({ user_ids }) }),

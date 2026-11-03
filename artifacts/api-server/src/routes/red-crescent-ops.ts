@@ -9,7 +9,7 @@ import { logger } from "../lib/logger";
 import { query, sessionUser, dbEnabled } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
 import { verifyGithubOidc } from "./ci-play-token";
-import { ensureRedCrescentDb, requirePerm, permsOf, isAppAdmin, notifyUsers, audienceUserIds, ROLE_LABEL } from "./red-crescent";
+import { ensureRedCrescentDb, requireScope, narrowUnits, unitCond, loadScoped, notifyUsers, audienceUserIds, ROLE_LABEL, type Perm } from "./red-crescent";
 import { PRIV_PREFIX, exposeUrl, verifySig, audit, exportUrl } from "../lib/srcs-shared";
 
 const router = Router();
@@ -93,7 +93,7 @@ router.post("/srcs/cron/reminders", async (req: Request, res: Response) => {
       const stage = mins <= 75 ? "1h" : "24h";
       if (stage === "24h" && mins < 120) continue;
       if (!(await once("meeting", m.id, stage))) continue;
-      notifyUsers(await audienceUserIds(m.audience), stage === "1h" ? "⏰ الاجتماع بعد قليل" : "📅 تذكير باجتماع الغد",
+      notifyUsers(await audienceUserIds(m.audience, m.unit_id ?? null), stage === "1h" ? "⏰ الاجتماع بعد قليل" : "📅 تذكير باجتماع الغد",
         `${m.title} — ${at(new Date(m.starts_at))}${m.place ? ` · ${m.place}` : ""}`, { kind: "srcs_meeting", id: m.id });
       out.meetings++;
     }
@@ -123,28 +123,47 @@ router.post("/srcs/cron/reminders", async (req: Request, res: Response) => {
 });
 
 // ═══ التصدير والطباعة ═════════════════════════════════════════════
-const EXPORT_PERMS: Record<string, string[]> = { members: ["members", "cohorts"], cohort: ["cohorts", "members"], course: ["courses", "results"], meeting: ["meetings"] };
+const EXPORT_PERMS: Record<string, Perm[]> = { members: ["members", "cohorts"], cohort: ["cohorts", "members"], course: ["courses", "results"], meeting: ["meetings"] };
+const EXPORT_TABLE = { cohort: "srcs_cohorts", course: "srcs_courses", meeting: "srcs_meetings" } as const;
+/** "all" أو "3.7" ⇄ مصفوفة وحدات */
+const scopeKey = (ids: number[] | null) => (ids === null ? "all" : ids.join("."));
+const parseScope = (s: string): number[] | null => (s === "all" ? null : s.split(".").map(Number).filter((n) => Number.isInteger(n) && n >= 0));
 router.post("/srcs/admin/export-link", writeLimiter, async (req: Request, res: Response) => {
   try {
     const kind = String(req.body?.kind || "");
     if (!EXPORT_PERMS[kind]) return res.status(400).json({ error: "نوع غير معروف" });
-    const me = await requirePerm(req, res, ...(EXPORT_PERMS[kind] as any)); if (!me) return;
+    const ctx = await requireScope(req, res, ...EXPORT_PERMS[kind]); if (!ctx) return;
     const id = Number(req.body?.id) || null;
     const format = req.body?.format === "html" ? "html" : "csv";
-    audit(Number(me.id), "export", `${kind}:${id ?? "all"}`, { format });
-    return res.json({ url: exportUrl(kind, id, format) });
+    // سجل الأعضاء: نطاق المدير (مع ترشيح اختياري بوحدة)؛ والعناصر المفردة يجب أن تكون ضمن نطاقه
+    let U: number[] | null = ctx.acc.unitIds;
+    let unitId: number | null = null;
+    if (kind === "members") {
+      const n = narrowUnits(ctx.acc, req.body?.unit_id);
+      if (n === false) return res.status(403).json({ error: "هذه الوحدة خارج نطاق إدارتك" });
+      U = n;
+      if (U && U.length === 1) unitId = U[0] || null;
+    } else {
+      if (!id) return res.status(400).json({ error: "حدّد العنصر المطلوب تصديره" });
+      const row = await loadScoped(EXPORT_TABLE[kind as keyof typeof EXPORT_TABLE], id, ctx.acc, res); if (!row) return;
+      unitId = row.unit_id ?? null;
+    }
+    audit(Number(ctx.me.id), "export", `${kind}:${id ?? "all"}`, { format }, unitId);
+    return res.json({ url: exportUrl(kind, id, format, scopeKey(U)) });
   } catch (err) { return fail(res, err, "export link"); }
 });
 
 const STATUS_AR: Record<string, string> = { active: "نشط", pending: "معلّق", suspended: "موقوف", rejected: "مرفوض", banned: "محظور" };
 const d = (x: any, time = false) => (x ? new Date(x).toLocaleString("ar-EG", time ? { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Khartoum" } : { dateStyle: "medium", timeZone: "Africa/Khartoum" }) : "");
-async function exportData(kind: string, id: number): Promise<{ title: string; sub: string; head: string[]; rows: (string | number)[][] }> {
+async function exportData(kind: string, id: number, units: number[] | null): Promise<{ title: string; sub: string; head: string[]; rows: (string | number)[][] }> {
   if (kind === "members" || kind === "cohort") {
     const co = kind === "cohort" ? (await query(`SELECT * FROM srcs_cohorts WHERE id=$1`, [id])).rows[0] : null;
     const r = await query(`SELECT m.*, u.name, u.phone AS account_phone, c.name AS cohort_name FROM srcs_members m JOIN users u ON u.id=m.user_id
-                           LEFT JOIN srcs_cohorts c ON c.id=m.cohort_id WHERE ($1::int IS NULL OR m.cohort_id=$1) AND m.status <> 'pending' ORDER BY u.name`, [co ? co.id : null]);
+                           LEFT JOIN srcs_cohorts c ON c.id=m.cohort_id WHERE ($1::int IS NULL OR m.cohort_id=$1) AND m.status <> 'pending'
+                             AND ${unitCond("m.unit_id", 2)} ORDER BY u.name`, [co ? co.id : null, units]);
+    const one = units && units.length === 1 && units[0] ? (await query(`SELECT name FROM srcs_units WHERE id=$1`, [units[0]])).rows[0]?.name : null;
     return {
-      title: co ? `سجل ${co.name}` : "سجل أعضاء الفرعية", sub: `${r.rows.length} عضو`,
+      title: co ? `سجل ${co.name}` : one ? `سجل أعضاء ${one}` : "سجل أعضاء الفرعية", sub: `${r.rows.length} عضو`,
       head: ["#", "الاسم", "الصفة", "الحالة", "رقم البطاقة", "صالحة حتى", "الوحدة", "الجهة", "الدفعة", "الهاتف", "فصيلة الدم"],
       rows: r.rows.map((m: any, i: number) => [i + 1, m.name, ROLE_LABEL[m.role as keyof typeof ROLE_LABEL] || m.role, (m.revoked_at ? "بطاقة ملغاة" : STATUS_AR[m.status]) || m.status,
         m.card_no || "", d(m.card_expires_at), m.unit || "", m.affiliation || "", m.cohort_name || "", m.phone || m.account_phone || "", m.blood_type || ""]),
@@ -164,7 +183,8 @@ async function exportData(kind: string, id: number): Promise<{ title: string; su
   }
   const mt = (await query(`SELECT * FROM srcs_meetings WHERE id=$1`, [id])).rows[0];
   const r = await query(`SELECT u.name, m.role, m.card_no, r.status, COALESCE(r.attended,FALSE) AS attended FROM srcs_members m JOIN users u ON u.id=m.user_id
-                         LEFT JOIN srcs_meeting_rsvps r ON r.user_id=m.user_id AND r.meeting_id=$1 WHERE m.status='active' ORDER BY r.attended DESC NULLS LAST, u.name`, [id]);
+                         LEFT JOIN srcs_meeting_rsvps r ON r.user_id=m.user_id AND r.meeting_id=$1 WHERE m.status='active' AND ($2::int IS NULL OR m.unit_id=$2)
+                         ORDER BY r.attended DESC NULLS LAST, u.name`, [id, mt?.unit_id ?? null]);
   return {
     title: `كشف حضور: ${mt?.title ?? ""}`, sub: `${d(mt?.starts_at, true)} · ${mt?.place ?? ""}`,
     head: ["#", "الاسم", "الصفة", "رقم البطاقة", "الرد", "الحضور", "التوقيع"],
@@ -178,8 +198,9 @@ const csvCell = (s: unknown) => { const v = String(s ?? ""); return /[",\n\r]/.t
 router.get("/public/srcs/export", async (req: Request, res: Response) => {
   try {
     const kind = String(req.query.kind || ""), id = Number(req.query.id) || 0;
-    if (!EXPORT_PERMS[kind] || !verifySig(`export:${kind}:${id}`, req.query.exp, req.query.sig)) return res.status(403).send("انتهت صلاحية الرابط — أنشئه من جديد من التطبيق");
-    const x = await exportData(kind, id || (null as any));
+    const scope = String(req.query.scope || "all");
+    if (!EXPORT_PERMS[kind] || !/^(all|\d+(\.\d+)*)$/.test(scope) || !verifySig(`export:${kind}:${id}:${scope}`, req.query.exp, req.query.sig)) return res.status(403).send("انتهت صلاحية الرابط — أنشئه من جديد من التطبيق");
+    const x = await exportData(kind, id || (null as any), parseScope(scope));
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Robots-Tag", "noindex");
     if (req.query.format === "html") {
@@ -206,9 +227,12 @@ button{font-family:inherit;background:#7F1D1D;color:#fff;border:0;border-radius:
 // ═══ سجل التدقيق ═══════════════════════════════════════════════════
 router.get("/srcs/admin/audit", async (req: Request, res: Response) => {
   try {
-    const me = await sessionUser(req);
-    if (!isAppAdmin(me) && !(await permsOf(me)).includes("members")) return res.status(403).json({ error: "سجل التدقيق لمدير حصاحيصاوي وإدارة الأعضاء" });
-    const r = await query(`SELECT a.*, u.name AS actor_name FROM srcs_audit a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT $1`, [Math.min(500, Number(req.query.limit) || 200)]);
+    // مدير الوحدة يرى سجل وحداته فقط (unit_id ضمن نطاقه)
+    const ctx = await requireScope(req, res, "members"); if (!ctx) return;
+    const U = narrowUnits(ctx.acc, req.query.unit_id);
+    if (U === false) return res.status(403).json({ error: "هذه الوحدة خارج نطاق إدارتك" });
+    const r = await query(`SELECT a.*, u.name AS actor_name, un.name AS unit_name FROM srcs_audit a LEFT JOIN users u ON u.id=a.actor_id LEFT JOIN srcs_units un ON un.id=a.unit_id
+                            WHERE ${unitCond("a.unit_id", 2)} ORDER BY a.id DESC LIMIT $1`, [Math.min(500, Number(req.query.limit) || 200), U]);
     return res.json({ entries: r.rows });
   } catch (err) { return fail(res, err, "audit"); }
 });
@@ -219,7 +243,9 @@ router.post("/srcs/admin/checkin", writeLimiter, async (req: Request, res: Respo
     const b = req.body || {};
     const meetingId = Number(b.meeting_id) || null, courseId = Number(b.course_id) || null;
     if (!meetingId && !courseId) return res.status(400).json({ error: "حدّد الاجتماع أو الدورة" });
-    const me = await requirePerm(req, res, ...((meetingId ? ["meetings"] : ["courses", "results"]) as any)); if (!me) return;
+    const ctx = await requireScope(req, res, ...((meetingId ? ["meetings"] : ["courses", "results"]) as Perm[])); if (!ctx) return;
+    const me = ctx.me;
+    const item = await loadScoped(meetingId ? "srcs_meetings" : "srcs_courses", meetingId || courseId, ctx.acc, res); if (!item) return;
     const raw = String(b.code || "").trim();
     const tokenMatch = /\/verify\/([0-9a-f]{24})/i.exec(raw) || /^([0-9a-f]{24})$/i.exec(raw);
     const m = (await query(
@@ -228,6 +254,8 @@ router.post("/srcs/admin/checkin", writeLimiter, async (req: Request, res: Respo
     if (!m) return res.status(404).json({ error: "لم يُعثر على بطاقة بهذا الرمز" });
     const valid = m.status === "active" && !m.revoked_at && m.card_expires_at && new Date(m.card_expires_at) > new Date();
     if (!valid) return res.status(409).json({ error: m.revoked_at || m.status === "banned" ? "البطاقة ملغاة" : "البطاقة غير سارية", member: { name: m.name } });
+    // اجتماع/دورة الوحدة: الحضور لأعضاء الوحدة فقط
+    if (item.unit_id && Number(m.unit_id) !== Number(item.unit_id)) return res.status(403).json({ error: "صاحب البطاقة ليس من أعضاء هذه الوحدة" });
     if (meetingId) {
       await query(`INSERT INTO srcs_meeting_rsvps (meeting_id, user_id, status, attended) VALUES ($1,$2,'going',TRUE)
                    ON CONFLICT (meeting_id, user_id) DO UPDATE SET attended=TRUE`, [meetingId, m.user_id]);
@@ -235,7 +263,7 @@ router.post("/srcs/admin/checkin", writeLimiter, async (req: Request, res: Respo
       await query(`INSERT INTO srcs_enrollments (course_id, user_id, attended) VALUES ($1,$2,TRUE)
                    ON CONFLICT (course_id, user_id) DO UPDATE SET attended=TRUE`, [courseId, m.user_id]);
     }
-    audit(Number(me.id), "checkin", meetingId ? `meeting:${meetingId}` : `course:${courseId}`, { member: m.id, name: m.name });
+    audit(Number(me.id), "checkin", meetingId ? `meeting:${meetingId}` : `course:${courseId}`, { member: m.id, name: m.name }, item.unit_id ?? null);
     return res.json({ ok: true, member: { name: m.name, role: m.role, role_label: ROLE_LABEL[m.role as keyof typeof ROLE_LABEL], unit: m.unit, card_no: m.card_no } });
   } catch (err) { return fail(res, err, "checkin"); }
 });
