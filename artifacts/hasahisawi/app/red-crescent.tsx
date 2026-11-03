@@ -1,5 +1,5 @@
 // مساحة جمعية الهلال الأحمر السوداني — فرعية الحصاحيصا
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, Image, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,7 +13,7 @@ import * as ImagePicker from "expo-image-picker";
 import { uploadFile } from "@/lib/firebase/storage";
 import {
   srcsApi, uploadPrivateDoc, openMusifOrHelp, ROLE_LABEL, ACTIVITY_TYPES, BLOOD_TYPES, SRCS_RED, SRCS_RED_DEEP,
-  type SrcsOverview, type SrcsRole,
+  type SrcsOverview, type SrcsRole, type SrcsUnit,
 } from "@/lib/red-crescent";
 import { srcsStyles } from "@/components/srcs/styles";
 import RedCrescentMark from "@/components/srcs/RedCrescentMark";
@@ -139,7 +139,10 @@ export default function RedCrescentScreen() {
                   <View style={[s.badge, { backgroundColor: SRCS_RED + "18" }]}><Ionicons name="shield-checkmark" size={20} color={SRCS_RED} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.cardTitle}>عضويتك: {ROLE_LABEL[m.role]}</Text>
-                    <Text style={s.hint}>{m.unit ? `${m.unit} · ` : ""}{m.affiliation ? `${m.affiliation} · ` : ""}{m.card_no ? `بطاقة ${m.card_no}` : ""}</Text>
+                    {m.unit_name || m.unit ? (
+                      <View style={[s.row, { gap: 4 }]}><Ionicons name="people-circle-outline" size={14} color={SRCS_RED} /><Text style={[s.metaStrong, { flex: 1 }]}>وحدتك: {m.unit_name || m.unit}</Text></View>
+                    ) : null}
+                    <Text style={s.hint}>{m.affiliation ? `${m.affiliation} · ` : ""}{m.card_no ? `بطاقة ${m.card_no}` : ""}</Text>
                     {m.revoked_at ? <Text style={[s.hint, { color: Colors.danger }]}>⛔ بطاقتك ملغاة{m.revoke_reason ? `: ${m.revoke_reason}` : ""}</Text> : null}
                   </View>
                 </View>
@@ -165,6 +168,7 @@ export default function RedCrescentScreen() {
                 <View style={s.row}>
                   <Ionicons name="calendar" size={18} color={SRCS_RED} />
                   <Text style={[s.itemTitle, { flex: 1 }]}>{mt.title}</Text>
+                  {mt.unit_name ? <View style={s.unitTag}><Text style={s.unitTagTxt}>{mt.unit_name}</Text></View> : null}
                 </View>
                 <View style={s.row}><Ionicons name="time-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{fmtDate(mt.starts_at, true)}{mt.ends_at ? ` — ${new Date(mt.ends_at).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}` : ""}</Text></View>
                 {mt.place ? <View style={s.row}><Ionicons name="location-outline" size={14} color={SRCS_RED} /><Text style={[s.meta, { flex: 1 }]}>{mt.place}</Text></View> : null}
@@ -190,6 +194,7 @@ export default function RedCrescentScreen() {
                 <View style={s.row}>
                   {a.pinned ? <Ionicons name="pin" size={14} color={Colors.accent} /> : <Ionicons name="megaphone-outline" size={14} color={SRCS_RED} />}
                   <Text style={[s.itemTitle, { flex: 1 }]}>{a.title}</Text>
+                  {a.unit_name ? <View style={s.unitTag}><Text style={s.unitTagTxt}>{a.unit_name}</Text></View> : null}
                   <Text style={s.meta}>{fmtDate(a.created_at)}</Text>
                 </View>
                 <Text style={s.body}>{a.body}</Text>
@@ -235,7 +240,9 @@ export default function RedCrescentScreen() {
 function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: () => void; onDone: () => void }) {
   const { token, user } = useAuth();
   const [role, setRole] = useState<SrcsRole>("volunteer");
-  const [unit, setUnit] = useState("");
+  const [unitId, setUnitId] = useState<number | null>(null);
+  const [units, setUnits] = useState<SrcsUnit[] | null>(null);
+  useEffect(() => { if (visible) srcsApi.units().then((r) => setUnits(r.units)).catch(() => setUnits([])); }, [visible]);
   const [phone, setPhone] = useState(user?.phone || "");
   const [blood, setBlood] = useState("");
   const [experience, setExperience] = useState("");
@@ -273,6 +280,7 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
 
   const submit = async () => {
     if (!token) return;
+    if (units?.length && !unitId) return notify("اختر الوحدة", "حدّد الوحدة التي ترغب في الانضمام إليها — تراجع طلبك إدارتها.");
     if (medic) {
       if (!/^\d{6,20}$/.test(nid.replace(/\s/g, ""))) return notify("الرقم الوطني مطلوب", "أدخل الرقم الوطني بشكل صحيح (أرقام فقط).");
       if (!idDoc) return notify("صورة الهوية مطلوبة", "ارفع صورة البطاقة القومية أو الرقم الوطني.");
@@ -280,7 +288,7 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
     }
     setBusy(true);
     try {
-      await srcsApi.join(token, { desired_role: role, unit, phone, blood_type: blood || null, experience, certifications: certs,
+      await srcsApi.join(token, { desired_role: role, unit_id: unitId, phone, blood_type: blood || null, experience, certifications: certs,
         national_id_no: nid.replace(/\s/g, "") || null, id_doc_url: idDoc, cert_doc_url: certDoc });
       notify("تم إرسال طلبك", "ستراجعه إدارة الفرع ويصلك إشعار بالنتيجة.");
       onDone();
@@ -306,8 +314,27 @@ function JoinModal({ visible, onClose, onDone }: { visible: boolean; onClose: ()
             </View>
             <Text style={s.label}>الهاتف</Text>
             <TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={s.input} placeholderTextColor={Colors.textMuted} placeholder="09xxxxxxxx" />
-            <Text style={s.label}>الفريق / الوحدة (اختياري)</Text>
-            <TextInput value={unit} onChangeText={setUnit} style={s.input} placeholderTextColor={Colors.textMuted} placeholder="مثال: فريق الاستجابة السريعة" />
+            <Text style={s.label}>الوحدة{units?.length ? " *" : ""}</Text>
+            {units === null ? <ActivityIndicator color={SRCS_RED} /> : !units.length ? (
+              <Text style={s.hint}>لا توجد وحدات مفعّلة حالياً — ستحدد إدارة الفرع وحدتك عند القبول.</Text>
+            ) : (
+              <View style={{ gap: 6 }}>
+                {units.map((u) => {
+                  const on = unitId === u.id;
+                  return (
+                    <TouchableOpacity key={u.id} onPress={() => setUnitId(u.id)} style={[s.unitOpt, on && { borderColor: SRCS_RED, backgroundColor: SRCS_RED + "0D" }]} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+                      <Ionicons name={on ? "radio-button-on" : "radio-button-off"} size={20} color={SRCS_RED} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.itemTitle}>{u.name}</Text>
+                        {u.description ? <Text style={s.meta} numberOfLines={2}>{u.description}</Text> : null}
+                      </View>
+                      <Text style={s.meta}>{u.members.toLocaleString("ar-EG")} عضو</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <Text style={s.hint}>يراجع طلبك مدير الوحدة المختارة، وترى محتواها الخاص بعد القبول.</Text>
+              </View>
+            )}
             <Text style={s.label}>فصيلة الدم</Text>
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
               {BLOOD_TYPES.map((b) => (
@@ -368,6 +395,9 @@ function DocSlot({ label, url, busy, onCamera, onGallery, onClear }: { label: st
 
 const s = StyleSheet.create({
   ...srcsStyles,
+  unitTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 10, backgroundColor: SRCS_RED + "12" },
+  unitTagTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SRCS_RED },
+  unitOpt: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg },
   hero: { borderRadius: 22, padding: 16, gap: 14, overflow: "hidden" },
   heroTop: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   heroIcon: { width: 50, height: 50, borderRadius: 16, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },

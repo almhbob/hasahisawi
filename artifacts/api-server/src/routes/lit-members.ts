@@ -94,7 +94,11 @@ export function ensureMembersDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+    // الانتساب الدولي: دولة الإقامة + الاسم بالحروف اللاتينية للبطاقة ثنائية اللغة
+    await query(`ALTER TABLE lit_members ADD COLUMN IF NOT EXISTS country VARCHAR(2) NOT NULL DEFAULT 'SD'`);
+    await query(`ALTER TABLE lit_members ADD COLUMN IF NOT EXISTS name_en VARCHAR(120)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_lit_members_status ON lit_members (status)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lit_members_country ON lit_members (country)`);
     await query(`CREATE TABLE IF NOT EXISTS lit_member_awards (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -203,12 +207,30 @@ export async function badgesFor(userId: number, member?: any) {
   };
 }
 
+// الدول المعتمدة للانتساب (ISO-3166 ثنائي) — تطابق lib/countries.ts في التطبيق
+const COUNTRY: Record<string, [string, string]> = {
+  SD: ["السودان", "Sudan"], EG: ["مصر", "Egypt"], SA: ["السعودية", "Saudi Arabia"], AE: ["الإمارات", "United Arab Emirates"], QA: ["قطر", "Qatar"],
+  KW: ["الكويت", "Kuwait"], BH: ["البحرين", "Bahrain"], OM: ["عُمان", "Oman"], YE: ["اليمن", "Yemen"], JO: ["الأردن", "Jordan"], PS: ["فلسطين", "Palestine"],
+  LB: ["لبنان", "Lebanon"], SY: ["سوريا", "Syria"], IQ: ["العراق", "Iraq"], LY: ["ليبيا", "Libya"], TN: ["تونس", "Tunisia"], DZ: ["الجزائر", "Algeria"],
+  MA: ["المغرب", "Morocco"], MR: ["موريتانيا", "Mauritania"], SO: ["الصومال", "Somalia"], DJ: ["جيبوتي", "Djibouti"], KM: ["جزر القمر", "Comoros"],
+  SS: ["جنوب السودان", "South Sudan"], TD: ["تشاد", "Chad"], ER: ["إريتريا", "Eritrea"], ET: ["إثيوبيا", "Ethiopia"], KE: ["كينيا", "Kenya"],
+  UG: ["أوغندا", "Uganda"], NG: ["نيجيريا", "Nigeria"], TR: ["تركيا", "Türkiye"], MY: ["ماليزيا", "Malaysia"], GB: ["المملكة المتحدة", "United Kingdom"],
+  IE: ["أيرلندا", "Ireland"], DE: ["ألمانيا", "Germany"], FR: ["فرنسا", "France"], NL: ["هولندا", "Netherlands"], BE: ["بلجيكا", "Belgium"],
+  SE: ["السويد", "Sweden"], NO: ["النرويج", "Norway"], DK: ["الدنمارك", "Denmark"], IT: ["إيطاليا", "Italy"], ES: ["إسبانيا", "Spain"],
+  CH: ["سويسرا", "Switzerland"], AT: ["النمسا", "Austria"], US: ["الولايات المتحدة", "United States"], CA: ["كندا", "Canada"], AU: ["أستراليا", "Australia"],
+  NZ: ["نيوزيلندا", "New Zealand"], CN: ["الصين", "China"], IN: ["الهند", "India"], PK: ["باكستان", "Pakistan"], ID: ["إندونيسيا", "Indonesia"],
+  ZA: ["جنوب أفريقيا", "South Africa"], OT: ["دولة أخرى", "Other"],
+};
+const countryCode = (v: unknown) => { const c = String(v || "").toUpperCase(); return COUNTRY[c] ? c : "SD"; };
+const latinName = (v: unknown) => clean(v, 120).replace(/[^A-Za-z .'\-]/g, "").replace(/\s+/g, " ").trim();
+
 function memberRow(m: any, opts: { full?: boolean } = {}) {
   const c = CAT.get(m.category);
   return {
     id: m.id, user_id: m.user_id, category: m.category, category_label: c?.label ?? m.category, category_title: c?.title ?? "",
     color: c?.color, accent: c?.accent, icon: c?.icon, tier: m.tier, tier_label: TIER_LABEL[m.tier] ?? m.tier,
-    full_name: m.full_name, pen_name: m.pen_name, city: m.city, bio: m.bio, genres: m.genres || [], avatar_url: m.avatar_url ?? null,
+    full_name: m.full_name, pen_name: m.pen_name, city: m.city, country: m.country || "SD", country_ar: COUNTRY[m.country || "SD"]?.[0], country_en: COUNTRY[m.country || "SD"]?.[1],
+    name_en: m.name_en ?? null, international: (m.country || "SD") !== "SD", bio: m.bio, genres: m.genres || [], avatar_url: m.avatar_url ?? null,
     status: m.status, member_no: m.member_no, issued_at: m.issued_at, valid_until: m.valid_until, renewals: m.renewals,
     renewal_requested_at: m.renewal_requested_at, suspended_reason: m.suspended_reason, suspended_at: m.suspended_at,
     press_org: m.press_org, press_role: m.press_role, created_at: m.created_at,
@@ -313,7 +335,9 @@ router.post("/lit/membership/apply", writeLimiter, async (req: Request, res: Res
       : `INSERT INTO lit_members (user_id, category, tier, full_name, pen_name, phone, email, city, birth_year, bio, genres, publications,
            press_org, press_role, press_card_no, press_years, works, pledge_signature, referred_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`;
-    const { rows } = await query(sql, vals);
+    const { rows: saved } = await query(sql, vals);
+    const country = countryCode(b.country), nameEn = latinName(b.name_en);
+    const { rows } = await query(`UPDATE lit_members SET country=$2, name_en=$3 WHERE id=$1 RETURNING *`, [saved[0].id, country, nameEn || null]);
     const admins = (await query(`SELECT user_id AS id FROM ithraa_moderators WHERE categories IS NULL OR cardinality(categories)=0 OR 'writers' = ANY(categories)
       UNION SELECT id FROM users WHERE role='admin'`).catch(() => ({ rows: [] as any[] }))).rows.map((r: any) => r.id);
     void notifyLit(admins, "طلب عضوية جديد 🪪", `${full_name} — ${cat.label}`, { screen: "writers-members-admin" });
@@ -371,6 +395,8 @@ router.get("/lit/members", async (req: Request, res: Response) => {
     const params: unknown[] = [];
     let extra = "";
     if (req.query.category && CAT.has(String(req.query.category))) { params.push(String(req.query.category)); extra = ` AND m.category=$${params.length}`; }
+    if (req.query.country === "intl") extra += ` AND m.country <> 'SD'`;
+    else if (req.query.country && COUNTRY[String(req.query.country).toUpperCase()]) { params.push(String(req.query.country).toUpperCase()); extra += ` AND m.country=$${params.length}`; }
     const { rows } = await query(
       `SELECT m.*, u.avatar_url, u.name AS account_name,
          GREATEST(COALESCE((SELECT MAX(t.published_at) FROM lit_texts t WHERE t.author_id=m.user_id AND t.status='approved'),'epoch'), COALESCE(m.issued_at,'epoch')) AS last_at
@@ -498,10 +524,12 @@ router.get("/public/lit/member/:token", async (req: Request, res: Response) => {
 .h{background:${c?.color ?? "#3A1E1A"};color:#fff;padding:22px;text-align:center}.h small{opacity:.8}.h b{display:block;font-size:22px;margin-top:6px}
 .s{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:20px;font-weight:700;background:${valid ? "#E7F6EE;color:#0E7C4A" : "#FDECEC;color:#B42318"}}
 .r{display:flex;justify-content:space-between;padding:11px 22px;border-bottom:1px dashed #eee;font-size:14px}.k{color:#6B7B73}.v{font-weight:700}</style></head><body><div class="c">
-<div class="h"><small>ديوان الكُتّاب · منصة حصاحيصاوي</small><b>${m ? esc(m.pen_name || m.full_name) : "بطاقة غير موجودة"}</b>${m ? `<span>${esc(c?.title)}</span><br><div class="s">${valid ? "✓ " : ""}${esc(stLabel[m.status] || m.status)}</div>` : ""}</div>
+<div class="h"><small>ديوان الكُتّاب · منصة حصاحيصاوي${m && (m.country || "SD") !== "SD" ? " · انتساب دولي — International Membership" : ""}</small><b>${m ? esc(m.pen_name || m.full_name) : "بطاقة غير موجودة"}</b>${m ? `<span>${esc(c?.title)}</span><br><div class="s">${valid ? "✓ " : ""}${esc(stLabel[m.status] || m.status)}</div>` : ""}</div>
 ${m ? `<div class="r"><span class="k">رقم العضوية</span><span class="v">${esc(m.member_no)}</span></div>
 <div class="r"><span class="k">الاسم</span><span class="v">${esc(m.full_name)}</span></div>
 <div class="r"><span class="k">الفئة</span><span class="v">${esc(c?.label)} · ${esc(TIER_LABEL[m.tier])}</span></div>
+${m.name_en ? `<div class="r"><span class="k">Name</span><span class="v" dir="ltr">${esc(m.name_en)}</span></div>` : ""}
+<div class="r"><span class="k">الدولة · Country</span><span class="v">${esc(COUNTRY[m.country || "SD"]?.[0])} · <span dir="ltr">${esc(COUNTRY[m.country || "SD"]?.[1])}</span></span></div>
 ${m.category === "journalist" && m.press_org ? `<div class="r"><span class="k">المؤسسة</span><span class="v">${esc(m.press_org)}</span></div>` : ""}
 <div class="r"><span class="k">تاريخ الإصدار</span><span class="v">${d(m.issued_at)}</span></div>
 <div class="r" style="border:0"><span class="k">صالحة حتى</span><span class="v">${d(m.valid_until)}</span></div>` : ""}

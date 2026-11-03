@@ -42,6 +42,7 @@ import { vibrateForType } from "@/lib/sounds";
 import type { SoundType } from "@/lib/sounds";
 import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { resumePendingSectionInvite } from "@/lib/section-invites";
 import { ONBOARDING_KEY } from "./onboarding";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
@@ -185,8 +186,14 @@ function AuthGate() {
           return;
         }
 
+        // ── اتحاد الطلاب (للطالب): قرار العضوية، ردّ على رسالته، خبر جديد ──
+        if (screen === "student-union-status" || type === "student_union_decision") { router.push("/student-union-status" as any); return; }
+        if (screen === "student-union-contact" || type === "student_union_reply") { router.push("/student-union-contact" as any); return; }
+        if (screen === "student-union-news" || type === "student_union_post") { router.push("/student-union-news" as any); return; }
+
         // ── الإتحاد ──
         if (
+          type === "student_union_inbox" ||
           type === "student_union_application" ||
           type === "union_employee_application" ||
           type === "union_partnership_application" ||
@@ -273,7 +280,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor"];
+    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor", "invitation"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -313,6 +320,26 @@ function InviteClaimer() {
       if (inviter) notify("مرحباً بك في حصاحيصاوي 💚", `احتُسبت دعوتك لـ ${inviter}`);
     }).catch(() => {});
   }, [token, isGuest]);
+  return null;
+}
+
+// دعوة قسم محفوظة من ‎/invitation?t=… قبل تسجيل الدخول: تُقبل بعده وينتقل المدعو لنموذج الانضمام
+function SectionInviteResumer() {
+  const { token, isGuest } = useAuth();
+  const nav = useRouter();
+  useEffect(() => {
+    if (!token || isGuest) return;
+    // ننتظر قليلاً حتى تُنهي بوابة المصادقة توجيهها للرئيسية بعد الدخول
+    const t = setTimeout(() => {
+      resumePendingSectionInvite(token).then((r) => {
+        if (!r) return;
+        if ("error" in r) { notify("تعذّر قبول الدعوة", r.error); return; }
+        notify("مرحباً بك 💚", `قُبلت الدعوة — أكمل الانضمام إلى ${r.section.title}`);
+        nav.push({ pathname: r.route, params: r.params } as any);
+      }).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [token, isGuest, nav]);
   return null;
 }
 
@@ -373,6 +400,7 @@ function RootLayoutNav() {
       {/* Dark icons: most screens use the light #F7F9F8 background */}
       <StatusBar style={Colors.isDark ? "light" : "dark"} />
       <AuthGate />
+      <SectionInviteResumer />
       <PresenceBeat />
       <Stack screenOptions={{ headerBackTitle: "رجوع", headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
         <Stack.Screen name="(tabs)"          options={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }} />
@@ -405,6 +433,8 @@ function RootLayoutNav() {
         <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-contact" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-admin"    options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-status"   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-news"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-manager-apply"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-manager-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />
@@ -454,6 +484,8 @@ function RootLayoutNav() {
         <Stack.Screen name="red-crescent-courses"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="invite"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="get"                      options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="invitation"               options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="admin-invites"            options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />

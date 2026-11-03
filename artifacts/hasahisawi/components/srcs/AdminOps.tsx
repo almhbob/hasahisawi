@@ -8,7 +8,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { notify, openExternal } from "@/lib/xplatform";
 import { srcsStyles } from "@/components/srcs/styles";
-import { srcsApi, SRCS_RED, AUDIT_LABEL, type SrcsAudit } from "@/lib/red-crescent";
+import { srcsApi, SRCS_RED, AUDIT_LABEL, type SrcsAudit, type UnitFilter } from "@/lib/red-crescent";
 
 // ═══ مسح البطاقات لتسجيل الحضور ═══
 type Scan = { ok: boolean; name?: string; sub?: string; error?: string; at: number };
@@ -78,12 +78,12 @@ export function CheckinScanner({ target, onClose }: { target: { title: string; m
 }
 
 // ═══ أزرار التصدير ═══
-export function ExportButtons({ kind, id, compact }: { kind: "members" | "cohort" | "course" | "meeting"; id: number | null; compact?: boolean }) {
+export function ExportButtons({ kind, id, compact, unit }: { kind: "members" | "cohort" | "course" | "meeting"; id: number | null; compact?: boolean; unit?: UnitFilter }) {
   const { token } = useAuth();
   const [busy, setBusy] = useState<"" | "csv" | "html">("");
   const go = async (format: "csv" | "html") => {
     setBusy(format);
-    try { const r = await srcsApi.admin.exportLink(token!, kind, id, format); openExternal(r.url); }
+    try { const r = await srcsApi.admin.exportLink(token!, kind, id, format, unit); openExternal(r.url); }
     catch (e: any) { notify("تعذّر التصدير", e?.message); } finally { setBusy(""); }
   };
   return (
@@ -99,11 +99,11 @@ export function ExportButtons({ kind, id, compact }: { kind: "members" | "cohort
 }
 
 // ═══ سجل التدقيق ═══
-export function AuditPanel() {
+export function AuditPanel({ unit }: { unit?: UnitFilter }) {
   const { token } = useAuth();
   const [rows, setRows] = useState<SrcsAudit[] | null>(null);
   const [q, setQ] = useState("");
-  useEffect(() => { srcsApi.admin.audit(token!).then((r) => setRows(r.entries)).catch((e) => { notify("تعذّر التحميل", e?.message); setRows([]); }); }, [token]);
+  useEffect(() => { setRows(null); srcsApi.admin.audit(token!, unit).then((r) => setRows(r.entries)).catch((e) => { notify("تعذّر التحميل", e?.message); setRows([]); }); }, [token, unit]);
   const list = (rows || []).filter((r) => !q.trim() || [r.actor_name, r.target, AUDIT_LABEL[r.action], r.action].some((x) => String(x || "").includes(q.trim())));
   const icon = (a: string) => (a === "ban" ? "ban" : a.startsWith("cert") ? "ribbon" : a === "perms" ? "key" : a === "settings" ? "cash" : a === "export" ? "download" : a === "checkin" ? "qr-code" : a.startsWith("doc") ? "document" : a.startsWith("results") ? "stats-chart" : "create");
   return (
@@ -118,7 +118,7 @@ export function AuditPanel() {
           <View style={st.aIcon}><Ionicons name={icon(r.action) as any} size={16} color={r.action === "ban" || r.action === "cert_revoke" ? "#B91C1C" : SRCS_RED} /></View>
           <View style={{ flex: 1, gap: 1 }}>
             <Text style={s.itemTitle}>{AUDIT_LABEL[r.action] ?? r.action} — <Text style={{ fontFamily: "Cairo_400Regular" }}>{r.target === "certificate" ? "الشهادة الإلكترونية" : r.target.replace(/^\w+:\S+\s*/, "") || r.target}</Text></Text>
-            <Text style={s.meta}>بواسطة {r.actor_name || "النظام"} · {new Date(r.created_at).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</Text>
+            <Text style={s.meta}>بواسطة {r.actor_name || "النظام"}{r.unit_name ? ` · ${r.unit_name}` : ""} · {new Date(r.created_at).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</Text>
             {summary(r) ? <Text style={[s.meta, { color: Colors.textSecondary }]} numberOfLines={3}>{summary(r)}</Text> : null}
           </View>
         </View>
@@ -126,7 +126,7 @@ export function AuditPanel() {
     </View>
   );
 }
-const FIELD_AR: Record<string, string> = { status: "الحالة", role: "الصفة", unit: "الوحدة", affiliation: "الجهة", cohort_id: "الدفعة", perms: "الصلاحيات", revoked: "إلغاء البطاقة", renew_card: "تجديد", reason: "السبب", cert_price: "السعر", cert_currency: "العملة", cert_payment_info: "تعليمات الدفع", amount: "المبلغ", ref: "الإيصال", note: "ملاحظة", format: "الصيغة", name: "العضو", title: "المستند" };
+const FIELD_AR: Record<string, string> = { is_active: "مفعّلة", code: "الرمز", description: "النبذة", status: "الحالة", role: "الصفة", unit: "الوحدة", affiliation: "الجهة", cohort_id: "الدفعة", perms: "الصلاحيات", revoked: "إلغاء البطاقة", renew_card: "تجديد", reason: "السبب", cert_price: "السعر", cert_currency: "العملة", cert_payment_info: "تعليمات الدفع", amount: "المبلغ", ref: "الإيصال", note: "ملاحظة", format: "الصيغة", name: "العضو", title: "المستند" };
 function summary(r: SrcsAudit): string {
   const d = r.detail || {};
   return Object.entries(d).filter(([k, v]) => v !== undefined && v !== null && k !== "user_id" && k !== "member").map(([k, v]) => {

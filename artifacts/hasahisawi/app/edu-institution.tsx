@@ -32,7 +32,8 @@ function Directory() {
   const [kind, setKind] = useState("");
   const [list, setList] = useState<Institution[] | null>(null);
   const [mine, setMine] = useState<MyEdu | null>(null);
-  const [reg, setReg] = useState(false);
+  const jp = useLocalSearchParams<{ join?: string }>();
+  const [reg, setReg] = useState(jp.join === "1");
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {

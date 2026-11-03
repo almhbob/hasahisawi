@@ -11,6 +11,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { membersApi, MEMBER_STATUS, type Member } from "@/lib/lit-members";
 import { WINE, GOLD, INK } from "@/lib/lit";
 import { Pill, Empty, ithraaStyles as u } from "@/components/ithraa/ui";
+import { flagOf, countryOf } from "@/lib/countries";
 
 const TABS: [string, string][] = [["pending", "طلبات جديدة"], ["renewals", "طلبات التجديد"], ["active", "سارية"], ["suspended", "معلّقة"], ["expired", "منتهية"], ["rejected", "مرفوضة"]];
 const AWARD_ICONS = ["ribbon", "medal", "trophy", "star", "diamond", "flame", "sparkles"];
@@ -71,7 +72,8 @@ function MemberRow({ m, token, open, onToggle, onDone }: { m: Member; token: str
       <Pressable onPress={onToggle} style={[u.rowR, { gap: 10 }]}>
         <UserAvatar name={m.full_name} avatarUrl={m.avatar_url} size={44} />
         <View style={{ flex: 1 }}>
-          <Text style={st.name}>{m.full_name}{m.pen_name ? ` (${m.pen_name})` : ""}</Text>
+          <Text style={st.name}>{flagOf(m.country)} {m.full_name}{m.pen_name ? ` (${m.pen_name})` : ""}</Text>
+          {(m.international || !!m.name_en) && <Text style={st.name2}>{m.name_en || "—"} · {countryOf(m.country).ar}{m.international ? " · انتساب دولي" : ""}</Text>}
           <Text style={[u.hint, { color: m.color }]}>{m.category_label} · {m.tier_label}{m.member_no ? ` · ${m.member_no}` : ""}</Text>
           <Text style={u.hint}>
             <Text style={{ color: st0.color }}>{st0.label}</Text>
@@ -149,6 +151,7 @@ const st = StyleSheet.create({
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: INK },
   name: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
+  name2: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
   v: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textPrimary, flex: 1, textAlign: "left" },
   sec: { fontFamily: "Cairo_700Bold", fontSize: 13, color: WINE, textAlign: "right", marginTop: 6 },
   body: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 },

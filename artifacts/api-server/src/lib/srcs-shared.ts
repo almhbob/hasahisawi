@@ -58,14 +58,16 @@ export async function acceptDocRef(v: unknown, ownerId: number): Promise<string 
 }
 
 /** سجل التدقيق: من فعل ماذا ولمن ومتى */
-export async function audit(actorId: number | null, action: string, target: string, detail: Record<string, unknown> = {}) {
+export async function audit(actorId: number | null, action: string, target: string, detail: Record<string, unknown> = {}, unitId: number | null = null) {
   try {
-    await query(`INSERT INTO srcs_audit (actor_id, action, target, detail) VALUES ($1,$2,$3,$4)`, [actorId, action.slice(0, 60), target.slice(0, 200), JSON.stringify(detail)]);
+    await query(`INSERT INTO srcs_audit (actor_id, action, target, detail, unit_id) VALUES ($1,$2,$3,$4,$5)`,
+      [actorId, action.slice(0, 60), target.slice(0, 200), JSON.stringify(detail), unitId ? Number(unitId) : null]);
   } catch (err) { logger.warn({ err }, "[srcs] audit"); }
 }
 
-export function exportUrl(kind: string, id: number | null, format: "csv" | "html") {
-  const payload = `export:${kind}:${id ?? 0}`;
+/** نطاق التصدير موقّع داخل الرابط: "all" أو وحدات "3.7" (0 = العام للفرع) — فلا يمكن توسيعه بتعديل الرابط */
+export function exportUrl(kind: string, id: number | null, format: "csv" | "html", scope = "all") {
+  const payload = `export:${kind}:${id ?? 0}:${scope}`;
   const { exp, sig } = sign(payload, 15 * 60);
-  return `${API_BASE}/api/public/srcs/export?kind=${encodeURIComponent(kind)}&id=${id ?? 0}&format=${format}&exp=${exp}&sig=${sig}`;
+  return `${API_BASE}/api/public/srcs/export?kind=${encodeURIComponent(kind)}&id=${id ?? 0}&scope=${encodeURIComponent(scope)}&format=${format}&exp=${exp}&sig=${sig}`;
 }

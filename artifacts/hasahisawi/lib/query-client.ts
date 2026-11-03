@@ -24,6 +24,11 @@ const API_URL =
 // وضع الأوفلاين: كل طلبات القراءة الناجحة تُحفظ وتُعرض عند انقطاع الإنترنت.
 installOfflineCache(API_URL);
 
+/** ترويسة الجلسة للطلبات اليدوية (fetch) — فارغة للزائر. */
+export async function authHeader(): Promise<Record<string, string>> {
+  try { const t = await AsyncStorage.getItem(USER_TOKEN_KEY); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
+}
+
 export function getApiUrl(): string {
   return API_URL;
 }

@@ -1896,6 +1896,15 @@ export default function StudentScreen() {
   const nav = useRouter();
 
   const [activeTab, setActiveTab]         = useState<Tab>("services");
+  // أخبار وإعلانات اتحاد الطلاب (أحدث 3) — تُجلب عند فتح تبويب الإتحاد
+  const [unionPosts, setUnionPosts] = useState<{ id: number; title: string; body: string; is_pinned: boolean; created_at: string }[]>([]);
+  useEffect(() => {
+    if (activeTab !== "union") return;
+    let alive = true;
+    fetch(`${getApiUrl()}/api/student-union/posts?limit=3`).then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive && d?.posts) setUnionPosts(d.posts); }).catch(() => {});
+    return () => { alive = false; };
+  }, [activeTab]);
   const [instFilter, setInstFilter]       = useState<"all" | InstType>("all");
   const [institutions, setInstitutions]   = useState<Institution[]>([]);
   const [requests, setRequests]           = useState<JoinRequest[]>([]);
@@ -2180,7 +2189,7 @@ export default function StudentScreen() {
 
       {/* Header */}
       <ModernHeader
-        title="الخدمات الطلابية"
+        title="الطالب والمعلم"
         subtitle="الحصاحيصا التعليمية"
         icon="school"
         rightSlot={
@@ -2230,32 +2239,28 @@ export default function StudentScreen() {
       {/* ── TAB: SERVICES ── */}
       {activeTab === "services" && (
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-          <AnimatedPress onPress={() => curriculumRouter.push("/curriculum" as any)} style={{ marginBottom: 16 }}>
-            <LinearGradient colors={["#1E4F7A", "#2A6FA8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: 16, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name="library" size={26} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right" }}>المكتبة المنهجية</Text>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#DCE9F5", textAlign: "right", lineHeight: 20 }}>كتب المنهج السوداني لكل المراحل، امتحانات سابقة، ملخصات، وأدلة وتحضير للمعلمين — تحميل مجاني ورفع للمساهمين</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#fff" />
-            </LinearGradient>
-          </AnimatedPress>
-          <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
+          {/* كل خدمات الطالب والمعلم في مكان واحد */}
+          <Text style={s.sectionTitle}>كل الخدمات التعليمية</Text>
+          <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginBottom: 18 }}>
             {([
-              { role: "student", title: "مساحة الطالب", sub: "حاسبة الشهادة · جدول المذاكرة · بطاقات المراجعة", icon: "school", colors: ["#173F5F", "#1F5C8A"] },
-              { role: "teacher", title: "مساحة المعلم", sub: "الدرجات · الحضور · تحضير الدروس · الاختبارات", icon: "easel", colors: ["#0F3B33", "#2F7D6D"] },
-            ] as const).map((b) => (
-              <AnimatedPress key={b.role} onPress={() => curriculumRouter.push({ pathname: "/edu-hub", params: { role: b.role } } as any)} style={{ flex: 1 }}>
-                <LinearGradient colors={b.colors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 18, padding: 14, minHeight: 128, gap: 6 }}>
-                  <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
-                    <Ionicons name={b.icon} size={22} color="#fff" />
+              { k: "inst", title: "المدارس والجامعات", sub: "بوابتي المدرسية · الجداول · النتائج", icon: "business", color: "#0F766E", go: () => curriculumRouter.push("/edu-institution" as any) },
+              { k: "curr", title: "المكتبة المنهجية", sub: "كتب المنهج السوداني لكل المراحل", icon: "library", color: "#2A6FA8", go: () => curriculumRouter.push("/curriculum" as any) },
+              { k: "stu", title: "مساحة الطالب", sub: "حاسبة الشهادة · المذاكرة · المراجعة", icon: "school", color: "#173F5F", go: () => curriculumRouter.push({ pathname: "/edu-hub", params: { role: "student" } } as any) },
+              { k: "tch", title: "مساحة المعلم", sub: "الدرجات · الحضور · الدروس · الاختبارات", icon: "easel", color: "#2F7D6D", go: () => curriculumRouter.push({ pathname: "/edu-hub", params: { role: "teacher" } } as any) },
+              { k: "forms", title: "التسجيل والنقل", sub: "تسجيل طالب · نقل · متابعة الطلبات", icon: "document-text", color: Colors.primary, go: () => setActiveTab("forms") },
+              { k: "libs", title: "المكتبات والقرطاسية", sub: "كتب · طباعة · زي مدرسي · دروس", icon: "book", color: "#8A5A1F", go: () => setActiveTab("libraries") },
+              { k: "union", title: "اتحاد الطلاب", sub: "العضوية والتواصل", icon: "people-circle", color: "#6B4E9B", go: () => setActiveTab("union") },
+              { k: "join", title: "سجّل مؤسستك", sub: "مدرسة · معهد · جامعة", icon: "add-circle", color: Colors.accent, go: () => setActiveTab("join") },
+            ] as const).map((t) => (
+              <View key={t.k} style={{ width: "48%", flexGrow: 1 }}><AnimatedPress onPress={t.go}>
+                <View style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, minHeight: 112, gap: 6, borderWidth: 1, borderColor: t.color + "30" }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: t.color + "18", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
+                    <Ionicons name={t.icon as any} size={22} color={t.color} />
                   </View>
-                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" }}>{b.title}</Text>
-                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.85)", textAlign: "right", lineHeight: 18 }}>{b.sub}</Text>
-                </LinearGradient>
-              </AnimatedPress>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" }}>{t.title}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 }}>{t.sub}</Text>
+                </View>
+              </AnimatedPress></View>
             ))}
           </View>
           <Text style={s.sectionTitle}>أدوات الطالب التفاعلية</Text>
@@ -2366,8 +2371,16 @@ export default function StudentScreen() {
               steps:["اختيار المؤسسة والصف","بيانات الطالب","بيانات ولي الأمر"],
             },
             {
+              icon:"git-compare-outline", color:"#0F766E", bg:"#0F766E18",
+              title:"نقل بين المدارس المنضمة للمنصة",
+              desc:"إن كانت المدرستان مسجّلتين في بوابة المؤسسات: تُخلي المدرسة الحالية طرفه وتقبله الجديدة وتسكنه في فصل — برقم نقل موثّق",
+              tag:"الأسرع",
+              onPress:()=>curriculumRouter.push("/edu-transfer" as any),
+              steps:["طلب ولي الأمر","إخلاء طرف المدرسة الحالية","قبول المدرسة الجديدة"],
+            },
+            {
               icon:"swap-horizontal-outline", color:Colors.accent, bg:Colors.accent+"18",
-              title:"طلب نقل طالب",
+              title:"طلب نقل طالب (أي مدرسة)",
               desc:"انقل طفلك من مدرسة إلى أخرى بسهولة — حدّد المدرسة الحالية والجديدة وسبب النقل",
               tag:"نقل بين المدارس",
               onPress:()=>setTrfModal(true),
@@ -2726,7 +2739,20 @@ export default function StudentScreen() {
             </Animated.View>
           </View>
         ) : (
-          <JoinRequestForm onSubmit={handleJoinSubmit} onCancel={()=>setActiveTab("institutions")} />
+          <View style={{ flex: 1 }}>
+            <AnimatedPress onPress={() => curriculumRouter.push({ pathname: "/edu-institution", params: { join: "1" } } as any)} style={{ marginHorizontal: 16, marginTop: 14 }}>
+              <LinearGradient colors={["#0F3B33", "#0F766E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 18, padding: 16, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                <Ionicons name="business" size={28} color="#fff" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15.5, color: "#fff", textAlign: "right" }}>سجّل مؤسستك بلوحة إدارة كاملة (مُوصى به)</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.88)", textAlign: "right", lineHeight: 20 }}>الطاقم والطلاب، جدول حصص بلا تضارب، النتائج والحضور، ونقل الطلاب بين المدارس المنضمة</Text>
+                </View>
+                <Ionicons name="chevron-back" size={20} color="#fff" />
+              </LinearGradient>
+            </AnimatedPress>
+            <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginHorizontal: 16, marginTop: 14 }}>أو أدرج مؤسستك في الدليل فقط (بيانات تواصل بدون لوحة إدارة):</Text>
+            <JoinRequestForm onSubmit={handleJoinSubmit} onCancel={()=>setActiveTab("institutions")} />
+          </View>
         )
       )}
 
@@ -2745,10 +2771,35 @@ export default function StudentScreen() {
             </LinearGradient>
           </Animated.View>
 
+          {/* أخبار وإعلانات الاتحاد */}
+          {unionPosts.length > 0 && (
+            <Animated.View entering={FadeInDown.springify()} style={{ marginBottom: 18 }}>
+              <View style={{ flexDirection:"row-reverse", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                <Text style={{ fontFamily:"Cairo_700Bold", fontSize:15, color:Colors.textPrimary, textAlign:"right" }}>📢 الأخبار والإعلانات</Text>
+                <AnimatedPress onPress={() => nav.push("/student-union-news" as any)}>
+                  <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:"#1F5C8A" }}>كل الأخبار</Text>
+                </AnimatedPress>
+              </View>
+              {unionPosts.map(p => (
+                <AnimatedPress key={p.id} onPress={() => nav.push("/student-union-news" as any)}>
+                  <View style={{ backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, borderWidth:1, borderColor: p.is_pinned ? "#F59E0B55" : Colors.divider, padding:14, marginBottom:10 }}>
+                    <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:6 }}>
+                      {p.is_pinned && <Ionicons name="pin" size={13} color="#F59E0B" />}
+                      <Text style={{ flex:1, fontFamily:"Cairo_700Bold", fontSize:14.5, color:Colors.textPrimary, textAlign:"right" }} numberOfLines={1}>{p.title}</Text>
+                    </View>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textSecondary, textAlign:"right", lineHeight:20, marginTop:3 }} numberOfLines={2}>{p.body}</Text>
+                    <Text style={{ fontFamily:"Cairo_400Regular", fontSize:11.5, color:Colors.textMuted, textAlign:"right", marginTop:4 }}>{new Date(p.created_at).toLocaleDateString("ar-EG", { day:"numeric", month:"long" })}</Text>
+                  </View>
+                </AnimatedPress>
+              ))}
+            </Animated.View>
+          )}
+
           {[
             { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#1F5C8A", route:"/student-union-join" },
-            { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد واستفسر عن الأنشطة والعضوية",      icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
-            { title:"إدارة الإتحاد",       sub:"لوحة مشرفي الإتحاد لمراجعة طلبات الانضمام",    icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/student-union-admin" },
+            { title:"عضويتي وبطاقتي",      sub:"تابع حالة طلبك واعرض بطاقة العضوية الرقمية",     icon:"id-card-outline",         color:"#0E7490", route:"/student-union-status" },
+            { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد وتابع ردوده على رسائلك",            icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
+            { title:"إدارة الإتحاد",       sub:"بوابة مدير الإتحاد: الطلبات والرسائل والأخبار", icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/union-manager-portal" },
           ].map((item, i) => (
             <Animated.View key={item.route} entering={FadeInDown.delay(i*80).springify()}>
               <AnimatedPress onPress={() => { if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); nav.push(item.route as any); }}>

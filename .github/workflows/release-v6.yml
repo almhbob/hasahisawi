@@ -281,7 +281,8 @@ jobs:
 
       - name: Publish to Google Play
         id: play
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        # يدوي، أو تلقائي عند دمج تغيير يحمل الوسم [play-publish] في رسالة الالتزام/عنوان طلب الدمج
+        if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[play-publish]') }}
         continue-on-error: true
         env:
           PKG: com.almhbob.hasahisawi
@@ -351,7 +352,7 @@ jobs:
           echo "### ✅ Google Play: $VERSION ($VC) → $TRACK ($STATUS)" >> $GITHUB_STEP_SUMMARY
 
       - name: Publish GitHub Release
-        if: ${{ github.event_name == 'workflow_dispatch' && hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
+        if: ${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[play-publish]')) && hashFiles('release-artifacts/*.apk') != '' && hashFiles('release-artifacts/*.aab') != '' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}-build${{ steps.ver.outputs.code }}-android

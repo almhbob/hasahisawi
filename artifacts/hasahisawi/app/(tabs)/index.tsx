@@ -18,7 +18,7 @@ const APP_LOGO = require("@/assets/images/logo.png");
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, authHeader } from "@/lib/query-client";
 
 function normalizeHomeGender(value: string | null | undefined) {
   const g = String(value ?? "").trim().toLowerCase();
@@ -61,7 +61,7 @@ const SERVICES: Service[] = [
   { id: "medical", label: "الدليل الطبي", short: "الطبي", sub: "صيدليات ومستشفيات", keywords: "صيدلية مستشفى عيادة دكتور طبيب", icon: "medkit", iconType: "ionicons", group: "health", route: "/(tabs)/medical" },
   { id: "ithraa", label: "إثراء — المكتبة الثقافية", short: "إثراء", sub: "كتب ومقالات وارفع مساهمتك", keywords: "اثراء مكتبة كتاب كتب مقال مقالات قراءة رواية ادب ثقافة pdf", icon: "library", iconType: "ionicons", group: "health", route: "/ithraa", isNew: true },
   { id: "writers", label: "ديوان الكُتّاب", short: "الديوان", sub: "قصة وشعر وخواطر موثّقة", keywords: "ديوان كاتب كتاب شعر قصيدة قصة خاطرة هايكو دوبيت مسدار مسابقة ادبية", icon: "create", iconType: "ionicons", group: "health", route: "/writers", isNew: true },
-  { id: "student", label: "الخدمات الطلابية", short: "الطلاب", sub: "مدارس ومعاهد", keywords: "مدرسة جامعة معهد تعليم", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
+  { id: "student", label: "الطالب والمعلم", short: "التعليم", sub: "مدارس · مناهج · جداول · نقل", keywords: "مدرسة جامعة معهد تعليم طالب معلم منهج كتب جدول حصص نقل اتحاد الطلاب شهادة", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
   // المجتمع
   { id: "press", label: "نافذة الصحافة", short: "الصحافة", sub: "بيانات النقابة ودليل الصحفيين", keywords: "صحافة صحفي نقابة الصحفيين بيان خبر عاجل مراسل اعلام ارشيف", icon: "newspaper", iconType: "ionicons", group: "community", route: "/press", isNew: true },
   { id: "contractors", label: "شركات المقاولات", short: "المقاولات", sub: "مشاريع، عروض أسعار، عقود، عمال", keywords: "مقاول مقاولات بناء تشطيب سباكة كهرباء عمال عرض سعر عقد", icon: "construct", iconType: "ionicons", group: "pro", route: "/contractors", isNew: true },
@@ -181,7 +181,7 @@ export default function HomeScreen() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(`${getApiUrl()}/api/notifications`);
+        const res = await fetch(`${getApiUrl()}/api/notifications`, { headers: await authHeader() });
         if (!res.ok) return;
         const data = await res.json();
         if (alive && Array.isArray(data)) setUnread(data.filter((n: any) => !n?.is_read).length);

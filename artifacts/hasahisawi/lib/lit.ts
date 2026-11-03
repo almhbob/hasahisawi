@@ -8,7 +8,7 @@ export const GOLD = "#C99A2E";
 
 export type LitGroupKey = "story" | "poetry" | "prose";
 export type LitGroup = { key: LitGroupKey; label: string; icon: string; color: string; count: number };
-export type LitForm = { key: string; label: string; group: LitGroupKey; min: number; max: number; lines?: [number, number]; hint: string; count: number };
+export type LitForm = { key: string; label: string; group: LitGroupKey; min: number; max: number; lines?: [number, number]; hint: string; count: number; about?: string; example?: { title: string; body: string }; innovative?: boolean };
 export type LitMeta = {
   groups: LitGroup[]; forms: LitForm[]; totals: { texts: number; writers: number };
   me: { signed_in: boolean; can_review: boolean; pending?: number; is_app_admin?: boolean; contest_supervisor?: boolean; name?: string };

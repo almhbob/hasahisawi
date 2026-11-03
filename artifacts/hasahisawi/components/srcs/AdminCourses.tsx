@@ -14,9 +14,12 @@ import DateTimeField, { fmtDateTime } from "@/components/srcs/DateTimeField";
 import ZoomViewer from "@/components/srcs/ZoomViewer";
 import { CERT_STATUS } from "@/components/srcs/DossierView";
 import { CheckinScanner, ExportButtons } from "@/components/srcs/AdminOps";
-import { srcsApi, SRCS_RED, type SrcsCourse, type SrcsEnrollment, type SrcsCohort, type SrcsFile, type SrcsPerm, type SrcsMember } from "@/lib/red-crescent";
+import { UnitPicker, unitLabel, type UnitOption } from "@/components/srcs/AdminUnits";
+import { srcsApi, SRCS_RED, type SrcsCourse, type SrcsEnrollment, type SrcsCohort, type SrcsFile, type SrcsPerm, type SrcsMember, type UnitFilter } from "@/lib/red-crescent";
 
-export default function AdminCourses({ perms, isAppAdmin, cohorts, members }: { perms: SrcsPerm[]; isAppAdmin: boolean; cohorts: SrcsCohort[]; members: SrcsMember[] }) {
+export default function AdminCourses({ perms, isAppAdmin, cohorts, members, units, defaultUnitId, unitFilter }: {
+  perms: SrcsPerm[]; isAppAdmin: boolean; cohorts: SrcsCohort[]; members: SrcsMember[]; units: UnitOption[]; defaultUnitId: number; unitFilter: UnitFilter;
+}) {
   const { token } = useAuth();
   const [courses, setCourses] = useState<SrcsCourse[] | null>(null);
   const [pending, setPending] = useState<SrcsEnrollment[]>([]);
@@ -29,10 +32,10 @@ export default function AdminCourses({ perms, isAppAdmin, cohorts, members }: { 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [c, p] = await Promise.all([srcsApi.admin.courses(token), canCerts ? srcsApi.admin.pendingCerts(token) : Promise.resolve({ pending: [] })]);
+      const [c, p] = await Promise.all([srcsApi.admin.courses(token, unitFilter), canCerts ? srcsApi.admin.pendingCerts(token, unitFilter) : Promise.resolve({ pending: [] })]);
       setCourses(c.courses); setPending(p.pending);
     } catch (e: any) { notify("تعذّر التحميل", e?.message); setCourses([]); }
-  }, [token, canCerts]);
+  }, [token, canCerts, unitFilter]);
   useEffect(() => { load(); }, [load]);
 
   const certAction = async (e: SrcsEnrollment, action: "approve" | "reject") => {
@@ -60,7 +63,7 @@ export default function AdminCourses({ perms, isAppAdmin, cohorts, members }: { 
       ) : null}
 
       {canEdit ? (
-        <TouchableOpacity style={s.primary} onPress={() => setEdit({ kind: "course", audience: "public", registration_open: true, cert_enabled: true, published: true, pass_mark: 50, max_score: 100, files: [] })}>
+        <TouchableOpacity style={s.primary} onPress={() => setEdit({ unit_id: defaultUnitId, kind: "course", audience: "public", registration_open: true, cert_enabled: true, published: true, pass_mark: 50, max_score: 100, files: [] })}>
           <Ionicons name="add" size={18} color="#fff" /><Text style={s.primaryTxt}>دورة أو ورشة جديدة</Text>
         </TouchableOpacity>
       ) : null}
@@ -71,6 +74,7 @@ export default function AdminCourses({ perms, isAppAdmin, cohorts, members }: { 
             <View style={s.kind}><Ionicons name={c.kind === "workshop" ? "construct" : "school"} size={12} color={SRCS_RED} /><Text style={s.kindTxt}>{c.kind === "workshop" ? "ورشة" : "دورة"}</Text></View>
             {!c.published ? <Text style={[s.meta, { color: Colors.accent }]}>مخفية</Text> : null}
             {c.results_published ? <Text style={[s.meta, { color: "#16A34A" }]}>النتيجة معلنة</Text> : null}
+            <View style={s.unitTag}><Text style={s.unitTagTxt}>{unitLabel(c.unit_name)}</Text></View>
             <Text style={[s.meta, { flex: 1, textAlign: "left" }]}>{c.enrolled}{c.seats ? `/${c.seats}` : ""} مسجل</Text>
           </View>
           <Text style={s.itemTitle}>{c.title}</Text>
@@ -84,14 +88,14 @@ export default function AdminCourses({ perms, isAppAdmin, cohorts, members }: { 
         </View>
       ))}
 
-      <CourseForm value={edit} cohorts={cohorts} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />
+      <CourseForm value={edit} cohorts={cohorts} units={units} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />
       <EnrollmentsModal course={manage} perms={perms} isAppAdmin={isAppAdmin} cohorts={cohorts} members={members} onClose={() => { setManage(null); load(); }} />
       <ZoomViewer visible={!!proof} onClose={() => setProof(null)} title="إشعار الدفع" pages={proof ? [{ label: "إشعار الدفع", ratio: 1.3, render: (w) => <Image source={{ uri: proof }} style={{ width: w, height: w * 1.3 }} resizeMode="contain" /> }] : []} />
     </View>
   );
 }
 
-function CourseForm({ value, cohorts, onClose, onSaved }: { value: Partial<SrcsCourse> | null; cohorts: SrcsCohort[]; onClose: () => void; onSaved: () => void }) {
+function CourseForm({ value, cohorts, units, onClose, onSaved }: { value: Partial<SrcsCourse> | null; cohorts: SrcsCohort[]; units: UnitOption[]; onClose: () => void; onSaved: () => void }) {
   const { token } = useAuth();
   const [f, setF] = useState<Partial<SrcsCourse>>({});
   const [busy, setBusy] = useState(false);
@@ -131,7 +135,7 @@ function CourseForm({ value, cohorts, onClose, onSaved }: { value: Partial<SrcsC
       const b = { title: f.title, kind: f.kind, description: f.description, trainer: f.trainer, place: f.place, starts_at: f.starts_at, ends_at: f.ends_at,
         seats: Number(f.seats) || 0, cohort_id: f.cohort_id ?? null, cover_url: f.cover_url, files: f.files, audience: f.audience, registration_open: f.registration_open,
         pass_mark: Number(f.pass_mark) || 50, max_score: Number(f.max_score) || 100, cert_enabled: f.cert_enabled, cert_hours: Number(f.cert_hours) || null, published: f.published };
-      if (f.id) await srcsApi.admin.updateCourse(token, f.id, b); else await srcsApi.admin.createCourse(token, b);
+      if (f.id) await srcsApi.admin.updateCourse(token, f.id, b); else await srcsApi.admin.createCourse(token, { ...b, unit_id: f.unit_id || null });
       onSaved();
     } catch (e: any) { notify("تعذّر الحفظ", e?.message); }
     finally { setBusy(false); }
@@ -148,6 +152,8 @@ function CourseForm({ value, cohorts, onClose, onSaved }: { value: Partial<SrcsC
                 <TouchableOpacity key={k} onPress={() => set("kind", k)} style={[s.chip, { flex: 1 }, f.kind === k && s.chipOn]}><Text style={[s.chipTxt, f.kind === k && { color: "#fff" }]}>{k === "course" ? "دورة تدريبية" : "ورشة عمل"}</Text></TouchableOpacity>
               ))}
             </View>
+            {/* الوحدة تُحدد عند الإنشاء فقط */}
+            {f.id ? <Text style={s.meta}>تابعة لـ: {unitLabel(f.unit_name)}</Text> : <UnitPicker options={units} value={f.unit_id ?? 0} onChange={(id) => setF((p) => ({ ...p, unit_id: id, cohort_id: null }))} />}
             <Text style={s.label}>العنوان *</Text>
             <TextInput value={f.title || ""} onChangeText={(v) => set("title", v)} placeholder="مثال: الإسعافات الأولية الأساسية" placeholderTextColor={Colors.textMuted} style={s.input} />
             <DateTimeField label="البداية" required value={f.starts_at} onChange={(v) => set("starts_at", v)} />
@@ -172,7 +178,7 @@ function CourseForm({ value, cohorts, onClose, onSaved }: { value: Partial<SrcsC
                 <Text style={s.label}>الدفعة (اختياري)</Text>
                 <RtlScrollRow contentContainerStyle={{ gap: 6 }}>
                   <TouchableOpacity onPress={() => set("cohort_id", null)} style={[s.chip, !f.cohort_id && s.chipOn]}><Text style={[s.chipTxt, !f.cohort_id && { color: "#fff" }]}>بلا دفعة</Text></TouchableOpacity>
-                  {cohorts.map((c) => <TouchableOpacity key={c.id} onPress={() => set("cohort_id", c.id)} style={[s.chip, f.cohort_id === c.id && s.chipOn]}><Text style={[s.chipTxt, f.cohort_id === c.id && { color: "#fff" }]}>{c.name}</Text></TouchableOpacity>)}
+                  {cohorts.filter((c) => !c.unit_id || c.unit_id === (f.unit_id || null)).map((c) => <TouchableOpacity key={c.id} onPress={() => set("cohort_id", c.id)} style={[s.chip, f.cohort_id === c.id && s.chipOn]}><Text style={[s.chipTxt, f.cohort_id === c.id && { color: "#fff" }]}>{c.name}</Text></TouchableOpacity>)}
                 </RtlScrollRow>
               </>
             ) : null}
@@ -267,11 +273,11 @@ function EnrollmentsModal({ course, perms, isAppAdmin, cohorts, members, onClose
             <View style={s.filesBox}>
               {cohorts.length ? <Text style={s.label}>تسجيل دفعة كاملة</Text> : null}
               <RtlScrollRow contentContainerStyle={{ gap: 6 }}>
-                {cohorts.map((c) => <TouchableOpacity key={c.id} style={s.chip} onPress={() => enrollCohort(c.id)}><Text style={s.chipTxt}>{c.name} ({c.members})</Text></TouchableOpacity>)}
+                {cohorts.filter((c) => !course?.unit_id || !c.unit_id || c.unit_id === course.unit_id).map((c) => <TouchableOpacity key={c.id} style={s.chip} onPress={() => enrollCohort(c.id)}><Text style={s.chipTxt}>{c.name} ({c.members})</Text></TouchableOpacity>)}
               </RtlScrollRow>
               <Text style={s.label}>أو عضو بعينه</Text>
               <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
-                {members.filter((m) => m.status === "active" && !rows?.some((r) => r.user_id === m.user_id)).map((m) => (
+                {members.filter((m) => m.status === "active" && (!course?.unit_id || m.unit_id === course.unit_id) && !rows?.some((r) => r.user_id === m.user_id)).map((m) => (
                   <TouchableOpacity key={m.id} style={[s.row, { paddingVertical: 6 }]} onPress={() => enrollMember(m.user_id)}>
                     <Ionicons name="add-circle" size={18} color={SRCS_RED} /><Text style={[s.body, { flex: 1 }]}>{m.name}</Text><Text style={s.meta}>{m.cohort_name || ""}</Text>
                   </TouchableOpacity>
@@ -341,6 +347,8 @@ function Toggle({ label, v, on }: { label: string; v: boolean; on: (v: boolean) 
 
 const s = StyleSheet.create({
   ...srcsStyles,
+  unitTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 10, backgroundColor: SRCS_RED + "12" },
+  unitTagTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: SRCS_RED },
   chipOn: { backgroundColor: SRCS_RED, borderColor: SRCS_RED },
   cover: { width: "100%", height: 130, borderRadius: 12 },
   kind: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: SRCS_RED + "14" },

@@ -46,7 +46,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -4302,6 +4302,7 @@ export default function AdminDashboard() {
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#1F5C8A",      adminOnly: true, badge: adminMerchants.filter(m=>m.status==="pending").length || undefined },
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#1F5C8A",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
+    { key: "section_invites",  label: "دعوات الأقسام",     icon: "mail-open",          color: "#0B6B49",      adminOnly: true },
     { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
     { key: "calls_diag",       label: "تشخيص المكالمات",   icon: "call",               color: "#0EA5E9",      adminOnly: true },
     { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#1F5C8A",      adminOnly: true },
@@ -4506,6 +4507,7 @@ export default function AdminDashboard() {
                   if (t.key === "social_reports") { router.push("/admin-social-reports" as any); return; }
                   if (t.key === "sections_config") { router.push("/admin-sections-config" as any); return; }
                   if (t.key === "calls_diag") { router.push("/admin-calls" as any); return; }
+                  if (t.key === "section_invites") { router.push("/admin-invites" as any); return; }
                   setTab(t.key);
                 }}
                 activeOpacity={0.75}
@@ -7026,7 +7028,16 @@ export default function AdminDashboard() {
           ── إتحاد الطلاب
       ═══════════════════════════════════════════════════════ */}
       {tab === "student_union" && isAdmin && (
-        <AdminStudentUnionTab token={token!} apiBase={getApiUrl()} />
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            onPress={() => router.push("/student-union-admin" as any)}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#1F5C8A18", borderWidth: 1, borderColor: "#1F5C8A40" }}
+          >
+            <Ionicons name="open-outline" size={18} color="#1F5C8A" />
+            <Text style={{ flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13.5, color: "#1F5C8A", textAlign: "right" }}>لوحة طلبات عضوية الإتحاد (تفاصيل كاملة ومنح صلاحية مدير)</Text>
+          </TouchableOpacity>
+          <AdminStudentUnionTab token={token!} apiBase={getApiUrl()} />
+        </View>
       )}
 
       {/* ═══════════════════════════════════════════════════════

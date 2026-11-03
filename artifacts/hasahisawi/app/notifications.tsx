@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { useLang } from "@/lib/lang-context";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, authHeader } from "@/lib/query-client";
 
 type Notification = {
   id: number;
@@ -60,6 +60,10 @@ function getTypeIcon(type: string): string {
     case "external_partnership": return "business-outline";
     case "lawyer_application":   return "scale-outline";
     case "student_union_application":
+    case "student_union_decision":
+    case "student_union_reply":
+    case "student_union_post":
+    case "student_union_inbox":
     case "union_employee_application":
     case "union_partnership_application":
     case "union_manager_application": return "people-outline";
@@ -86,6 +90,10 @@ function getTypeColor(type: string): string {
     case "external_partnership": return "#FF9800";
     case "lawyer_application":   return "#9C27B0";
     case "student_union_application":
+    case "student_union_decision":
+    case "student_union_reply":
+    case "student_union_post":
+    case "student_union_inbox":
     case "union_employee_application":
     case "union_partnership_application":
     case "union_manager_application": return "#4CAF50";
@@ -101,7 +109,10 @@ function getNotifRoute(notif: Notification): string | null {
   try { parsed = notif.data ? JSON.parse(notif.data) : {}; } catch {}
   const type = notif.type;
   if (parsed?.chatId || type === "chat") return "/conversation";
-  if (type === "student_union_application" || type === "union_employee_application" ||
+  if (type === "student_union_decision") return "/student-union-status";
+  if (type === "student_union_reply") return "/student-union-contact";
+  if (type === "student_union_post") return "/student-union-news";
+  if (type === "student_union_application" || type === "student_union_inbox" || type === "union_employee_application" ||
       type === "union_partnership_application" || type === "union_manager_application") return "/union-manager-portal";
   if (type === "institution_application" || type === "external_partnership" ||
       type === "lawyer_application" || type === "alert") return "/admin";
@@ -124,7 +135,7 @@ export default function NotificationsScreen() {
   const loadNotifications = async () => {
     try {
       const base = getApiUrl();
-      const res = await fetch(`${base}/api/notifications`);
+      const res = await fetch(`${base}/api/notifications`, { headers: await authHeader() });
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);

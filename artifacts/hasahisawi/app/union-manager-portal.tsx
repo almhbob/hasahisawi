@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { confirmAction, notify } from "@/lib/xplatform";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -91,7 +92,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert("تنبيه", "يرجى إدخال اسم المستخدم وكلمة المرور"); return;
+      notify("تنبيه", "يرجى إدخال اسم المستخدم وكلمة المرور"); return;
     }
     setLoading(true);
     try {
@@ -109,10 +110,10 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
         registerUnionManagerPushToken(data.token).catch(() => {});
         onLogin(data.token, data.manager);
       } else {
-        Alert.alert("خطأ في الدخول", data.error || "بيانات غير صحيحة");
+        notify("خطأ في الدخول", data.error || "بيانات غير صحيحة");
       }
     } catch {
-      Alert.alert("خطأ", "تعذر الاتصال بالخادم");
+      notify("خطأ", "تعذر الاتصال بالخادم");
     } finally { setLoading(false); }
   };
 
@@ -660,29 +661,36 @@ function RequestsTab({ token, onBadgeChange }: { token: string; onBadgeChange: (
 
   useEffect(() => { setLoading(true); load(); }, [load]);
 
+  // قرار الطالب يصحبه ملاحظة اختيارية تصل للطالب في إشعاره وشاشة حالة طلبه
+  const [noteFor, setNoteFor] = useState<{ id: number; name: string; status: "approved" | "rejected" } | null>(null);
+  const [note, setNote]       = useState("");
+
+  const doReview = async (type: "student" | "employee", id: number, status: "approved" | "rejected", adminNote?: string) => {
+    setActingId(id);
+    try {
+      const url = type === "student"
+        ? `${getApiUrl()}/api/union-manager/requests/student/${id}/status`
+        : `${getApiUrl()}/api/union-manager/requests/employee/${id}/status`;
+      const r = await fetch(url, { method: "PATCH", headers, body: JSON.stringify({ status, admin_note: adminNote || undefined }) });
+      if (r.ok) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (type === "student") {
+          setStudents(p => p.filter(s => s.id !== id));
+          const d = await r.json().catch(() => ({}));
+          if (status === "approved" && d?.application?.member_no) notify("تم القبول", `رقم العضوية: ${d.application.member_no}\nأُصدرت بطاقة العضوية وأُشعر الطالب.`);
+        } else setEmployees(p => p.filter(e => e.id !== id));
+        onBadgeChange(students.length + employees.length - 1);
+      } else { const d = await r.json().catch(() => ({})); notify("خطأ", d.error || "فشلت العملية"); }
+    } catch { notify("خطأ", "تعذر الاتصال"); } finally { setActingId(null); }
+  };
+
   const review = async (type: "student" | "employee", id: number, status: "approved" | "rejected") => {
     const label = status === "approved" ? "قبول" : "رفض";
     const name  = type === "student"
       ? students.find(s => s.id === id)?.full_name
       : employees.find(e => e.id === id)?.full_name;
-    Alert.alert(`تأكيد ${label}`, `هل تريد ${label} طلب ${name}؟`, [
-      { text: "إلغاء", style: "cancel" },
-      { text: label, style: status === "approved" ? "default" : "destructive", onPress: async () => {
-        setActingId(id);
-        try {
-          const url = type === "student"
-            ? `${getApiUrl()}/api/union-manager/requests/student/${id}/status`
-            : `${getApiUrl()}/api/union-manager/requests/employee/${id}/status`;
-          const r = await fetch(url, { method: "PATCH", headers, body: JSON.stringify({ status }) });
-          if (r.ok) {
-            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            if (type === "student") setStudents(p => p.filter(s => s.id !== id));
-            else setEmployees(p => p.filter(e => e.id !== id));
-            onBadgeChange(students.length + employees.length - 1);
-          } else { const d = await r.json(); Alert.alert("خطأ", d.error || "فشلت العملية"); }
-        } catch { Alert.alert("خطأ", "تعذر الاتصال"); } finally { setActingId(null); }
-      }},
-    ]);
+    if (type === "student") { setNote(""); setNoteFor({ id, name: name || "", status }); return; }
+    if (await confirmAction(`تأكيد ${label}`, `هل تريد ${label} طلب ${name}؟`, label, status === "rejected")) doReview(type, id, status);
   };
 
   const currentList: AnyReq[] = (subTab === "students" ? students : employees) as AnyReq[];
@@ -785,6 +793,260 @@ function RequestsTab({ token, onBadgeChange }: { token: string; onBadgeChange: (
           renderItem={renderRequest}
         />
       )}
+
+      <Modal visible={!!noteFor} transparent animationType="slide" onRequestClose={() => setNoteFor(null)}>
+        <KeyboardAvoidingView style={m.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={m.sheet}>
+            <View style={m.handle} />
+            <Text style={m.title}>{noteFor?.status === "approved" ? "قبول" : "رفض"} طلب {noteFor?.name}</Text>
+            <Text style={[t.cardSub, { textAlign: "center" }]}>
+              {noteFor?.status === "approved" ? "يُصدر رقم عضوية وبطاقة رقمية ويُشعر الطالب." : "يُشعر الطالب بالقرار، ويمكنه التقديم مجدداً."}
+            </Text>
+            <Text style={m.label}>{noteFor?.status === "approved" ? "رسالة للطالب (اختياري)" : "سبب الرفض / ملاحظة للطالب (اختياري)"}</Text>
+            <TextInput style={[m.input, { minHeight: 90, textAlignVertical: "top" }]} value={note} onChangeText={setNote}
+              placeholder="تظهر للطالب في شاشة حالة طلبه" placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+            <View style={m.btnRow}>
+              <TouchableOpacity style={m.cancelBtn} onPress={() => setNoteFor(null)}><Text style={m.cancelText}>إلغاء</Text></TouchableOpacity>
+              <TouchableOpacity style={[m.saveBtn, noteFor?.status === "rejected" && { backgroundColor: "#EF4444" }]}
+                onPress={() => { const n = noteFor; setNoteFor(null); if (n) doReview("student", n.id, n.status, note.trim()); }}>
+                <Text style={m.saveText}>{noteFor?.status === "approved" ? "تأكيد القبول" : "تأكيد الرفض"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
+
+// ── تبويب صندوق رسائل الطلاب ──────────────────────────────────────
+type InboxMsg = { id: number; user_id?: number | null; name: string; phone: string; subject?: string | null; message: string; extra?: Record<string, string>; status: "open" | "answered" | "closed"; reply?: string | null; replied_at?: string | null; created_at: string };
+const INBOX_STATUS: Record<string, { label: string; color: string }> = {
+  open: { label: "جديدة", color: "#F59E0B" }, answered: { label: "تم الرد", color: GREEN }, closed: { label: "مغلقة", color: "#94A3B8" },
+};
+
+function InboxTab({ token, onBadgeChange }: { token: string; onBadgeChange: (n: number) => void }) {
+  const [filter, setFilter]   = useState<"open" | "answered" | "closed" | "all">("open");
+  const [items, setItems]     = useState<InboxMsg[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [active, setActive]   = useState<InboxMsg | null>(null);
+  const [reply, setReply]     = useState("");
+  const [saving, setSaving]   = useState(false);
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/inbox?status=${filter}`, { headers });
+      if (r.ok) { const d = await r.json(); setItems(d.messages || []); onBadgeChange(d.open_count || 0); }
+    } catch {} finally { setLoading(false); setRefreshing(false); }
+  }, [token, filter]);
+  useEffect(() => { setLoading(true); load(); }, [load]);
+
+  const submit = async () => {
+    if (!active) return;
+    if (!reply.trim()) { notify("تنبيه", "اكتب الرد أولاً"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/inbox/${active.id}`, {
+        method: "PATCH", headers, body: JSON.stringify({ reply: reply.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify("خطأ", d.error || "فشلت العملية"); return; }
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setActive(null); setReply(""); load();
+      notify("تم الإرسال", active.user_id ? "وصل الرد للطالب مع إشعار." : "حُفظ الرد. المرسل زائر — تواصل معه هاتفياً.");
+    } catch { notify("خطأ", "تعذر الاتصال"); } finally { setSaving(false); }
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={rq.filterRow}>
+        {(["open", "answered", "closed", "all"] as const).map(f => (
+          <TouchableOpacity key={f} onPress={() => setFilter(f)} style={[rq.filterBtn, filter === f && rq.filterBtnActive]}>
+            <Text style={[rq.filterText, filter === f && rq.filterTextActive]}>{f === "all" ? "الكل" : INBOX_STATUS[f].label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {loading ? <View style={t.center}><ActivityIndicator color={UC} /></View> : (
+        <FlatList<InboxMsg>
+          data={items}
+          keyExtractor={i => String(i.id)}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={UC} />}
+          contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 40 }}
+          ListHeaderComponent={<Text style={[msg_.sectionLabel, { marginBottom: 2 }]}>صندوق رسائل الطلاب — رسائل «تواصل مع الإتحاد»</Text>}
+          ListEmptyComponent={<View style={t.empty}><Ionicons name="mail-open-outline" size={48} color={Colors.textMuted} /><Text style={t.emptyText}>لا توجد رسائل</Text></View>}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()} style={rq.card}>
+              <View style={rq.cardTop}>
+                <View style={rq.avatar}><Text style={rq.avatarText}>{item.name[0]}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                    <Text style={[rq.name, { flex: 1 }]} numberOfLines={1}>{item.name}</Text>
+                    <View style={[t.typeBadge, { backgroundColor: INBOX_STATUS[item.status].color + "22" }]}>
+                      <Text style={[t.typeBadgeText, { color: INBOX_STATUS[item.status].color }]}>{INBOX_STATUS[item.status].label}</Text>
+                    </View>
+                  </View>
+                  <Text style={rq.detail}>{item.subject || "استفسار عام"}</Text>
+                  <Text style={rq.meta}>📞 {item.phone}{item.user_id ? " · مستخدم مسجّل" : " · زائر"}{item.extra?.best_time ? ` · ${item.extra.best_time}` : ""}</Text>
+                </View>
+              </View>
+              <Text style={rq.motivation}>{item.message}</Text>
+              {item.reply ? <Text style={[rq.skills, { color: UC2 }]}>↩ ردّكم: {item.reply}</Text> : null}
+              <Text style={rq.date}>{formatDate(item.created_at)}</Text>
+              <View style={rq.btnRow}>
+                {item.status !== "closed" && (
+                  <TouchableOpacity style={rq.rejectBtn} onPress={async () => {
+                    if (!(await confirmAction("إغلاق الرسالة", "إغلاق هذه الرسالة دون رد إضافي؟", "إغلاق"))) return;
+                    try {
+                      await fetch(`${getApiUrl()}/api/union-manager/inbox/${item.id}`, { method: "PATCH", headers, body: JSON.stringify({ status: "closed" }) });
+                      load();
+                    } catch {}
+                  }}>
+                    <Ionicons name="archive-outline" size={16} color="#EF4444" />
+                    <Text style={rq.rejectText}>إغلاق</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={rq.approveBtn} onPress={() => { setActive(item); setReply(item.reply || ""); }}>
+                  <Ionicons name="return-down-back-outline" size={16} color="#fff" />
+                  <Text style={rq.approveText}>{item.reply ? "تعديل الرد" : "رد"}</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          )}
+        />
+      )}
+
+      <Modal visible={!!active} transparent animationType="slide" onRequestClose={() => setActive(null)}>
+        <KeyboardAvoidingView style={m.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={m.sheet}>
+            <View style={m.handle} />
+            <Text style={m.title}>الرد على {active?.name}</Text>
+            <Text style={[rq.motivation, { maxHeight: 140 }]}>{active?.message}</Text>
+            <Text style={m.label}>نص الرد</Text>
+            <TextInput style={[m.input, { minHeight: 110, textAlignVertical: "top" }]} value={reply} onChangeText={setReply}
+              placeholder="اكتب ردّ الاتحاد..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+            <View style={m.btnRow}>
+              <TouchableOpacity style={m.cancelBtn} onPress={() => setActive(null)}><Text style={m.cancelText}>إلغاء</Text></TouchableOpacity>
+              <TouchableOpacity style={[m.saveBtn, saving && { opacity: 0.6 }]} disabled={saving} onPress={submit}>
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={m.saveText}>إرسال الرد</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
+
+// ── تبويب الأخبار والإعلانات ──────────────────────────────────────
+type UPost = { id: number; title: string; body: string; image_url?: string | null; is_pinned: boolean; created_at: string; author_name?: string | null };
+
+function NewsTab({ token }: { token: string }) {
+  const [posts, setPosts]     = useState<UPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [show, setShow]       = useState(false);
+  const [title, setTitle]     = useState("");
+  const [body, setBody]       = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [pinned, setPinned]   = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${getApiUrl()}/api/student-union/posts?limit=100`);
+      if (r.ok) setPosts((await r.json()).posts || []);
+    } catch {} finally { setLoading(false); setRefreshing(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const publish = async () => {
+    if (!title.trim() || !body.trim()) { notify("تنبيه", "العنوان والمحتوى مطلوبان"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/posts`, {
+        method: "POST", headers, body: JSON.stringify({ title: title.trim(), body: body.trim(), image_url: imageUrl.trim() || null, is_pinned: pinned }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify("خطأ", d.error || "فشل النشر"); return; }
+      setShow(false); setTitle(""); setBody(""); setImageUrl(""); setPinned(false); load();
+      notify("تم النشر", d.notified ? `وصل إشعار إلى ${d.notified} عضو.` : "ظهر الخبر في تبويب «إتحاد الطلاب».");
+    } catch { notify("خطأ", "تعذر الاتصال"); } finally { setSaving(false); }
+  };
+  const togglePin = async (id: number) => {
+    try { await fetch(`${getApiUrl()}/api/union-manager/posts/${id}/pin`, { method: "PATCH", headers }); load(); } catch {}
+  };
+  const remove = async (id: number) => {
+    if (!(await confirmAction("حذف الخبر", "هل تريد حذف هذا الخبر نهائياً؟", "حذف", true))) return;
+    try { await fetch(`${getApiUrl()}/api/union-manager/posts/${id}`, { method: "DELETE", headers }); setPosts(p => p.filter(x => x.id !== id)); } catch {}
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={UC} />}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 110 }}>
+        <Text style={msg_.sectionLabel}>الأخبار والإعلانات — تظهر للطلاب في تبويب «إتحاد الطلاب» ويُشعَر بها الأعضاء المقبولون</Text>
+        {loading && <ActivityIndicator color={UC} />}
+        {!loading && posts.length === 0 && (
+          <View style={t.empty}><Ionicons name="megaphone-outline" size={48} color={Colors.textMuted} /><Text style={t.emptyText}>لم تُنشر أخبار بعد</Text></View>
+        )}
+        {posts.map((p, i) => (
+          <Animated.View key={p.id} entering={FadeInDown.delay(Math.min(i, 8) * 40).springify()} style={[t.card, p.is_pinned && { borderColor: "#F59E0B50" }]}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                  {p.is_pinned && <Ionicons name="pin" size={14} color="#F59E0B" />}
+                  <Text style={[t.cardName, { flex: 1 }]}>{p.title}</Text>
+                </View>
+                <Text style={msg_.content} numberOfLines={4}>{p.body}</Text>
+                <Text style={t.cardInfo}>{formatDate(p.created_at)}{p.author_name ? ` · ${p.author_name}` : ""}</Text>
+              </View>
+              <View style={t.cardActions}>
+                <TouchableOpacity onPress={() => togglePin(p.id)} style={t.actionBtn}>
+                  <Ionicons name={p.is_pinned ? "pin" : "pin-outline"} size={14} color={p.is_pinned ? "#F59E0B" : Colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => remove(p.id)} style={[t.actionBtn, { borderColor: "#EF444420" }]}>
+                  <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
+        ))}
+      </ScrollView>
+
+      <TouchableOpacity style={t.fab} onPress={() => setShow(true)}>
+        <LinearGradient colors={[UC, "#173F5F"]} style={t.fabInner}>
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={t.fabText}>خبر جديد</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
+        <KeyboardAvoidingView style={m.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <ScrollView style={m.sheet} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled">
+            <View style={m.handle} />
+            <Text style={m.title}>نشر خبر / إعلان</Text>
+            <Text style={m.label}>العنوان *</Text>
+            <TextInput style={m.input} value={title} onChangeText={setTitle} placeholder="عنوان الخبر" placeholderTextColor={Colors.textMuted} textAlign="right" maxLength={200} />
+            <Text style={m.label}>المحتوى *</Text>
+            <TextInput style={[m.input, { minHeight: 120, textAlignVertical: "top" }]} value={body} onChangeText={setBody} placeholder="نص الخبر أو الإعلان..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
+            <Text style={m.label}>رابط صورة (اختياري)</Text>
+            <TextInput style={m.input} value={imageUrl} onChangeText={setImageUrl} placeholder="https://..." placeholderTextColor={Colors.textMuted} autoCapitalize="none" keyboardType="url" />
+            <TouchableOpacity onPress={() => setPinned(v => !v)} style={[pm.row, pinned && pm.rowActive]}>
+              <Ionicons name={pinned ? "checkbox" : "square-outline"} size={20} color={pinned ? UC : Colors.textMuted} />
+              <Text style={[pm.label, pinned && pm.labelActive]}>تثبيت في أعلى القائمة</Text>
+            </TouchableOpacity>
+            <View style={m.btnRow}>
+              <TouchableOpacity style={m.cancelBtn} onPress={() => setShow(false)}><Text style={m.cancelText}>إلغاء</Text></TouchableOpacity>
+              <TouchableOpacity style={[m.saveBtn, saving && { opacity: 0.6 }]} disabled={saving} onPress={publish}>
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={m.saveText}>نشر وإشعار الأعضاء</Text>}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -866,7 +1128,8 @@ export default function UnionManagerPortalScreen() {
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "account">("staff");
+  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "account">("requests");
+  const [inboxBadge, setInboxBadge] = useState(0);
   const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0, pending_requests: 0 });
   const [reqBadge, setReqBadge] = useState(0);
 
@@ -884,6 +1147,8 @@ export default function UnionManagerPortalScreen() {
         const d = await r.json();
         setStats(d.stats);
         setReqBadge(d.stats.pending_requests || 0);
+        fetch(`${getApiUrl()}/api/union-manager/inbox?status=open`, { headers: { Authorization: `Bearer ${tok}` } })
+          .then(x => x.ok ? x.json() : null).then(x => { if (x) setInboxBadge(x.open_count || 0); }).catch(() => {});
       } else { setToken(null); setManager(null); await AsyncStorage.multiRemove([MGTOKEN_KEY, MGINFO_KEY]); }
     } catch {}
   }, []);
@@ -892,14 +1157,10 @@ export default function UnionManagerPortalScreen() {
 
   const handleLogin = (tok: string, mgr: Manager) => { setToken(tok); setManager(mgr); };
 
-  const logout = () => {
-    Alert.alert("تسجيل الخروج", "هل تريد تسجيل الخروج؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "خروج", style: "destructive", onPress: async () => {
-        await AsyncStorage.multiRemove([MGTOKEN_KEY, MGINFO_KEY]);
-        setToken(null); setManager(null);
-      }},
-    ]);
+  const logout = async () => {
+    if (!(await confirmAction("تسجيل الخروج", "هل تريد تسجيل الخروج؟", "خروج", true))) return;
+    await AsyncStorage.multiRemove([MGTOKEN_KEY, MGINFO_KEY]);
+    setToken(null); setManager(null);
   };
 
   if (checking) return <View style={{ flex: 1, backgroundColor: Colors.bg, justifyContent: "center", alignItems: "center" }}><ActivityIndicator color={UC} /></View>;
@@ -907,6 +1168,8 @@ export default function UnionManagerPortalScreen() {
 
   const TABS = [
     { key: "requests", icon: "mail-unread-outline",  label: "الطلبات",     badge: reqBadge },
+    { key: "inbox",    icon: "file-tray-full-outline", label: "رسائل الطلاب", badge: inboxBadge },
+    { key: "news",     icon: "megaphone-outline",     label: "الأخبار",     badge: 0 },
     { key: "staff",    icon: "people-outline",        label: "الموظفون",    badge: 0 },
     { key: "meetings", icon: "calendar-outline",      label: "الاجتماعات",  badge: 0 },
     { key: "messages", icon: "chatbubbles-outline",   label: "التواصل",     badge: 0 },
@@ -947,6 +1210,8 @@ export default function UnionManagerPortalScreen() {
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
         {tab === "requests" && <RequestsTab token={token} onBadgeChange={n => { setReqBadge(n); setStats(p => ({ ...p, pending_requests: n })); }} />}
+        {tab === "inbox"    && <InboxTab token={token} onBadgeChange={setInboxBadge} />}
+        {tab === "news"     && <NewsTab token={token} />}
         {tab === "staff"    && <StaffTab token={token} />}
         {tab === "meetings" && <MeetingsTab token={token} />}
         {tab === "messages" && <MessagesTab token={token} manager={manager} />}
@@ -1025,7 +1290,7 @@ const ps = StyleSheet.create({
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   tabBar: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderTopWidth: 1, borderTopColor: Colors.borderSubtle, paddingTop: 8 },
   tabItem: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 4 },
-  tabLabel: { fontFamily: "Cairo_400Regular", fontSize: 11 },
+  tabLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, textAlign: "center" },
   badge: { position: "absolute", top: -4, right: -6, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
   accountTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.text, textAlign: "center", marginBottom: 8 },

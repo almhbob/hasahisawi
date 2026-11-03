@@ -13,6 +13,8 @@ import { notify } from "@/lib/xplatform";
 import { membersApi, REF_KEY, type MembershipMe, type MemberCategory, type Badge } from "@/lib/lit-members";
 import { WINE, GOLD, INK } from "@/lib/lit";
 import MemberCard from "@/components/lit/MemberCard";
+import IntlMemberCard from "@/components/lit/IntlMemberCard";
+import { flagOf, countryOf } from "@/lib/countries";
 import { SectionTitle, ithraaStyles as u } from "@/components/ithraa/ui";
 
 
@@ -25,6 +27,7 @@ export default function MembershipScreen() {
   const [me, setMe] = useState<MembershipMe | null>(null);
   const [meta, setMeta] = useState<{ categories: MemberCategory[]; badges: Badge[]; rules: { inactive_days: number } } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [face, setFace] = useState<"local" | "intl" | null>(null);
 
   useEffect(() => { if (params.ref) AsyncStorage.setItem(REF_KEY, String(params.ref)).catch(() => {}); }, [params.ref]);
   const load = useCallback(async () => {
@@ -64,7 +67,29 @@ export default function MembershipScreen() {
 
           {!loading && m && (
             <>
-              <View style={{ marginTop: 18 }}><MemberCard m={m} badges={me!.badges} width={cardW} /></View>
+              {/* الوجه الدولي افتراضي للمنتسبين خارج السودان، ومتاح لكل عضو أضاف اسمه بالإنجليزية */}
+              {(() => {
+                const f = face ?? (m.international ? "intl" : "local");
+                const canIntl = m.international || !!m.name_en;
+                return (
+                  <>
+                    {canIntl && (
+                      <View style={[st.faceRow]}>
+                        {(["local", "intl"] as const).map((x) => (
+                          <Pressable key={x} accessibilityRole="button" onPress={() => setFace(x)} style={[st.faceBtn, f === x && { backgroundColor: m.color, borderColor: m.color }]}>
+                            <Text style={[st.faceT, f === x && { color: "#fff" }]}>{x === "local" ? "البطاقة المحلية" : `${flagOf(m.country)} البطاقة الدولية`}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    <View style={{ marginTop: canIntl ? 10 : 18 }}>
+                      {f === "intl" && canIntl ? <IntlMemberCard m={m} width={cardW} /> : <MemberCard m={m} badges={me!.badges} width={cardW} />}
+                    </View>
+                    {m.international && <Text style={st.faceNote}>منتسب دولي · {countryOf(m.country).ar} — بطاقتك ثنائية اللغة وقابلة للتحقق برمز QR من أي دولة.</Text>}
+                    {!canIntl && <Text style={st.faceNote}>أضف اسمك بالإنجليزية من «تعديل الاستمارة» لتحصل على الوجه الدولي للبطاقة.</Text>}
+                  </>
+                );
+              })()}
 
               {m.status === "pending" && <Notice c="#B7791F" i="time" t="استمارتك قيد المراجعة" d="ستراجع الإدارة أعمالك الثلاثة وبياناتك، ويصلك إشعار بالقرار. يُصدر رقم العضوية بعد الاعتماد." />}
               {m.status === "rejected" && <Notice c="#C0392B" i="close-circle" t="لم تُعتمد الاستمارة" d={m.admin_note || "راجع الملاحظات وأعد التقديم."} action="تعديل وإعادة التقديم" onAction={apply} />}
@@ -190,6 +215,10 @@ function BadgesGrid({ all, earned }: { all: Badge[]; earned: string[] }) {
 }
 
 const st = StyleSheet.create({
+  faceRow: { flexDirection: "row-reverse", gap: 8, marginTop: 18, justifyContent: "center" },
+  faceBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
+  faceT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
+  faceNote: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textSecondary, textAlign: "center", marginTop: 10, lineHeight: 20 },
   hero: { paddingHorizontal: 16, paddingBottom: 26, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" },
   pill: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GOLD, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 18 },

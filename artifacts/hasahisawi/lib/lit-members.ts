@@ -7,7 +7,8 @@ export type Badge = { key: string; label: string; desc: string; icon: string; co
 export type Award = { id: number; title: string; description: string | null; icon: string; color: string; created_at: string };
 export type Member = {
   id: number; user_id: number; category: string; category_label: string; category_title: string; color: string; accent: string; icon: string;
-  tier: string; tier_label: string; full_name: string; pen_name: string | null; city: string | null; bio: string | null; genres: string[]; avatar_url: string | null;
+  tier: string; tier_label: string; full_name: string; pen_name: string | null; city: string | null;
+  country: string; country_ar?: string; country_en?: string; name_en: string | null; international: boolean; bio: string | null; genres: string[]; avatar_url: string | null;
   status: "pending" | "active" | "suspended" | "expired" | "rejected"; member_no: string | null; issued_at: string | null; valid_until: string | null; renewals: number;
   renewal_requested_at: string | null; suspended_reason: "inactive" | "admin" | null; suspended_at: string | null; press_org: string | null; press_role: string | null;
   created_at: string; card_url: string | null; last_activity_at: string | null;

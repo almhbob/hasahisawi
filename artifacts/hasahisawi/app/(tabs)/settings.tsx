@@ -864,7 +864,7 @@ function NotificationsAdminSection({ t, isRTL, lang }: { t: any; isRTL: boolean;
     setLoading(true);
     try {
       const base = getApiUrl();
-      const res = await fetchWithTimeout(`${base}/api/notifications`);
+      const res = await fetchWithTimeout(`${base}/api/notifications`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) setNotifications(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -3097,6 +3097,18 @@ export default function SettingsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={sub_s.rideCardTitle}>إدارة المحتوى العام</Text>
                   <Text style={sub_s.rideCardSub}>حذف المستشفيات والمتاجر والجهات الوهمية أو المخالفة من كل الأقسام، وإضافة جهات حجز المواعيد</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+
+            {/* ── دعوات الأقسام الرسمية (للمدير فقط) ── */}
+            {isAdmin && (
+              <TouchableOpacity style={[sub_s.rideCard, { flexDirection: "row-reverse", alignItems: "center", gap: 10 }]} onPress={() => router.push("/admin-invites" as any)} activeOpacity={0.85}>
+                <MaterialCommunityIcons name="email-fast-outline" size={22} color="#0B6B49" />
+                <View style={{ flex: 1 }}>
+                  <Text style={sub_s.rideCardTitle}>دعوات الأقسام</Text>
+                  <Text style={sub_s.rideCardSub}>أرسل دعوة انضمام رسمية باسم شخص أو جهة لأي قسم، برابط مباشر وبطاقة أنيقة، وتابع من فتحها وقبلها</Text>
                 </View>
                 <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
               </TouchableOpacity>
