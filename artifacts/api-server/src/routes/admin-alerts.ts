@@ -34,6 +34,13 @@ export const ALERT_RULES: Rule[] = [
   { re: /^\/medical\/staff\/register\/?$/,                kind: "medical_staff",   title: "🩺 طلب تسجيل كادر طبي",        screen: "requests" },
   { re: /^\/communities\/register\/?$/,                   kind: "community",       title: "🏘️ طلب تسجيل مجتمع",          screen: "requests" },
   { re: /^\/ads\/request\/?$/,                            kind: "ad",              title: "📣 طلب إعلان",                 screen: "ads" },
+  // طلبات كانت لا تصل للإدارة إطلاقاً
+  { re: /^\/design-gallery\/subscribe\/?$/,               kind: "designer",        title: "🎨 طلب انضمام مصمم",            screen: "designers" },
+  { re: /^\/lit\/membership\/apply\/?$/,                  kind: "writer_member",   title: "🪪 طلب عضوية ديوان الكُتّاب",   screen: "writers" },
+  { re: /^\/srcs\/join\/?$/,                              kind: "srcs_member",     title: "🚑 طلب انضمام للهلال الأحمر",   screen: "srcs" },
+  { re: /^\/volunteer\/card\/request\/?$/,                kind: "volunteer_card",  title: "🎖️ طلب بطاقة متطوع",           screen: "volunteer" },
+  { re: /^\/ithraa\/items\/?$/,                           kind: "ithraa_item",     title: "📚 مساهمة جديدة في إثراء",      screen: "ithraa" },
+  { re: /^\/profile\/me\/verification\/?$/,                kind: "verification",    title: "✔️ طلب توثيق حساب",            screen: "verify" },
 ];
 
 const NAME_KEYS = ["full_name", "owner_name", "applicant_name", "inst_name", "org_name", "agency_name", "store_name",
@@ -151,10 +158,15 @@ router.get("/admin/alerts", async (req, res) => {
     const u = await requireStaff(req, res); if (!u) return;
     await ensureAdminAlertsDb();
     const after = Math.max(0, Number(req.query.after) || 0);
+    // before: لتصفح الطلبات الأقدم (كان الصندوق يعرض آخر 100 فقط ولا يمكن الرجوع لما قبلها)
+    const before = Math.max(0, Number(req.query.before) || 0);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
     const cur = await query(`SELECT last_seen_id FROM admin_alert_cursor WHERE user_id=$1`, [u.id]);
     const lastSeen = Number(cur.rows[0]?.last_seen_id ?? 0);
-    const list = await query(`SELECT * FROM admin_alerts WHERE id>$1 ORDER BY id DESC LIMIT $2`, [after, limit]);
+    const kindQ = typeof req.query.kind === "string" && /^[a-z_]{2,30}$/.test(req.query.kind) ? req.query.kind : null;
+    const list = await query(
+      `SELECT * FROM admin_alerts WHERE id>$1 AND ($3::bigint = 0 OR id<$3) AND ($4::text IS NULL OR kind=$4) ORDER BY id DESC LIMIT $2`,
+      [after, limit, before, kindQ]);
     const unread = await query(`SELECT COUNT(*)::int AS n FROM admin_alerts WHERE id>$1`, [lastSeen]);
     const max = await query(`SELECT COALESCE(MAX(id),0)::bigint AS m FROM admin_alerts`);
     res.json({ alerts: list.rows, unread: unread.rows[0].n, last_seen_id: lastSeen, latest_id: Number(max.rows[0].m) });
