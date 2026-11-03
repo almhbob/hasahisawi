@@ -47,7 +47,7 @@ export default function ContestManage() {
           <Text style={st.barTitle} numberOfLines={1}>{creating ? "دورة جديدة" : contest ? contest.title : "إدارة المسابقة الأدبية"}</Text>
           {contest && <Text style={[st.barSub, { color: PHASE_META[contest.phase].color }]}>{PHASE_META[contest.phase].label}</Text>}
         </View>
-        {contest ? <Pressable onPress={() => router.push({ pathname: "/lit-contest", params: { id: String(contest.id) } } as any)} style={st.barBtn} accessibilityLabel="معاينة"><Ionicons name="eye-outline" size={20} color={INK} /></Pressable> : <View style={{ width: 40 }} />}
+        {contest ? <Pressable accessibilityRole="button" hitSlop={8} onPress={() => router.push({ pathname: "/lit-contest", params: { id: String(contest.id) } } as any)} style={st.barBtn} accessibilityLabel="معاينة"><Ionicons name="eye-outline" size={20} color={INK} /></Pressable> : <View style={{ width: 40 }} />}
       </View>
 
       {!id && !creating ? (
@@ -180,7 +180,7 @@ function ContestForm({ token, meta, contest, onSaved, onDeleted }: { token: stri
         <View key={i} style={[u.rowR, { gap: 8, marginBottom: 6 }]}>
           <TextInput value={c.label} onChangeText={(t) => setCriteria(criteria.map((x, j) => (j === i ? { ...x, label: t } : x)))} style={[u.input, { flex: 1 }]} editable={!locked} />
           <TextInput value={String(c.weight)} onChangeText={(t) => setCriteria(criteria.map((x, j) => (j === i ? { ...x, weight: Number(t.replace(/\D/g, "")) || 0 } : x)))} keyboardType="number-pad" style={[u.input, { width: 64, textAlign: "center" }]} editable={!locked} />
-          {!locked && criteria.length > 2 && <Pressable onPress={() => setCriteria(criteria.filter((_, j) => j !== i))}><Ionicons name="remove-circle" size={22} color="#C0392B" /></Pressable>}
+          {!locked && criteria.length > 2 && <Pressable accessibilityRole="button" accessibilityLabel="إزالة" hitSlop={8} onPress={() => setCriteria(criteria.filter((_, j) => j !== i))}><Ionicons name="remove-circle" size={22} color="#C0392B" /></Pressable>}
         </View>
       ))}
       {!locked && criteria.length < 8 && <Pressable onPress={() => setCriteria([...criteria, { key: `c${Date.now() % 10000}`, label: "", weight: 0 }])}><Text style={st.link}>+ معيار</Text></Pressable>}
@@ -190,7 +190,7 @@ function ContestForm({ token, meta, contest, onSaved, onDeleted }: { token: stri
         <View key={i} style={[u.rowR, { gap: 8, marginBottom: 6 }]}>
           <TextInput value={p.label} onChangeText={(t) => setPrizes(prizes.map((x, j) => (j === i ? { ...x, label: t } : x)))} style={[u.input, { width: 130 }]} editable={!locked} />
           <TextInput value={p.reward} onChangeText={(t) => setPrizes(prizes.map((x, j) => (j === i ? { ...x, reward: t } : x)))} placeholder="الجائزة (مبلغ، درع، طباعة…)" placeholderTextColor={Colors.textMuted} style={[u.input, { flex: 1 }]} editable={!locked} />
-          {!locked && prizes.length > 1 && <Pressable onPress={() => setPrizes(prizes.filter((_, j) => j !== i))}><Ionicons name="remove-circle" size={22} color="#C0392B" /></Pressable>}
+          {!locked && prizes.length > 1 && <Pressable accessibilityRole="button" accessibilityLabel="إزالة" hitSlop={8} onPress={() => setPrizes(prizes.filter((_, j) => j !== i))}><Ionicons name="remove-circle" size={22} color="#C0392B" /></Pressable>}
         </View>
       ))}
       {!locked && prizes.length < 10 && <Pressable onPress={() => setPrizes([...prizes, { rank: prizes.length + 1, label: `المركز ${prizes.length + 1}`, reward: "" }])}><Text style={st.link}>+ مركز</Text></Pressable>}
@@ -244,7 +244,7 @@ function Judges({ token, contest }: { token: string; contest: Contest }) {
             <Text style={st.hitName}>{j.name}</Text>
             <TextInput value={j.title || ""} onChangeText={(t) => setJudges(judges.map((x, k) => (k === i ? { ...x, title: t } : x)))} placeholder="الصفة (ناقد، شاعر، أستاذ أدب…)" placeholderTextColor={Colors.textMuted} style={st.titleIn} />
           </View>
-          {!contest.results_published && <Pressable onPress={() => setJudges(judges.filter((x) => x.user_id !== j.user_id))}><Ionicons name="close-circle" size={22} color="#C0392B" /></Pressable>}
+          {!contest.results_published && <Pressable accessibilityRole="button" accessibilityLabel="إغلاق" hitSlop={8} onPress={() => setJudges(judges.filter((x) => x.user_id !== j.user_id))}><Ionicons name="close-circle" size={22} color="#C0392B" /></Pressable>}
         </View>
       ))}
       {!judges.length && <Empty icon="people-outline" title="لم تُشكَّل اللجنة بعد" />}
@@ -397,7 +397,7 @@ function Supervisors({ token }: { token: string }) {
       {list.map((s) => (
         <View key={s.user_id} style={st.hit}>
           <UserAvatar name={s.name} avatarUrl={s.avatar_url} size={30} /><Text style={[st.hitName, { flex: 1 }]}>{s.name}</Text>
-          <Pressable onPress={async () => { if (await confirmAction("إزالة مشرف", s.name, "إزالة", true)) { await litApi.removeSupervisor(token, s.user_id).catch(() => {}); load(); } }}><Ionicons name="trash-outline" size={19} color="#C0392B" /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="حذف" hitSlop={8} onPress={async () => { if (await confirmAction("إزالة مشرف", s.name, "إزالة", true)) { await litApi.removeSupervisor(token, s.user_id).catch(() => {}); load(); } }}><Ionicons name="trash-outline" size={19} color="#C0392B" /></Pressable>
         </View>
       ))}
       {!list.length && <Text style={[u.hint, { marginTop: 6 }]}>لم يُعيَّن مشرفون بعد (مسؤولو التطبيق يملكون الصلاحية تلقائياً).</Text>}
@@ -414,14 +414,14 @@ const st = StyleSheet.create({
   bar: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 8, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 15.5, color: INK, textAlign: "center" },
-  barSub: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, textAlign: "center" },
+  barSub: { fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "center" },
   tabs: { flexDirection: "row-reverse", backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   tab: { flex: 1, alignItems: "center", paddingVertical: 9, gap: 2, borderBottomWidth: 2.5, borderBottomColor: "transparent" },
-  tabT: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: Colors.textMuted },
+  tabT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textMuted },
   h: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", marginTop: 18, marginBottom: 8 },
   sec: { fontFamily: "Cairo_700Bold", fontSize: 14, color: WINE, textAlign: "right", marginTop: 20 },
   cTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
-  phase: { fontFamily: "Cairo_700Bold", fontSize: 11, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" },
+  phase: { fontFamily: "Cairo_700Bold", fontSize: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" },
   link: { fontFamily: "Cairo_700Bold", fontSize: 13, color: WINE, textAlign: "right", marginTop: 2 },
   chk: { fontFamily: "Cairo_600SemiBold", fontSize: 13.5, color: Colors.textPrimary },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },

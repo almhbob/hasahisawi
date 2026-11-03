@@ -178,7 +178,7 @@ const st = StyleSheet.create({
   actionT: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: INK },
   docBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 16, backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: GOLD + "55", padding: 12 },
   docT: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: INK, textAlign: "right" },
-  docS: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "#8A7A6A", textAlign: "right" },
+  docS: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#8A7A6A", textAlign: "right" },
   box: { marginTop: 14, backgroundColor: "#FDF2F2", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#F5C2C2", gap: 2 },
   boxT: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#7A2E2E", textAlign: "right", lineHeight: 20 },
   h: { fontFamily: "Cairo_700Bold", fontSize: 15, color: INK, textAlign: "right" },

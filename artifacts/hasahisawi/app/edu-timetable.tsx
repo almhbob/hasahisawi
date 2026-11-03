@@ -270,9 +270,9 @@ function PlanSheet({ ov, wsId, token, classId, settings, onClose }: { ov: Overvi
                   <View style={[e.rowR, { justifyContent: "space-between" }]}>
                     <Text style={[e.t, { color: sb.color }]}>{sb.name}</Text>
                     <View style={[e.rowR, { gap: 8 }]}>
-                      <Pressable onPress={() => set(sb.id, { weekly: Math.max(0, r.weekly - 1) })} style={st.step}><Ionicons name="remove" size={16} color={EDU} /></Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel="إزالة" hitSlop={8} onPress={() => set(sb.id, { weekly: Math.max(0, r.weekly - 1) })} style={st.step}><Ionicons name="remove" size={16} color={EDU} /></Pressable>
                       <Text style={[e.t, { minWidth: 24, textAlign: "center" }]}>{r.weekly}</Text>
-                      <Pressable onPress={() => set(sb.id, { weekly: Math.min(20, r.weekly + 1) })} style={st.step}><Ionicons name="add" size={16} color={EDU} /></Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel="إضافة" hitSlop={8} onPress={() => set(sb.id, { weekly: Math.min(20, r.weekly + 1) })} style={st.step}><Ionicons name="add" size={16} color={EDU} /></Pressable>
                     </View>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, transform: [{ scaleX: -1 }] }} contentContainerStyle={{ gap: 6 }}>

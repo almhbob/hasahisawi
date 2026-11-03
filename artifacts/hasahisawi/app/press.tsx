@@ -232,7 +232,7 @@ function JournalistCard({ j }: { j: Journalist }) {
         </View>
       </View>
       <View style={{ gap: 6 }}>
-        {!!j.whatsapp && <Pressable onPress={() => Linking.openURL(`https://wa.me/${j.whatsapp!.replace(/\D/g, "")}`)} style={[st.cBtn, { backgroundColor: "#128C7E" }]} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={16} color="#fff" /></Pressable>}
+        {!!j.whatsapp && <Pressable accessibilityRole="button" hitSlop={8} onPress={() => Linking.openURL(`https://wa.me/${j.whatsapp!.replace(/\D/g, "")}`)} style={[st.cBtn, { backgroundColor: "#128C7E" }]} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={16} color="#fff" /></Pressable>}
         {!!j.email && <Pressable onPress={() => Linking.openURL(`mailto:${j.email}`)} style={[st.cBtn, { backgroundColor: PRESS_INK }]} accessibilityLabel="بريد"><Ionicons name="mail" size={15} color="#fff" /></Pressable>}
       </View>
     </Pressable>
@@ -296,19 +296,19 @@ const st = StyleSheet.create({
   adminBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: PRESS_RED, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
   adminT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
   logo: { width: 54, height: 54, borderRadius: 14, backgroundColor: PRESS_RED, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  kicker: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "rgba(255,255,255,0.7)", textAlign: "right" },
+  kicker: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.7)", textAlign: "right" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#fff", textAlign: "right" },
   status: { flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-end", borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 3, marginTop: 10 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  statusT: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#fff" },
+  statusT: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
   stat: { flex: 1, borderRadius: 12, paddingVertical: 8, alignItems: "center", backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
   statN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
-  statL: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.7)" },
+  statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" },
   tabsWrap: { backgroundColor: Colors.bg, paddingVertical: 10 },
   tab: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
   tabT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textSecondary },
   disclaimer: { flexDirection: "row-reverse", gap: 6, backgroundColor: "#B7791F12", borderRadius: 12, padding: 10, marginBottom: 10 },
-  discT: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "#7A5A12", textAlign: "right", lineHeight: 19 },
+  discT: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A5A12", textAlign: "right", lineHeight: 19 },
   urgent: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: PRESS_RED, borderRadius: 14, padding: 12, marginBottom: 10 },
   urgentTag: { backgroundColor: "#fff", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 1 },
   urgentTagT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: PRESS_RED },
@@ -318,17 +318,17 @@ const st = StyleSheet.create({
   post: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.divider, gap: 4 },
   postLead: { borderTopWidth: 4, borderTopColor: PRESS_RED },
   cover: { height: 170, borderRadius: 10, marginBottom: 8 },
-  tagRed: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff", backgroundColor: PRESS_RED, paddingHorizontal: 7, borderRadius: 6, overflow: "hidden" },
+  tagRed: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", backgroundColor: PRESS_RED, paddingHorizontal: 7, borderRadius: 6, overflow: "hidden" },
   kindT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: PRESS_INK },
-  ref: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, color: Colors.textMuted, letterSpacing: 0.4 },
+  ref: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, letterSpacing: 0.4 },
   postT: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", lineHeight: 26 },
   postS: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 },
   jCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: Colors.divider },
   accBadge: { position: "absolute", bottom: -4, left: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: PRESS_RED, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: Colors.cardBg },
   jName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   jRole: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: PRESS_RED, textAlign: "right" },
-  accT: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#fff", backgroundColor: PRESS_RED, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 6, overflow: "hidden" },
-  memT: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, color: Colors.textSecondary, backgroundColor: Colors.divider, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 6, overflow: "hidden" },
+  accT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", backgroundColor: PRESS_RED, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 6, overflow: "hidden" },
+  memT: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, backgroundColor: Colors.divider, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 6, overflow: "hidden" },
   cBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   joinBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 14, padding: 14, borderRadius: 16, borderWidth: 1, borderStyle: "dashed", borderColor: PRESS_RED + "66", backgroundColor: PRESS_RED + "08" },
   joinT: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
@@ -336,7 +336,7 @@ const st = StyleSheet.create({
   tItem: { flexDirection: "row-reverse", gap: 10 },
   tRail: { width: 14, alignItems: "center", borderRightWidth: 2, borderRightColor: Colors.divider, marginRight: 6 },
   tDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: PRESS_RED, marginTop: 16, marginRight: -7 },
-  aKind: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: PRESS_RED },
+  aKind: { fontFamily: "Cairo_700Bold", fontSize: 12, color: PRESS_RED },
   aTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", marginTop: 2 },
   aDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22, marginTop: 4 },
   file: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 6, padding: 8, borderRadius: 10, backgroundColor: Colors.bg },

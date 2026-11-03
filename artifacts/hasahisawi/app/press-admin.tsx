@@ -36,7 +36,7 @@ export default function PressAdmin() {
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <View style={[st.bar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/press" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color="#fff" /></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/press" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color="#fff" /></Pressable>
         <View style={{ flex: 1 }}>
           <Text style={st.barTitle}>لوحة الأمانة الإعلامية</Text>
           <Text style={st.barSub}>{ov.me.role_label}{ov.me.can_push ? " · صلاحية التنبيه العاجل" : ""}</Text>
@@ -117,7 +117,7 @@ function Compose({ token, ov, editId, onDone }: { token: string; ov: PressOvervi
       </View>
       {!!up.busy && <Text style={[u.hint, { color: PRESS_RED }]}>جارٍ الرفع… {up.busy}</Text>}
       {files.map((f, i) => (
-        <View key={i} style={st.fileRow}><Ionicons name="document-attach" size={16} color={PRESS_RED} /><Text style={st.fileT} numberOfLines={1}>{f.name}</Text><Pressable onPress={() => setFiles(files.filter((_, j) => j !== i))}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></Pressable></View>
+        <View key={i} style={st.fileRow}><Ionicons name="document-attach" size={16} color={PRESS_RED} /><Text style={st.fileT} numberOfLines={1}>{f.name}</Text><Pressable accessibilityRole="button" accessibilityLabel="إغلاق" hitSlop={8} onPress={() => setFiles(files.filter((_, j) => j !== i))}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></Pressable></View>
       ))}
       <Pressable onPress={() => setPinned(!pinned)} style={[u.rowR, { gap: 8, marginTop: 14 }]}><Ionicons name={pinned ? "checkbox" : "square-outline"} size={22} color={PRESS_INK} /><Text style={st.chk}>تثبيت في أعلى النافذة</Text></Pressable>
       <Pressable onPress={() => ov.me?.can_push ? setUrgent(!urgent) : notify("صلاحية", "التنبيه العاجل لمن منحتهم الإدارة هذه الصلاحية")} style={[st.urgentBox, urgent && { borderColor: PRESS_RED, backgroundColor: PRESS_RED + "0D" }]}>
@@ -256,7 +256,7 @@ function Settings({ token, ov }: { token: string; ov: PressOverview }) {
         <View key={m.user_id} style={[u.card, { marginTop: 8, flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 10 }]}>
           <UserAvatar name={m.name} avatarUrl={m.avatar_url} size={36} />
           <View style={{ flex: 1 }}><Text style={st.pTitle}>{m.name}</Text><Text style={u.hint}>{m.role_label}{m.title ? ` · ${m.title}` : ""}{m.can_push ? " · تنبيه عاجل" : ""}</Text></View>
-          <Pressable onPress={async () => { if (await confirmAction("إزالة", m.name, "إزالة", true)) { await pressApi.delStaff(token, m.user_id).catch((e) => notify("تعذّر", e?.message)); loadStaff(); } }}><Ionicons name="trash-outline" size={19} color={PRESS_RED} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="حذف" hitSlop={8} onPress={async () => { if (await confirmAction("إزالة", m.name, "إزالة", true)) { await pressApi.delStaff(token, m.user_id).catch((e) => notify("تعذّر", e?.message)); loadStaff(); } }}><Ionicons name="trash-outline" size={19} color={PRESS_RED} /></Pressable>
         </View>
       ))}
       <View style={[u.card, { marginTop: 10 }]}>
@@ -298,7 +298,7 @@ const st = StyleSheet.create({
   bar: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 10, backgroundColor: PRESS_INK },
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "center" },
-  barSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.7)", textAlign: "center" },
+  barSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)", textAlign: "center" },
   tabs: { backgroundColor: Colors.cardBg, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   tab: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18, borderWidth: 1, borderColor: Colors.divider },
   tabT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary },
@@ -307,8 +307,8 @@ const st = StyleSheet.create({
   urgentBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 12, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   fileRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, backgroundColor: Colors.cardBg, marginTop: 6, borderWidth: 1, borderColor: Colors.divider },
   fileT: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
-  status: { fontFamily: "Cairo_700Bold", fontSize: 11.5 },
-  kind: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: PRESS_INK },
+  status: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  kind: { fontFamily: "Cairo_700Bold", fontSize: 12, color: PRESS_INK },
   pTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   sBtn: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider },
   sBtnT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: PRESS_INK },

@@ -33,7 +33,7 @@ export default function MembersAdmin() {
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <View style={[st.bar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/writers-membership" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color={INK} /></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/writers-membership" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color={INK} /></Pressable>
         <Text style={st.barTitle}>إدارة العضويات</Text>
         <View style={{ width: 40 }} />
       </View>

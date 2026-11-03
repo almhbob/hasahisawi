@@ -58,7 +58,7 @@ export default function AdminListings() {
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <View style={[st.bar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => (kind ? (setKind(""), setQ("")) : router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع">
+        <Pressable accessibilityRole="button" onPress={() => (kind ? (setKind(""), setQ("")) : router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color={Colors.textPrimary} />
         </Pressable>
         <Text style={st.barTitle}>{cur ? cur.label : "إدارة المحتوى العام"}</Text>
@@ -108,7 +108,7 @@ export default function AdminListings() {
                         {it.active === false ? " · معطّل" : ""}{it.status ? ` · ${it.status}` : ""}
                       </Text>
                     </View>
-                    <Pressable onPress={() => del(it)} style={st.delBtn} accessibilityLabel={`حذف ${it.name}`}>
+                    <Pressable accessibilityRole="button" hitSlop={8} onPress={() => del(it)} style={st.delBtn} accessibilityLabel={`حذف ${it.name}`}>
                       <Ionicons name="trash-outline" size={18} color="#B42318" />
                     </Pressable>
                   </View>

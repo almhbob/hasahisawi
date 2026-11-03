@@ -92,7 +92,7 @@ export default function IthraaScreen() {
   const header = (
     <LinearGradient colors={[ITHRAA_DEEP, ITHRAA]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[s.hero, { paddingTop: insets.top + 10 }]}>
       <View style={[u.rowR, { justifyContent: "space-between" }]}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} style={s.iconBtn} hitSlop={8} accessibilityLabel="رجوع">
+        <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} style={s.iconBtn} hitSlop={8} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color="#fff" />
         </Pressable>
         {meta?.me?.can_review ? (
@@ -121,7 +121,7 @@ export default function IthraaScreen() {
           value={q} onChangeText={(t) => { setQ(t); if (tab === "home" || tab === "mine") setTab("books"); }}
           placeholder="ابحث بعنوان أو مؤلف أو وسم…" placeholderTextColor={Colors.textMuted} style={s.searchInput} returnKeyType="search"
         />
-        {!!q && <Pressable onPress={() => setQ("")} hitSlop={8}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></Pressable>}
+        {!!q && <Pressable accessibilityRole="button" accessibilityLabel="إغلاق" onPress={() => setQ("")} hitSlop={8}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></Pressable>}
       </View>
     </LinearGradient>
   );
@@ -358,13 +358,13 @@ const s = StyleSheet.create({
   reviewBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: ITHRAA_GOLD, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
   reviewText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: ITHRAA_DEEP },
   badge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: "#C0392B", alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
-  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
+  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
   logo: { width: 50, height: 50, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
   heroTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, color: "#fff", textAlign: "right" },
   heroSub: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.85)", textAlign: "right", lineHeight: 20 },
   stat: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 12, paddingVertical: 8, alignItems: "center" },
   statN: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff" },
-  statL: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.8)" },
+  statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)" },
   search: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 14, paddingHorizontal: 12, marginTop: 14, height: 46 },
   searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right", paddingVertical: 0 },
   tabsWrap: { backgroundColor: Colors.bg, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
@@ -382,10 +382,10 @@ const s = StyleSheet.create({
   fabText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   featArticle: { width: 150, height: 163, borderRadius: 10, padding: 12, overflow: "hidden", justifyContent: "space-between" },
   featTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: "#fff", textAlign: "right", lineHeight: 21 },
-  featSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.85)", textAlign: "right" },
+  featSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.85)", textAlign: "right" },
   stepNo: { width: 32, height: 32, borderRadius: 10, backgroundColor: ITHRAA + "14", alignItems: "center", justifyContent: "center" },
   diwan: { flexDirection: "row-reverse", alignItems: "center", gap: 12, borderRadius: 18, padding: 16 },
-  diwanK: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: ITHRAA_GOLD, textAlign: "right" },
+  diwanK: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: ITHRAA_GOLD, textAlign: "right" },
   diwanT: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#fff", textAlign: "right" },
   diwanS: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.85)", textAlign: "right", lineHeight: 20 },
   diwanIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },

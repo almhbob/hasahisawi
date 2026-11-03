@@ -180,10 +180,10 @@ const st = StyleSheet.create({
   hSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#D1D5DB", textAlign: "right" },
   stat: { flex: 1, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 12, paddingVertical: 8, alignItems: "center" },
   statV: { fontFamily: "Cairo_700Bold", fontSize: 18 },
-  statL: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: "#D1D5DB" },
+  statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#D1D5DB" },
   logo: { width: 46, height: 46, borderRadius: 12, backgroundColor: "#FFF7ED", overflow: "hidden", alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 },
   info: { width: "48%", flexGrow: 1, flexDirection: "row-reverse", gap: 6, alignItems: "flex-start", backgroundColor: "#F9FAFB", borderRadius: 10, padding: 8 },
-  infoL: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  infoL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   infoV: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textPrimary, textAlign: "right" },
 });

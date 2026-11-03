@@ -10,10 +10,11 @@ export default function CVFrame({ html, width }: { html: string; width: number }
   const height = Math.round(PAGE_H * scale);
   if (Platform.OS === "web") {
     return (
-      <View style={{ width, height, overflow: "hidden", borderRadius: 12, backgroundColor: "#fff" }}>
+      <View style={{ width, height, overflow: "hidden", borderRadius: 12, backgroundColor: "#fff", position: "relative" }}>
         {React.createElement("iframe", {
           srcDoc: html, title: "معاينة السيرة الذاتية",
-          style: { width: PAGE_W, height: PAGE_H, border: 0, transform: `scale(${scale})`, transformOrigin: "top right", pointerEvents: "none" },
+          // تموضع مطلق من الزاوية اليسرى: لا يتأثر باتجاه الصفحة (RTL/LTR) فلا تنزاح المعاينة خارج الإطار
+          style: { position: "absolute", top: 0, left: 0, width: PAGE_W, height: PAGE_H, border: 0, transform: `scale(${scale})`, transformOrigin: "0 0", pointerEvents: "none" },
         })}
       </View>
     );

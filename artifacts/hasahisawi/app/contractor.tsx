@@ -50,7 +50,7 @@ export default function ContractorScreen() {
             <Pressable onPress={back} style={st.iconBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color="#fff" /></Pressable>
             <View style={[u.rowR, { gap: 8 }]}>
               {d.is_staff && <Pressable onPress={() => router.push("/contractor-portal" as any)} style={st.iconBtn} accessibilityLabel="لوحة الشركة"><MaterialCommunityIcons name="view-dashboard-outline" size={19} color="#fff" /></Pressable>}
-              <Pressable onPress={() => Share.share({ message: `🏗️ ${c.name}${c.tagline ? ` — ${c.tagline}` : ""}\n${WEB}/contractor?id=${c.id}` }).catch(() => {})} style={st.iconBtn} accessibilityLabel="مشاركة"><Ionicons name="share-social" size={18} color="#fff" /></Pressable>
+              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => Share.share({ message: `🏗️ ${c.name}${c.tagline ? ` — ${c.tagline}` : ""}\n${WEB}/contractor?id=${c.id}` }).catch(() => {})} style={st.iconBtn} accessibilityLabel="مشاركة"><Ionicons name="share-social" size={18} color="#fff" /></Pressable>
             </View>
           </View>
           <View style={st.hazard} />
@@ -78,8 +78,8 @@ export default function ContractorScreen() {
 
           <View style={[u.rowR, { gap: 8, marginTop: 14 }]}>
             <Pressable onPress={askQuote} style={[u.primary, { flex: 1 }]}><MaterialCommunityIcons name="calculator-variant-outline" size={18} color="#fff" /><Text style={u.primaryT}>اطلب عرض سعر</Text></Pressable>
-            {!!c.whatsapp && <Pressable onPress={() => Linking.openURL(`https://wa.me/${c.whatsapp!.replace(/\D/g, "")}`)} style={[st.round, { backgroundColor: "#128C7E" }]} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={20} color="#fff" /></Pressable>}
-            {!!c.phone && <Pressable onPress={() => Linking.openURL(`tel:${c.phone}`)} style={[st.round, { backgroundColor: CON_DEEP }]} accessibilityLabel="اتصال"><Ionicons name="call" size={18} color="#fff" /></Pressable>}
+            {!!c.whatsapp && <Pressable accessibilityRole="button" hitSlop={8} onPress={() => Linking.openURL(`https://wa.me/${c.whatsapp!.replace(/\D/g, "")}`)} style={[st.round, { backgroundColor: "#128C7E" }]} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={20} color="#fff" /></Pressable>}
+            {!!c.phone && <Pressable accessibilityRole="button" hitSlop={8} onPress={() => Linking.openURL(`tel:${c.phone}`)} style={[st.round, { backgroundColor: CON_DEEP }]} accessibilityLabel="اتصال"><Ionicons name="call" size={18} color="#fff" /></Pressable>}
           </View>
 
           <View style={st.tabs}>
@@ -289,7 +289,7 @@ const st = StyleSheet.create({
   name: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "right", marginTop: 30 },
   kpi: { flex: 1, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, paddingVertical: 10, alignItems: "center", marginTop: 12 },
   kpiN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: CON },
-  kpiL: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: Colors.textMuted, textAlign: "center" },
+  kpiL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
   round: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   tabs: { flexDirection: "row-reverse", marginTop: 16, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2.5, borderBottomColor: "transparent" },
@@ -297,7 +297,7 @@ const st = StyleSheet.create({
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginTop: 12 },
   pCard: { width: "48%", flexGrow: 1 },
   pImg: { height: 130, borderRadius: 14, backgroundColor: Colors.divider, overflow: "hidden" },
-  baTag: { position: "absolute", bottom: 6, right: 6, fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#fff", backgroundColor: CON, paddingHorizontal: 8, borderRadius: 8, overflow: "hidden" },
+  baTag: { position: "absolute", bottom: 6, right: 6, fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", backgroundColor: CON, paddingHorizontal: 8, borderRadius: 8, overflow: "hidden" },
   pTitle: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginTop: 6 },
   mName: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
   closeBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },

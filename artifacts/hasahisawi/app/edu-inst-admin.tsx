@@ -58,7 +58,7 @@ export default function EduInstAdmin() {
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <View style={[st.head, { paddingTop: insets.top + 8 }]}>
         <View style={st.row}>
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/admin-requests" as any))} hitSlop={10}><Ionicons name="chevron-forward" size={24} color="#fff" /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="رجوع" onPress={() => (router.canGoBack() ? router.back() : router.replace("/admin-requests" as any))} hitSlop={10}><Ionicons name="chevron-forward" size={24} color="#fff" /></Pressable>
           <Text style={st.title}>المؤسسات التعليمية</Text>
           <Ionicons name="school" size={22} color="#fff" />
         </View>

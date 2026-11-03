@@ -741,7 +741,7 @@ const s = StyleSheet.create({
   tabBtnActive: { borderColor: "rgba(255,255,255,0.7)" },
   tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.85)" },
   badge: { position: "absolute", top: -5, right: -8, backgroundColor: Colors.danger, borderRadius: Colors.radius.sm, width: 16, height: 16, justifyContent: "center", alignItems: "center" },
-  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
+  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 
   body: { flex: 1 },
 

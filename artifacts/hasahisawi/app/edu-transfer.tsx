@@ -218,9 +218,9 @@ function ActSheet({ act, classes, onClose, onDo }: { act: { t: Transfer; kind: "
 const st = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.bg, padding: 24 },
   stepI: { width: 36, height: 36, borderRadius: 18, backgroundColor: EDU + "14", alignItems: "center", justifyContent: "center" },
-  stepT: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, color: Colors.textSecondary, textAlign: "center" },
+  stepT: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "center" },
   stepLine: { flex: 1, height: 2, backgroundColor: EDU_GOLD + "66", marginBottom: 18 },
-  chip: { fontFamily: "Cairo_600SemiBold", fontSize: 11, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8 },
+  chip: { fontFamily: "Cairo_600SemiBold", fontSize: 12, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8 },
   dot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
   vline: { width: 2, flex: 1, backgroundColor: Colors.divider, marginTop: 2 },
   pick: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, marginTop: 6 },

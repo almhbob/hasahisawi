@@ -95,8 +95,8 @@ export default function DesignerPortal() {
                   <Text style={st.muted}>{p.orders_count} طلب · {p.views} مشاهدة{!p.is_active ? " · مخفي" : ""}</Text>
                 </View>
                 <View style={{ gap: 6 }}>
-                  <Pressable onPress={() => setEdit(p)} style={st.sBtn}><Ionicons name="create-outline" size={16} color={ACCENT} /></Pressable>
-                  <Pressable onPress={async () => { if (await confirmAction("حذف التصميم", p.title, "حذف", true)) { await fetch(`${api}/api/design-gallery/my-products/${p.id}`, { method: "DELETE", headers: H }); load(); } }} style={st.sBtn}><Ionicons name="trash-outline" size={16} color="#B42318" /></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="تعديل" hitSlop={8} onPress={() => setEdit(p)} style={st.sBtn}><Ionicons name="create-outline" size={16} color={ACCENT} /></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="حذف" hitSlop={8} onPress={async () => { if (await confirmAction("حذف التصميم", p.title, "حذف", true)) { await fetch(`${api}/api/design-gallery/my-products/${p.id}`, { method: "DELETE", headers: H }); load(); } }} style={st.sBtn}><Ionicons name="trash-outline" size={16} color="#B42318" /></Pressable>
                 </View>
               </View>
             ))}
@@ -222,7 +222,7 @@ const st = StyleSheet.create({
   heroSub: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.85)", textAlign: "right", marginTop: 6, lineHeight: 20 },
   stat: { flex: 1, alignItems: "center", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 12, paddingVertical: 8 },
   statN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" },
-  statL: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)" },
+  statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)" },
   tabs: { flexDirection: "row-reverse", gap: 6, padding: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
   tabT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textSecondary },
@@ -235,7 +235,7 @@ const st = StyleSheet.create({
   pTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   muted: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   notes: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", marginTop: 4, backgroundColor: Colors.bg, padding: 8, borderRadius: 8 },
-  chip: { fontFamily: "Cairo_700Bold", fontSize: 11.5, paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8, overflow: "hidden" },
+  chip: { fontFamily: "Cairo_700Bold", fontSize: 12, paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8, overflow: "hidden" },
   sBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: Colors.bg },
   sBtnWide: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
   sBtnWideT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },

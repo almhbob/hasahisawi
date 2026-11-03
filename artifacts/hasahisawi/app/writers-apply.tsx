@@ -90,7 +90,7 @@ export default function ApplyScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[st.bar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => (step ? setStep(step - 1) : router.canGoBack() ? router.back() : router.replace("/writers-membership" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع">
+        <Pressable accessibilityRole="button" onPress={() => (step ? setStep(step - 1) : router.canGoBack() ? router.back() : router.replace("/writers-membership" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color={INK} />
         </Pressable>
         <Text style={st.barTitle}>استمارة العضوية</Text>
@@ -268,7 +268,7 @@ const st = StyleSheet.create({
   step: { flex: 1, alignItems: "center", gap: 3 },
   dot: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: Colors.divider, alignItems: "center", justifyContent: "center" },
   dotT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textMuted },
-  stepT: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: Colors.textMuted },
+  stepT: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   lead: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textSecondary, textAlign: "right", lineHeight: 22 },
   cat: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   catI: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
@@ -279,7 +279,7 @@ const st = StyleSheet.create({
   workN: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   textOpt: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
   textOptT: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
-  doc: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, color: Colors.textMuted },
+  doc: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
   pl: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", lineHeight: 21 },
   summary: { borderWidth: 1, borderRadius: 16, padding: 14, backgroundColor: Colors.cardBg, gap: 4 },
   sumName: { fontFamily: "Cairo_700Bold", fontSize: 19, color: Colors.textPrimary, textAlign: "right" },

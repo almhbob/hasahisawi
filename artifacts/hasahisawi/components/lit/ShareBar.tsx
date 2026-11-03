@@ -41,5 +41,5 @@ const s = StyleSheet.create({
   row: { flexDirection: "row-reverse", justifyContent: "space-between" },
   item: { alignItems: "center", gap: 4, width: 52 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  label: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textSecondary, textAlign: "center" },
+  label: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, textAlign: "center" },
 });

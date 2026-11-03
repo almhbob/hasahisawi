@@ -13,7 +13,7 @@ export function Stars({ value, size = 14, onChange }: { value: number; size?: nu
   return (
     <View style={{ flexDirection: "row-reverse", gap: 2 }}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Pressable key={i} disabled={!onChange} onPress={() => onChange?.(i)} hitSlop={4} accessibilityLabel={`${i} نجوم`}>
+        <Pressable accessibilityRole="button" key={i} disabled={!onChange} onPress={() => onChange?.(i)} hitSlop={4} accessibilityLabel={`${i} نجوم`}>
           <Ionicons name={value >= i ? "star" : value >= i - 0.5 ? "star-half" : "star-outline"} size={size} color="#F59E0B" />
         </Pressable>
       ))}
@@ -110,7 +110,7 @@ export function ImagesField({ value, onChange, max = 8, label }: { value: string
         {value.map((u, i) => (
           <View key={u + i} style={s.thumb}>
             <Image source={{ uri: u }} style={StyleSheet.absoluteFill} />
-            <Pressable onPress={() => onChange(value.filter((_, j) => j !== i))} style={s.del} accessibilityLabel="حذف الصورة"><Ionicons name="close" size={14} color="#fff" /></Pressable>
+            <Pressable accessibilityRole="button" hitSlop={8} onPress={() => onChange(value.filter((_, j) => j !== i))} style={s.del} accessibilityLabel="حذف الصورة"><Ionicons name="close" size={14} color="#fff" /></Pressable>
           </View>
         ))}
         {value.length < max && (
@@ -157,12 +157,12 @@ const s = StyleSheet.create({
     shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   name: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   tag: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right" },
-  meta: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted },
-  badge: { fontFamily: "Cairo_700Bold", fontSize: 11, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" },
+  meta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  badge: { fontFamily: "Cairo_700Bold", fontSize: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" },
   ba: { borderRadius: 16, overflow: "hidden", backgroundColor: Colors.divider, alignSelf: "center" },
   handle: { position: "absolute", top: 0, bottom: 0, width: 2, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   knob: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 4, elevation: 3 },
-  lbl: { position: "absolute", top: 8, fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, borderRadius: 8, overflow: "hidden" },
+  lbl: { position: "absolute", top: 8, fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, borderRadius: 8, overflow: "hidden" },
   seg: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider },
   segT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary },
   fLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right", marginTop: 12, marginBottom: 6 },

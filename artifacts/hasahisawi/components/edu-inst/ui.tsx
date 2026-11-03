@@ -13,7 +13,7 @@ export function Hero({ title, sub, kicker, insetTop, right, children, onBack }: 
   return (
     <LinearGradient colors={[EDU_DEEP, EDU]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[s.hero, { paddingTop: insetTop + 8 }]}>
       <View style={s.rowB}>
-        <Pressable onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any)))} style={s.iconBtn} hitSlop={8} accessibilityLabel="رجوع">
+        <Pressable accessibilityRole="button" onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any)))} style={s.iconBtn} hitSlop={8} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color="#fff" />
         </Pressable>
         {right ?? <View style={{ width: 40 }} />}
@@ -101,7 +101,7 @@ export function TimetableGrid({ settings, slots, mode, onCell, highlightToday = 
                 <Text style={s.gHeadT}>الحصة {p}</Text>
                 <Text style={s.gTime}>{periodTime(settings, p)}</Text>
               </View>
-              {settings.breaks?.some((b) => b.after === p) && <View style={[s.gHead, s.gBreak]}><Text style={[s.gTime, { transform: [{ rotate: "-90deg" }] }]}>{settings.breaks.find((b) => b.after === p)?.label}</Text></View>}
+              {settings.breaks?.some((b) => b.after === p) && <View style={[s.gHead, s.gBreak]}><Ionicons name="cafe-outline" size={14} color="rgba(255,255,255,0.85)" accessibilityLabel={settings.breaks.find((b) => b.after === p)?.label || "استراحة"} /></View>}
             </React.Fragment>
           ))}
         </View>
@@ -124,7 +124,7 @@ export function TimetableGrid({ settings, slots, mode, onCell, highlightToday = 
                         <>
                           <Text style={[s.gSub, { color: x.subject_color }]} numberOfLines={1}>{x.subject_name}</Text>
                           <Text style={s.gWho} numberOfLines={1}>{mode === "class" ? x.teacher_name || "—" : x.class_name}</Text>
-                          {!!x.room && <Text style={s.gTime} numberOfLines={1}>{x.room}</Text>}
+                          {!!x.room && <Text style={s.gRoom} numberOfLines={1}>{x.room}</Text>}
                         </>
                       ) : onCell ? <Ionicons name="add" size={18} color={Colors.textMuted} /> : null}
                     </Pressable>
@@ -175,14 +175,15 @@ const s = StyleSheet.create({
   statN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   gRow: { flexDirection: "row-reverse" },
   gHead: { backgroundColor: EDU, alignItems: "center", justifyContent: "center", paddingVertical: 6 },
-  gHeadT: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#fff" },
-  gTime: { fontFamily: "Cairo_400Regular", fontSize: 9.5, color: Colors.textMuted },
+  gHeadT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  gTime: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.85)" },
+  gRoom: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   gDay: { width: 74 },
   gDayCell: { backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center", borderWidth: 0.5, borderColor: Colors.divider },
   gDayT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textPrimary },
   gCell: { width: CELL, minHeight: 64 },
   gSlot: { margin: 2, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center", padding: 4 },
   gSub: { fontFamily: "Cairo_700Bold", fontSize: 12, textAlign: "center" },
-  gWho: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: Colors.textSecondary, textAlign: "center" },
-  gBreak: { width: 16, alignItems: "center", justifyContent: "center" },
+  gWho: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center" },
+  gBreak: { width: 22, alignItems: "center", justifyContent: "center" },
 });
