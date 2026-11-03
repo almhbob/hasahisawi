@@ -59,6 +59,7 @@ const SERVICES: Service[] = [
   // صحة وتعليم
   { id: "medical", label: "الدليل الطبي", short: "الطبي", sub: "صيدليات ومستشفيات", keywords: "صيدلية مستشفى عيادة دكتور طبيب", icon: "medkit", iconType: "ionicons", group: "health", route: "/(tabs)/medical" },
   { id: "ithraa", label: "إثراء — المكتبة الثقافية", short: "إثراء", sub: "كتب ومقالات وارفع مساهمتك", keywords: "اثراء مكتبة كتاب كتب مقال مقالات قراءة رواية ادب ثقافة pdf", icon: "library", iconType: "ionicons", group: "health", route: "/ithraa", isNew: true },
+  { id: "writers", label: "ديوان الكُتّاب", short: "الديوان", sub: "قصة وشعر وخواطر موثّقة", keywords: "ديوان كاتب كتاب شعر قصيدة قصة خاطرة هايكو دوبيت مسدار مسابقة ادبية", icon: "create", iconType: "ionicons", group: "health", route: "/writers", isNew: true },
   { id: "student", label: "الخدمات الطلابية", short: "الطلاب", sub: "مدارس ومعاهد", keywords: "مدرسة جامعة معهد تعليم", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
   // المجتمع
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },

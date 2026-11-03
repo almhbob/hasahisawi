@@ -30,6 +30,8 @@ import redCrescentPlusRouter from "./red-crescent-plus";
 import redCrescentOpsRouter from "./red-crescent-ops";
 import invitesRouter, { ensureInvitesDb } from "./invites";
 import ithraaRouter, { ensureIthraaDb } from "./ithraa";
+import ithraaWritersRouter from "./ithraa-writers";
+import litContestRouter, { ensureLitContestDb } from "./lit-contest";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -56,6 +58,8 @@ router.use(redCrescentPlusRouter);
 router.use(redCrescentOpsRouter);
 router.use(invitesRouter);
 router.use(ithraaRouter);
+router.use(ithraaWritersRouter);
+router.use(litContestRouter);
 router.use(contestsRouter);
 router.use(callsRouter);
 router.use(campaignRouter);
@@ -84,6 +88,7 @@ async function initializeDatabaseSchemas() {
   await ensureRedCrescentDb();
   await ensureInvitesDb();
   await ensureIthraaDb();
+  await ensureLitContestDb();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();

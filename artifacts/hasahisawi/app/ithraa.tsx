@@ -151,6 +151,17 @@ export default function IthraaScreen() {
             <>
               <ContributeCard points={meta?.points ?? 0} onBook={() => contribute("book")} onArticle={() => contribute("article")} />
 
+              <Pressable onPress={() => router.push("/writers" as any)} style={{ marginTop: 12 }} accessibilityRole="button">
+                <LinearGradient colors={["#2A1512", "#7A2E3A"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.diwan}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.diwanK}>جديد في إثراء</Text>
+                    <Text style={s.diwanT}>ديوان الكُتّاب</Text>
+                    <Text style={s.diwanS}>اكتب القصة والشعر والخاطرة، ووثّق نصك برقم يحفظ حقك — وشارك في مسابقة حصاحيصاوي الأدبية.</Text>
+                  </View>
+                  <View style={s.diwanIcon}><Ionicons name="create" size={26} color={ITHRAA_GOLD} /></View>
+                </LinearGradient>
+              </Pressable>
+
               {featured.length > 0 && (
                 <>
                   <SectionTitle title="مختارات المشرفين" />
@@ -371,5 +382,10 @@ const s = StyleSheet.create({
   featTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: "#fff", textAlign: "right", lineHeight: 21 },
   featSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.85)", textAlign: "right" },
   stepNo: { width: 32, height: 32, borderRadius: 10, backgroundColor: ITHRAA + "14", alignItems: "center", justifyContent: "center" },
+  diwan: { flexDirection: "row-reverse", alignItems: "center", gap: 12, borderRadius: 18, padding: 16 },
+  diwanK: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: ITHRAA_GOLD, textAlign: "right" },
+  diwanT: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#fff", textAlign: "right" },
+  diwanS: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.85)", textAlign: "right", lineHeight: 20 },
+  diwanIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
   stepT: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
 });

@@ -204,7 +204,7 @@ function Moderators({ token, meta }: { token: string; meta: IthraaMeta }) {
     return () => clearTimeout(t);
   }, [q, token]);
 
-  const label = (keys: string[] | null) => !keys ? "كل الرفوف" : keys.map((k) => meta.shelves.find((s) => s.key === k)?.label ?? k).join("، ");
+  const label = (keys: string[] | null) => !keys ? "كل الرفوف وديوان الكُتّاب" : keys.map((k) => (k === "writers" ? "ديوان الكُتّاب" : meta.shelves.find((s) => s.key === k)?.label ?? k)).join("، ");
   const toggle = (k: string) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]));
   const edit = (m: IthraaModerator) => {
     setPicked({ id: m.user_id, name: m.name, phone: m.phone, avatar_url: m.avatar_url, role: "" });
@@ -250,7 +250,7 @@ function Moderators({ token, meta }: { token: string; meta: IthraaMeta }) {
               <Pill label="كل الرفوف" on={all} onPress={() => setAll(true)} icon="albums-outline" />
               <Pill label="رفوف محددة" on={!all} onPress={() => setAll(false)} icon="funnel-outline" />
             </View>
-            {!all && <View style={[u.wrap, { marginTop: 10 }]}>{meta.shelves.map((s) => <Pill key={s.key} label={s.label} on={cats.includes(s.key)} onPress={() => toggle(s.key)} color={s.color} />)}</View>}
+            {!all && <View style={[u.wrap, { marginTop: 10 }]}><Pill label="ديوان الكُتّاب (النصوص الأدبية)" on={cats.includes("writers")} onPress={() => toggle("writers")} color="#7A2E3A" icon="create-outline" />{meta.shelves.map((s) => <Pill key={s.key} label={s.label} on={cats.includes(s.key)} onPress={() => toggle(s.key)} color={s.color} />)}</View>}
             <View style={[u.rowR, { gap: 8, marginTop: 12 }]}>
               <Pressable onPress={save} disabled={saving} style={[u.primaryBtn, { flex: 1, paddingVertical: 10 }]}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="shield-checkmark" size={17} color="#fff" />}

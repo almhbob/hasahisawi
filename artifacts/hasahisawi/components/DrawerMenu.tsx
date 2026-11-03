@@ -81,6 +81,8 @@ const GROUPS: Group[] = [
     label: "تعليم وعمل",
     items: [
       { title: "إثراء — المكتبة الثقافية", icon: "library-outline", route: "/ithraa",       color: "#1B4D6B"      },
+      { title: "ديوان الكُتّاب", icon: "create-outline", route: "/writers",            color: "#7A2E3A"      },
+      { title: "مسابقة حصاحيصاوي الأدبية", icon: "trophy-outline", route: "/lit-contest", color: "#C99A2E"  },
       { title: "المكتبة المنهجية", icon: "library-outline", route: "/curriculum",          color: "#2A6FA8"      },
       { title: "مساحة الطالب والمعلم", icon: "school-outline", route: "/edu-hub",          color: "#2F7D6D"      },
       { title: "الطلاب والمعلمون", icon: "school-outline", route: "/(tabs)/student",     color: Colors.cyber   },

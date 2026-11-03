@@ -535,7 +535,7 @@ router.put("/ithraa/moderators/:userId", writeLimiter, async (req: Request, res:
     const u = (await query(`SELECT id, name FROM users WHERE id=$1`, [uid])).rows[0];
     if (!u) return res.status(404).json({ error: "المستخدم غير موجود" });
     const raw = req.body?.categories;
-    const cats = Array.isArray(raw) ? [...new Set(raw.map(String).filter((c) => SHELF_KEYS.has(c)))] : null;
+    const cats = Array.isArray(raw) ? [...new Set(raw.map(String).filter((c) => SHELF_KEYS.has(c) || c === "writers"))] : null;
     if (Array.isArray(raw) && !cats!.length) return res.status(400).json({ error: "اختر رفاً واحداً على الأقل أو «كل الرفوف»" });
     const note = clean(req.body?.note, 200) || null;
     const existed = (await query(`SELECT 1 FROM ithraa_moderators WHERE user_id=$1`, [uid])).rows.length > 0;
@@ -544,7 +544,7 @@ router.put("/ithraa/moderators/:userId", writeLimiter, async (req: Request, res:
        ON CONFLICT (user_id) DO UPDATE SET categories=EXCLUDED.categories, note=EXCLUDED.note, assigned_by=EXCLUDED.assigned_by`,
       [uid, cats, note, me!.id]);
     if (!existed) {
-      const where = cats ? cats.map((c) => ITHRAA_SHELVES.find((s) => s.key === c)!.label).join("، ") : "كل الرفوف";
+      const where = cats ? cats.map((c) => (c === "writers" ? "ديوان الكُتّاب" : ITHRAA_SHELVES.find((s) => s.key === c)!.label)).join("، ") : "كل الرفوف وديوان الكُتّاب";
       void notify([uid], "عُيّنت مشرفاً في «إثراء» 📚", `يمكنك الآن مراجعة الكتب والمقالات ونشرها في: ${where}`, { tab: "review" });
     }
     return res.json({ ok: true });
