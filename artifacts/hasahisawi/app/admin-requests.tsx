@@ -15,9 +15,29 @@ import type { AdminAlert } from "@/components/AdminAlertsWatcher";
 type Tab = "feed" | "stores" | "women" | "general" | "verify";
 
 const SCREEN_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  designers: "color-palette-outline", writers: "id-card-outline", srcs: "medkit-outline", volunteer: "hand-left-outline", ithraa: "library-outline", verify: "shield-checkmark-outline",
   lawyers: "briefcase-outline", institutions: "business-outline", women: "flower-outline", stores: "storefront-outline",
   transport: "car-outline", travel: "bus-outline", unions: "people-outline", education: "school-outline",
   partnerships: "git-network-outline", zawajil: "heart-outline", ads: "megaphone-outline", requests: "document-text-outline",
+};
+
+// كل نوع طلب يفتح شاشة مراجعته بالضبط (كانت معظمها تفتح لوحة الإدارة العامة فلا يجد المدير الطلب)
+const SCREEN_ROUTE: Record<string, { path: string; params?: Record<string, string>; label: string }> = {
+  lawyers: { path: "/admin", params: { tab: "lawyers_admin" }, label: "طلبات المحامين" },
+  institutions: { path: "/admin", params: { tab: "join_requests" }, label: "انضمام المؤسسات" },
+  travel: { path: "/admin", params: { tab: "join_requests" }, label: "وكالات السفر" },
+  unions: { path: "/admin", params: { tab: "join_requests" }, label: "طلبات الاتحادات" },
+  education: { path: "/admin", params: { tab: "join_requests" }, label: "طلبات التعليم" },
+  partnerships: { path: "/admin", params: { tab: "partners" }, label: "بوابة الشركاء" },
+  transport: { path: "/admin", params: { tab: "transport" }, label: "مشوارك علينا" },
+  zawajil: { path: "/admin", params: { tab: "zawajil" }, label: "زواجل" },
+  ads: { path: "/admin", params: { tab: "ads" }, label: "الإعلانات" },
+  designers: { path: "/admin", params: { tab: "designers_admin" }, label: "المصممون" },
+  writers: { path: "/writers-members-admin", label: "عضويات الكُتّاب" },
+  srcs: { path: "/red-crescent-admin", label: "الهلال الأحمر" },
+  volunteer: { path: "/volunteer-admin", label: "التطوع" },
+  ithraa: { path: "/ithraa-admin", label: "إشراف إثراء" },
+  cv: { path: "/(tabs)/cv-builder", label: "قوالب السيرة المميزة" },
 };
 
 const STORE_TYPE_AR: Record<string, string> = {
@@ -59,6 +79,8 @@ export default function AdminRequestsScreen() {
   const [tab, setTab] = useState<Tab>("feed");
   const [loading, setLoading] = useState(false);
   const [alerts, setAlerts] = useState<AdminAlert[]>([]);
+  const [olderDone, setOlderDone] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [lastSeen, setLastSeen] = useState(0);
   const [stores, setStores] = useState<any[]>([]);
   const [women, setWomen] = useState<any[]>([]);
@@ -81,7 +103,7 @@ export default function AdminRequestsScreen() {
     try {
       if (tab === "feed") {
         const d = await call("/api/admin/alerts?after=0&limit=100");
-        setAlerts(d.alerts || []); setLastSeen(Number(d.last_seen_id) || 0);
+        setAlerts(d.alerts || []); setLastSeen(Number(d.last_seen_id) || 0); setOlderDone((d.alerts || []).length < 100);
         if (d.latest_id) { await call("/api/admin/alerts/seen", { method: "POST", body: JSON.stringify({ last_id: d.latest_id }) }).catch(() => {}); setAdminUnread(0); }
       } else if (tab === "stores") setStores(await call("/api/admin/stores"));
       else if (tab === "women") {
@@ -168,6 +190,8 @@ export default function AdminRequestsScreen() {
             {a.screen === "stores" ? <Act label="مراجعة المتجر" color="#1D66D4" icon="open-outline" onPress={() => setTab("stores")} />
               : a.screen === "women" && isAdmin ? <Act label="مراجعة" color="#1D66D4" icon="open-outline" onPress={() => setTab("women")} />
               : a.screen === "requests" ? <Act label="مراجعة" color="#1D66D4" icon="open-outline" onPress={() => setTab("general")} />
+              : a.screen === "verify" ? <Act label="مراجعة التوثيق" color="#1D66D4" icon="open-outline" onPress={() => setTab("verify")} />
+              : SCREEN_ROUTE[a.screen] ? <Act label={`مراجعة · ${SCREEN_ROUTE[a.screen].label}`} color="#1D66D4" icon="open-outline" onPress={() => router.push({ pathname: SCREEN_ROUTE[a.screen].path, params: SCREEN_ROUTE[a.screen].params } as any)} />
               : <Act label="فتح لوحة الإدارة" color="#1D66D4" icon="open-outline" onPress={() => router.push("/admin" as any)} />}
           </View>
         </View>
@@ -286,6 +310,19 @@ export default function AdminRequestsScreen() {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 14, paddingBottom: 40, gap: 10 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        ListFooterComponent={tab === "feed" && alerts.length > 0 && !olderDone ? (
+          <Pressable onPress={async () => {
+            setLoadingOlder(true);
+            try {
+              const minId = Math.min(...alerts.map((x) => Number(x.id)));
+              const d = await call(`/api/admin/alerts?before=${minId}&limit=100`);
+              const more = d.alerts || [];
+              setAlerts((xs) => [...xs, ...more]); if (more.length < 100) setOlderDone(true);
+            } catch { /* */ } finally { setLoadingOlder(false); }
+          }} style={{ alignSelf: "center", marginTop: 6, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg }}>
+            {loadingOlder ? <ActivityIndicator color={Colors.primary} /> : <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary }}>عرض الطلبات الأقدم</Text>}
+          </Pressable>
+        ) : null}
         ListEmptyComponent={loading ? <ActivityIndicator style={{ marginTop: 40 }} color={Colors.primary} /> : (
           <View style={s.empty}><Ionicons name="checkmark-done-circle-outline" size={48} color={Colors.primary} /><Text style={s.emptyText}>لا توجد طلبات هنا حالياً</Text></View>
         )}

@@ -57,7 +57,16 @@ type Store = {
   product_count?: number;
   owner_name?: string;
   created_at?: string;
+  is_open?: boolean;
+  accepts_orders?: boolean;
+  pickup_available?: boolean;
+  whatsapp?: string | null;
+  payment_methods?: string[];
+  working_days?: string | null;
+  announcement?: string | null;
+  prep_minutes?: number | null;
 };
+const PAY_LABEL: Record<string, string> = { cash: "كاش", bankak: "بنكك", ocash: "أوكاش", fawry: "فوري", transfer: "تحويل بنكي" };
 
 type Category = {
   id: number;
@@ -191,6 +200,13 @@ function StoreCard({ store, index, onPress }: { store: Store; index: number; onP
         <View style={styles.storeCardInfo}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <Text style={styles.storeCardName} numberOfLines={1}>{store.name}</Text>
+            {store.is_open === false ? (
+              <View style={{ backgroundColor: "#B4231814", borderRadius: 8, paddingHorizontal: 7 }}><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#B42318" }}>مغلق الآن</Text></View>
+            ) : store.accepts_orders === false ? (
+              <View style={{ backgroundColor: "#B7791F14", borderRadius: 8, paddingHorizontal: 7 }}><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#B7791F" }}>لا يستقبل طلبات</Text></View>
+            ) : (
+              <View style={{ backgroundColor: Colors.primary + "14", borderRadius: 8, paddingHorizontal: 7 }}><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10.5, color: Colors.primary }}>مفتوح</Text></View>
+            )}
           </View>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
             <View style={styles.typePill}>
@@ -648,10 +664,22 @@ function StoreDetailModal({
                   </View>
                 )}
               </View>
-              {store?.working_hours && (
+              {(store?.working_hours || store?.working_days) && (
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 3 }}>
                   <Ionicons name="time-outline" size={12} color={Colors.textMuted} />
-                  <Text style={styles.detailMeta}>{store.working_hours}</Text>
+                  <Text style={styles.detailMeta}>{[store?.working_days, store?.working_hours].filter(Boolean).join(" · ")}{store?.prep_minutes ? ` · تجهيز ~${store.prep_minutes} د` : ""}</Text>
+                </View>
+              )}
+              {!!store?.payment_methods?.length && (
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 3 }}>
+                  <Ionicons name="card-outline" size={12} color={Colors.textMuted} />
+                  <Text style={styles.detailMeta}>الدفع: {store.payment_methods.map((m) => PAY_LABEL[m] || m).join("، ")}{store.pickup_available !== false ? " · استلام من المتجر" : ""}</Text>
+                </View>
+              )}
+              {store?.is_open === false && <Text style={[styles.detailMeta, { color: "#B42318", fontFamily: "Cairo_700Bold", marginTop: 3 }]}>المتجر مغلق الآن — يمكنك التصفح والطلب لاحقاً</Text>}
+              {!!store?.announcement && (
+                <View style={{ marginTop: 6, backgroundColor: Colors.accent + "18", borderRadius: 10, padding: 8 }}>
+                  <Text style={[styles.detailMeta, { color: Colors.textPrimary }]}>📣 {store.announcement}</Text>
                 </View>
               )}
             </View>
@@ -751,6 +779,12 @@ export default function StoresScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token } = useAuth();
+  // صاحب المتجر يصل للوحة إعداداته من هنا مباشرة
+  const [hasStore, setHasStore] = useState(false);
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${getApiUrl()}/api/store/my`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => setHasStore(r.ok)).catch(() => {});
+  }, [token]);
 
   // Browse state
   const [stores, setStores] = useState<Store[]>([]);
@@ -997,6 +1031,14 @@ export default function StoresScreen() {
         showBack
         onBack={() => router.back()}
         gradient={Colors.gradients.brand}
+        rightSlot={token ? (
+          <TouchableOpacity onPress={() => router.push("/store-portal" as any)} activeOpacity={0.85}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7 }}
+            accessibilityLabel={hasStore ? "لوحة متجري" : "سجّل متجرك"}>
+            <Ionicons name={hasStore ? "settings-outline" : "add-circle-outline"} size={15} color="#fff" />
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" }}>{hasStore ? "لوحة متجري" : "سجّل متجرك"}</Text>
+          </TouchableOpacity>
+        ) : undefined}
       />
 
       {/* Tabs */}

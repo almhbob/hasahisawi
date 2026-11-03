@@ -1,3 +1,4 @@
+import { useFeatureFlags } from "@/lib/feature-flags-context";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -58,8 +59,11 @@ const SERVICES: Service[] = [
   { id: "cv-builder", label: "السيرة الذاتية", short: "السيرة", sub: "قوالب مجانية PDF", keywords: "سي في cv سيرة", icon: "document-text-outline", iconType: "ionicons", group: "pro", route: "/(tabs)/cv-builder", isNew: true },
   // صحة وتعليم
   { id: "medical", label: "الدليل الطبي", short: "الطبي", sub: "صيدليات ومستشفيات", keywords: "صيدلية مستشفى عيادة دكتور طبيب", icon: "medkit", iconType: "ionicons", group: "health", route: "/(tabs)/medical" },
+  { id: "ithraa", label: "إثراء — المكتبة الثقافية", short: "إثراء", sub: "كتب ومقالات وارفع مساهمتك", keywords: "اثراء مكتبة كتاب كتب مقال مقالات قراءة رواية ادب ثقافة pdf", icon: "library", iconType: "ionicons", group: "health", route: "/ithraa", isNew: true },
+  { id: "writers", label: "ديوان الكُتّاب", short: "الديوان", sub: "قصة وشعر وخواطر موثّقة", keywords: "ديوان كاتب كتاب شعر قصيدة قصة خاطرة هايكو دوبيت مسدار مسابقة ادبية", icon: "create", iconType: "ionicons", group: "health", route: "/writers", isNew: true },
   { id: "student", label: "الخدمات الطلابية", short: "الطلاب", sub: "مدارس ومعاهد", keywords: "مدرسة جامعة معهد تعليم", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
   // المجتمع
+  { id: "press", label: "نافذة الصحافة", short: "الصحافة", sub: "بيانات النقابة ودليل الصحفيين", keywords: "صحافة صحفي نقابة الصحفيين بيان خبر عاجل مراسل اعلام ارشيف", icon: "newspaper", iconType: "ionicons", group: "community", route: "/press", isNew: true },
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },
   { id: "women", label: "قسم المرأة", short: "المرأة", sub: "متاجر وخدمات نسائية", keywords: "نساء", icon: "face-woman", iconType: "material", group: "community", route: "/(tabs)/women" },
   { id: "volunteer", label: "التطوع", short: "التطوع", sub: "مهام ونقاط وبطاقة متطوع", keywords: "تطوع متطوع مبادرة نقاط عمل خيري", icon: "hand-heart-outline", iconType: "material", group: "community", route: "/volunteer", isNew: true },
@@ -126,7 +130,13 @@ function SvcIcon({ item, size, color }: { item: Service; size: number; color: st
     : <MaterialCommunityIcons name={item.icon} size={size} color={color} />;
 }
 
+const RIDE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  soon: { label: "قريباً", color: "#946B00", bg: "#FFF4D6" },
+  maintenance: { label: "صيانة", color: "#B42323", bg: "#FDECEC" },
+};
 function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => void }) {
+  const { ride_status } = useFeatureFlags();
+  const ride = item.id === "transport" ? RIDE_BADGE[ride_status] : undefined;
   return (
     <View style={styles.cardWrap}>
     <AnimatedPress onPress={() => onOpen(item)}>
@@ -135,7 +145,8 @@ function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => v
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
-            {item.isNew ? <View style={styles.newBadge}><Text style={styles.newBadgeText}>جديد</Text></View> : null}
+            {ride ? <View style={[styles.newBadge, { backgroundColor: ride.bg }]}><Text style={[styles.newBadgeText, { color: ride.color }]}>{ride.label}</Text></View>
+              : item.isNew ? <View style={styles.newBadge}><Text style={styles.newBadgeText}>جديد</Text></View> : null}
           </View>
           <Text style={styles.cardSub} numberOfLines={1}>{item.sub}</Text>
         </View>

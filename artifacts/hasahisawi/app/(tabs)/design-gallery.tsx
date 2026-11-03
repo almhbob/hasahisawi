@@ -1,4 +1,6 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { router } from "expo-router";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
@@ -259,6 +261,7 @@ function DesignGalleryScreen() {
 
   // تبويبات
   const [activeTab, setActiveTab] = useState<"gallery"|"designers"|"subscribe">("gallery");
+  const showPricing = usePricingVisible();
 
   // فئة المعرض
   const [selCat, setSelCat] = useState("all");
@@ -279,6 +282,8 @@ function DesignGalleryScreen() {
 
   // نموذج الاشتراك
   const [selPkg, setSelPkg]         = useState<Package|null>(null);
+  // عند إخفاء الباقات: تُختار الباقة الأساسية تلقائياً ويظهر نموذج الانضمام مباشرة
+  useEffect(() => { if (!showPricing && !selPkg && packages.length) setSelPkg(packages[0]); }, [showPricing, selPkg, packages]);
   const [shopName, setShopName]     = useState("");
   const [bio, setBio]               = useState("");
   const [whatsapp, setWhatsapp]     = useState("");
@@ -433,19 +438,31 @@ function DesignGalleryScreen() {
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStat}>
-              <Text style={styles.heroStatNum}>{packages.length}</Text>
-              <Text style={styles.heroStatLabel}>باقة</Text>
+              <Text style={styles.heroStatNum}>{showPricing ? packages.length : "✓"}</Text>
+              <Text style={styles.heroStatLabel}>{showPricing ? "باقة" : "انضمام مجاني"}</Text>
             </View>
           </View>
         </Animated.View>
       </LinearGradient>
+
+      {/* ═══ بوابة المصمم: دخول المصمم لمتجره ومنتجاته وطلباته ═══ */}
+      <Pressable onPress={() => router.push("/designer-portal" as any)} accessibilityRole="button"
+        style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 14,
+          backgroundColor: "#3B78A612", borderWidth: 1, borderColor: "#3B78A655" }}>
+        <Ionicons name="color-palette" size={22} color="#3B78A6" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" }}>بوابة المصمم</Text>
+          <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>أدر متجرك: أضف تصاميمك وتابع طلبات الزبائن</Text>
+        </View>
+        <Ionicons name="chevron-back" size={18} color="#3B78A6" />
+      </Pressable>
 
       {/* ═══ تبويبات ═══ */}
       <View style={styles.tabBar}>
         {[
           { key: "gallery",    label: "المعرض",     icon: "grid-outline" },
           { key: "designers",  label: "المصممون",   icon: "people-outline" },
-          { key: "subscribe",  label: "اشتراك المصممين", icon: "ribbon-outline" },
+          { key: "subscribe",  label: showPricing ? "اشتراك المصممين" : "انضم كمصمم", icon: "ribbon-outline" },
         ].map(t => (
           <Pressable key={t.key} style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
             onPress={() => setActiveTab(t.key as any)}>
@@ -538,7 +555,7 @@ function DesignGalleryScreen() {
           <View style={styles.howSection}>
             <Text style={styles.sectionTitle}>كيف يعمل المعرض؟</Text>
             {[
-              { n: "1", t: "اختر باقتك", s: "حدد الباقة المناسبة لحجم عملك" },
+              showPricing ? { n: "1", t: "اختر باقتك", s: "حدد الباقة المناسبة لحجم عملك" } : { n: "1", t: "عرّف بنفسك", s: "اسم متجرك وتخصصك ووسائل التواصل" },
               { n: "2", t: "أرسل طلبك", s: "أدخل بيانات متجرك وانتظر التفعيل" },
               { n: "3", t: "أضف تصاميمك", s: "ارفع صور أعمالك وحدد الأسعار" },
               { n: "4", t: "استقبل الطلبات", s: "يتواصل معك الزبائن مباشرة" },
@@ -555,16 +572,16 @@ function DesignGalleryScreen() {
             ))}
           </View>
 
-          {/* الباقات */}
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>اختر باقتك</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          {/* الباقات — مخفية حتى تُظهرها الإدارة */}
+          {showPricing && <Text style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>اختر باقتك</Text>}
+          {showPricing && <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 14, paddingHorizontal: 16, paddingBottom: 8 }}>
             {packages.map(pkg => (
               <PackageCard key={pkg.id} pkg={pkg}
                 selected={selPkg?.id === pkg.id}
                 onSelect={() => setSelPkg(pkg)} />
             ))}
-          </ScrollView>
+          </ScrollView>}
 
           {/* نموذج الاشتراك */}
           {selPkg && !subDone && (

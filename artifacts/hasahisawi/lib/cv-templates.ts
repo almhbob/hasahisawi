@@ -1,5 +1,5 @@
 // قوالب السيرة الذاتية — كل قالب يُنتج HTML بمقاس A4 (794×1123) يُطبع PDF ويُعرض في المعاينة الحيّة
-export type CVTemplateId = "nile" | "band" | "editorial" | "cards" | "ats" | "bold";
+export type CVTemplateId = "nile" | "band" | "editorial" | "cards" | "ats" | "bold" | "hexa" | "diagonal" | "accent" | "arch";
 
 export type CVData = {
   name: string; title: string; phone: string; email: string; address: string; website: string; summary: string;
@@ -12,6 +12,8 @@ export type CVData = {
 export type CVTemplateMeta = {
   id: CVTemplateId; name: string; desc: string; bestFor: string;
   colors: string[]; photo: boolean; font: string;
+  /** قالب مميز: يُفتح بطلب تعتمده الإدارة؛ يُعرض قبلها بعلامة «معاينة» */
+  premium?: boolean;
 };
 
 export const CV_TEMPLATES: CVTemplateMeta[] = [
@@ -20,6 +22,10 @@ export const CV_TEMPLATES: CVTemplateMeta[] = [
   { id: "editorial", name: "المحرّر", desc: "خط عربي فاخر على ورق عاجي", bestFor: "التعليم · الكتابة · الأكاديميا", colors: ["#9A4F26", "#0E5A80", "#0B7A4E", "#06325A"], photo: false, font: "Amiri" },
   { id: "cards", name: "البطاقات", desc: "أقسام في بطاقات ووسوم للمهارات", bestFor: "الحِرف · الفنيون · الخدمات", colors: ["#0B7A4E", "#0E5A80", "#C26D3D", "#06325A"], photo: true, font: "Cairo" },
   { id: "ats", name: "ATS", desc: "نص فقط بلا أعمدة — تقرؤه أنظمة الفرز", bestFor: "التقديم الإلكتروني · الشركات الكبيرة", colors: ["#111827", "#0E5A80", "#0B7A4E", "#9A4F26"], photo: false, font: "IBM Plex Sans Arabic" },
+  { id: "hexa", name: "السداسي", desc: "إطار سداسي للصورة وشريط داكن وعمود رملي بمؤشرات المهارات", bestFor: "التصميم · الهندسة · ريادة الأعمال", colors: ["#2F3342", "#1F3A4D", "#3B2F2A", "#22362B"], photo: true, font: "Cairo", premium: true },
+  { id: "diagonal", name: "القطري", desc: "تقسيم قطري أنيق بصورة دائرية وتقييم بالنجوم", bestFor: "الإعلام · التسويق · الإدارة", colors: ["#2B2B2D", "#1F2F3F", "#3A2B2B", "#24332A"], photo: true, font: "Cairo", premium: true },
+  { id: "accent", name: "اللمسة الذهبية", desc: "عمود داكن بصورة مقوّسة ولمسات صفراء جريئة", bestFor: "الإبداع · التقنية · المبيعات", colors: ["#F2C230", "#2EC4B6", "#FF7A45", "#9AD94A"], photo: true, font: "Cairo", premium: true },
+  { id: "arch", name: "القوس", desc: "عمود مقوّس بأشرطة عناوين وخط زمني منقّط", bestFor: "المحاسبة · التعليم · الخدمات", colors: ["#6E6E6E", "#2F5D62", "#5B4B6E", "#7A5C3E"], photo: true, font: "Cairo", premium: true },
   { id: "bold", name: "الجريء", desc: "شريط جانبي داكن بالصورة ولمسة ذهبية", bestFor: "التسويق · التصميم · المبيعات", colors: ["#06325A", "#0F1C2B", "#0B3D2A", "#3A1F12"], photo: true, font: "Cairo" },
 ];
 
@@ -199,7 +205,153 @@ function bold(cv: CVData, c: string, photo?: string) {
   ${d.edu.length ? `<div><h2>التعليم</h2>${d.edu.map((x) => `<div class="it"><h3>${e(x.degree)}</h3><span class="m">${e(x.institution)}${x.year ? ` · ${e(x.year)}` : ""}</span></div>`).join("")}</div>` : ""}</div></div>`, css, "Cairo");
 }
 
-export function buildCVHtml(cv: CVData, id: CVTemplateId, color: string, photoDataUri?: string): string {
+
+// ══════════════ القوالب المميزة (Premium) ══════════════
+// تصاميم أصلية مستوحاة من أنماط عصرية: إطار سداسي، تقسيم قطري، عمود بلمسة صفراء، عمود مقوّس بأشرطة.
+const darken = (hex: string, amt = 34) => {
+  const n = parseInt(hex.replace("#", ""), 16); const f = (v: number) => Math.max(0, v - amt);
+  return `#${((1 << 24) | (f((n >> 16) & 255) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255)).toString(16).slice(1)}`;
+};
+const levels = (n: number) => Array.from({ length: n }, (_, i) => Math.max(55, 94 - i * 8));
+
+// ── 7. السداسي ────────────────────────────────────────────
+function hexa(cv: CVData, c: string, photo?: string) {
+  const d = clean(cv); const sand = "#CDBE9C"; const lv = levels(d.skills.length);
+  const hex = "polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)";
+  const css = `.pg{position:relative;min-height:1123px;background:#F4F4F2;color:#2A2E3A}
+  .band{position:absolute;top:0;right:0;left:0;height:250px;background:${c}}
+  .side{position:absolute;top:0;right:48px;width:260px;bottom:0;background:${sand}}
+  .hexw{position:absolute;top:30px;right:58px;width:240px;height:270px;clip-path:${hex};background:${sand};z-index:2;display:flex;align-items:center;justify-content:center}
+  .hexi{width:212px;height:240px;clip-path:${hex};background:${c};display:flex;align-items:center;justify-content:center;overflow:hidden}.hexi img{width:100%;height:100%;object-fit:cover}
+  .nm{position:absolute;top:70px;left:56px;right:360px;border:2px solid ${sand};padding:18px 22px;text-align:center;z-index:2}
+  .nm h1{font-size:34px;font-weight:800;color:#fff;letter-spacing:1px;line-height:1.25}.nm h1 b{color:${sand};font-weight:800}.nm p{color:#E9E3D3;font-size:14px;letter-spacing:2px;margin-top:6px;font-weight:600}
+  .sc{position:absolute;top:320px;right:48px;width:260px;padding:0 0 30px;z-index:2;display:flex;flex-direction:column;gap:22px}
+  .tab{background:${c};color:#fff;font-size:15px;font-weight:800;letter-spacing:2px;padding:9px 26px 9px 18px;margin-right:-0px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,12px 50%);text-align:center;width:88%}
+  .ci{display:flex;align-items:center;gap:12px;font-size:12.5px;color:#2A2E3A;margin:7px 0}.ci i{width:40px;height:26px;background:${c};clip-path:polygon(0 0,100% 0,82% 100%,0 100%);display:block;flex-shrink:0}
+  .pad{padding:0 22px}.sk{display:flex;align-items:center;gap:10px;font-size:12px;margin:7px 0}.sk span{width:96px;flex-shrink:0}.bar{flex:1;height:9px;background:#fff;clip-path:polygon(0 0,100% 0,96% 100%,0 100%)}.bar b{display:block;height:100%;background:${c}}
+  .mn{position:absolute;top:290px;right:340px;left:48px;display:flex;flex-direction:column;gap:20px;padding-bottom:40px}
+  .mt{background:${c};color:#fff;font-size:16px;font-weight:800;letter-spacing:3px;padding:9px 22px;width:72%;clip-path:polygon(0 0,94% 0,100% 100%,0 100%);margin-right:-24px}
+  .it{margin:8px 0 4px}.it .y{font-size:11.5px;font-weight:700;color:#6B6658}.it h3{font-size:15px;font-weight:800}.it p{font-size:12.5px;line-height:1.75;color:#5A5F6B}
+  .lg{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}.ring{width:64px;height:64px;border-radius:32px;background:conic-gradient(${c} var(--p),#DDD8CB 0);display:flex;align-items:center;justify-content:center}.ring span{width:52px;height:52px;border-radius:26px;background:#F4F4F2;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;text-align:center;line-height:1.2}
+  .sum{font-size:13.5px;line-height:1.9;color:#454A56}`;
+  return doc(`<div class="pg"><div class="band"></div><div class="side"></div>
+  ${cv.showPhoto ? `<div class="hexw"><div class="hexi">${photo ? `<img src="${photo}">` : PERSON("#E9E3D3")}</div></div>` : ""}
+  <div class="nm"><h1>${e(d.name).replace(/^(\S+)\s/, "$1 <b>")}${/\s/.test(d.name) ? "</b>" : ""}</h1>${d.title ? `<p>${e(d.title)}</p>` : ""}</div>
+  <div class="sc" style="${cv.showPhoto ? "" : "top:270px"}">
+    ${d.contact.length ? `<div><div class="tab">التواصل</div><div class="pad">${d.contact.map((x) => `<div class="ci"><i></i><span class="${x.ltr ? "ltr" : ""}">${e(x.v)}</span></div>`).join("")}</div></div>` : ""}
+    ${d.skills.length ? `<div><div class="tab">المهارات</div><div class="pad">${d.skills.map((s, i) => `<div class="sk"><span>${e(s)}</span><div class="bar"><b style="width:${lv[i]}%"></b></div></div>`).join("")}</div></div>` : ""}
+    ${d.courses.length ? `<div><div class="tab">الدورات</div><div class="pad">${d.courses.map((s) => `<div class="ci" style="margin:4px 0">• ${e(s)}</div>`).join("")}</div></div>` : ""}
+  </div>
+  <div class="mn">
+    ${cv.summary ? `<div><div class="mt">نبذة</div><p class="sum" style="margin-top:10px">${nl(cv.summary)}</p></div>` : ""}
+    ${d.edu.length ? `<div><div class="mt">التعليم</div>${d.edu.map((x) => `<div class="it">${x.year ? `<div class="y">${e(x.year)}</div>` : ""}<h3>${e(x.degree)}</h3><p>${e(x.institution)}</p></div>`).join("")}</div>` : ""}
+    ${d.exp.length ? `<div><div class="mt">الخبرات العملية</div>${d.exp.map((x) => `<div class="it">${x.period ? `<div class="y">${e(x.period)}</div>` : ""}<h3>${e(x.position)}${x.company ? ` — ${e(x.company)}` : ""}</h3>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")}</div>` : ""}
+    ${d.langs.length ? `<div><div class="mt">اللغات</div><div class="lg">${d.langs.map((l, i) => `<div class="ring" style="--p:${Math.max(50, 95 - i * 15)}%"><span>${e(l)}</span></div>`).join("")}</div></div>` : ""}
+  </div></div>`, css, "Cairo");
+}
+
+// ── 8. القطري ─────────────────────────────────────────────
+function diagonal(cv: CVData, c: string, photo?: string) {
+  const d = clean(cv); const grey = "#5F5B56"; const lv = levels(d.skills.length);
+  const star = (n: number) => Array.from({ length: 5 }, (_, i) => `<span style="color:${i < n ? "#fff" : "rgba(255,255,255,.28)"}">★</span>`).join("");
+  const css = `.pg{position:relative;min-height:1123px;background:#fff;color:#2B2B2B;overflow:hidden}
+  .dk{position:absolute;top:0;right:0;left:0;height:420px;background:${c};clip-path:polygon(0 0,100% 0,100% 100%,0 26%)}
+  .gr{position:absolute;top:300px;right:0;width:340px;bottom:0;background:${grey};clip-path:polygon(0 18%,100% 0,100% 100%,0 100%)}
+  .ph{position:absolute;top:44px;right:52px;width:230px;height:230px;border-radius:50%;border:7px solid #fff;overflow:hidden;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;z-index:3}.ph img{width:100%;height:100%;object-fit:cover}
+  .hd{position:absolute;top:56px;left:56px;right:330px;color:#fff;z-index:3}.hd h1{font-size:46px;font-weight:800;line-height:1.12}.hd p{font-size:16px;letter-spacing:4px;margin-top:8px;opacity:.9;font-weight:600}
+  .sd{position:absolute;top:400px;right:0;width:340px;padding:0 44px 40px 34px;color:#fff;display:flex;flex-direction:column;gap:24px;z-index:3}
+  .sd h2{font-size:15px;font-weight:800;letter-spacing:3px;padding-bottom:6px;border-bottom:1.5px solid rgba(255,255,255,.75);margin-bottom:10px}.sd p,.sd li{font-size:12.5px;line-height:1.85}.sd ul{margin:0;padding-right:16px}
+  .st{display:flex;justify-content:space-between;font-size:12.5px;margin:5px 0}.st b{font-weight:400;letter-spacing:1px}
+  .mn{position:absolute;top:300px;right:380px;left:52px;display:flex;flex-direction:column;gap:22px;z-index:3}
+  .mn h2{font-size:16px;font-weight:800;letter-spacing:3px;color:#2B2B2B;padding-bottom:6px;border-bottom:1.5px solid #2B2B2B;margin-bottom:10px;width:80%}
+  .it{margin-bottom:12px}.it h3{font-size:14px;font-weight:800;letter-spacing:1px}.it .y{font-size:13px;font-weight:800;color:#3B3B3B}.it p{font-size:12.5px;line-height:1.8;color:#555;text-align:justify}
+  .sk{margin:6px 0}.sk span{font-size:12.5px}.bar{height:9px;background:${grey};width:85%;margin-top:4px}.bar b{display:block;height:100%;background:${c}}
+  .ci{display:flex;gap:10px;align-items:center;font-size:12.5px;margin:6px 0}.ci i{width:20px;height:20px;border-radius:10px;background:${c};flex-shrink:0}`;
+  return doc(`<div class="pg"><div class="dk"></div><div class="gr"></div>
+  ${cv.showPhoto ? `<div class="ph">${photo ? `<img src="${photo}">` : PERSON("#fff")}</div>` : ""}
+  <div class="hd" style="${cv.showPhoto ? "" : "right:56px"}"><h1>${e(d.name)}</h1>${d.title ? `<p>${e(d.title)}</p>` : ""}</div>
+  <div class="sd">
+    ${cv.summary ? `<div><h2>نبذة عني</h2><p>${nl(cv.summary)}</p></div>` : ""}
+    ${d.edu.length ? `<div><h2>التعليم</h2><ul>${d.edu.map((x) => `<li>${e(x.institution || x.degree)}<br>${e(x.degree)}${x.year ? ` (${e(x.year)})` : ""}</li>`).join("")}</ul></div>` : ""}
+    ${d.langs.length ? `<div><h2>اللغات</h2>${d.langs.map((l, i) => `<div class="st"><span>${e(l)}</span><b>${star(Math.max(2, 5 - i))}</b></div>`).join("")}</div>` : ""}
+    ${d.courses.length ? `<div><h2>الدورات</h2><ul>${d.courses.map((s) => `<li>${e(s)}</li>`).join("")}</ul></div>` : ""}
+  </div>
+  <div class="mn">
+    ${d.exp.length ? `<div><h2>الخبرات العملية</h2>${d.exp.map((x) => `<div class="it"><h3>${e(x.position)}</h3><div class="y">${[x.period, x.company].filter(Boolean).map(e).join(" — ")}</div>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")}</div>` : ""}
+    ${d.skills.length ? `<div><h2>المهارات</h2>${d.skills.map((s, i) => `<div class="sk"><span>${e(s)}</span><div class="bar"><b style="width:${lv[i]}%"></b></div></div>`).join("")}</div>` : ""}
+    ${d.contact.length ? `<div><h2>التواصل</h2>${d.contact.map((x) => `<div class="ci"><i></i><span class="${x.ltr ? "ltr" : ""}">${e(x.v)}</span></div>`).join("")}</div>` : ""}
+  </div></div>`, css, "Cairo");
+}
+
+// ── 9. اللمسة الصفراء ─────────────────────────────────────
+function accent(cv: CVData, c: string, photo?: string) {
+  const d = clean(cv); const ink = "#1F2024"; const lv = levels(d.skills.length);
+  const css = `.pg{display:flex;min-height:1123px;background:#fff;color:${ink}}
+  .sd{width:290px;background:${ink};color:#fff;margin:40px 40px 40px 0;border-radius:0 0 0 0;display:flex;flex-direction:column}
+  .ph{height:300px;background:#2E3036;border-radius:0 0 90px 0;overflow:hidden;display:flex;align-items:center;justify-content:center}.ph img{width:100%;height:100%;object-fit:cover}
+  .sb{padding:26px 26px 30px;display:flex;flex-direction:column;gap:22px;flex:1;border-radius:0 70px 0 0;background:${ink};margin-top:-30px;position:relative}
+  .yt{display:inline-block;background:${c};color:${ink};font-size:12.5px;font-weight:900;letter-spacing:1px;padding:3px 14px;border-radius:0 10px 10px 0}
+  .sb h3{font-size:13.5px;font-weight:800;margin-top:10px}.sb p{font-size:11.5px;line-height:1.7;color:#C9CBD1}
+  .cr{border-right:5px solid ${c};padding:4px 10px;margin:6px 0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06))}.cr b{display:block;font-size:12px;color:${c}}.cr span{font-size:11.5px;color:#E5E6EA}
+  .mn{flex:1;padding:70px 44px 40px 30px;display:flex;flex-direction:column;gap:22px}
+  .acc{width:40px;height:110px;background:${c};border-radius:0 0 20px 20px;position:absolute;top:0;left:30px}
+  .mn h1{font-size:44px;font-weight:900;line-height:1.05}.mn .rl{font-size:15px;letter-spacing:3px;color:#55575E;margin-top:6px;font-weight:600}
+  .mn .yt{border-radius:10px}.sum{font-size:13px;line-height:1.85;color:#55575E;margin-top:8px}
+  .ex{display:grid;grid-template-columns:96px 1fr;gap:6px 16px;margin-top:10px}.ex .y{font-size:12px;font-weight:700;color:#55575E}.ex h3{font-size:13.5px;font-weight:800}.ex .co{font-size:12px;font-weight:600;color:#55575E}.ex p{font-size:12px;line-height:1.75;color:#6A6C73}
+  .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;margin-top:10px}.sg span{font-size:12px}.ln{height:3px;background:#E3E4E8;margin-top:4px}.ln b{display:block;height:100%;background:${c}}`;
+  return doc(`<div class="pg"><div class="sd">
+    ${cv.showPhoto ? `<div class="ph">${photo ? `<img src="${photo}">` : PERSON("#9A9CA3")}</div>` : `<div style="height:40px"></div>`}
+    <div class="sb">
+      ${d.edu.length ? `<div><span class="yt">التعليم</span>${d.edu.map((x) => `<h3>${e(x.degree)}</h3><p>${e(x.institution)}${x.year ? `<br>${e(x.year)}` : ""}</p>`).join("")}</div>` : ""}
+      ${d.langs.length ? `<div><span class="yt">اللغات</span><p style="margin-top:8px">${d.langs.map(e).join(" · ")}</p></div>` : ""}
+      ${d.courses.length ? `<div><span class="yt">الدورات</span>${d.courses.map((s) => `<p style="margin-top:6px">${e(s)}</p>`).join("")}</div>` : ""}
+      <div style="margin-top:auto">${d.contact.map((x, i) => `<div class="cr"><b>${["الهاتف", "البريد", "الموقع", "العنوان"][i] || ""}</b><span class="${x.ltr ? "ltr" : ""}">${e(x.v)}</span></div>`).join("")}</div>
+    </div></div>
+  <div class="mn" style="position:relative"><div class="acc"></div>
+    <div style="padding-top:20px"><h1>${e(d.name)}</h1>${d.title ? `<div class="rl">${e(d.title)}</div>` : ""}</div>
+    ${cv.summary ? `<div><span class="yt">نبذة عني</span><p class="sum">${nl(cv.summary)}</p></div>` : ""}
+    ${d.exp.length ? `<div><span class="yt">الخبرات العملية</span><div class="ex">${d.exp.map((x) => `<div class="y">${e(x.period)}</div><div><h3>${e(x.position)}</h3>${x.company ? `<div class="co">${e(x.company)}</div>` : ""}${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")}</div></div>` : ""}
+    ${d.skills.length ? `<div><span class="yt">المهارات</span><div class="sg">${d.skills.map((s, i) => `<div><span>${e(s)}</span><div class="ln"><b style="width:${lv[i]}%"></b></div></div>`).join("")}</div></div>` : ""}
+  </div></div>`, css, "Cairo");
+}
+
+// ── 10. المقوّس ───────────────────────────────────────────
+function arch(cv: CVData, c: string, photo?: string) {
+  const d = clean(cv); const dk = darken(c);
+  const css = `.pg{position:relative;min-height:1123px;background:#fff;color:#1E1E1E;display:flex;padding:54px 46px 40px 40px;gap:0}
+  .col{width:280px;background:${c};border-radius:140px 140px 0 0;padding:28px 0 30px;display:flex;flex-direction:column;gap:22px;flex-shrink:0;position:relative}
+  .av{width:170px;height:170px;border-radius:85px;background:#fff;align-self:center;overflow:hidden;display:flex;align-items:center;justify-content:center;border:6px solid #fff}.av img{width:100%;height:100%;object-fit:cover}
+  .rb{position:relative;background:${dk};color:#fff;font-size:16px;font-weight:800;text-align:center;padding:9px 0;margin:0 -18px 0 -18px}
+  .rbw{position:relative}.rbw:after{content:"";position:absolute;left:-18px;bottom:-14px;border-top:14px solid #111;border-left:18px solid transparent}
+  .cb{padding:0 26px;color:#fff;font-size:12px;line-height:1.85}.cb ul{margin:0;padding-right:16px}
+  .mn{flex:1;padding-right:0;display:flex;flex-direction:column;gap:20px}
+  .hd{padding:30px 34px 10px}.hd h1{font-size:40px;font-weight:900;line-height:1.15}.hd p{font-size:17px;letter-spacing:2px;margin-top:4px}
+  .mr{background:${dk};color:#fff;font-size:18px;font-weight:800;padding:10px 30px;margin-right:-18px;text-align:center}
+  .tl{position:relative;padding:4px 34px 4px 30px;border-right:2px solid #1E1E1E;margin:10px 46px 6px 30px}.tl:before{content:"";position:absolute;right:-7px;top:6px;width:12px;height:12px;border-radius:6px;background:#1E1E1E}
+  .tl h3{font-size:14px;font-weight:800}.tl .m{font-size:12.5px;color:#333;margin:2px 0}.tl p{font-size:12px;line-height:1.75;color:#555}`;
+  return doc(`<div class="pg"><div class="col">
+    ${cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(c)}</div>` : `<div style="height:60px"></div>`}
+    ${cv.summary ? `<div class="rbw"><div class="rb">نبذة عني</div></div><div class="cb">${nl(cv.summary)}</div>` : ""}
+    ${d.skills.length ? `<div class="rbw"><div class="rb">المهارات</div></div><div class="cb"><ul>${d.skills.map((s) => `<li>${e(s)}</li>`).join("")}</ul></div>` : ""}
+    ${d.langs.length ? `<div class="rbw"><div class="rb">اللغات</div></div><div class="cb">${d.langs.map(e).join(" · ")}</div>` : ""}
+    ${d.contact.length ? `<div class="rbw"><div class="rb">التواصل</div></div><div class="cb">${d.contact.map((x) => `<div class="${x.ltr ? "ltr" : ""}" style="text-align:right">${e(x.v)}</div>`).join("")}</div>` : ""}
+  </div>
+  <div class="mn"><div class="hd"><h1>${e(d.name)}</h1>${d.title ? `<p>${e(d.title)}</p>` : ""}</div>
+    ${d.edu.length ? `<div><div class="mr">التعليم</div>${d.edu.map((x) => `<div class="tl"><h3>${e(x.degree)}</h3><div class="m">${e(x.institution)}${x.year ? ` | ${e(x.year)}` : ""}</div></div>`).join("")}</div>` : ""}
+    ${d.exp.length ? `<div><div class="mr">الخبرات العملية</div>${d.exp.map((x) => `<div class="tl"><h3>${e(x.position)}</h3><div class="m">${[x.company, x.period].filter(Boolean).map(e).join(" | ")}</div>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")}</div>` : ""}
+    ${d.courses.length ? `<div><div class="mr">الدورات والشهادات</div>${d.courses.map((s) => `<div class="tl"><h3>${e(s)}</h3></div>`).join("")}</div>` : ""}
+  </div></div>`, css, "Cairo");
+}
+
+/** علامة «معاينة» فوق القوالب المميزة غير المفتوحة */
+const WATERMARK = `<div style="position:fixed;inset:0;pointer-events:none;z-index:99;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;transform:rotate(-24deg) scale(1.4);opacity:.13">${Array.from({ length: 24 }, () => `<span style="font:900 34px Cairo,Tahoma;color:#000;padding:30px">معاينة · حصاحيصاوي</span>`).join("")}</div>`;
+
+export function buildCVHtml(cv: CVData, id: CVTemplateId, color: string, photoDataUri?: string, opts: { watermark?: boolean } = {}): string {
+  const html = buildCVHtmlRaw(cv, id, color, photoDataUri);
+  return opts.watermark ? html.replace("</body>", `${WATERMARK}</body>`) : html;
+}
+
+function buildCVHtmlRaw(cv: CVData, id: CVTemplateId, color: string, photoDataUri?: string): string {
   const photo = cv.showPhoto ? (photoDataUri || cv.photoUri || undefined) : undefined;
   switch (id) {
     case "band": return band(cv, color, photo);
@@ -207,6 +359,10 @@ export function buildCVHtml(cv: CVData, id: CVTemplateId, color: string, photoDa
     case "cards": return cards(cv, color, photo);
     case "ats": return ats(cv, color);
     case "bold": return bold(cv, color, photo);
+    case "hexa": return hexa(cv, color, photo);
+    case "diagonal": return diagonal(cv, color, photo);
+    case "accent": return accent(cv, color, photo);
+    case "arch": return arch(cv, color, photo);
     default: return nile(cv, color, photo);
   }
 }

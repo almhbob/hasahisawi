@@ -65,19 +65,7 @@ const CATEGORIES: { key: "all" | RetailCategory; label: string; icon: string; co
   { key: "accessories", label: "إكسسوارات", icon: "watch-variant", color: "#FBBF24" },
 ];
 
-const SEED_MERCHANTS: Merchant[] = [
-  { id: "m1", shopName: "بوتيك الأناقة", ownerName: "إدارة البوتيك", category: "boutique", phone: "0914000001", address: "السوق الكبير", description: "ملابس وإكسسوارات مختارة للنساء والرجال والأطفال", status: "approved", createdAt: new Date().toISOString() },
-  { id: "m2", shopName: "عطور النيل", ownerName: "قسم العطور", category: "perfume", phone: "0914000002", address: "شارع المستشفى", description: "عطور فرنسية وشرقية وتركيبات خاصة", status: "approved", createdAt: new Date().toISOString() },
-  { id: "m3", shopName: "أحذية المدينة", ownerName: "إدارة المتجر", category: "shoes", phone: "0914000003", address: "وسط الحصاحيصا", description: "أحذية رجالية ونسائية ورياضية", status: "approved", createdAt: new Date().toISOString() },
-  { id: "m4", shopName: "مستلزمات المرأة", ownerName: "قسم النساء", category: "women", phone: "0914000004", address: "قسم خاص", description: "منتجات ومستلزمات نسائية تظهر للنساء والإدارة فقط", status: "approved", createdAt: new Date().toISOString() },
-];
-
-const SEED_PRODUCTS: Product[] = [
-  { id: "p1", merchantId: "m1", name: "طقم خروج عصري", category: "clothing", price: 28000, oldPrice: 32000, description: "قماش مريح، مقاسات متعددة، ألوان موسمية", stock: 8, isAvailable: true, createdAt: new Date().toISOString() },
-  { id: "p2", merchantId: "m2", name: "عطر شرقي فاخر", category: "perfume", price: 15000, description: "ثبات عالي وحجم مناسب للهدايا", stock: 12, isAvailable: true, createdAt: new Date().toISOString() },
-  { id: "p3", merchantId: "m3", name: "حذاء رياضي خفيف", category: "shoes", price: 22000, oldPrice: 26000, description: "نعل مريح ومناسب للمشي اليومي", stock: 6, isAvailable: true, createdAt: new Date().toISOString() },
-  { id: "p4", merchantId: "m4", name: "مستلزمات نسائية أساسية", category: "women", price: 9500, description: "قسم خاص بالنساء: مستلزمات شخصية ومنتجات عناية مختارة", stock: 20, isAvailable: true, createdAt: new Date().toISOString() },
-];
+// لا بيانات تجريبية: المتاجر والمنتجات تأتي من الخادم فقط (المعتمدة من الإدارة)
 
 function formatPrice(v: number) {
   return `${Math.round(v).toLocaleString("ar-SA")} ج.س`;
@@ -94,8 +82,8 @@ export default function ProductShowcaseScreen() {
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<"all" | RetailCategory>("all");
-  const [merchants, setMerchants] = useState<Merchant[]>(SEED_MERCHANTS);
-  const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [joinOpen, setJoinOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
@@ -107,7 +95,7 @@ export default function ProductShowcaseScreen() {
   const [address, setAddress] = useState("");
   const [merchantCat, setMerchantCat] = useState<RetailCategory>("boutique");
 
-  const [selectedMerchantId, setSelectedMerchantId] = useState("m1");
+  const [selectedMerchantId, setSelectedMerchantId] = useState("");
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("");
   const [productDesc, setProductDesc] = useState("");
@@ -134,8 +122,9 @@ export default function ProductShowcaseScreen() {
       const [m, p, c] = await Promise.all([
         AsyncStorage.getItem(MERCHANTS_KEY), AsyncStorage.getItem(PRODUCTS_KEY), AsyncStorage.getItem(CART_KEY),
       ]);
-      if (m) setMerchants(JSON.parse(m));
-      if (p) setProducts(JSON.parse(p));
+      // نُبقي من الذاكرة المحلية ما جاء من الخادم فقط (كانت تحتفظ بالمتاجر التجريبية القديمة)
+      if (m) setMerchants((JSON.parse(m) as Merchant[]).filter(x => String(x.id).startsWith("api-")));
+      if (p) setProducts((JSON.parse(p) as Product[]).filter(x => String(x.id).startsWith("api-")));
       if (c) setCart(JSON.parse(c));
     })().catch(() => {});
   }, []);
@@ -157,11 +146,8 @@ export default function ProductShowcaseScreen() {
         status: "approved",
         createdAt: m.created_at || new Date().toISOString(),
       }));
-      if (!apiMerchants.length) return;
-      setMerchants(prev => {
-        const existingIds = new Set(prev.map(p => p.id));
-        return [...prev, ...apiMerchants.filter(m => !existingIds.has(m.id))];
-      });
+      // الخادم مصدر الحقيقة: ما تحذفه الإدارة يختفي من الجميع
+      setMerchants(apiMerchants);
     })();
   }, []);
 
@@ -184,11 +170,7 @@ export default function ProductShowcaseScreen() {
         isAvailable: !!p.is_available,
         createdAt: p.created_at || new Date().toISOString(),
       }));
-      if (!apiProducts.length) return;
-      setProducts(prev => {
-        const existingIds = new Set(prev.map(x => x.id));
-        return [...prev, ...apiProducts.filter(x => !existingIds.has(x.id))];
-      });
+      setProducts(apiProducts);
     })();
   }, []);
 

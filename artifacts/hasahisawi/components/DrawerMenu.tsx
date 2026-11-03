@@ -80,6 +80,11 @@ const GROUPS: Group[] = [
   {
     label: "تعليم وعمل",
     items: [
+      { title: "إثراء — المكتبة الثقافية", icon: "library-outline", route: "/ithraa",       color: "#1B4D6B"      },
+      { title: "ديوان الكُتّاب", icon: "create-outline", route: "/writers",            color: "#7A2E3A"      },
+      { title: "نافذة الصحافة", icon: "newspaper-outline", route: "/press",               color: "#C8102E"      },
+      { title: "عضوية الكُتّاب والبطاقة", icon: "id-card-outline", route: "/writers-membership", color: "#7A2E3A" },
+      { title: "مسابقة حصاحيصاوي الأدبية", icon: "trophy-outline", route: "/lit-contest", color: "#C99A2E"  },
       { title: "المكتبة المنهجية", icon: "library-outline", route: "/curriculum",          color: "#2A6FA8"      },
       { title: "مساحة الطالب والمعلم", icon: "school-outline", route: "/edu-hub",          color: "#2F7D6D"      },
       { title: "الطلاب والمعلمون", icon: "school-outline", route: "/(tabs)/student",     color: Colors.cyber   },
@@ -138,6 +143,7 @@ const GROUPS: Group[] = [
     label: "بوابات الشركاء",
     items: [
       { title: "بوابة التاجر",     icon: "storefront-outline", route: "/store-portal",           color: Colors.primary },
+      { title: "بوابة المصمم",     icon: "color-palette-outline", route: "/designer-portal",     color: "#3B78A6" },
       { title: "بوابة مدير زواجل", icon: "shield-outline",     route: "/(tabs)/zawajil-manager", color: "#C46A3A" },
     ],
   },

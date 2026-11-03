@@ -1456,6 +1456,35 @@ function SettingsTab({
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const X = store as any;
+  const [isOpen, setIsOpen] = useState<boolean>(X.is_open !== false);
+  const [acceptsOrders, setAcceptsOrders] = useState<boolean>(X.accepts_orders !== false);
+  const [pickup, setPickup] = useState<boolean>(X.pickup_available !== false);
+  const [notifyOrders, setNotifyOrders] = useState<boolean>(X.notify_orders !== false);
+  const [whatsapp, setWhatsapp] = useState<string>(X.whatsapp || "");
+  const [payMethods, setPayMethods] = useState<string[]>(Array.isArray(X.payment_methods) && X.payment_methods.length ? X.payment_methods : ["cash"]);
+  const [bankAccount, setBankAccount] = useState<string>(X.bank_account || "");
+  const [workingDays, setWorkingDays] = useState<string>(X.working_days || "السبت - الخميس");
+  const [announcement, setAnnouncement] = useState<string>(X.announcement || "");
+  const [prepMinutes, setPrepMinutes] = useState<string>(X.prep_minutes ? String(X.prep_minutes) : "");
+  const PAY_OPTS = [
+    { k: "cash", l: "كاش عند الاستلام", i: "cash-outline" }, { k: "bankak", l: "بنكك", i: "phone-portrait-outline" },
+    { k: "ocash", l: "أوكاش", i: "wallet-outline" }, { k: "fawry", l: "فوري", i: "flash-outline" }, { k: "transfer", l: "تحويل بنكي", i: "business-outline" },
+  ];
+  // تبديل فوري لحالة الفتح دون الحاجة لحفظ كل الإعدادات
+  const quickToggle = async (field: "is_open" | "accepts_orders", value: boolean) => {
+    if (field === "is_open") setIsOpen(value); else setAcceptsOrders(value);
+    try {
+      const form = new FormData();
+      form.append(field, value ? "true" : "false");
+      const res = await fetch(`${apiBase}/api/store/my`, { method: "PUT", headers: { ...authHeader }, body: form });
+      if (res.ok) onSaved(await res.json());
+      else throw new Error();
+    } catch {
+      if (field === "is_open") setIsOpen(!value); else setAcceptsOrders(!value);
+      Alert.alert("خطأ", "تعذّر تحديث الحالة");
+    }
+  };
 
   const pickLogo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.8 });
@@ -1480,6 +1509,14 @@ function SettingsTab({
       form.append("delivery_available", deliveryAvailable ? "true" : "false");
       form.append("delivery_fee", deliveryFee || "0");
       form.append("min_order", minOrder || "0");
+      form.append("pickup_available", pickup ? "true" : "false");
+      form.append("notify_orders", notifyOrders ? "true" : "false");
+      form.append("whatsapp", whatsapp.trim());
+      form.append("payment_methods", payMethods.join(","));
+      form.append("bank_account", bankAccount.trim());
+      form.append("working_days", workingDays.trim());
+      form.append("announcement", announcement.trim());
+      form.append("prep_minutes", prepMinutes || "0");
       if (logoUri) {
         form.append("logo", await filePart(logoUri, "logo.jpg", "image/jpeg"));
       }
@@ -1511,6 +1548,27 @@ function SettingsTab({
       contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}
       showsVerticalScrollIndicator={false}
     >
+      {/* حالة المتجر الآن — تبديل فوري */}
+      <Animated.View entering={FadeInDown.springify()} style={[styles.card, { borderColor: isOpen ? Colors.primary + "55" : "#B4231855", borderWidth: 1.5 }]}>
+        <Text style={styles.cardTitle}>حالة المتجر الآن</Text>
+        <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+          {[true, false].map((v) => (
+            <TouchableOpacity key={String(v)} onPress={() => isOpen !== v && quickToggle("is_open", v)}
+              style={{ flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12, borderWidth: 1.5,
+                borderColor: isOpen === v ? (v ? Colors.primary : "#B42318") : Colors.divider,
+                backgroundColor: isOpen === v ? (v ? Colors.primary + "14" : "#B4231812") : "transparent" }}>
+              <Ionicons name={v ? "storefront" : "moon"} size={20} color={isOpen === v ? (v ? Colors.primary : "#B42318") : Colors.textMuted} />
+              <Text style={[styles.switchLabel, { marginTop: 4, color: isOpen === v ? (v ? Colors.primary : "#B42318") : Colors.textMuted }]}>{v ? "مفتوح" : "مغلق"}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={[styles.switchRow, { marginTop: 10 }]}>
+          <Switch value={acceptsOrders} onValueChange={(v) => quickToggle("accepts_orders", v)} trackColor={{ false: Colors.divider, true: Colors.primary + "40" }} thumbColor={acceptsOrders ? Colors.primary : "#999"} />
+          <Text style={styles.switchLabel}>استقبال الطلبات من التطبيق</Text>
+        </View>
+        <Text style={[styles.fieldLabel, { marginTop: 4 }]}>{isOpen && acceptsOrders ? "الزبائن يرون متجرك مفتوحاً ويمكنهم الطلب." : "يظهر متجرك للزبائن مع شارة «مغلق / لا يستقبل طلبات» ولا تصلك طلبات جديدة."}</Text>
+      </Animated.View>
+
       {/* Store Info */}
       <Animated.View entering={FadeInDown.springify().delay(50)} style={styles.card}>
         <Text style={styles.cardTitle}>معلومات المتجر</Text>
@@ -1566,8 +1624,52 @@ function SettingsTab({
           </>
         )}
 
+        <View style={styles.switchRow}>
+          <Switch value={pickup} onValueChange={setPickup} trackColor={{ false: Colors.divider, true: Colors.primary + "40" }} thumbColor={pickup ? Colors.primary : "#999"} />
+          <Text style={styles.switchLabel}>الاستلام من المتجر</Text>
+        </View>
+
+        <Text style={styles.fieldLabel}>أيام العمل</Text>
+        <TextInput style={styles.input} value={workingDays} onChangeText={setWorkingDays} placeholder="السبت - الخميس" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
         <Text style={styles.fieldLabel}>ساعات العمل</Text>
         <TextInput style={styles.input} value={workingHours} onChangeText={setWorkingHours} placeholder="مثال: 8ص - 10م" placeholderTextColor={Colors.textMuted} textAlign="right" />
+
+        <Text style={styles.fieldLabel}>متوسط وقت التجهيز (دقيقة)</Text>
+        <TextInput style={styles.input} value={prepMinutes} onChangeText={(t) => setPrepMinutes(t.replace(/\D/g, ""))} placeholder="مثال: 20" placeholderTextColor={Colors.textMuted} keyboardType="numeric" textAlign="right" />
+      </Animated.View>
+
+      {/* الدفع والتواصل */}
+      <Animated.View entering={FadeInDown.springify().delay(120)} style={styles.card}>
+        <Text style={styles.cardTitle}>الدفع والتواصل</Text>
+        <Text style={styles.fieldLabel}>وسائل الدفع المقبولة</Text>
+        <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+          {PAY_OPTS.map((o) => {
+            const on = payMethods.includes(o.k);
+            return (
+              <TouchableOpacity key={o.k} onPress={() => setPayMethods(on ? payMethods.filter((x) => x !== o.k) : [...payMethods, o.k])}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
+                  borderColor: on ? Colors.primary : Colors.divider, backgroundColor: on ? Colors.primary + "14" : "transparent" }}>
+                <Ionicons name={o.i as any} size={14} color={on ? Colors.primary : Colors.textMuted} />
+                <Text style={[styles.switchLabel, { fontSize: 12.5, color: on ? Colors.primary : Colors.textSecondary }]}>{o.l}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {payMethods.some((m) => m !== "cash") && (
+          <>
+            <Text style={styles.fieldLabel}>بيانات الحساب للتحويل (يظهر للزبون عند الطلب)</Text>
+            <TextInput style={styles.input} value={bankAccount} onChangeText={setBankAccount} placeholder="مثال: بنكك 1234567 — اسم الحساب" placeholderTextColor={Colors.textMuted} textAlign="right" />
+          </>
+        )}
+        <Text style={styles.fieldLabel}>واتساب المتجر</Text>
+        <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} placeholder="2499xxxxxxxx" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" textAlign="right" />
+        <Text style={styles.fieldLabel}>إعلان يظهر أعلى صفحة متجرك</Text>
+        <TextInput style={styles.input} value={announcement} onChangeText={setAnnouncement} maxLength={200} placeholder="مثال: خصم 10% على كل الطلبات هذا الأسبوع" placeholderTextColor={Colors.textMuted} textAlign="right" />
+        <View style={styles.switchRow}>
+          <Switch value={notifyOrders} onValueChange={setNotifyOrders} trackColor={{ false: Colors.divider, true: Colors.primary + "40" }} thumbColor={notifyOrders ? Colors.primary : "#999"} />
+          <Text style={styles.switchLabel}>إشعار فوري عند وصول طلب جديد</Text>
+        </View>
       </Animated.View>
 
       {/* Logo */}

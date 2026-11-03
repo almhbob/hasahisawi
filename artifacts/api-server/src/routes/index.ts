@@ -1,3 +1,4 @@
+import designerShopRouter from "./designer-shop";
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import adminUsersFirebaseRouter from "./admin-users-firebase";
@@ -29,6 +30,14 @@ import redCrescentRouter, { ensureRedCrescentDb } from "./red-crescent";
 import redCrescentPlusRouter from "./red-crescent-plus";
 import redCrescentOpsRouter from "./red-crescent-ops";
 import invitesRouter, { ensureInvitesDb } from "./invites";
+import ithraaRouter, { ensureIthraaDb } from "./ithraa";
+import ithraaWritersRouter from "./ithraa-writers";
+import litContestRouter, { ensureLitContestDb } from "./lit-contest";
+import litMembersRouter, { ensureMembersDb } from "./lit-members";
+import pressRouter, { ensurePressDb } from "./press";
+import demoCleanupRouter, { purgeDemoData } from "./demo-cleanup";
+import bookingEntitiesRouter, { ensureBookingEntities } from "./booking-entities";
+import cvPremiumRouter, { ensureCvPremiumDb } from "./cv-premium";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -37,6 +46,8 @@ router.use(womenCornerGuard);
 router.use(genderLockGuard);
 router.use(captureAdminAlerts);
 router.use(adminAlertsRouter);
+// بوابة المصمم (قبل hasahisawiRouter لأنها تضيف وسيط إشعار على مسار الطلبات القائم)
+router.use(designerShopRouter);
 router.use(accessGuardsRouter);
 router.use(uploadRouter);
 router.use(storesRouter);
@@ -54,6 +65,14 @@ router.use(redCrescentRouter);
 router.use(redCrescentPlusRouter);
 router.use(redCrescentOpsRouter);
 router.use(invitesRouter);
+router.use(ithraaRouter);
+router.use(ithraaWritersRouter);
+router.use(litContestRouter);
+router.use(litMembersRouter);
+router.use(pressRouter);
+router.use(demoCleanupRouter);
+router.use(bookingEntitiesRouter);
+router.use(cvPremiumRouter);
 router.use(contestsRouter);
 router.use(callsRouter);
 router.use(campaignRouter);
@@ -81,6 +100,13 @@ async function initializeDatabaseSchemas() {
   await ensureVolunteerDb();
   await ensureRedCrescentDb();
   await ensureInvitesDb();
+  await ensureIthraaDb();
+  await ensureLitContestDb();
+  await ensureMembersDb();
+  await ensurePressDb();
+  await purgeDemoData().catch(() => {});
+  await ensureBookingEntities().catch(() => {});
+  await ensureCvPremiumDb().catch(() => {});
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();

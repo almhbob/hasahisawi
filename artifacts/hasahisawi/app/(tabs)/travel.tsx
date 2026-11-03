@@ -1,4 +1,5 @@
 import { withRTLScreen } from "@/components/RTLScope";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 // @ts-ignore
 import QRCode from "react-native-qrcode-svg";
@@ -889,6 +890,7 @@ function MyTickets({ user }: { user: any }) {
 // تبويب الشركاء + عقد الشراكة
 // ═══════════════════════════════════════════════════════════════
 function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
+  const showPricing = usePricingVisible();
   const [companies,  setCompanies]  = useState<TravelCompany[]>([]);
   const [showContract, setShowContract] = useState(false);
 
@@ -944,7 +946,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.agencyTitle}>بوابة احترافية للوكالات</Text>
-          <Text style={styles.agencySub}>استقبال الحجوزات، إدارة العروض، متابعة الاشتراكات، وتنسيق الرحلات السياحية من مكان واحد.</Text>
+          <Text style={styles.agencySub}>استقبال الحجوزات، إدارة العروض، وتنسيق الرحلات السياحية من مكان واحد.</Text>
         </View>
       </View>
       <View style={styles.agencyGrid}>
@@ -952,7 +954,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
           ["calendar-clock", "طلبات الحجز", "متابعة الطلبات الواردة"],
           ["tag-multiple-outline", "العروض السياحية", "باقات ورحلات موسمية"],
           ["account-tie-outline", "ملفات الوكالات", "بيانات الترخيص والاتصال"],
-          ["credit-card-check-outline", "الاشتراكات", "تفعيل وتجديد الباقات"],
+          ["chart-box-outline", "التقارير", "متابعة الأداء والحجوزات"],
         ].map(([icon, title, sub]) => (
           <View key={title} style={styles.agencyFeatureCard}>
             <MaterialCommunityIcons name={icon as any} size={24} color={ACCENT2} />
@@ -977,7 +979,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
             <Text style={styles.companyCardName}>{c.name}</Text>
             <Text style={styles.companyCardOwner}>{c.owner_name}</Text>
             <View style={styles.companyCardMeta}>
-              {c.subscription_type === "commission" ? (
+              {!showPricing ? null : c.subscription_type === "commission" ? (
                 <View style={styles.metaChip}>
                   <Text style={styles.metaChipTxt}>عمولة {c.commission_pct}%</Text>
                 </View>
