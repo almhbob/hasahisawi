@@ -53,7 +53,7 @@ export default function EduAdmin() {
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
         <Hero insetTop={insets.top} kicker={`${KIND_AR[w.kind] ?? ""} · ${ROLE_AR[ov.me.role ?? ""] ?? "معلم"}`} title={w.name} sub={`${w.settings.academic_year} · ${w.settings.current_term}`}
-          right={<Pressable onPress={() => router.push({ pathname: "/edu-institution", params: { id: String(wsId) } } as any)} style={st.heroBtn} accessibilityLabel="الصفحة العامة"><Ionicons name="eye-outline" size={18} color="#fff" /></Pressable>} />
+          right={<Pressable accessibilityRole="button" hitSlop={8} onPress={() => router.push({ pathname: "/edu-institution", params: { id: String(wsId) } } as any)} style={st.heroBtn} accessibilityLabel="الصفحة العامة"><Ionicons name="eye-outline" size={18} color="#fff" /></Pressable>} />
         <View style={{ paddingHorizontal: 16 }}>
           {w.status !== "active" && (
             <Card style={{ marginTop: 14, borderColor: "#B7791F", backgroundColor: "#B7791F10" }}>
@@ -338,7 +338,7 @@ function ClassesTab({ ov, token, wsId, reload }: Ctx) {
                 <Text style={e.t}>{c.name}</Text>
                 <Text style={e.muted}>{[c.level, c.room ? `قاعة ${c.room}` : null, `${c.students ?? 0} طالب`, `${c.slots ?? 0} حصة`, c.homeroom_teacher_id ? `رائد: ${ov.staff.find((s) => s.id === c.homeroom_teacher_id)?.name ?? ""}` : null].filter(Boolean).join(" · ")}</Text>
               </View>
-              <Pressable onPress={() => router.push({ pathname: "/edu-timetable", params: { id: String(wsId), class_id: String(c.id) } } as any)} hitSlop={8}><Ionicons name="calendar-outline" size={20} color={EDU_GOLD} /></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="التاريخ" onPress={() => router.push({ pathname: "/edu-timetable", params: { id: String(wsId), class_id: String(c.id) } } as any)} hitSlop={8}><Ionicons name="calendar-outline" size={20} color={EDU_GOLD} /></Pressable>
             </View>
           </Card>
         </Pressable>
@@ -416,7 +416,7 @@ function NewsTab({ ov, token, wsId }: Ctx) {
             {a.pinned && <Ionicons name="pin" size={14} color={EDU_GOLD} />}
             <Text style={[e.t, { flex: 1 }]}>{a.title}</Text>
             <Text style={st.chip}>{AUD.find(([k]) => k === a.audience)?.[1]}{a.class_id ? ` · ${ov.classes.find((c) => c.id === a.class_id)?.name ?? ""}` : ""}</Text>
-            <Pressable hitSlop={8} onPress={() => confirmDo("حذف الإعلان", a.title, async () => { if (await run(() => eduApi.delAnnouncement(token, wsId, a.id))) load(); })}><Ionicons name="trash-outline" size={18} color="#C0392B" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="حذف" hitSlop={8} onPress={() => confirmDo("حذف الإعلان", a.title, async () => { if (await run(() => eduApi.delAnnouncement(token, wsId, a.id))) load(); })}><Ionicons name="trash-outline" size={18} color="#C0392B" /></Pressable>
           </View>
           <Text style={[e.body, { marginTop: 4 }]} numberOfLines={4}>{a.body}</Text>
         </Card>
@@ -658,7 +658,7 @@ function SettingsTab({ ov, token, wsId, reload }: Ctx) {
             <TextInput value={String(b.minutes)} keyboardType="number-pad" onChangeText={(v) => setS({ ...s, breaks: s.breaks.map((x, j) => (j === i ? { ...x, minutes: Number(v) || 5 } : x)) })} style={[st.input, st.small]} />
             <Text style={e.muted}>دقيقة</Text>
             <TextInput value={b.label} onChangeText={(v) => setS({ ...s, breaks: s.breaks.map((x, j) => (j === i ? { ...x, label: v } : x)) })} style={[st.input, { flex: 1 }]} />
-            <Pressable onPress={() => setS({ ...s, breaks: s.breaks.filter((_, j) => j !== i) })} hitSlop={8}><Ionicons name="close-circle" size={20} color="#C0392B" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="إغلاق" onPress={() => setS({ ...s, breaks: s.breaks.filter((_, j) => j !== i) })} hitSlop={8}><Ionicons name="close-circle" size={20} color="#C0392B" /></Pressable>
           </View>
         ))}
         {s.breaks.length < 4 && <Btn small ghost label="استراحة" icon="add" onPress={() => setS({ ...s, breaks: [...s.breaks, { after: Math.min(s.periods - 1, 3), minutes: 30, label: "فسحة" }] })} />}
@@ -686,7 +686,7 @@ const st = StyleSheet.create({
   input: { backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   small: { width: 54, textAlign: "center" },
   score: { width: 70, textAlign: "center", paddingVertical: 6 },
-  chip: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: EDU, borderWidth: 1, borderColor: EDU + "44", paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8 },
+  chip: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: EDU, borderWidth: 1, borderColor: EDU + "44", paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8 },
   subj: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
   subjT: { fontFamily: "Cairo_700Bold", fontSize: 12.5 },
   gRow: { gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider },

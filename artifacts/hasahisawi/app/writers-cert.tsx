@@ -107,9 +107,9 @@ const st = StyleSheet.create({
   cell: { flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 6, gap: 10 },
   cellK: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#8A7A6A" },
   cellV: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 13, color: INK, textAlign: "left" },
-  hashK: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "#8A7A6A", marginTop: 10 },
-  hash: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, color: INK, textAlign: "center", letterSpacing: 0.5 },
+  hashK: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#8A7A6A", marginTop: 10 },
+  hash: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: INK, textAlign: "center", letterSpacing: 0.5 },
   qrRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 14, alignSelf: "stretch" },
   qr: { padding: 6, backgroundColor: "#fff", borderRadius: 8, borderWidth: 1, borderColor: GOLD + "66" },
-  qrT: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 11.5, color: "#6B5B4B", textAlign: "right", lineHeight: 19 },
+  qrT: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B5B4B", textAlign: "right", lineHeight: 19 },
 });

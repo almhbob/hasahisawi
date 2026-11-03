@@ -87,7 +87,7 @@ export default function WritersScreen() {
       >
         <LinearGradient colors={["#2A1512", WINE]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[s.hero, { paddingTop: insets.top + 10 }]}>
           <View style={[u.rowR, { justifyContent: "space-between" }]}>
-            <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/ithraa" as any))} style={s.iconBtn} hitSlop={8} accessibilityLabel="رجوع">
+            <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/ithraa" as any))} style={s.iconBtn} hitSlop={8} accessibilityLabel="رجوع">
               <Ionicons name="chevron-forward" size={22} color="#fff" />
             </Pressable>
             <Pressable onPress={() => router.push("/lit-contest" as any)} style={s.contestBtn} accessibilityLabel="المسابقة الأدبية">
@@ -259,7 +259,7 @@ function Stat({ n, l }: { n: number; l: string }) {
   return <View style={s.stat}><Text style={s.statN}>{n.toLocaleString("ar-EG")}</Text><Text style={s.statL}>{l}</Text></View>;
 }
 function Tag({ c, t }: { c: string; t: string }) {
-  return <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: c, backgroundColor: c + "14", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" }}>{t}</Text>;
+  return <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: c, backgroundColor: c + "14", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" }}>{t}</Text>;
 }
 
 function ContestBanner({ c }: { c: Contest }) {
@@ -320,7 +320,7 @@ const s = StyleSheet.create({
   heroSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.86)", textAlign: "right", lineHeight: 22 },
   stat: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 12, paddingVertical: 8, alignItems: "center" },
   statN: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff" },
-  statL: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)" },
+  statL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)" },
   writeBtn: { marginTop: 14, backgroundColor: "#FFF8EC", borderRadius: 14, height: 48, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
   writeBtnT: { fontFamily: "Cairo_700Bold", fontSize: 15, color: WINE },
   tabsWrap: { backgroundColor: Colors.bg, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
@@ -329,7 +329,7 @@ const s = StyleSheet.create({
   tabT: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary },
   banner: { borderRadius: 18, padding: 16 },
   phase: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 12 },
-  phaseT: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#fff" },
+  phaseT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
   bannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#fff", textAlign: "right", marginTop: 6 },
   bannerEd: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: GOLD, textAlign: "right" },
   bannerSlogan: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.85)", textAlign: "right", marginTop: 4 },
@@ -339,7 +339,7 @@ const s = StyleSheet.create({
   groupIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   groupT: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
   feat: { width: 220, minHeight: 210, borderRadius: 18, padding: 14, gap: 4 },
-  featForm: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "rgba(255,255,255,0.75)", textAlign: "right" },
+  featForm: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.75)", textAlign: "right" },
   featTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", textAlign: "right", lineHeight: 25 },
   featBody: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.9)", textAlign: "right", lineHeight: 22, flex: 1 },
   featAuthor: { fontFamily: "Cairo_700Bold", fontSize: 12, color: GOLD, textAlign: "right" },

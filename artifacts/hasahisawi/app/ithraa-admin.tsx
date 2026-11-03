@@ -270,8 +270,8 @@ function Moderators({ token, meta }: { token: string; meta: IthraaMeta }) {
             <Text style={st.hitName}>{m.name}</Text>
             <Text style={u.hint} numberOfLines={2}>{label(m.categories)} · راجع {m.reviewed}</Text>
           </View>
-          <Pressable onPress={() => edit(m)} hitSlop={8} style={st.iconBtn} accessibilityLabel="تعديل"><Ionicons name="create-outline" size={18} color={ITHRAA} /></Pressable>
-          <Pressable onPress={() => remove(m)} hitSlop={8} style={st.iconBtn} accessibilityLabel="إزالة"><Ionicons name="trash-outline" size={18} color="#C0392B" /></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => edit(m)} hitSlop={8} style={st.iconBtn} accessibilityLabel="تعديل"><Ionicons name="create-outline" size={18} color={ITHRAA} /></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => remove(m)} hitSlop={8} style={st.iconBtn} accessibilityLabel="إزالة"><Ionicons name="trash-outline" size={18} color="#C0392B" /></Pressable>
         </View>
       ))}
       {!mods.length && <Empty icon="people-outline" title="لم يُعيَّن مشرفون بعد" sub="ابحث عن عضو أعلاه وعيّنه مشرفاً على كل الرفوف أو على رفوف بعينها." />}
@@ -293,9 +293,9 @@ const st = StyleSheet.create({
   bar: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 8, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "center" },
-  barSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "center" },
+  barSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
   artIcon: { width: 58, height: 58, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  kindChip: { fontFamily: "Cairo_700Bold", fontSize: 11.5 },
+  kindChip: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right", lineHeight: 22 },
   preview: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 22, marginTop: 10 },
   more: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: ITHRAA, textAlign: "right" },

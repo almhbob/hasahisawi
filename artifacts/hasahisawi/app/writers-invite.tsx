@@ -58,7 +58,7 @@ export default function InviteScreen() {
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         <LinearGradient colors={["#1E0F0C", WINE]} style={[st.hero, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/writers-membership" as any))} style={st.iconBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color="#fff" /></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/writers-membership" as any))} style={st.iconBtn} hitSlop={8} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={22} color="#fff" /></Pressable>
           <Text style={st.title}>ادعُ للانضمام</Text>
           <Text style={st.sub}>خطابات دعوة جاهزة وأنيقة للأفراد والمؤسسات الأدبية والنقابات واتحادات الإعلام والصحافة — برابط يُنسب إليك.</Text>
           {stats && <View style={[u.rowR, { gap: 8, marginTop: 12 }]}><Chip n={stats.sent} l="دعوة أرسلتها" /><Chip n={stats.joined} l="انضموا بدعوتك" /></View>}
@@ -111,11 +111,11 @@ const st = StyleSheet.create({
   sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.85)", textAlign: "right", lineHeight: 22 },
   chip: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 12, paddingVertical: 8, alignItems: "center" },
   chipN: { fontFamily: "Cairo_700Bold", fontSize: 18, color: GOLD },
-  chipL: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)" },
+  chipL: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)" },
   aud: { width: "48%", flexGrow: 1, borderRadius: 16, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.cardBg, padding: 12, alignItems: "flex-end", gap: 4 },
   audI: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   audT: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary },
-  audS: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right" },
+  audS: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   paper: { marginTop: 16, backgroundColor: "#FFFDF8", borderRadius: 16, borderWidth: 1, borderColor: "#EFE5D2", padding: 16 },
   paperHead: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingBottom: 8, borderBottomWidth: 2, marginBottom: 10 },
   paperT: { fontFamily: "Cairo_700Bold", fontSize: 14 },

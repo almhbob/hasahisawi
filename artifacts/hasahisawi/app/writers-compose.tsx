@@ -146,7 +146,7 @@ export default function ComposeScreen() {
           <Text style={st.barTitle} numberOfLines={1}>{contest ? `مشاركة · ${contest.title}` : "نص جديد"}</Text>
           {!contest && <Text style={st.barSub}>تُحفظ مسودتك تلقائياً</Text>}
         </View>
-        <Pressable onPress={() => setPreview((p) => !p)} style={st.barBtn} hitSlop={8} accessibilityLabel="معاينة">
+        <Pressable accessibilityRole="button" onPress={() => setPreview((p) => !p)} style={st.barBtn} hitSlop={8} accessibilityLabel="معاينة">
           <Ionicons name={preview ? "create-outline" : "eye-outline"} size={21} color={INK} />
         </Pressable>
       </View>
@@ -227,7 +227,7 @@ const st = StyleSheet.create({
   bar: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 8, backgroundColor: PAPER, borderBottomWidth: 1, borderBottomColor: "#E9DFCC" },
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 15.5, color: INK, textAlign: "center" },
-  barSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#8A7A6A", textAlign: "center" },
+  barSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#8A7A6A", textAlign: "center" },
   contestNote: { flexDirection: "row-reverse", gap: 8, backgroundColor: WINE + "0D", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: WINE + "30" },
   contestNoteT: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12.5, color: INK, textAlign: "right", lineHeight: 20 },
   flag: { backgroundColor: "#FDF2F2", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#F5C2C2", marginBottom: 6, gap: 3 },

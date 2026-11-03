@@ -1883,7 +1883,7 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     textAlign: "center",
   },

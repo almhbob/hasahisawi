@@ -142,7 +142,7 @@ const st = StyleSheet.create({
   bar: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 12, paddingBottom: 8, backgroundColor: Colors.cardBg, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   barBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: INK, textAlign: "center" },
-  barSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "center" },
+  barSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
   progress: { height: 4, backgroundColor: Colors.divider, transform: [{ scaleX: -1 }] },
   progressFill: { height: 4, backgroundColor: GOLD },
   code: { fontFamily: "Cairo_700Bold", fontSize: 13, color: WINE, backgroundColor: WINE + "10", paddingHorizontal: 8, borderRadius: 8, overflow: "hidden", letterSpacing: 1 },
@@ -161,7 +161,7 @@ const st = StyleSheet.create({
   val: { fontFamily: "Cairo_700Bold", fontSize: 15, color: WINE },
   scale: { flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6 },
   dot: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: Colors.divider, alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },
-  dotT: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  dotT: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   half: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: Colors.divider },
   halfT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary },
 });

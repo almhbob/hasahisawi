@@ -429,8 +429,8 @@ function QuoteSheet({ q, meta, onClose, onSaved, onContract }: { q: Quote | null
         <View style={[u.rowR, { gap: 10, marginTop: 8 }]}>
           <UserAvatar avatarUrl={q.client_avatar} name={q.client_name} size={40} />
           <View style={{ flex: 1 }}><Text style={u.h}>{q.client_name}</Text><Text style={u.hint}>{q.client_phone}</Text></View>
-          <Pressable style={st.iconBtn} onPress={() => tel(q.client_phone)} accessibilityLabel="اتصال"><Ionicons name="call" size={18} color={CON} /></Pressable>
-          <Pressable style={st.iconBtn} onPress={() => wa(q.client_phone, `بخصوص طلبكم: ${q.title}`)} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={18} color="#16A34A" /></Pressable>
+          <Pressable accessibilityRole="button" hitSlop={8} style={st.iconBtn} onPress={() => tel(q.client_phone)} accessibilityLabel="اتصال"><Ionicons name="call" size={18} color={CON} /></Pressable>
+          <Pressable accessibilityRole="button" hitSlop={8} style={st.iconBtn} onPress={() => wa(q.client_phone, `بخصوص طلبكم: ${q.title}`)} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={18} color="#16A34A" /></Pressable>
         </View>
       </View>
 
@@ -593,7 +593,7 @@ function ContractForm({ quote, onDone }: { quote: Quote | null; onDone: (r: { co
           <TextInput style={[u.input, { flex: 1 }]} value={s.label} onChangeText={(v) => setSched((o) => o.map((x, j) => (j === i ? { ...x, label: v } : x)))} placeholder="وصف الدفعة" placeholderTextColor={Colors.textMuted} />
           <TextInput style={[u.input, { width: 64, textAlign: "center" }]} value={s.percent} keyboardType="numeric" onChangeText={(v) => setSched((o) => o.map((x, j) => (j === i ? { ...x, percent: v } : x)))} />
           <Text style={[u.hint, { width: 84 }]}>{price ? money(Math.round(price * (Number(s.percent) || 0)) / 100) : "%"}</Text>
-          <Pressable onPress={() => setSched((o) => o.filter((_, j) => j !== i))} hitSlop={8} accessibilityLabel="حذف الدفعة"><Ionicons name="remove-circle-outline" size={20} color="#B42318" /></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setSched((o) => o.filter((_, j) => j !== i))} hitSlop={8} accessibilityLabel="حذف الدفعة"><Ionicons name="remove-circle-outline" size={20} color="#B42318" /></Pressable>
         </View>
       ))}
       <View style={[u.rowR, { justifyContent: "space-between", marginTop: 8 }]}>
@@ -604,12 +604,12 @@ function ContractForm({ quote, onDone }: { quote: Quote | null; onDone: (r: { co
       {terms.map((t, i) => (
         <View key={i} style={[u.rowR, { gap: 8, marginTop: 6, alignItems: "flex-start" }]}>
           <Text style={[u.hint, { flex: 1, color: Colors.textPrimary }]}>{i + 1}. {t}</Text>
-          <Pressable onPress={() => setTerms((o) => o.filter((_, j) => j !== i))} hitSlop={8} accessibilityLabel="حذف الشرط"><Ionicons name="close" size={16} color={Colors.textMuted} /></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setTerms((o) => o.filter((_, j) => j !== i))} hitSlop={8} accessibilityLabel="حذف الشرط"><Ionicons name="close" size={16} color={Colors.textMuted} /></Pressable>
         </View>
       ))}
       <View style={[u.rowR, { gap: 8, marginTop: 8 }]}>
         <TextInput style={[u.input, { flex: 1 }]} value={newTerm} onChangeText={setNewTerm} placeholder="أضف شرطاً" placeholderTextColor={Colors.textMuted} />
-        <Pressable style={st.smallBtn} onPress={() => { if (newTerm.trim()) { setTerms((o) => [...o, newTerm.trim()].slice(0, 15)); setNewTerm(""); } }}><Ionicons name="add" size={18} color="#fff" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="إضافة" hitSlop={8} style={st.smallBtn} onPress={() => { if (newTerm.trim()) { setTerms((o) => [...o, newTerm.trim()].slice(0, 15)); setNewTerm(""); } }}><Ionicons name="add" size={18} color="#fff" /></Pressable>
       </View>
       <View style={[u.rowR, { gap: 10, marginTop: 20 }]}>
         <Pressable style={[u.ghost, { flex: 1, paddingVertical: 13 }]} disabled={busy} onPress={() => submit(false)}><Text style={u.ghostT}>حفظ كمسودة</Text></Pressable>
@@ -700,8 +700,8 @@ function Jobs({ meta }: { meta: Meta }) {
             {!!a.experience && <Text style={[u.hint, { marginTop: 6 }]}>الخبرة: {a.experience}</Text>}
             {!!a.note && <Text style={[u.hint, { marginTop: 2 }]}>{a.note}</Text>}
             <View style={[u.wrap, { marginTop: 10 }]}>
-              <Pressable style={st.iconBtn} onPress={() => { tel(a.phone); if (a.status === "new") setApp(a, "contacted"); }} accessibilityLabel="اتصال"><Ionicons name="call" size={18} color={CON} /></Pressable>
-              <Pressable style={st.iconBtn} onPress={() => { wa(a.phone, `بخصوص تقديمك على: ${apps.job.title}`); if (a.status === "new") setApp(a, "contacted"); }} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={18} color="#16A34A" /></Pressable>
+              <Pressable accessibilityRole="button" hitSlop={8} style={st.iconBtn} onPress={() => { tel(a.phone); if (a.status === "new") setApp(a, "contacted"); }} accessibilityLabel="اتصال"><Ionicons name="call" size={18} color={CON} /></Pressable>
+              <Pressable accessibilityRole="button" hitSlop={8} style={st.iconBtn} onPress={() => { wa(a.phone, `بخصوص تقديمك على: ${apps.job.title}`); if (a.status === "new") setApp(a, "contacted"); }} accessibilityLabel="واتساب"><Ionicons name="logo-whatsapp" size={18} color="#16A34A" /></Pressable>
               {a.status !== "accepted" && <Pressable style={[u.ghost, { borderColor: "#0E8A5F" }]} onPress={() => setApp(a, "accepted")}><Text style={[u.ghostT, { color: "#0E8A5F" }]}>قبول</Text></Pressable>}
               {a.status !== "rejected" && <Pressable style={[u.ghost, { borderColor: "#FCA5A5" }]} onPress={() => setApp(a, "rejected")}><Text style={[u.ghostT, { color: "#B42318" }]}>رفض</Text></Pressable>}
             </View>
@@ -760,7 +760,7 @@ function Staff({ isOwner }: { isOwner: boolean }) {
               <Text style={u.hint}>{m.role_label}{m.title ? ` · ${m.title}` : ""}</Text>
             </View>
             {m.role === "owner" ? <Badge label="المالك" color={CON} /> : (
-              <Pressable onPress={() => remove(m)} hitSlop={8} accessibilityLabel="إزالة"><Ionicons name="person-remove-outline" size={20} color="#B42318" /></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => remove(m)} hitSlop={8} accessibilityLabel="إزالة"><Ionicons name="person-remove-outline" size={20} color="#B42318" /></Pressable>
             )}
           </View>
           {m.role !== "owner" && (
@@ -820,7 +820,7 @@ const st = StyleSheet.create({
   smallBtnT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
   sheetHead: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   pipe: { height: 5, alignSelf: "stretch", borderRadius: 3 },
-  pipeT: { fontFamily: "Cairo_400Regular", fontSize: 9.5, color: Colors.textMuted, marginTop: 3 },
+  pipeT: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 3 },
   qImg: { width: 96, height: 96, borderRadius: 10, backgroundColor: Colors.divider },
   iconBtn: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider, alignItems: "center", justifyContent: "center" },
   contractText: { fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 23, color: Colors.textPrimary, textAlign: "right" },

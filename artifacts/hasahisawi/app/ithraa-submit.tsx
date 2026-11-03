@@ -141,7 +141,7 @@ export default function IthraaSubmit() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[st.bar, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/ithraa" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع">
+        <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/ithraa" as any))} style={st.barBtn} hitSlop={8} accessibilityLabel="رجوع">
           <Ionicons name="chevron-forward" size={22} color={Colors.textPrimary} />
         </Pressable>
         <Text style={st.barTitle}>{editId ? "تعديل المساهمة" : "مساهمة في «إثراء»"}</Text>
