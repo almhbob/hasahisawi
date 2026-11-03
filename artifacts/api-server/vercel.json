@@ -2,10 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "git": {
-    "deploymentEnabled": {
-      "master": false,
-      "main": false
-    }
+    "deploymentEnabled": false
   },
   "ignoreCommand": "exit 0",
   "buildCommand": "node build.mjs",
@@ -17,7 +14,9 @@
       "config": {
         "maxDuration": 60,
         "maxLambdaSize": "50mb",
-        "includeFiles": ["dist/**"]
+        "includeFiles": [
+          "dist/**"
+        ]
       }
     }
   ],

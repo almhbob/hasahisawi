@@ -4,7 +4,8 @@ name: Backup Hasahisawi Database (encrypted)
 # المستودع عام، لذلك لا يُرفع أي ملف إلا بعد تشفيره بـ GPG بعبارة سر من GitHub Secrets.
 #
 # الأسرار المطلوبة (Settings → Secrets and variables → Actions):
-#   DATABASE_URL        رابط Postgres العام (shortline.proxy.rlwy.net) من مشروع sunny-peace
+#   RAILWAY_TOKEN       (موجود مسبقاً) يُبنى منه رابط قاعدة الإنتاج تلقائياً — نفس قاعدة الخادم على Vercel
+#   DATABASE_URL        (اختياري) يتجاوز الرابط التلقائي إن وُضع
 #   BACKUP_PASSPHRASE   عبارة سر طويلة لتشفير النسخة — احفظها في مكان آمن خارج GitHub
 #
 # فك التشفير والاسترجاع:
@@ -21,6 +22,11 @@ on:
 permissions:
   contents: read
 
+env:
+  RW_PROJECT: e82d86db-7b87-4446-9968-f60934f618b4      # lively-mindfulness (قاعدة الإنتاج)
+  RW_ENV: f708e9d6-bbfa-4562-9a58-3e41977b40ed
+  RW_POSTGRES: 984dd90a-b068-4089-a823-859d353c02ca
+
 concurrency:
   group: hasahisawi-db-backup
   cancel-in-progress: false
@@ -31,13 +37,37 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Check secrets
+      - name: Resolve DATABASE_URL
+        id: db
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL="${DATABASE_URL:-}"
+          if [ -z "$URL" ] && [ -n "${RAILWAY_TOKEN:-}" ]; then
+            Q=$(printf '{"query":"query { variables(projectId: \\"%s\\", environmentId: \\"%s\\", serviceId: \\"%s\\") }"}' "$RW_PROJECT" "$RW_ENV" "$RW_POSTGRES")
+            fetch() { curl -sS -X POST https://backboard.railway.com/graphql/v2 -H "Content-Type: application/json" "$@" -d "$Q"; }
+            RAW=$(fetch -H "Authorization: Bearer $RAILWAY_TOKEN")
+            printf '%s' "$RAW" | grep -q '"variables"' || RAW=$(fetch -H "Project-Access-Token: $RAILWAY_TOKEN")
+            URL=$(printf '%s' "$RAW" | python3 -c '
+          import json, sys, urllib.parse as u
+          v = ((json.load(sys.stdin).get("data") or {}).get("variables") or {})
+          host, port, pw = v.get("RAILWAY_TCP_PROXY_DOMAIN"), v.get("RAILWAY_TCP_PROXY_PORT"), v.get("POSTGRES_PASSWORD") or v.get("PGPASSWORD")
+          if host and port and pw:
+              print("postgresql://%s:%s@%s:%s/%s?sslmode=require" % (u.quote(v.get("POSTGRES_USER") or v.get("PGUSER") or "postgres", safe=""), u.quote(pw, safe=""), host, port, v.get("POSTGRES_DB") or v.get("PGDATABASE") or "railway"))
+          ' || true)
+          fi
+          [ -n "$URL" ] && echo "::add-mask::$URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Check secrets
+        env:
+          DATABASE_URL: ${{ steps.db.outputs.url }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           missing=0
-          [ -n "$DATABASE_URL" ] || { echo "::error::DATABASE_URL secret is not set"; missing=1; }
+          [ -n "$DATABASE_URL" ] || { echo "::error::No database URL (RAILWAY_TOKEN could not resolve it and DATABASE_URL is not set)"; missing=1; }
           if [ -z "$BACKUP_PASSPHRASE" ]; then
             echo "::error::BACKUP_PASSPHRASE secret is not set — refusing to upload an unencrypted dump from a public repository"
             missing=1
@@ -60,7 +90,7 @@ jobs:
 
       - name: Dump and encrypt
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ steps.db.outputs.url }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
           PGCONNECT_TIMEOUT: '20'
         run: |

@@ -22,11 +22,11 @@ export const ALERT_RULES: Rule[] = [
   { re: /^\/external-partnerships\/apply\/?$/,            kind: "partnership",     title: "🤝 طلب شراكة خارجية",          screen: "partnerships" },
   { re: /^\/education\/register-student\/?$/,             kind: "student_reg",     title: "🎓 طلب تسجيل طالب",            screen: "education" },
   { re: /^\/education\/transfer-request\/?$/,             kind: "student_transfer",title: "🔁 طلب نقل طالب",              screen: "education" },
-  { re: /^\/unions\/apply\/?$/,                           kind: "union_member",    title: "🪪 طلب عضوية اتحاد",           screen: "unions" },
-  { re: /^\/student-union\/apply\/?$/,                    kind: "student_union",   title: "🎓 طلب انضمام لاتحاد الطلاب",   screen: "unions" },
+  { re: /^\/unions\/apply\/?$/,                           kind: "union_member",    title: "🪪 طلب عضوية نقابة مهنية",           screen: "unions" },
+  // { re: /^\/student-union\/apply\/?$/,                    kind: "student_union",   title: "🎓 طلب انضمام لاتحاد الطلاب",   screen: "unions" },  ← تخص مدير الاتحاد (تصله عبر بوابته) لا إدارة التطبيق
   { re: /^\/union-partnership\/apply\/?$/,                kind: "union_partner",   title: "🤝 طلب شراكة اتحاد",           screen: "unions" },
   { re: /^\/union-manager\/apply\/?$/,                    kind: "union_manager",   title: "🎓 طلب تولّي إدارة اتحاد",      screen: "unions" },
-  { re: /^\/union-staff\/apply\/?$/,                      kind: "union_staff",     title: "👥 طلب موظف اتحاد",            screen: "unions" },
+  // { re: /^\/union-staff\/apply\/?$/,                      kind: "union_staff",     title: "👥 طلب موظف اتحاد",            screen: "unions" },  ← تخص مدير الاتحاد (تصله عبر بوابته) لا إدارة التطبيق
   { re: /^\/zawajil\/apply\/?$/,                          kind: "zawajil",         title: "💍 طلب انضمام زواجل",          screen: "zawajil" },
   { re: /^\/travel-agencies\/apply\/?$/,                  kind: "travel_agency",   title: "✈️ طلب انضمام وكالة سفر",      screen: "travel" },
   { re: /^\/travel\/bookings\/?$/,                        kind: "travel_booking",  title: "🎫 حجز سفر جديد",              screen: "travel" },

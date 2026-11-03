@@ -1,5 +1,6 @@
 // شهادة توثيق نص أدبي — رقم التوثيق، البصمة، التاريخ، ورمز QR لصفحة التحقق العلنية.
 import React, { useEffect, useState } from "react";
+import ShareBar from "@/components/lit/ShareBar";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, Share } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -69,6 +70,7 @@ export default function WritersCert() {
               <Pressable onPress={async () => { if ((await copyText(String(v.doc_no))) === "copied") notify("تم النسخ", v.doc_no); }} style={[u.ghostBtn, { flex: 1 }]}><Ionicons name="copy-outline" size={16} color={INK} /><Text style={u.ghostText}>نسخ الرقم</Text></Pressable>
               <Pressable onPress={() => openExternal(url)} style={[u.ghostBtn, { flex: 1 }]}><Ionicons name="open-outline" size={16} color={INK} /><Text style={u.ghostText}>صفحة التحقق</Text></Pressable>
             </View>
+            <ShareBar url={url} text={`شهادة توثيق نص أدبي — ديوان الكُتّاب (حصاحيصاوي)\nرقم التوثيق: ${v.doc_no}`} title="شارك الشهادة على مواقع التواصل" />
             {!!v.text_id && <Pressable onPress={() => router.push({ pathname: "/writers-text", params: { id: String(v.text_id) } } as any)} style={u.ghostBtn}><Text style={u.ghostText}>قراءة النص</Text></Pressable>}
           </View>
         )}
