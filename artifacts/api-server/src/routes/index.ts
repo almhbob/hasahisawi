@@ -32,6 +32,7 @@ import invitesRouter, { ensureInvitesDb } from "./invites";
 import ithraaRouter, { ensureIthraaDb } from "./ithraa";
 import ithraaWritersRouter from "./ithraa-writers";
 import litContestRouter, { ensureLitContestDb } from "./lit-contest";
+import litMembersRouter, { ensureMembersDb } from "./lit-members";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -60,6 +61,7 @@ router.use(invitesRouter);
 router.use(ithraaRouter);
 router.use(ithraaWritersRouter);
 router.use(litContestRouter);
+router.use(litMembersRouter);
 router.use(contestsRouter);
 router.use(callsRouter);
 router.use(campaignRouter);
@@ -89,6 +91,7 @@ async function initializeDatabaseSchemas() {
   await ensureInvitesDb();
   await ensureIthraaDb();
   await ensureLitContestDb();
+  await ensureMembersDb();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();

@@ -100,9 +100,14 @@ export default function WritersScreen() {
             <Stat n={meta?.totals.writers ?? 0} l="كاتباً" />
             <Stat n={meta?.forms.length ?? 13} l="جنساً أدبياً" />
           </View>
-          <Pressable onPress={() => write()} style={s.writeBtn} accessibilityRole="button">
-            <Ionicons name="pencil" size={18} color={WINE} /><Text style={s.writeBtnT}>اكتب نصك الآن</Text>
-          </Pressable>
+          <View style={[u.rowR, { gap: 8, marginTop: 14 }]}>
+            <Pressable onPress={() => write()} style={[s.writeBtn, { flex: 1, marginTop: 0 }]} accessibilityRole="button">
+              <Ionicons name="pencil" size={18} color={WINE} /><Text style={s.writeBtnT}>اكتب نصك الآن</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/writers-membership" as any)} style={[s.writeBtn, { flex: 1, marginTop: 0, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: GOLD }]} accessibilityRole="button">
+              <Ionicons name="id-card" size={18} color={GOLD} /><Text style={[s.writeBtnT, { color: GOLD }]}>العضوية والبطاقة</Text>
+            </Pressable>
+          </View>
         </LinearGradient>
 
         <View style={s.tabsWrap}>
