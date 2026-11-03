@@ -18,7 +18,7 @@ const router = Router();
 const API_BASE = (process.env.PUBLIC_API_BASE || "https://api-server-gilt-ten.vercel.app").replace(/\/$/, "");
 export const LIT_VERIFY_URL = (no: string) => `${API_BASE}/api/public/lit/verify/${encodeURIComponent(no)}`;
 
-export type LitForm = { key: string; label: string; group: "story" | "poetry" | "prose"; min: number; max: number; lines?: [number, number]; hint: string };
+export type LitForm = { key: string; label: string; group: "story" | "poetry" | "prose"; min: number; max: number; lines?: [number, number]; hint: string; about?: string; example?: { title: string; body: string }; innovative?: boolean };
 export const LIT_GROUPS = [
   { key: "story", label: "القصة", icon: "book", color: "#7A2E3A" },
   { key: "poetry", label: "الشعر", icon: "musical-notes", color: "#1B4D6B" },
@@ -37,6 +37,12 @@ export const LIT_FORMS: LitForm[] = [
   { key: "haiku", label: "هايكو", group: "poetry", min: 10, max: 220, lines: [3, 4], hint: "ثلاثة أسطر: مشهد من الطبيعة ولحظة دهشة" },
   { key: "khatira", label: "خاطرة", group: "prose", min: 80, max: 5000, hint: "بوح وجداني حر" },
   { key: "short_text", label: "نص قصير / ومضة", group: "prose", min: 20, max: 700, hint: "فكرة مكثّفة في سطور" },
+  {
+    key: "iltifata", label: "التفاتة", group: "prose", min: 20, max: 320, lines: [2, 5], innovative: true,
+    hint: "فنّ مبتكر: عنوان مفتاحي وسطور قليلة (2–5) تنتهي بالتفاتة تقلب المعنى",
+    about: "التفاتة فنّ نثري مكثّف: عنوانٌ يحمل المفتاح، ثم سطور قليلة تبني توقّعاً، وفي السطر الأخير التفاتةٌ مفاجئة تقلب المعنى وتعيد القارئ إلى العنوان.",
+    example: { title: "خذلان", body: "عندما أخبرتك أني بخير..\nظننتك ستعيد السؤال؛\nلكنك صدقتني!" },
+  },
   { key: "letter", label: "رسالة أدبية", group: "prose", min: 200, max: 8000, hint: "رسالة إلى شخص أو مكان أو زمن" },
 ];
 const FORM = new Map(LIT_FORMS.map((f) => [f.key, f]));
@@ -125,6 +131,7 @@ function validateBody(form: LitForm, body: string): string | null {
   if (form.lines) {
     const n = lines(body).length;
     if (n < form.lines[0] || n > form.lines[1]) {
+      if (form.key === "iltifata") return "التفاتة من سطرين إلى خمسة أسطر، آخرها يحمل الالتفاتة";
       return form.key === "haiku" ? "الهايكو ثلاثة أسطر (أو أربعة على الأكثر)" : `«${form.label}» يحتاج ${form.lines[0]} أسطر على الأقل`;
     }
   }

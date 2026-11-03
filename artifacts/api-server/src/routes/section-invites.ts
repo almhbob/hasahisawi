@@ -24,6 +24,8 @@ export type SectionDef = {
   route: string; params?: Record<string, string>;
   /** سطر الدعوة الافتراضي (يُبنى منه نص الرسالة المقترح) */
   pitch: string;
+  /** نص دعوة مخصّص للجهة نفسها (حين يختلف عن دعوة الأفراد) */
+  orgMessage?: string;
 };
 
 // مسارات الانضمام الفعلية داخل التطبيق (تم التحقق من وجود كل شاشة ونموذج التسجيل فيها)
@@ -42,11 +44,15 @@ export const SECTIONS: Record<string, SectionDef> = {
   men:           { title: "قسم الرجال", tagline: "خدمات الحلاقة والأزياء والحِرف", icon: "man", emoji: "🧔", color: "#38BDF8", route: "/(tabs)/men", pitch: "يسعدنا دعوتكم لتسجيل خدمتكم في قسم الرجال والوصول إلى عملاء جدد" },
   occasions:     { title: "المناسبات", tagline: "صالات، كوشات، تصوير، سيارات أفراح", icon: "gift", emoji: "🎉", color: "#D97706", route: "/(tabs)/occasions", pitch: "يسعدنا دعوتكم للانضمام إلى قسم المناسبات وعرض خدماتكم لأصحاب الأفراح" },
   contractors:   { title: "شركات المقاولات", tagline: "معرض مشاريع وطلبات عروض أسعار", icon: "construct", emoji: "🏗️", color: "#B45309", route: "/contractors", params: { tab: "register" }, pitch: "يسعدنا دعوة شركتكم للانضمام إلى دليل شركات المقاولات واستقبال طلبات عروض الأسعار" },
+  universities:  { title: "الجامعات والكليات", tagline: "إدارة أكاديمية رقمية للطلاب والأساتذة", icon: "library", emoji: "🏛️", color: "#1E3A8A", route: "/edu-institution", params: { join: "1" },
+    pitch: "يسعدنا دعوة جامعتكم للانضمام إلى بوابة المؤسسات التعليمية في حصاحيصاوي",
+    orgMessage: "السادة إدارة الجامعة / الكلية المحترمون،\nتحية طيبة وبعد،\nيسعد إدارة منصة حصاحيصاوي دعوتكم لتفعيل بوابتكم الأكاديمية على المنصة: إدارة الأقسام والأساتذة والطلاب، جداول محاضرات ترفض التضارب تلقائياً، النتائج والحضور، الإعلانات وإشعار الطلاب، وطلبات الطلاب الإلكترونية، مع المكتبة المنهجية ومساحة اتحاد الطلاب.\nنتشرف بشراكتكم في خدمة طلاب الحصاحيصا ومجتمعها." },
   education:     { title: "المؤسسات التعليمية", tagline: "مدارس، معاهد، رياض أطفال", icon: "school", emoji: "🎓", color: "#0F766E", route: "/edu-institution", params: { join: "1" }, pitch: "يسعدنا دعوة مؤسستكم التعليمية للانضمام وإدارة الطلاب والجداول والتواصل مع أولياء الأمور" },
   writers:       { title: "ديوان الكُتّاب", tagline: "عضوية الكُتّاب والبطاقة الموثّقة", icon: "create", emoji: "✍️", color: "#7A2E3A", route: "/writers-apply", pitch: "يسعدنا دعوتكم للانضمام إلى ديوان الكُتّاب والحصول على العضوية والبطاقة الموثّقة" },
   press:         { title: "نافذة الصحافة", tagline: "دليل الصحفيين والمراسلين المعتمدين", icon: "newspaper", emoji: "📰", color: "#C8102E", route: "/press", params: { tab: "directory" }, pitch: "يسعدنا دعوتكم للانضمام إلى نافذة الصحافة والإدراج في دليل الصحفيين المعتمدين" },
   volunteer:     { title: "التطوع", tagline: "فرص تطوعية ونقاط إنجاز", icon: "heart-circle", emoji: "🙌", color: "#00966A", route: "/volunteer", pitch: "يسعدنا دعوتكم للانضمام إلى مجتمع المتطوعين والمشاركة في خدمة المدينة" },
-  red_crescent:  { title: "الهلال الأحمر السوداني", tagline: "متطوعون ومسعفون", icon: "medkit", emoji: "⛑️", color: "#B91C1C", route: "/red-crescent", pitch: "يسعدنا دعوتكم للانضمام إلى فريق الهلال الأحمر السوداني متطوعاً أو مسعفاً" },
+  red_crescent:  { title: "الهلال الأحمر السوداني", tagline: "متطوعون ومسعفون", icon: "medkit", emoji: "⛑️", color: "#B91C1C", route: "/red-crescent", pitch: "يسعدنا دعوتكم للانضمام إلى فريق الهلال الأحمر السوداني متطوعاً أو مسعفاً",
+    orgMessage: "السادة إدارة جمعية الهلال الأحمر السوداني — فرعية الحصاحيصا المحترمون،\nتحية طيبة وبعد،\nيسعد إدارة منصة حصاحيصاوي دعوتكم لتفعيل مساحتكم الرسمية على المنصة: إدارة وحداتكم وتعيين مدير لكل وحدة، استقبال طلبات المتطوعين والمسعفين واعتمادها، بطاقات المسعف الرقمية القابلة للتحقق، الدورات والشهادات، والاجتماعات والأنشطة وإشعار الأعضاء.\nنتشرف بشراكتكم في خدمة مجتمع الحصاحيصا." },
   unions:        { title: "النقابات المهنية", tagline: "عضوية النقابات والاتحادات", icon: "people-circle", emoji: "🪪", color: "#1F5C8A", route: "/(tabs)/unions", pitch: "يسعدنا دعوتكم للانضمام إلى قسم النقابات المهنية" },
   union_partner: { title: "شراكة الاتحاد", tagline: "شراكات الجهات مع الاتحاد", icon: "git-merge", emoji: "🤝", color: "#1F5C8A", route: "/union-partnership-apply", pitch: "يسعدنا دعوة جهتكم لتقديم طلب شراكة رسمية مع الاتحاد" },
   student_union: { title: "اتحاد الطلاب", tagline: "عضوية اتحاد الطلاب", icon: "school", emoji: "🎒", color: "#1F5C8A", route: "/student-union-join", pitch: "يسعدنا دعوتكم للانضمام إلى اتحاد الطلاب والاستفادة من خدماته" },
@@ -148,6 +154,7 @@ function sectionOut(key: string) {
 function defaultMessage(key: string, kind: string) {
   const s = SECTIONS[key];
   if (!s) return "";
+  if (kind === "org" && s.orgMessage) return s.orgMessage;
   const greet = kind === "org" ? "السادة الكرام،" : "الأستاذ/ة الكريم/ة،";
   return `${greet}\n${s.pitch}.\nنتطلع إلى انضمامكم وإسهامكم في خدمة مجتمع الحصاحيصا.`;
 }

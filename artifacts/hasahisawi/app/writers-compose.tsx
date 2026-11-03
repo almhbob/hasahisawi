@@ -182,6 +182,18 @@ export default function ComposeScreen() {
           );
         })}
         {!!f && <Text style={[u.hint, { color: c }]}>✦ {f.hint}</Text>}
+        {!!f?.about && (
+          <View style={[st.paper, { marginTop: 8, borderColor: c + "55" }]}>
+            <Text style={[u.hint, { color: c, fontFamily: "Cairo_700Bold" }]}>{f.innovative ? "✧ فنّ مبتكر في ديوان الكُتّاب" : "عن هذا الصنف"}</Text>
+            <Text style={[u.hint, { marginTop: 4, lineHeight: 22 }]}>{f.about}</Text>
+            {!!f.example && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={[st.pTitle, { fontSize: 16 }]}>{f.example.title}</Text>
+                <View style={{ marginTop: 6 }}><LitBody text={{ form: f.key, group: f.group, body: f.example.body }} /></View>
+              </View>
+            )}
+          </View>
+        )}
 
         {preview && f ? (
           <View style={st.paper}>
