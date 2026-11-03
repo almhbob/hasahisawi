@@ -58,6 +58,7 @@ const SERVICES: Service[] = [
   { id: "cv-builder", label: "السيرة الذاتية", short: "السيرة", sub: "قوالب مجانية PDF", keywords: "سي في cv سيرة", icon: "document-text-outline", iconType: "ionicons", group: "pro", route: "/(tabs)/cv-builder", isNew: true },
   // صحة وتعليم
   { id: "medical", label: "الدليل الطبي", short: "الطبي", sub: "صيدليات ومستشفيات", keywords: "صيدلية مستشفى عيادة دكتور طبيب", icon: "medkit", iconType: "ionicons", group: "health", route: "/(tabs)/medical" },
+  { id: "ithraa", label: "إثراء — المكتبة الثقافية", short: "إثراء", sub: "كتب ومقالات وارفع مساهمتك", keywords: "اثراء مكتبة كتاب كتب مقال مقالات قراءة رواية ادب ثقافة pdf", icon: "library", iconType: "ionicons", group: "health", route: "/ithraa", isNew: true },
   { id: "student", label: "الخدمات الطلابية", short: "الطلاب", sub: "مدارس ومعاهد", keywords: "مدرسة جامعة معهد تعليم", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
   // المجتمع
   { id: "social", label: "المجتمع", short: "المجتمع", sub: "منشورات وصور", keywords: "منشور بوست", icon: "chatbubbles", iconType: "ionicons", group: "community", route: "/(tabs)/social" },

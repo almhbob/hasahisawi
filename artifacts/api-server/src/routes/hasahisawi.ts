@@ -2272,6 +2272,7 @@ async function _doInitHasahisawiDb(): Promise<void> {
     ["contests",          "المسابقات",                  "Contests",                true, false, 43],
     ["volunteer",         "التطوع",                     "Volunteering",            true, false, 44],
     ["red-crescent",      "الهلال الأحمر السوداني",     "Sudanese Red Crescent",   true, false, 45],
+    ["ithraa",            "إثراء — المكتبة الثقافية",    "Ithraa Library",          true, false, 46],
   ];
   for (const [key, name, name_en, visible, requires, order] of sectionDefaults) {
     await query(

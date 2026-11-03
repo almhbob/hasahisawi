@@ -265,7 +265,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite"];
+    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -411,6 +411,10 @@ function RootLayoutNav() {
         <Stack.Screen name="contests-admin"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-social-reports"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-calls"              options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="ithraa"                   options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="ithraa-item"              options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="ithraa-submit"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="ithraa-admin"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="red-crescent"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="red-crescent-card"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="red-crescent-admin"       options={{ headerShown: false, animation: "slide_from_right" }} />
