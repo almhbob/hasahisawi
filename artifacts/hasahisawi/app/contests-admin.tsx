@@ -1,13 +1,16 @@
 // إدارة المسابقات: إنشاء (برعاية جهة أو موسمية من قالب جاهز)، الأسئلة، المشاركات، وإعلان الفائزين.
 // للأدمن ولمن مُنح صلاحية قسم «المسابقات».
-import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, RefreshControl } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, RefreshControl, Switch } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
-import { contestsApi, OCCASION_THEME, type Contest, type Occasion } from "@/lib/contests";
+import { contestsApi, OCCASION_THEME, CATEGORIES, RANK_LABEL, type Contest, type Occasion, type ContestCategory } from "@/lib/contests";
+import { pickAndUploadContestImage } from "@/lib/contest-image";
+import { fetchViewCounts, formatViews } from "@/lib/views";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { confirmAction, notify } from "@/lib/xplatform";
 
@@ -16,16 +19,18 @@ type Draft = {
   kind: "sponsored" | "seasonal"; occasion: string | null; type: "quiz" | "entry";
   title: string; description: string; sponsor_name: string; prize: string; terms: string; entry_prompt: string;
   winners_count: string; starts_at: string; ends_at: string; questions: QDraft[];
+  cover_image: string; sponsor_logo: string; category: ContestCategory | null; prizes: string[]; featured: boolean;
 };
 type Entry = Awaited<ReturnType<typeof contestsApi.entries>>[number];
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const newQ = (): QDraft => ({ question: "", options: ["", ""], correct_index: 0 });
 const blank = (): Draft => {
   const now = new Date();
   return {
     kind: "sponsored", occasion: null, type: "quiz", title: "", description: "", sponsor_name: "", prize: "", terms: "",
     entry_prompt: "", winners_count: "1", starts_at: ymd(now), ends_at: ymd(new Date(now.getTime() + 7 * 86400_000)), questions: [newQ()],
+    cover_image: "", sponsor_logo: "", category: null, prizes: [""], featured: false,
   };
 };
 
@@ -41,6 +46,12 @@ export default function ContestsAdmin() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [views, setViews] = useState<Record<string, number>>({});
+  const [uploading, setUploading] = useState<"" | "cover" | "logo">("");
+  const params = useLocalSearchParams<{ occasion?: string; edit?: string }>();
+  const handledParam = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     if (!token) { if (!authLoading) setLoading(false); return; }
@@ -48,17 +59,53 @@ export default function ContestsAdmin() {
       const [l, o] = await Promise.all([contestsApi.list(token), contestsApi.occasions()]);
       setList(l);
       setOccasions(o);
+      fetchViewCounts("contest", l.map((c) => c.id)).then(setViews);
     } catch (e: any) { notify("تعذّر التحميل", e?.message); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token, authLoading]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // فتح مباشر من صفحة المسابقة (?edit=) أو من بطاقة مناسبة (?occasion=)
+  useEffect(() => {
+    if (handledParam.current || loading) return;
+    if (params.edit) {
+      const c = list.find((x) => x.id === Number(params.edit));
+      if (c) { handledParam.current = true; startEdit(c); }
+    } else if (params.occasion) {
+      const o = occasions.find((x) => x.key === params.occasion);
+      if (o) { handledParam.current = true; fromOccasion(o); }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, list, occasions, params.edit, params.occasion]);
+
+  const startEdit = (c: Contest) => {
+    setEditingId(c.id);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setDraft({
+      ...blank(), kind: c.kind, occasion: c.occasion, type: c.type, title: c.title, description: c.description ?? "",
+      sponsor_name: c.sponsor_name ?? "", prize: c.prize ?? "", terms: c.terms ?? "", entry_prompt: c.entry_prompt ?? "",
+      winners_count: String(c.winners_count), starts_at: ymd(new Date(c.starts_at)), ends_at: ymd(new Date(c.ends_at)), questions: [],
+      cover_image: c.cover_image ?? "", sponsor_logo: c.sponsor_logo ?? "", category: c.category ?? null,
+      prizes: c.prizes?.length ? c.prizes : [c.prize ?? ""], featured: !!c.featured,
+    });
+  };
+
+  const upload = async (which: "cover" | "logo") => {
+    setUploading(which);
+    try {
+      const url = await pickAndUploadContestImage(which === "cover" ? "covers" : "sponsors");
+      if (url) setDraft((d) => d && (which === "cover" ? { ...d, cover_image: url } : { ...d, sponsor_logo: url }));
+    } catch (e: any) { notify("تعذّر رفع الصورة", e?.message || "الصق رابط الصورة بدلاً من ذلك."); }
+    finally { setUploading(""); }
+  };
+
   const fromOccasion = (o: Occasion) => {
     const start = new Date(o.date);
     // نبدأ قبل المناسبة بثلاثة أيام ونستمر أسبوعاً بعدها (رمضان: الشهر كله)
     const begin = new Date(start.getTime() - 3 * 86400_000);
     const end = new Date(start.getTime() + (o.key === "ramadan" ? 30 : 7) * 86400_000);
+    setEditingId(null);
     setDraft({ ...blank(), kind: "seasonal", occasion: o.key, title: o.title, description: o.description, starts_at: ymd(begin < new Date() ? new Date() : begin), ends_at: ymd(end) });
   };
 
@@ -68,14 +115,30 @@ export default function ContestsAdmin() {
       .map((q) => ({ ...q, question: q.question.trim(), options: q.options.map((o) => o.trim()) }))
       .filter((q) => q.question && q.options.filter(Boolean).length >= 2);
     if (draft.title.trim().length < 3) { notify("العنوان", "اكتب عنوان المسابقة."); return; }
-    if (draft.type === "quiz" && !qs.length) { notify("الأسئلة", "أضف سؤالاً واحداً على الأقل بخيارين."); return; }
+    if (!editingId && draft.type === "quiz" && !qs.length) { notify("الأسئلة", "أضف سؤالاً واحداً على الأقل بخيارين."); return; }
     setSaving(true);
     try {
+      const start = new Date(draft.starts_at + "T00:00:00");
+      const end = new Date(draft.ends_at + "T23:59:00");
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) { notify("التاريخ", "اكتب التاريخ بصيغة 2026-12-31."); setSaving(false); return; }
+      const prizes = draft.prizes.map((p) => p.trim());
+      const common = {
+        title: draft.title, description: draft.description, sponsor_name: draft.sponsor_name, terms: draft.terms, entry_prompt: draft.entry_prompt,
+        prize: prizes.find(Boolean) || "",
+        prizes, cover_image: draft.cover_image.trim(), sponsor_logo: draft.sponsor_logo.trim(), category: draft.category, featured: draft.featured,
+        winners_count: Number(draft.winners_count) || 1,
+        starts_at: start.toISOString(), ends_at: end.toISOString(),
+      };
+      if (editingId) {
+        await contestsApi.update(token, editingId, common);
+        setDraft(null); setEditingId(null);
+        load();
+        notify("حُفظت التعديلات", "");
+        return;
+      }
       await contestsApi.create(token, {
         ...draft,
-        winners_count: Number(draft.winners_count) || 1,
-        starts_at: new Date(draft.starts_at + "T00:00:00").toISOString(),
-        ends_at: new Date(draft.ends_at + "T23:59:00").toISOString(),
+        ...common,
         questions: draft.type === "quiz" ? qs.map((q) => {
           // نحذف الخيارات الفارغة مع الحفاظ على موضع الإجابة الصحيحة
           const kept = q.options.map((o, i) => ({ o, i })).filter((x) => x.o);
@@ -126,13 +189,14 @@ export default function ContestsAdmin() {
 
       {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} /> : (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}
           keyboardShouldPersistTaps="handled"
         >
           {!draft ? (
             <>
-              <TouchableOpacity style={s.btn} onPress={() => setDraft(blank())}>
+              <TouchableOpacity style={s.btn} onPress={() => { setEditingId(null); setDraft(blank()); }}>
                 <Ionicons name="add" size={20} color={Colors.onColor} />
                 <Text style={s.btnText}>مسابقة برعاية جهة</Text>
               </TouchableOpacity>
@@ -152,12 +216,66 @@ export default function ContestsAdmin() {
             </>
           ) : (
             <View style={s.card}>
-              <Text style={s.cardTitle}>{draft.kind === "seasonal" ? `مسابقة موسمية · ${occasions.find((o) => o.key === draft.occasion)?.name ?? ""}` : "مسابقة برعاية جهة"}</Text>
-              <Seg value={draft.type} options={[["quiz", "أسئلة (تصحيح تلقائي)"], ["entry", "مشاركة نص/صورة"]]} onChange={(v) => setDraft({ ...draft, type: v as Draft["type"] })} />
+              <Text style={s.cardTitle}>
+                {editingId ? "تعديل المسابقة" : draft.kind === "seasonal" ? `مسابقة موسمية · ${occasions.find((o) => o.key === draft.occasion)?.name ?? ""}` : "مسابقة برعاية جهة"}
+              </Text>
+              {editingId ? (
+                <Text style={s.muted}>النوع والأسئلة لا تتغير بعد النشر حفاظاً على عدالة المشاركات السابقة.</Text>
+              ) : (
+                <Seg value={draft.type} options={[["quiz", "أسئلة (تصحيح تلقائي)"], ["entry", "مشاركة نص/صورة"]]} onChange={(v) => setDraft({ ...draft, type: v as Draft["type"] })} />
+              )}
               <Field label="العنوان" value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} />
               <Field label="الوصف" value={draft.description} onChange={(v) => setDraft({ ...draft, description: v })} multiline />
-              {draft.kind === "sponsored" && <Field label="الجهة الراعية" value={draft.sponsor_name} onChange={(v) => setDraft({ ...draft, sponsor_name: v })} />}
-              <Field label="الجائزة" value={draft.prize} onChange={(v) => setDraft({ ...draft, prize: v })} />
+
+              <Text style={s.label}>التصنيف</Text>
+              <View style={s.actions}>
+                {(Object.keys(CATEGORIES) as ContestCategory[]).map((k) => {
+                  const on = draft.category === k;
+                  return (
+                    <TouchableOpacity key={k} style={[s.catChip, on && s.catOn]} onPress={() => setDraft({ ...draft, category: on ? null : k })} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                      <Ionicons name={CATEGORIES[k].icon as any} size={14} color={on ? "#FFFFFF" : Colors.textSecondary} />
+                      <Text style={[s.smallText, { color: on ? "#FFFFFF" : Colors.textSecondary }]}>{CATEGORIES[k].label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <ImageField label="صورة الغلاف (اختياري)" value={draft.cover_image} busy={uploading === "cover"}
+                onChange={(v) => setDraft({ ...draft, cover_image: v })} onUpload={() => upload("cover")} wide />
+
+              <Field label="الجهة الراعية (اختياري)" value={draft.sponsor_name} onChange={(v) => setDraft({ ...draft, sponsor_name: v })} />
+              {draft.sponsor_name.trim() ? (
+                <ImageField label="شعار الراعي" value={draft.sponsor_logo} busy={uploading === "logo"}
+                  onChange={(v) => setDraft({ ...draft, sponsor_logo: v })} onUpload={() => upload("logo")} />
+              ) : null}
+
+              <Text style={s.label}>الجوائز حسب المراكز</Text>
+              {draft.prizes.map((p, i) => (
+                <View key={i} style={s.optRow}>
+                  <View style={{ flex: 1 }}>
+                    <Field label={RANK_LABEL[i] ?? `المركز ${i + 1}`} value={p} onChange={(v) => setDraft({ ...draft, prizes: draft.prizes.map((x, j) => (j === i ? v : x)) })} />
+                  </View>
+                  {draft.prizes.length > 1 && (
+                    <TouchableOpacity style={s.del} onPress={() => setDraft({ ...draft, prizes: draft.prizes.filter((_, j) => j !== i) })} accessibilityRole="button" accessibilityLabel={`حذف جائزة ${RANK_LABEL[i] ?? ""}`}>
+                      <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+              {draft.prizes.length < 10 && (
+                <TouchableOpacity onPress={() => setDraft({ ...draft, prizes: [...draft.prizes, ""] })} style={{ minHeight: 36, justifyContent: "center" }} accessibilityRole="button">
+                  <Text style={s.link}>+ جائزة للمركز التالي</Text>
+                </TouchableOpacity>
+              )}
+              <Text style={s.muted}>جائزة واحدة فقط؟ تُمنح لكل فائز. أكثر من جائزة؟ لكل مركز جائزته.</Text>
+
+              <View style={[s.row, { alignItems: "center", justifyContent: "space-between" }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.name}>مسابقة مميّزة</Text>
+                  <Text style={s.muted}>تظهر في واجهة صفحة المسابقات مع العدّ التنازلي.</Text>
+                </View>
+                <Switch value={draft.featured} onValueChange={(v) => setDraft({ ...draft, featured: v })} trackColor={{ true: Colors.primary, false: Colors.border }} accessibilityLabel="مسابقة مميّزة" />
+              </View>
               <View style={s.row}>
                 <View style={{ flex: 1 }}><Field label="يبدأ (YYYY-MM-DD)" value={draft.starts_at} onChange={(v) => setDraft({ ...draft, starts_at: v })} /></View>
                 <View style={{ flex: 1 }}><Field label="ينتهي" value={draft.ends_at} onChange={(v) => setDraft({ ...draft, ends_at: v })} /></View>
@@ -166,7 +284,7 @@ export default function ContestsAdmin() {
               {draft.type === "entry" && <Field label="المطلوب من المشارك" value={draft.entry_prompt} onChange={(v) => setDraft({ ...draft, entry_prompt: v })} />}
               <Field label="الشروط (اختياري)" value={draft.terms} onChange={(v) => setDraft({ ...draft, terms: v })} multiline />
 
-              {draft.type === "quiz" && (
+              {draft.type === "quiz" && !editingId && (
                 <View style={{ gap: 10 }}>
                   <Text style={s.section}>الأسئلة — اضغط الدائرة لتحديد الإجابة الصحيحة</Text>
                   {draft.questions.map((q, qi) => (
@@ -201,24 +319,39 @@ export default function ContestsAdmin() {
 
               <View style={s.row}>
                 <TouchableOpacity style={[s.btn, { flex: 1 }, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
-                  {saving ? <ActivityIndicator color={Colors.onColor} /> : <Text style={s.btnText}>نشر المسابقة</Text>}
+                  {saving ? <ActivityIndicator color={Colors.onColor} /> : <Text style={s.btnText}>{editingId ? "حفظ التعديلات" : "نشر المسابقة"}</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.btnGhost, { flex: 1 }]} onPress={() => setDraft(null)}><Text style={s.btnGhostText}>إلغاء</Text></TouchableOpacity>
+                <TouchableOpacity style={[s.btnGhost, { flex: 1 }]} onPress={() => { setDraft(null); setEditingId(null); }}><Text style={s.btnGhostText}>إلغاء</Text></TouchableOpacity>
               </View>
             </View>
           )}
 
           <Text style={s.section}>المسابقات</Text>
+          {list.length > 0 && (
+            <View style={s.statsRow}>
+              <AdminStat n={list.filter((c) => c.state === "active").length} label="جارية" />
+              <AdminStat n={list.reduce((a, c) => a + c.entries_count, 0)} label="مشاركة" />
+              <AdminStat n={Object.values(views).reduce((a, b) => a + b, 0)} label="مشاهدة" />
+              <AdminStat n={list.reduce((a, c) => a + (c.shares || 0), 0)} label="نشر" />
+            </View>
+          )}
           {list.length === 0 && <Text style={s.muted}>لا توجد مسابقات بعد.</Text>}
           {list.map((c) => (
             <View key={c.id} style={s.card}>
               <View style={s.row}>
                 <Text style={[s.cardTitle, { flex: 1 }]} numberOfLines={2}>{c.title}</Text>
+                {c.featured ? <Ionicons name="flash" size={16} color={Colors.accentDeep} accessibilityLabel="مميّزة" /> : null}
                 <Text style={[s.status, c.state === "active" && s.statusOn]}>{c.state === "active" ? "جارية" : c.state === "upcoming" ? "قادمة" : "منتهية"}</Text>
               </View>
-              <Text style={s.muted}>{c.type === "quiz" ? "أسئلة" : "مشاركات"} · {c.entries_count} مشارك · {c.shares} مشاركة على التواصل</Text>
+              <Text style={s.muted}>{c.type === "quiz" ? "أسئلة" : "مشاركات"}{c.category && CATEGORIES[c.category] ? ` · ${CATEGORIES[c.category].label}` : ""}{c.sponsor_name ? ` · برعاية ${c.sponsor_name}` : ""}</Text>
+              <View style={s.miniStats}>
+                <MiniStat icon="people-outline" text={`${c.entries_count} مشارك`} />
+                <MiniStat icon="eye-outline" text={`${formatViews(views[String(c.id)] ?? 0)} مشاهدة`} />
+                <MiniStat icon="share-social-outline" text={`${c.shares} نشر`} />
+              </View>
               <View style={s.actions}>
                 <Small icon="eye-outline" label="الصفحة" onPress={() => router.push({ pathname: "/contest" as any, params: { id: String(c.id) } })} />
+                <Small icon="create-outline" label="تعديل" onPress={() => { startEdit(c); }} />
                 <Small icon="people-outline" label={openId === c.id ? "إخفاء المشاركات" : "المشاركات والفائزون"} onPress={() => openEntries(c)} />
                 <Small icon="trash-outline" label="حذف" danger onPress={() => remove(c)} />
               </View>
@@ -270,6 +403,47 @@ function Field({ label, value, onChange, multiline, numeric }: { label: string; 
         value={value} onChangeText={onChange} multiline={multiline} keyboardType={numeric ? "numeric" : "default"}
         textAlign="right" placeholderTextColor={Colors.textMuted}
       />
+    </View>
+  );
+}
+
+function ImageField({ label, value, onChange, onUpload, busy, wide }: { label: string; value: string; onChange: (v: string) => void; onUpload: () => void; busy: boolean; wide?: boolean }) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={s.label}>{label}</Text>
+      <View style={[s.row, { alignItems: "center" }]}>
+        {value ? (
+          <Image source={{ uri: value }} style={wide ? { width: 96, height: 54, borderRadius: 10 } : { width: 54, height: 54, borderRadius: 27 }} contentFit="cover" accessibilityLabel={`معاينة ${label}`} />
+        ) : null}
+        <TouchableOpacity style={[s.btnGhost, { flex: 1, flexDirection: "row-reverse", gap: 6 }]} onPress={onUpload} disabled={busy} accessibilityRole="button">
+          {busy ? <ActivityIndicator color={Colors.primary} /> : <Ionicons name="cloud-upload-outline" size={18} color={Colors.primaryDeep} />}
+          <Text style={[s.btnGhostText, { color: Colors.primaryDeep }]}>{busy ? "جارٍ الرفع…" : value ? "تغيير الصورة" : "رفع صورة"}</Text>
+        </TouchableOpacity>
+        {value ? (
+          <TouchableOpacity style={s.del} onPress={() => onChange("")} accessibilityRole="button" accessibilityLabel={`إزالة ${label}`}>
+            <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <TextInput style={s.input} value={value} onChangeText={onChange} placeholder="أو الصق رابطاً يبدأ بـ https://" placeholderTextColor={Colors.textMuted} textAlign="right" autoCapitalize="none" accessibilityLabel={`رابط ${label}`} />
+    </View>
+  );
+}
+
+function AdminStat({ n, label }: { n: number; label: string }) {
+  return (
+    <View style={s.stat}>
+      <Text style={s.statNum}>{formatViews(n)}</Text>
+      <Text style={s.muted}>{label}</Text>
+    </View>
+  );
+}
+
+function MiniStat({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  return (
+    <View style={s.mini}>
+      <Ionicons name={icon} size={13} color={Colors.textSecondary} />
+      <Text style={s.miniText}>{text}</Text>
     </View>
   );
 }
@@ -329,4 +503,12 @@ const s = StyleSheet.create({
   smallText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary },
   entry: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
   name: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.text, textAlign: "right" },
+  catChip: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 12, minHeight: 40, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.bg },
+  catOn: { backgroundColor: "#006B4A", borderColor: "#006B4A" },
+  statsRow: { flexDirection: "row-reverse", gap: 8 },
+  stat: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
+  statNum: { fontFamily: "Cairo_700Bold", fontSize: 18, lineHeight: 28, color: Colors.text },
+  miniStats: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
+  mini: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, minHeight: 26, borderRadius: 8, backgroundColor: Colors.bg },
+  miniText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
 });
