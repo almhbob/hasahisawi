@@ -12,6 +12,8 @@ import { notify } from "@/lib/xplatform";
 import { litApi, LitError, WINE, GOLD, INK, PAPER, type LitMeta, type Contest, type Pledge } from "@/lib/lit";
 import { PledgeBox, LitBody, groupColor } from "@/components/lit/ui";
 import { Pill, ithraaStyles as u } from "@/components/ithraa/ui";
+import { useRichEditor, EditorToolbar, CounterChip, AttachmentsCard, RatioImage, emptyAttach, attachPayload, type AttachState } from "@/components/lit/editor";
+import { stripMarkup, isLtrText, langMeta, type LitLayout } from "@/lib/lit-markup";
 
 const DRAFT_KEY = "lit_draft_v1";
 
@@ -29,6 +31,9 @@ export default function ComposeScreen() {
   const [dedication, setDedication] = useState("");
   const [pledge, setPledge] = useState<Pledge>({ original: false, not_copied: false, no_ai: false, unpublished: false, signature: (user as any)?.name || "" });
   const [preview, setPreview] = useState(false);
+  const [layout, setLayout] = useState<LitLayout>({});
+  const [attach, setAttach] = useState<AttachState>(emptyAttach());
+  const [pvTab, setPvTab] = useState<"text" | "tr">("text");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<{ doc_no: string; id: number; message: string; code?: string } | null>(null);
   const [flagged, setFlagged] = useState<{ id: number; score: number; signals: string[] } | null>(null);
@@ -41,16 +46,23 @@ export default function ComposeScreen() {
     if (contestId) litApi.contest(contestId, token).then((d) => { setContest(d.contest); if (!params.form && d.contest.categories[0]) setForm(d.contest.categories[0].key); }).catch((e) => notify("تعذّر التحميل", e?.message));
     else AsyncStorage.getItem(DRAFT_KEY).then((raw) => {
       if (!raw) return;
-      try { const d = JSON.parse(raw); if (d.body && !params.form) { setForm(d.form || ""); setTitle(d.title || ""); setBody(d.body); setPen(d.pen || ""); prevLen.current = d.body.length; } } catch {}
+      try {
+        const d = JSON.parse(raw);
+        if (d.body && !params.form) {
+          setForm(d.form || ""); setTitle(d.title || ""); setBody(d.body); setPen(d.pen || ""); prevLen.current = d.body.length;
+          if (d.layout && typeof d.layout === "object") setLayout(d.layout);
+          if (d.attach && typeof d.attach === "object") setAttach({ ...emptyAttach(), ...d.attach });
+        }
+      } catch {}
     }).catch(() => {});
   }, [contestId, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // مسودة تلقائية (خارج المسابقة)
   useEffect(() => {
     if (contestId || done) return;
-    const t = setTimeout(() => { AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ form, title, body, pen })).catch(() => {}); }, 800);
+    const t = setTimeout(() => { AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ form, title, body, pen, layout, attach })).catch(() => {}); }, 800);
     return () => clearTimeout(t);
-  }, [form, title, body, pen, contestId, done]);
+  }, [form, title, body, pen, layout, attach, contestId, done]);
 
   const forms = useMemo(() => {
     const all = meta?.forms ?? [];
@@ -58,9 +70,10 @@ export default function ComposeScreen() {
   }, [meta, contest]);
   const f = forms.find((x) => x.key === form);
   const c = f ? groupColor(f.group) : WINE;
-  const len = body.trim().length;
-  const lineCount = body.split("\n").filter((l) => l.trim()).length;
-  const words = body.trim().split(/\s+/).filter(Boolean).length;
+  // الحدود والعدّاد على النص الصافي (بلا علامات التنسيق) — كما يفحصها الخادم
+  const plain = useMemo(() => stripMarkup(body), [body]);
+  const len = plain.length;
+  const lineCount = plain.split("\n").filter((l) => l.trim()).length;
 
   const onBody = (t: string) => {
     const now = Date.now();
@@ -74,6 +87,9 @@ export default function ComposeScreen() {
     prevLen.current = t.length;
     setBody(t);
   };
+  // إدراجات شريط الأدوات/التراجع لا تُحتسب كتابة ولا لصقاً
+  const onTool = (t: string) => { prevLen.current = t.length; setBody(t); };
+  const ed = useRichEditor(body, onBody, onTool);
 
   const check = (): string | null => {
     if (!f) return "اختر جنس النص";
@@ -97,7 +113,8 @@ export default function ComposeScreen() {
         const r = await litApi.enter(token, contestId, { form, title: title.trim(), body, pen_name: pen.trim(), pledge, telemetry });
         setDone({ doc_no: r.entry.doc_no, id: r.entry.text_id, message: r.message, code: r.entry.code });
       } else {
-        const r = await litApi.create(token, { form, title: title.trim(), body, pen_name: pen.trim(), dedication: dedication.trim(), pledge, telemetry });
+        const hasLayout = Object.keys(layout).length > 0;
+        const r = await litApi.create(token, { form, title: title.trim(), body, pen_name: pen.trim(), dedication: dedication.trim(), pledge, telemetry, ...attachPayload(attach), layout: hasLayout ? layout : undefined });
         setDone({ doc_no: r.text.doc_no!, id: r.text.id, message: r.message });
         AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
       }
@@ -151,6 +168,10 @@ export default function ComposeScreen() {
         </Pressable>
       </View>
 
+      {!preview && !!f && (
+        <EditorToolbar ed={ed} layout={layout} onLayout={setLayout} counter={<CounterChip body={body} min={f.min} max={f.max} lines={f.lines} />} />
+      )}
+
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
         {contest && (
           <View style={st.contestNote}>
@@ -199,7 +220,18 @@ export default function ComposeScreen() {
           <View style={st.paper}>
             <Text style={st.pTitle}>{title || "بلا عنوان"}</Text>
             {!!dedication && <Text style={st.pDed}>{dedication}</Text>}
-            <View style={{ marginTop: 14 }}><LitBody text={{ form: f.key, group: f.group, body }} /></View>
+            {!contest && !!attach.imageUrl && <View style={{ marginTop: 12 }}><RatioImage uri={attach.imageUrl} />{!!attach.caption && <Text style={st.pCap}>{attach.caption}</Text>}</View>}
+            {!contest && !!attach.translation.trim() && (
+              <View style={[u.rowR, { gap: 8, justifyContent: "center", marginTop: 12 }]}>
+                <Pill label="النص" on={pvTab === "text"} onPress={() => setPvTab("text")} color={WINE} />
+                <Pill label={`الترجمة (${langMeta(attach.lang)?.label ?? ""})`} on={pvTab === "tr"} onPress={() => setPvTab("tr")} color={WINE} />
+              </View>
+            )}
+            {pvTab === "tr" && !contest && attach.translation.trim() ? (
+              <Text style={[st.pTr, isLtrText(attach.lang, attach.translation) ? { textAlign: "left", writingDirection: "ltr" } : { textAlign: "right", writingDirection: "rtl" }]}>{attach.translation.trim()}</Text>
+            ) : (
+              <View style={{ marginTop: 14 }}><LitBody text={{ form: f.key, group: f.group, body, layout }} /></View>
+            )}
             <Text style={st.pAuthor}>— {pen || pledge.signature || "الكاتب"}</Text>
           </View>
         ) : (
@@ -207,16 +239,18 @@ export default function ComposeScreen() {
             <TextInput value={title} onChangeText={setTitle} placeholder="العنوان" placeholderTextColor="#B5A898" style={st.titleIn} maxLength={160} />
             {!contest && <TextInput value={dedication} onChangeText={setDedication} placeholder="إهداء (اختياري)" placeholderTextColor="#B5A898" style={st.dedIn} maxLength={200} />}
             <TextInput
-              value={body} onChangeText={onBody} multiline textAlignVertical="top" scrollEnabled={false}
+              ref={ed.inputRef} value={body} onChangeText={ed.onChangeText} onSelectionChange={ed.onSelectionChange} selection={ed.selection}
+              multiline textAlignVertical="top" scrollEnabled={false} accessibilityLabel="متن النص"
               placeholder={f?.group === "poetry" ? (f.key === "classical" ? "صدر البيت *** عجز البيت\nصدر البيت *** عجز البيت" : "كل سطر في سطر مستقل…") : "ابدأ الكتابة…"}
               placeholderTextColor="#B5A898"
-              style={[st.bodyIn, f?.group === "poetry" && { textAlign: "center" }]}
+              style={[st.bodyIn, f?.group === "poetry" && { textAlign: "center" }, layout.align === "center" && { textAlign: "center" }, layout.align === "right" && { textAlign: "right" }]}
             />
-            <View style={[u.rowR, { justifyContent: "space-between", marginTop: 6 }]}>
-              <Text style={[st.counter, f && len >= f.min && { color: "#0E8A5F" }]}>{len} حرف{f ? ` / ${f.min}+` : ""}</Text>
-              <Text style={st.counter}>{words} كلمة{f?.group === "poetry" ? ` · ${lineCount} سطر` : ""}</Text>
-            </View>
+            <Text style={[u.hint, { marginTop: 6 }]}>التنسيق: **غامق** · _مائل_ · ==تظليل== · ~~مشطوب~~ · سطر *** فاصل. لا يُحتسب التنسيق في عدد الأحرف ولا في فحص الأصالة.</Text>
           </>
+        )}
+
+        {!contest && !!f && (
+          <AttachmentsCard token={token} value={attach} onChange={setAttach} defaultBy={pen || pledge.signature || ""} maxTranslation={f.max * 2} />
         )}
 
         <Text style={u.label}>الاسم الأدبي (اختياري)</Text>
@@ -249,7 +283,8 @@ const st = StyleSheet.create({
   titleIn: { marginTop: 16, fontFamily: "Cairo_700Bold", fontSize: 22, color: INK, textAlign: "right", borderBottomWidth: 1, borderBottomColor: "#E9DFCC", paddingVertical: 8 },
   dedIn: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: "#6B5B4B", textAlign: "right", paddingVertical: 8, fontStyle: "italic" },
   bodyIn: { minHeight: 300, marginTop: 8, fontFamily: "Cairo_400Regular", fontSize: 17, lineHeight: 34, color: INK, textAlign: "right", backgroundColor: "#FFFDF8", borderRadius: 14, borderWidth: 1, borderColor: "#EFE5D2", padding: 14 },
-  counter: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#8A7A6A" },
+  pCap: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#6B5B4B", textAlign: "center", marginTop: 6, fontStyle: "italic" },
+  pTr: { marginTop: 14, fontFamily: "Cairo_400Regular", fontSize: 16, lineHeight: 30, color: INK },
   paper: { marginTop: 14, backgroundColor: "#FFFDF8", borderRadius: 16, borderWidth: 1, borderColor: "#EFE5D2", padding: 20 },
   pTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: INK, textAlign: "center" },
   pDed: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#8A7A6A", textAlign: "center", fontStyle: "italic", marginTop: 4 },

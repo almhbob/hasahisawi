@@ -19,9 +19,9 @@ import ModernHeader from "@/components/ui/ModernHeader";
 
 const { width: W } = Dimensions.get("window");
 
-const PINK   = "#B4436C";
-const PINK2  = "#D9849F";
-const GOLD   = "#D4AF37";
+const PINK   = "#8E2F55"; // برقوقي هادئ — لون زواجل الأساسي
+const PINK2  = "#C27A93";
+const GOLD   = "#B8963E";
 const ZAWAJIL_INTRO_KEY = "zawajil_intro_v1";
 
 // ── خدمات متاحة ──────────────────────────────────────────────────────────────
@@ -34,21 +34,21 @@ type ServiceDef = {
   emoji: string;
 };
 const SERVICES: ServiceDef[] = [
-  { key: "hamasat_itab", label: "همسات عتاب",  subtitle: "رسالة من القلب",     icon: "heart",        color: "#B4436C", gradient: ["#B4436C","#8E2F55"], description: "أرسل رسالة شخصية تعبر عن مشاعرك — شوق، عتاب، اعتذار أو تقدير", emoji: "💌" },
-  { key: "nifaj",        label: "نفاج",         subtitle: "النصيحة المهداة",    icon: "bulb",         color: "#F59E0B", gradient: ["#F59E0B","#D97706"], description: "رسالة نصيحة واعية موجهة لشخص تحب أن يتحسن أو يغير سلوكاً معيناً", emoji: "💡" },
-  { key: "shoubash",     label: "شوبش",         subtitle: "مساحة العرسان",      icon: "diamond",      color: "#D4AF37", gradient: ["#D4AF37","#B7950B"], description: "هدايا الزواج مع تقديم صوتي احترافي خلال حفل الزفاف، يمكن مشاركة أكثر من شخص", emoji: "💍" },
-  { key: "tabrikat",     label: "تبريكات",      subtitle: "مناسبات سعيدة",      icon: "sparkles",     color: "#E59BB5", gradient: ["#E59BB5","#8E2F55"], description: "تهانٍ للخطوبة، التخرج، التفوق وكل المناسبات البهيجة", emoji: "🎉" },
-  { key: "salamat",      label: "سلامات",        subtitle: "للمرضى والمتعبين",  icon: "heart-half",   color: "#22C55E", gradient: ["#22C55E","#15803D"], description: "رسالة دعم ومؤازرة مصحوبة بهدية لمن يعاني المرض أو الوعكة", emoji: "🌿" },
+  { key: "hamasat_itab", label: "همسات عتاب",  subtitle: "رسالة من القلب",     icon: "heart",        color: "#8E2F55", gradient: ["#9D3C5D","#7A2E4A"], description: "أرسل رسالة شخصية تعبر عن مشاعرك — شوق، عتاب، اعتذار أو تقدير", emoji: "💌" },
+  { key: "nifaj",        label: "نفاج",         subtitle: "النصيحة المهداة",    icon: "bulb",         color: "#9A6416", gradient: ["#B7791F","#8A5A14"], description: "رسالة نصيحة واعية موجهة لشخص تحب أن يتحسن أو يغير سلوكاً معيناً", emoji: "💡" },
+  { key: "shoubash",     label: "شوبش",         subtitle: "مساحة العرسان",      icon: "diamond",      color: "#8C6F24", gradient: ["#B8963E","#8C6F24"], description: "هدايا الزواج مع تقديم صوتي احترافي خلال حفل الزفاف، يمكن مشاركة أكثر من شخص", emoji: "💍" },
+  { key: "tabrikat",     label: "تبريكات",      subtitle: "مناسبات سعيدة",      icon: "sparkles",     color: "#A0436A", gradient: ["#B8577A","#8E2F55"], description: "تهانٍ للخطوبة، التخرج، التفوق وكل المناسبات البهيجة", emoji: "🎉" },
+  { key: "salamat",      label: "سلامات",        subtitle: "للمرضى والمتعبين",  icon: "heart-half",   color: "#2F6B4C", gradient: ["#4A8B68","#2F6248"], description: "رسالة دعم ومؤازرة مصحوبة بهدية لمن يعاني المرض أو الوعكة", emoji: "🌿" },
 ];
 
 const STATUS_INFO: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap; step: number }> = {
-  pending_review:         { label: "في انتظار المراجعة", color: "#F59E0B", icon: "time-outline",              step: 1 },
-  modification_requested: { label: "يحتاج تعديل",        color: "#F97316", icon: "create-outline",            step: 2 },
-  approved:               { label: "مقبول",               color: "#22C55E", icon: "checkmark-circle-outline",  step: 3 },
-  preparing:              { label: "جارٍ التجهيز",        color: "#0EA5E9", icon: "construct-outline",          step: 4 },
-  sending:                { label: "في الطريق",           color: "#E59BB5", icon: "bicycle-outline",            step: 5 },
-  completed:              { label: "مكتمل ✓",             color: "#3EFF9C", icon: "checkmark-done-outline",     step: 6 },
-  rejected:               { label: "مرفوض",               color: "#EF4444", icon: "close-circle-outline",       step: 0 },
+  pending_review:         { label: "في انتظار المراجعة", color: "#B45309", icon: "time-outline",              step: 1 },
+  modification_requested: { label: "يحتاج تعديل",        color: "#C2410C", icon: "create-outline",            step: 2 },
+  approved:               { label: "مقبول",               color: "#15803D", icon: "checkmark-circle-outline",  step: 3 },
+  preparing:              { label: "جارٍ التجهيز",        color: "#0369A1", icon: "construct-outline",          step: 4 },
+  sending:                { label: "في الطريق",           color: "#A64D73", icon: "bicycle-outline",            step: 5 },
+  completed:              { label: "مكتمل ✓",             color: "#15803D", icon: "checkmark-done-outline",     step: 6 },
+  rejected:               { label: "مرفوض",               color: "#B91C1C", icon: "close-circle-outline",       step: 0 },
   returned:               { label: "مُعادة للمرسل",      color: Colors.textSecondary, icon: "return-down-back-outline",    step: 0 },
 };
 const PIPELINE = ["pending_review","approved","preparing","sending","completed"];
@@ -70,22 +70,22 @@ const GIFT_TYPES = [
 // ── شرائح تسويقية ─────────────────────────────────────────────────────────────
 const INTRO_SLIDES = [
   { emoji: "🎁", title: "مرحباً في زواجل", body: "منصة هدايا بلمسة إنسانية حقيقية — أرسل هديتك مع رسالة قلبية وتوصيل احترافي لأحبائك في الحصاحيصا وما حولها", color: PINK },
-  { emoji: "🕵️", title: "ممهول أو شفقان؟", body: "أرسل هديتك بهوية مجهولة (ممهول) وادهش المستلم بلا كشف هويتك، أو بهوية معروفة (شفقان) — لكن كبّر جيبك عشان حتزيد عليك! 😄", color: "#E8B931" },
+  { emoji: "🕵️", title: "ممهول أو شفقان؟", body: "أرسل هديتك بهوية مجهولة (ممهول) وادهش المستلم بلا كشف هويتك، أو بهوية معروفة (شفقان) — لكن كبّر جيبك عشان حتزيد عليك! 😄", color: "#A16207" },
   { emoji: "💝", title: "هدايا متنوعة", body: "اختر من متجر زواجل بسعر مناسب بدون رسوم جلب إضافية، أو أرسل هدية خارجية مع العلم أنها تشمل بدل مشوار + بدل وقت إضافيَّين", color: GOLD },
-  { emoji: "🚀", title: "توصيل سريع", body: "نوصل داخل الحصاحيصا وخارجها. السعر يُحدَّد بعد المراجعة حسب الموقع والخدمة المختارة", color: "#22C55E" },
-  { emoji: "✨", title: "انضم لفريق زواجل", body: "زاجل توصيل؟ كروان مؤدي صوتي؟ خطاط؟ شريك متجر هدايا؟ قدّم طلبك من تبويب الانضمام وسنتواصل معك", color: "#F59E0B" },
+  { emoji: "🚀", title: "توصيل سريع", body: "نوصل داخل الحصاحيصا وخارجها. السعر يُحدَّد بعد المراجعة حسب الموقع والخدمة المختارة", color: "#15803D" },
+  { emoji: "✨", title: "انضم لفريق زواجل", body: "زاجل توصيل؟ كروان مؤدي صوتي؟ خطاط؟ شريك متجر هدايا؟ قدّم طلبك من تبويب الانضمام وسنتواصل معك", color: "#B45309" },
 ];
 
 // ── أدوار الانضمام ─────────────────────────────────────────────────────────────
 type JoinRole = { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; desc: string; showGender?: boolean; showSamples?: boolean };
 const JOIN_ROLES: JoinRole[] = [
-  { key: "zaajil",          label: "زاجل — مندوب توصيل",      icon: "bicycle-outline",    color: "#22C55E", desc: "توصيل الطلبات والهدايا داخل وخارج المدينة بسرعة واحترافية", showGender: true },
-  { key: "krowan",          label: "كروان — مؤدي صوتي",        icon: "mic-outline",        color: "#E59BB5", desc: "تقديم الهدايا بصوت جميل في الأفراح والمناسبات الخاصة", showSamples: true },
+  { key: "zaajil",          label: "زاجل — مندوب توصيل",      icon: "bicycle-outline",    color: "#15803D", desc: "توصيل الطلبات والهدايا داخل وخارج المدينة بسرعة واحترافية", showGender: true },
+  { key: "krowan",          label: "كروان — مؤدي صوتي",        icon: "mic-outline",        color: "#A64D73", desc: "تقديم الهدايا بصوت جميل في الأفراح والمناسبات الخاصة", showSamples: true },
   { key: "khattaat",        label: "خطاط",                     icon: "create-outline",     color: GOLD,      desc: "كتابة الرسائل والبطاقات بخط جميل وتنسيق احترافي", showSamples: true },
   { key: "designer",        label: "مصمم",                     icon: "brush-outline",      color: "#C26D3D", desc: "تصميم البطاقات والدعوات والبوسترات الإلكترونية للمناسبات", showSamples: true },
   { key: "gift_store",      label: "انضمام متجر هدايا",        icon: "storefront-outline", color: PINK,      desc: "أضف منتجاتك إلى متجر زواجل وابدأ البيع عبر المنصة" },
-  { key: "service_girl",    label: "طلب خدمة — بنات",          icon: "female-outline",     color: "#D9849F", desc: "انضمي لقائمة مقدمات الخدمات الخاصة للمناسبات النسائية" },
-  { key: "service_boy",     label: "طلب خدمة — أولاد",         icon: "male-outline",       color: "#38BDF8", desc: "انضم لقائمة مقدمي الخدمات الخاصة للمناسبات والفعاليات" },
+  { key: "service_girl",    label: "طلب خدمة — بنات",          icon: "female-outline",     color: "#C27A93", desc: "انضمي لقائمة مقدمات الخدمات الخاصة للمناسبات النسائية" },
+  { key: "service_boy",     label: "طلب خدمة — أولاد",         icon: "male-outline",       color: "#0369A1", desc: "انضم لقائمة مقدمي الخدمات الخاصة للمناسبات والفعاليات" },
 ];
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -332,11 +332,11 @@ export default function ZawajilScreen() {
         title="زواجل"
         subtitle="هدايا ورسائل توصيل بلمسة خاصة"
         icon="gift-outline"
-        gradient={[PINK, "#8E2F55", "#1F0D18"]}
+        gradient={["#4A1A2E", "#6E2643", PINK]}
         rightSlot={
-          <View style={[styles.statusBadge, { backgroundColor: SERVICE_ACTIVE ? "#22C55E18" : "#F9731618", borderColor: SERVICE_ACTIVE ? "#22C55E44" : "#F9731644" }]}>
-            <View style={[styles.statusDot, { backgroundColor: SERVICE_ACTIVE ? "#22C55E" : "#F97316" }]} />
-            <Text style={[styles.statusTxt, { color: SERVICE_ACTIVE ? "#86EFAC" : "#FED7AA" }]}>
+          <View style={[styles.statusBadge, { backgroundColor: SERVICE_ACTIVE ? "#15803D18" : "#C2410C18", borderColor: SERVICE_ACTIVE ? "#15803D44" : "#C2410C44" }]}>
+            <View style={[styles.statusDot, { backgroundColor: SERVICE_ACTIVE ? "#15803D" : "#C2410C" }]} />
+            <Text style={[styles.statusTxt, { color: SERVICE_ACTIVE ? "#BBF7D0" : "#FED7AA" }]}>
               {SERVICE_ACTIVE ? "متاحة" : "قريباً"}
             </Text>
           </View>
@@ -368,10 +368,10 @@ export default function ZawajilScreen() {
       {orderSuccess && (
         <Animated.View entering={FadeInUp} style={styles.successBanner}>
           <LinearGradient colors={["#14532D","#166534"]} style={StyleSheet.absoluteFill} />
-          <Ionicons name="checkmark-circle" size={22} color="#3EFF9C" />
+          <Ionicons name="checkmark-circle" size={22} color="#15803D" />
           <View style={{ flex: 1 }}>
             <Text style={styles.successTitle}>تم إرسال طلبك بنجاح! 🎉</Text>
-            <Text style={styles.successNum}>رقم الطلب: <Text style={{ color: "#3EFF9C", fontFamily: "Cairo_700Bold" }}>{orderSuccess}</Text></Text>
+            <Text style={styles.successNum}>رقم الطلب: <Text style={{ color: "#15803D", fontFamily: "Cairo_700Bold" }}>{orderSuccess}</Text></Text>
           </View>
         </Animated.View>
       )}
@@ -385,7 +385,7 @@ export default function ZawajilScreen() {
         >
           {!SERVICE_ACTIVE && (
             <Animated.View entering={FadeIn} style={styles.comingSoonBanner}>
-              <LinearGradient colors={["#F9731618","#F9731608"]} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={["#C2410C18","#C2410C08"]} style={StyleSheet.absoluteFill} />
               <Text style={{ fontSize: 32 }}>🚧</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.comingSoonTitle}>قريباً — جاري التجهيز</Text>
@@ -406,21 +406,20 @@ export default function ZawajilScreen() {
                 activeOpacity={SERVICE_ACTIVE ? 0.82 : 1}
                 style={[styles.serviceCard, !SERVICE_ACTIVE && { opacity: 0.5 }]}
               >
-                <View style={[styles.serviceAccent, { backgroundColor: svc.color }]} />
                 <View style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 14 }}>
                   <LinearGradient colors={svc.gradient} style={styles.svcIconBox} start={{ x:0,y:0 }} end={{ x:1,y:1 }}>
-                    <Text style={{ fontSize: 22 }}>{svc.emoji}</Text>
+                    <Ionicons name={svc.icon} size={24} color="#fff" />
                   </LinearGradient>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <Text style={[styles.svcLabel, { color: svc.color }]}>{svc.label}</Text>
-                      <View style={[styles.subtitleBadge, { backgroundColor: svc.color + "18", borderColor: svc.color + "33" }]}>
-                        <Text style={[styles.svcSubtitle, { color: svc.color + "CC" }]}>{svc.subtitle}</Text>
+                      <View style={[styles.subtitleBadge, { backgroundColor: svc.color + "12", borderColor: svc.color + "2A" }]}>
+                        <Text style={[styles.svcSubtitle, { color: svc.color }]}>{svc.subtitle}</Text>
                       </View>
                     </View>
                     <Text style={styles.svcDesc} numberOfLines={2}>{svc.description}</Text>
                   </View>
-                  <Ionicons name="chevron-back" size={16} color={svc.color + "99"} />
+                  <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -429,26 +428,26 @@ export default function ZawajilScreen() {
           {/* Info boxes */}
           <View style={styles.infoBox}>
             <View style={styles.infoIconBg}>
-              <Ionicons name="eye-off-outline" size={16} color="#E8B931" />
+              <Ionicons name="eye-off-outline" size={16} color="#A16207" />
             </View>
-            <Text style={[styles.infoText, { color: "#C7D2FE" }]}>
+            <Text style={[styles.infoText, { color: "#5B1F38" }]}>
               <Text style={{ fontFamily: "Cairo_700Bold" }}>ممهول أو شفقان؟ </Text>
               عند تعبئة الطلب تختار إن كان اسمك يُكشف للمستلم أم يبقى مجهولاً — إذا اخترت شفقان فكبّر جيبك! 😄
             </Text>
           </View>
           <View style={styles.infoBox}>
             <View style={styles.infoIconBg}>
-              <Ionicons name="information-circle-outline" size={16} color="#38BDF8" />
+              <Ionicons name="information-circle-outline" size={16} color="#0369A1" />
             </View>
             <Text style={styles.infoText}>
               الهدايا من متجرنا أرخص — بدون رسوم جلب. الهدايا الخارجية تشمل <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold" }}>بدل مشوار + بدل وقت</Text> إضافيَّين.
             </Text>
           </View>
-          <View style={[styles.infoBox, { borderColor: "#F59E0B33", backgroundColor: "#F59E0B09" }]}>
-            <View style={[styles.infoIconBg, { backgroundColor: "#F59E0B18" }]}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#FCD34D" />
+          <View style={[styles.infoBox, { borderColor: "#B4530933", backgroundColor: "#B4530909" }]}>
+            <View style={[styles.infoIconBg, { backgroundColor: "#B4530918" }]}>
+              <Ionicons name="shield-checkmark-outline" size={16} color="#A16207" />
             </View>
-            <Text style={[styles.infoText, { color: "#FDE68A" }]}>
+            <Text style={[styles.infoText, { color: "#854D0E" }]}>
               في حال رفض المستلم للهدية، تُعاد إليك كاملةً بدون أي تكاليف إضافية.
             </Text>
           </View>
@@ -518,10 +517,10 @@ export default function ZawajilScreen() {
                               const isCurrent = pKey === order.status;
                               return (
                                 <View key={pKey} style={styles.pipelineStep}>
-                                  <View style={[styles.pipelineDot, isDone && { backgroundColor: "#22C55E", borderColor: "#22C55E" }, isCurrent && { backgroundColor: st.color, borderColor: st.color, transform: [{ scale: 1.2 }] }]}>
+                                  <View style={[styles.pipelineDot, isDone && { backgroundColor: "#15803D", borderColor: "#15803D" }, isCurrent && { backgroundColor: st.color, borderColor: st.color, transform: [{ scale: 1.2 }] }]}>
                                     {isDone && <Ionicons name="checkmark" size={8} color="#fff" />}
                                   </View>
-                                  {pi < PIPELINE.length - 1 && <View style={[styles.pipelineLine, isDone && { backgroundColor: "#22C55E44" }]} />}
+                                  {pi < PIPELINE.length - 1 && <View style={[styles.pipelineLine, isDone && { backgroundColor: "#15803D44" }]} />}
                                 </View>
                               );
                             })}
@@ -531,12 +530,12 @@ export default function ZawajilScreen() {
                           {svc && <View style={[styles.tagChip, { backgroundColor: svc.color + "18", borderColor: svc.color + "33" }]}><Text style={{ fontSize: 13 }}>{svc.emoji}</Text><Text style={[styles.tagText, { color: svc.color }]}>{svc.label}</Text></View>}
                           {order.sender_anonymous && <View style={[styles.tagChip, { backgroundColor: "#81818118", borderColor: "#81818133" }]}><Ionicons name="eye-off-outline" size={11} color="#A1A1AA" /><Text style={[styles.tagText, { color: "#A1A1AA" }]}>ممهول</Text></View>}
                           <View style={styles.tagChip}><Ionicons name="person-outline" size={11} color={Colors.textSecondary} /><Text style={[styles.tagText, { color: Colors.textSecondary }]}>إلى: {order.recipient_name}</Text></View>
-                          {order.delivery_location === "outside_city" && <View style={[styles.tagChip, { backgroundColor: "#F9731618", borderColor: "#F9731633" }]}><Ionicons name="location-outline" size={11} color="#F97316" /><Text style={[styles.tagText, { color: "#F97316" }]}>خارج المدينة</Text></View>}
+                          {order.delivery_location === "outside_city" && <View style={[styles.tagChip, { backgroundColor: "#C2410C18", borderColor: "#C2410C33" }]}><Ionicons name="location-outline" size={11} color="#C2410C" /><Text style={[styles.tagText, { color: "#C2410C" }]}>خارج المدينة</Text></View>}
                         </View>
                         {order.estimated_cost > 0 && <View style={styles.costRow}><Ionicons name="pricetag-outline" size={13} color={GOLD} /><Text style={styles.costText}>التكلفة: <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold" }}>{Number(order.estimated_cost).toLocaleString()} SDG</Text></Text></View>}
-                        {order.modification_request && <View style={styles.alertBox}><Ionicons name="create-outline" size={13} color="#F97316" /><Text style={[styles.alertText, { color: "#FED7AA" }]}>{order.modification_request}</Text></View>}
-                        {order.rejection_reason && <View style={[styles.alertBox, { backgroundColor: "#EF444415", borderColor: "#EF444430" }]}><Ionicons name="close-circle-outline" size={13} color="#EF4444" /><Text style={[styles.alertText, { color: "#FCA5A5" }]}>{order.rejection_reason}</Text></View>}
-                        {order.admin_notes && order.status === "approved" && <View style={[styles.alertBox, { backgroundColor: "#22C55E15", borderColor: "#22C55E30" }]}><Ionicons name="checkmark-circle-outline" size={13} color="#22C55E" /><Text style={[styles.alertText, { color: "#86EFAC" }]}>{order.admin_notes}</Text></View>}
+                        {order.modification_request && <View style={styles.alertBox}><Ionicons name="create-outline" size={13} color="#C2410C" /><Text style={[styles.alertText, { color: "#FED7AA" }]}>{order.modification_request}</Text></View>}
+                        {order.rejection_reason && <View style={[styles.alertBox, { backgroundColor: "#B91C1C15", borderColor: "#B91C1C30" }]}><Ionicons name="close-circle-outline" size={13} color="#B91C1C" /><Text style={[styles.alertText, { color: "#B91C1C" }]}>{order.rejection_reason}</Text></View>}
+                        {order.admin_notes && order.status === "approved" && <View style={[styles.alertBox, { backgroundColor: "#15803D15", borderColor: "#15803D30" }]}><Ionicons name="checkmark-circle-outline" size={13} color="#15803D" /><Text style={[styles.alertText, { color: "#BBF7D0" }]}>{order.admin_notes}</Text></View>}
                       </View>
                     </View>
                   </Animated.View>
@@ -592,7 +591,7 @@ export default function ZawajilScreen() {
           ))}
 
           <View style={[styles.infoBox, { marginTop: 8 }]}>
-            <View style={styles.infoIconBg}><Ionicons name="call-outline" size={16} color="#38BDF8" /></View>
+            <View style={styles.infoIconBg}><Ionicons name="call-outline" size={16} color="#0369A1" /></View>
             <Text style={styles.infoText}>
               بعد إرسال طلبك سنتواصل معك خلال 24-48 ساعة على الرقم المُسجَّل للمراجعة والتفاصيل
             </Text>
@@ -626,38 +625,38 @@ export default function ZawajilScreen() {
               keyboardShouldPersistTaps="handled"
             >
               {/* ── هوية المرسل: ممهول أو شفقان ── */}
-              <SectionHead icon="eye-outline" title="هوية المرسل" color="#E8B931" />
+              <SectionHead icon="eye-outline" title="هوية المرسل" color="#A16207" />
               <View style={styles.anonCard}>
                 <Text style={styles.anonCardTitle}>كيف تريد أن يعرفك المستلم؟</Text>
                 <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 10 }}>
                   <TouchableOpacity
-                    style={[styles.anonBtn, !form.sender_anonymous && { backgroundColor: "#E8B93122", borderColor: "#E8B931" }]}
+                    style={[styles.anonBtn, !form.sender_anonymous && { backgroundColor: "#A1620722", borderColor: "#A16207" }]}
                     onPress={() => setForm(p=>({...p,sender_anonymous:false}))}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="eye-off-outline" size={18} color={!form.sender_anonymous ? "#E8B931" : Colors.textSecondary} />
+                    <Ionicons name="eye-off-outline" size={18} color={!form.sender_anonymous ? "#A16207" : Colors.textSecondary} />
                     <View>
-                      <Text style={[styles.anonBtnTitle, !form.sender_anonymous && { color: "#E8B931" }]}>ممهول 🕵️</Text>
+                      <Text style={[styles.anonBtnTitle, !form.sender_anonymous && { color: "#A16207" }]}>ممهول 🕵️</Text>
                       <Text style={styles.anonBtnSub}>هويتك مجهولة</Text>
                     </View>
-                    {!form.sender_anonymous && <Ionicons name="checkmark-circle" size={16} color="#E8B931" style={{ marginRight: "auto" }} />}
+                    {!form.sender_anonymous && <Ionicons name="checkmark-circle" size={16} color="#A16207" style={{ marginRight: "auto" }} />}
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.anonBtn, form.sender_anonymous && { backgroundColor: "#F9731622", borderColor: "#F97316" }]}
+                    style={[styles.anonBtn, form.sender_anonymous && { backgroundColor: "#C2410C22", borderColor: "#C2410C" }]}
                     onPress={() => setForm(p=>({...p,sender_anonymous:true}))}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="person-circle-outline" size={18} color={form.sender_anonymous ? "#F97316" : Colors.textSecondary} />
+                    <Ionicons name="person-circle-outline" size={18} color={form.sender_anonymous ? "#C2410C" : Colors.textSecondary} />
                     <View>
-                      <Text style={[styles.anonBtnTitle, form.sender_anonymous && { color: "#F97316" }]}>شفقان 😄</Text>
+                      <Text style={[styles.anonBtnTitle, form.sender_anonymous && { color: "#C2410C" }]}>شفقان 😄</Text>
                       <Text style={styles.anonBtnSub}>اسمك يظهر</Text>
                     </View>
-                    {form.sender_anonymous && <Ionicons name="checkmark-circle" size={16} color="#F97316" style={{ marginRight: "auto" }} />}
+                    {form.sender_anonymous && <Ionicons name="checkmark-circle" size={16} color="#C2410C" style={{ marginRight: "auto" }} />}
                   </TouchableOpacity>
                 </View>
                 {form.sender_anonymous && (
                   <Animated.View entering={FadeIn} style={styles.anonWarning}>
-                    <Ionicons name="warning-outline" size={14} color="#FCD34D" />
+                    <Ionicons name="warning-outline" size={14} color="#A16207" />
                     <Text style={styles.anonWarningTxt}>شفقان = كبّر جيبك! ظهور اسمك يضيف رسوم خدمة إضافية 💰</Text>
                   </Animated.View>
                 )}
@@ -699,11 +698,11 @@ export default function ZawajilScreen() {
               {/* ── تفاصيل خاصة بالخدمة ── */}
               {form.service_type === "tabrikat" && (
                 <>
-                  <SectionHead icon="sparkles-outline" title="نوع المناسبة" color="#E59BB5" />
+                  <SectionHead icon="sparkles-outline" title="نوع المناسبة" color="#A64D73" />
                   <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
                     {OCCASION_TYPES.map(o => (
-                      <TouchableOpacity key={o.key} onPress={() => setForm(p=>({...p,occasion_type:o.key}))} style={[styles.occasionBtn, form.occasion_type === o.key && { backgroundColor: "#E59BB522", borderColor: "#E59BB5" }]}>
-                        <Text style={[styles.occasionBtnText, form.occasion_type === o.key && { color: "#E59BB5" }]}>{o.label}</Text>
+                      <TouchableOpacity key={o.key} onPress={() => setForm(p=>({...p,occasion_type:o.key}))} style={[styles.occasionBtn, form.occasion_type === o.key && { backgroundColor: "#A64D7322", borderColor: "#A64D73" }]}>
+                        <Text style={[styles.occasionBtnText, form.occasion_type === o.key && { color: "#A64D73" }]}>{o.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -761,8 +760,8 @@ export default function ZawajilScreen() {
                 <Animated.View entering={FadeIn} style={[styles.infoBox, { borderColor: GOLD + "44", backgroundColor: GOLD + "09", marginBottom: 12 }]}>
                   <View style={[styles.infoIconBg, { backgroundColor: GOLD + "22" }]}><Ionicons name="pricetag-outline" size={15} color={GOLD} /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.infoText, { color: "#FDE68A", fontFamily: "Cairo_700Bold", marginBottom: 4 }]}>تكاليف إضافية على الهدايا الخارجية:</Text>
-                    <Text style={[styles.infoText, { color: "#FDE68A" }]}>• <Text style={{ fontFamily: "Cairo_700Bold" }}>بدل مشوار</Text> — رسوم جلب الهدية من موقعها{"\n"}• <Text style={{ fontFamily: "Cairo_700Bold" }}>بدل وقت</Text> — مقابل وقت التجهيز والانتظار</Text>
+                    <Text style={[styles.infoText, { color: "#854D0E", fontFamily: "Cairo_700Bold", marginBottom: 4 }]}>تكاليف إضافية على الهدايا الخارجية:</Text>
+                    <Text style={[styles.infoText, { color: "#854D0E" }]}>• <Text style={{ fontFamily: "Cairo_700Bold" }}>بدل مشوار</Text> — رسوم جلب الهدية من موقعها{"\n"}• <Text style={{ fontFamily: "Cairo_700Bold" }}>بدل وقت</Text> — مقابل وقت التجهيز والانتظار</Text>
                   </View>
                 </Animated.View>
               )}
@@ -801,11 +800,11 @@ export default function ZawajilScreen() {
               )}
 
               {/* ── التعهد ── */}
-              <SectionHead icon="shield-checkmark-outline" title="التعهد والموافقة" color="#F97316" />
+              <SectionHead icon="shield-checkmark-outline" title="التعهد والموافقة" color="#C2410C" />
               <View style={styles.pledgeBox}>
                 <Text style={styles.pledgeText} numberOfLines={3}>{PLEDGE_TEXT}</Text>
                 <TouchableOpacity onPress={() => setShowPledge(true)} style={styles.readFullBtn}>
-                  <Ionicons name="open-outline" size={13} color="#38BDF8" />
+                  <Ionicons name="open-outline" size={13} color="#0369A1" />
                   <Text style={styles.readFullText}>قراءة التعهد كاملاً</Text>
                 </TouchableOpacity>
               </View>
@@ -813,11 +812,11 @@ export default function ZawajilScreen() {
                 <View style={[styles.checkbox, form.pledge_accepted && styles.checkboxChecked]}>
                   {form.pledge_accepted && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={[styles.pledgeCheckText, form.pledge_accepted && { color: "#3EFF9C" }]}>قرأت التعهد وأوافق على جميع شروطه</Text>
+                <Text style={[styles.pledgeCheckText, form.pledge_accepted && { color: "#15803D" }]}>قرأت التعهد وأوافق على جميع شروطه</Text>
               </TouchableOpacity>
 
-              <View style={[styles.infoBox, { marginBottom: 0, marginTop: 8, borderColor: "#0EA5E933", backgroundColor: "#0EA5E909" }]}>
-                <View style={styles.infoIconBg}><Ionicons name="pricetag-outline" size={14} color="#38BDF8" /></View>
+              <View style={[styles.infoBox, { marginBottom: 0, marginTop: 8, borderColor: "#0369A133", backgroundColor: "#0369A109" }]}>
+                <View style={styles.infoIconBg}><Ionicons name="pricetag-outline" size={14} color="#0369A1" /></View>
                 <Text style={styles.infoText}>سيتم إعلامك بالتكلفة المقدرة بعد مراجعة الطلب، تشمل التوصيل وأتعاب الخدمة حسب موقعك والهدية المختارة.</Text>
               </View>
 
@@ -917,7 +916,7 @@ export default function ZawajilScreen() {
 
                   {joinError ? (
                     <Animated.View entering={FadeIn} style={styles.errorBox}>
-                      <Ionicons name="alert-circle-outline" size={15} color="#FCA5A5" />
+                      <Ionicons name="alert-circle-outline" size={15} color="#B91C1C" />
                       <Text style={styles.errorText}>{joinError}</Text>
                     </Animated.View>
                   ) : null}
@@ -947,16 +946,16 @@ export default function ZawajilScreen() {
         <Pressable style={styles.pledgeModalBg} onPress={() => setShowPledge(false)}>
           <Pressable style={styles.pledgeModalBox} onPress={e => e.stopPropagation()}>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <Ionicons name="shield-checkmark" size={20} color="#F97316" />
+              <Ionicons name="shield-checkmark" size={20} color="#C2410C" />
               <Text style={styles.pledgeModalTitle}>نص التعهد كاملاً</Text>
             </View>
             <ScrollView style={{ maxHeight: 300 }}>
               <Text style={styles.pledgeModalText}>{PLEDGE_TEXT}</Text>
-              <Text style={[styles.pledgeModalText, { marginTop: 12, color: "#FDE68A" }]}>ملاحظة: تحتفظ إدارة زواجل بحق رفض أي طلب لا يتوافق مع قيم وأخلاقيات المجتمع.</Text>
+              <Text style={[styles.pledgeModalText, { marginTop: 12, color: "#854D0E" }]}>ملاحظة: تحتفظ إدارة زواجل بحق رفض أي طلب لا يتوافق مع قيم وأخلاقيات المجتمع.</Text>
                     <OrgInviteCard />
 </ScrollView>
             <TouchableOpacity style={styles.pledgeAcceptBtn} onPress={() => { setForm(p=>({...p,pledge_accepted:true})); setShowPledge(false); }}>
-              <LinearGradient colors={["#F97316","#EA580C"]} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
+              <LinearGradient colors={["#C2410C","#9A3412"]} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
               <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
               <Text style={styles.submitBtnText}>قرأت وأتعهد</Text>
             </TouchableOpacity>
@@ -1030,12 +1029,12 @@ const styles = StyleSheet.create({
   tabLabelActive: { color: "#fff" },
 
   // ── Banners ──
-  successBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 10, margin: 12, borderRadius: Colors.radius.md, padding: 14, overflow: "hidden", borderWidth: 1, borderColor: "#22C55E33" },
+  successBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 10, margin: 12, borderRadius: Colors.radius.md, padding: 14, overflow: "hidden", borderWidth: 1, borderColor: "#15803D33" },
   successTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   successNum:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
-  comingSoonBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 14, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: "#F9731633", overflow: "hidden" },
+  comingSoonBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 14, borderRadius: Colors.radius.lg, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: "#C2410C33", overflow: "hidden" },
   comingSoonTitle:  { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FED7AA", textAlign: "right" },
-  comingSoonSub:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#FCD34D99", textAlign: "right", marginTop: 2 },
+  comingSoonSub:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A1620799", textAlign: "right", marginTop: 2 },
 
   // ── Services ──
   sectionLabelRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 14 },
@@ -1050,9 +1049,9 @@ const styles = StyleSheet.create({
   svcDesc:     { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 18, textAlign: "right" },
 
   // ── Info boxes ──
-  infoBox:    { flexDirection: "row-reverse", gap: 10, backgroundColor: "#0EA5E909", borderWidth: 1, borderColor: "#0EA5E922", borderRadius: Colors.radius.md, padding: 12, marginBottom: 10, alignItems: "flex-start" },
-  infoIconBg: { width: 26, height: 26, borderRadius: Colors.radius.sm, backgroundColor: "#0EA5E918", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  infoText:   { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#7DD3FC", lineHeight: 18, textAlign: "right" },
+  infoBox:    { flexDirection: "row-reverse", gap: 10, backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, borderRadius: Colors.radius.md, padding: 12, marginBottom: 10, alignItems: "flex-start" },
+  infoIconBg: { width: 26, height: 26, borderRadius: Colors.radius.sm, backgroundColor: PINK + "14", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  infoText:   { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textPrimary, lineHeight: 18, textAlign: "right" },
 
   // ── Track / Orders ──
   trackBar:       { flexDirection: "row-reverse", gap: 8, padding: 14, backgroundColor: Colors.surface1, borderBottomWidth: 1, borderBottomColor: Colors.divider },
@@ -1078,7 +1077,7 @@ const styles = StyleSheet.create({
   tagText:  { fontFamily: "Cairo_400Regular", fontSize: 12 },
   costRow:  { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 },
   costText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary },
-  alertBox: { flexDirection: "row-reverse", gap: 6, backgroundColor: "#F9731615", borderRadius: 8, padding: 8, marginTop: 8, borderWidth: 1, borderColor: "#F9731630" },
+  alertBox: { flexDirection: "row-reverse", gap: 6, backgroundColor: "#C2410C15", borderRadius: 8, padding: 8, marginTop: 8, borderWidth: 1, borderColor: "#C2410C30" },
   alertText:{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 18, textAlign: "right" },
 
   // ── Join tab ──
@@ -1101,13 +1100,13 @@ const styles = StyleSheet.create({
   modalSub:    { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
 
   // ── Anonymity card ──
-  anonCard:       { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#E8B93122" },
+  anonCard:       { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#A1620722" },
   anonCardTitle:  { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
   anonBtn:        { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.surface3 },
   anonBtnTitle:   { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
   anonBtnSub:     { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textDisabled, textAlign: "right" },
-  anonWarning:    { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, backgroundColor: "#F59E0B15", borderRadius: 8, padding: 8, borderWidth: 1, borderColor: "#F59E0B33" },
-  anonWarningTxt: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#FDE68A", textAlign: "right" },
+  anonWarning:    { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, backgroundColor: "#B4530915", borderRadius: 8, padding: 8, borderWidth: 1, borderColor: "#B4530933" },
+  anonWarningTxt: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#854D0E", textAlign: "right" },
 
   // ── Inputs ──
   input:      { backgroundColor: Colors.surface2, borderWidth: 1, borderColor: Colors.divider, borderRadius: Colors.radius.md, paddingHorizontal: 14, paddingVertical: 11, color: Colors.textPrimary, fontFamily: "Cairo_400Regular", fontSize: 14 },
@@ -1133,13 +1132,13 @@ const styles = StyleSheet.create({
   productDesc:  { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
   productPrice: { fontFamily: "Cairo_700Bold", fontSize: 13 },
 
-  pledgeBox:      { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#F9731622" },
+  pledgeBox:      { backgroundColor: Colors.surface2, borderRadius: Colors.radius.md, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#C2410C22" },
   pledgeText:     { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 20, textAlign: "right" },
   readFullBtn:    { flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 8 },
-  readFullText:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#38BDF8" },
+  readFullText:   { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#0369A1" },
   pledgeCheckRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 18 },
   checkbox:        { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.divider, backgroundColor: Colors.surface2, alignItems: "center", justifyContent: "center" },
-  checkboxChecked: { backgroundColor: "#22C55E", borderColor: "#22C55E" },
+  checkboxChecked: { backgroundColor: "#15803D", borderColor: "#15803D" },
   pledgeCheckText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
 
   submitBtn:     { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 14, marginTop: 16, overflow: "hidden", backgroundColor: Colors.surface3 },
@@ -1151,6 +1150,6 @@ const styles = StyleSheet.create({
   pledgeModalText:  { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, lineHeight: 22, textAlign: "right" },
   pledgeAcceptBtn:  { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 16, overflow: "hidden" },
 
-  errorBox:  { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, backgroundColor: "#EF444415", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#EF444433", marginBottom: 12 },
-  errorText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#FCA5A5", textAlign: "right", lineHeight: 20 },
+  errorBox:  { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, backgroundColor: "#B91C1C15", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#B91C1C33", marginBottom: 12 },
+  errorText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: "#B91C1C", textAlign: "right", lineHeight: 20 },
 });

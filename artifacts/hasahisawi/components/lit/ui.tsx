@@ -1,41 +1,74 @@
 // عناصر «ديوان الكُتّاب»: بطاقة النص، عارض الشعر والنثر، شارة التوثيق، صندوق التعهّد.
 import React from "react";
-import { View, Text, Pressable, StyleSheet, TextInput } from "react-native";
+import { View, Text, Pressable, StyleSheet, TextInput, type StyleProp, type TextStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import UserAvatar from "@/components/UserAvatar";
 import { WINE, GOLD, INK, TEXT_STATUS, splitVerse, type LitText } from "@/lib/lit";
+import { parseInline, isSeparator, SIZE_DELTA, SPACING_MUL, type LitLayout } from "@/lib/lit-markup";
 
 const GROUP_COLOR: Record<string, string> = { story: "#7A2E3A", poetry: "#1B4D6B", prose: "#2D6A4F" };
 export const groupColor = (g: string) => GROUP_COLOR[g] ?? WINE;
 
-/** يعرض النص بحسب نوعه: العمودي صدر/عجز، والشعر في أسطر متوسطة، والنثر فقرات */
-export function LitBody({ text, size = 17, preview = false }: { text: Pick<LitText, "form" | "group"> & { body?: string; excerpt?: string }; size?: number; preview?: boolean }) {
+/** مقاطع منسّقة داخل سطر: غامق/مائل/تظليل/مشطوب */
+export function Rich({ line, style }: { line: string; style?: StyleProp<TextStyle> }) {
+  const segs = parseInline(line);
+  return (
+    <Text style={style}>
+      {segs.map((g, i) => (g.b || g.i || g.h || g.s) ? (
+        <Text key={i} style={[g.b && s.bold, g.i && s.italic, g.h && s.mark, g.s && s.strike]}>{g.t}</Text>
+      ) : g.t)}
+    </Text>
+  );
+}
+
+function Separator({ size }: { size: number }) {
+  return (
+    <View style={[s.sep, { marginVertical: size * 0.5 }]} accessibilityRole="none" accessibilityLabel="فاصل">
+      <View style={s.sepLine} /><Text style={s.sepStar}>✦ ✦ ✦</Text><View style={s.sepLine} />
+    </View>
+  );
+}
+
+/** يعرض النص بحسب نوعه: العمودي صدر/عجز، والشعر في أسطر متوسطة، والنثر فقرات — مع التنسيق وتفضيلات العرض */
+export function LitBody({ text, size = 17, preview = false }: {
+  text: Pick<LitText, "form" | "group"> & { body?: string; excerpt?: string; layout?: LitLayout | null };
+  size?: number; preview?: boolean;
+}) {
   const raw = (preview ? text.excerpt : text.body) || "";
-  const lh = size * 1.95;
+  const lay = preview ? null : text.layout;
+  const fs = size + (lay?.size ? SIZE_DELTA[lay.size] : 0);
+  const lh = fs * (lay?.spacing ? SPACING_MUL[lay.spacing] : 1.95);
   if (text.group === "poetry") {
+    const align: TextStyle["textAlign"] = lay?.align === "right" ? "right" : "center";
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, preview ? 4 : undefined);
     return (
       <View style={{ gap: text.form === "haiku" ? 6 : 2 }}>
         {lines.map((l, i) => {
+          if (isSeparator(l)) return preview ? null : <Separator key={i} size={fs} />;
           const v = text.form === "classical" ? splitVerse(l) : null;
           if (v) {
             return (
               <View key={i} style={s.verse}>
-                <Text style={[s.hemi, { fontSize: size - 2, lineHeight: lh * 0.92 }]}>{v[0]}</Text>
-                <Text style={[s.hemi, { fontSize: size - 2, lineHeight: lh * 0.92 }]}>{v[1]}</Text>
+                <Rich line={v[0]} style={[s.hemi, { fontSize: fs - 2, lineHeight: lh * 0.92 }]} />
+                <Rich line={v[1]} style={[s.hemi, { fontSize: fs - 2, lineHeight: lh * 0.92 }]} />
               </View>
             );
           }
-          return <Text key={i} style={[s.poemLine, { fontSize: text.form === "haiku" ? size + 2 : size, lineHeight: lh }]}>{l}</Text>;
+          return <Rich key={i} line={l} style={[s.poemLine, { fontSize: text.form === "haiku" ? fs + 2 : fs, lineHeight: lh, textAlign: align }]} />;
         })}
       </View>
     );
   }
+  const align: TextStyle["textAlign"] = lay?.align ?? "right";
   const paras = raw.split(/\n{1,}/).map((p) => p.trim()).filter(Boolean).slice(0, preview ? 2 : undefined);
   return (
-    <View style={{ gap: size * 0.8 }}>
-      {paras.map((p, i) => <Text key={i} style={[s.prose, { fontSize: size, lineHeight: lh }]} numberOfLines={preview ? 3 : undefined}>{p}</Text>)}
+    <View style={{ gap: fs * 0.8 }}>
+      {paras.map((p, i) => isSeparator(p)
+        ? (preview ? null : <Separator key={i} size={fs} />)
+        : <Text key={i} style={[s.prose, { fontSize: fs, lineHeight: lh, textAlign: align }]} numberOfLines={preview ? 3 : undefined}>
+            {preview ? p : <Rich line={p} />}
+          </Text>)}
     </View>
   );
 }
@@ -131,7 +164,14 @@ const s = StyleSheet.create({
   verse: { flexDirection: "row-reverse", justifyContent: "space-between", gap: 10, marginBottom: 6 },
   hemi: { flex: 1, fontFamily: "Cairo_600SemiBold", color: INK, textAlign: "center" },
   poemLine: { fontFamily: "Cairo_600SemiBold", color: INK, textAlign: "center" },
-  prose: { fontFamily: "Cairo_400Regular", color: INK, textAlign: "right" },
+  prose: { fontFamily: "Cairo_400Regular", color: INK, textAlign: "right", writingDirection: "rtl" },
+  bold: { fontFamily: "Cairo_700Bold" },
+  italic: { fontStyle: "italic", color: "#5A2E2A" },
+  mark: { backgroundColor: GOLD + "3D", color: INK },
+  strike: { textDecorationLine: "line-through", textDecorationColor: WINE },
+  sep: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  sepLine: { height: 1, width: 48, backgroundColor: GOLD + "88" },
+  sepStar: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: GOLD, letterSpacing: 2 },
   doc: { flexDirection: "row-reverse", alignItems: "center", gap: 5, alignSelf: "flex-end", borderWidth: 1, borderColor: WINE + "40", backgroundColor: WINE + "0D", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
   docT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: WINE, letterSpacing: 0.3 },
   status: { flexDirection: "row-reverse", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 8 },
