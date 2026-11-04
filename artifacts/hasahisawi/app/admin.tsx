@@ -21,6 +21,7 @@ import BrandPattern from "@/components/BrandPattern";
 import { IMPORTANT_APP_SERVICE_LINKS } from "@/constants/service-links";
 import { alertForNewPendingAdminItems, countPendingAdminItems } from "@/lib/attention-alerts";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import TravelAgencyOwners from "@/components/admin/TravelAgencyOwners";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type AdminUser = {
@@ -46,7 +47,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -1756,7 +1757,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   const [mgrActing, setMgrActing] = React.useState<number | null>(null);
 
   // دعوات وكالات السفر
-  const [taView, setTaView] = React.useState<"apps" | "invitations">("apps");
+  const [taView, setTaView] = React.useState<"apps" | "agencies" | "invitations">("apps");
   const [invitations, setInvitations] = React.useState<any[]>([]);
   const [invLoading, setInvLoading] = React.useState(false);
   const [invActing, setInvActing] = React.useState<number | null>(null);
@@ -1927,7 +1928,24 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   const SC: Record<string, string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444", active: "#10B981" };
   const SL: Record<string, string> = { pending: "معلق", approved: "مقبول", rejected: "مرفوض", active: "نشط" };
 
-  async function review(id: number, status: "approved" | "rejected") {
+  // اعتماد طلب /org-join: ينشئ صفحة المنظمة (لفئات المجتمع المدني) ويربط مقدّم الطلب مسؤولاً
+  async function approveInstitution(id: number, verify: boolean) {
+    try {
+      const r = await fetch(`${apiBase}/api/admin/institution-applications/${id}/approve`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ verify }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify("خطأ", d.error || "تعذّر اعتماد الطلب"); return; }
+      setItems(prev => prev.map(x => x.id === id ? { ...x, status: "approved", created_org_id: d.org?.id ?? x.created_org_id } : x));
+      if (d.org?.id && d.needs_manual_manager) {
+        const go = await confirmAction("تم الاعتماد", `${d.message}\n\nافتح صفحة المنظمة لتعيين المسؤول؟`, "فتح الصفحة");
+        if (go) router.push({ pathname: "/organization", params: { id: String(d.org.id) } } as any);
+      } else notify("تم الاعتماد", d.message || "تم قبول الطلب");
+    } catch { notify("خطأ", "تعذّر الاتصال بالخادم"); }
+  }
+
+  async function review(id: number, status: "approved" | "rejected", verify = false) {
     if (sub === "travel_agency") {
       if (status === "approved") {
         await fetch(`${apiBase}/api/admin/travel-agencies/applications/${id}/approve`, {
@@ -1944,6 +1962,8 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
       setItems(prev => prev.filter(x => x.id !== id));
       return;
     }
+
+    if (sub === "institution" && status === "approved") { await approveInstitution(id, verify); return; }
 
     if (sub === "student_union") {
       await fetch(`${apiBase}/api/student-union/applications/${id}/status`, {
@@ -2014,14 +2034,14 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   }
 
   function getTitle(item: any): string {
-    return item.full_name ?? item.name ?? item.shop_name ?? item.agency_name ?? item.contact_name
+    return item.full_name ?? item.name ?? item.inst_name ?? item.shop_name ?? item.agency_name ?? item.contact_name
       ?? item.org_name ?? item.student_name ?? item.union_name ?? item.institution_name ?? item.applicant_name ?? `#${item.id}`;
   }
   function getSub(item: any): string {
-    return item.phone ?? item.applicant_phone ?? item.email ?? item.applicant_email ?? item.city ?? item.region ?? "";
+    return item.phone ?? item.inst_phone ?? item.applicant_phone ?? item.email ?? item.applicant_email ?? item.city ?? item.region ?? "";
   }
   function getDesc(item: any): string {
-    return item.description ?? item.cooperation_scope ?? item.notes ?? item.reason ?? item.target_routes ?? item.institution_type ?? "";
+    return item.description ?? item.inst_description ?? item.cooperation_scope ?? item.notes ?? item.reason ?? item.target_routes ?? item.institution_type ?? "";
   }
 
   return (
@@ -2124,9 +2144,24 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => review(item.id, "approved")}
                     style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: "#10B981", alignItems: "center" }}>
-                    <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>قبول</Text>
+                    <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>{sub === "institution" ? "اعتماد" : "قبول"}</Text>
                   </TouchableOpacity>
+                  {sub === "institution" && (
+                    <TouchableOpacity onPress={() => review(item.id, "approved", true)} accessibilityRole="button" accessibilityLabel="اعتماد الطلب وتوثيق المنظمة"
+                      style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: "#1F5C8A", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 4 }}>
+                      <Ionicons name="shield-checkmark" size={14} color="#fff" />
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", color: "#fff", fontSize: 13 }}>اعتماد وتوثيق</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
+              )}
+              {/* طلب مؤسسة معتمد: صفحة المنظمة المنشأة منه */}
+              {sub === "institution" && isApproved && !!item.created_org_id && (
+                <TouchableOpacity onPress={() => router.push({ pathname: "/organization", params: { id: String(item.created_org_id) } } as any)}
+                  accessibilityRole="link" style={{ marginTop: 4, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: "#1F5C8A", alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 6 }}>
+                  <Ionicons name="people-outline" size={14} color="#1F5C8A" />
+                  <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1F5C8A" }}>فتح صفحة المنظمة</Text>
+                </TouchableOpacity>
               )}
               {/* زر منح صلاحيات الاتحاد للمقبولين - طلبات الطلاب */}
               {sub === "student_union" && isApproved && (
@@ -2165,17 +2200,19 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
         <View style={{ marginTop: 8 }}>
           {/* toggle الطلبات / الدعوات */}
           <View style={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingBottom: 10 }}>
-            {(["apps", "invitations"] as const).map(v => (
+            {(["apps", "agencies", "invitations"] as const).map(v => (
               <TouchableOpacity key={v} onPress={() => setTaView(v)}
                 style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center",
                   backgroundColor: taView === v ? "#1D4ED8" : "#FFFFFF0A",
                   borderWidth: 1, borderColor: taView === v ? "#3B82F6" : "#FFFFFF15" }}>
                 <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: taView === v ? "#fff" : "#9CA3AF" }}>
-                  {v === "apps" ? "الطلبات" : "✉️ الدعوات"}
+                  {v === "apps" ? "الطلبات" : v === "agencies" ? "الوكالات المعتمدة" : "✉️ الدعوات"}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
+
+          {taView === "agencies" && <TravelAgencyOwners apiBase={apiBase} token={token} />}
 
           {taView === "invitations" && (
             <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -4304,6 +4341,7 @@ export default function AdminDashboard() {
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#1F5C8A",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
     { key: "section_invites",  label: "دعوات الأقسام",     icon: "mail-open",          color: "#0B6B49",      adminOnly: true },
     { key: "cv_templates",     label: "قوالب السيرة",      icon: "document-text",      color: "#7A5400",      adminOnly: true },
+    { key: "legal_forms",      label: "الاستمارات القانونية", icon: "documents",        color: "#7C2D12",      adminOnly: true },
     { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
     { key: "calls_diag",       label: "تشخيص المكالمات",   icon: "call",               color: "#0EA5E9",      adminOnly: true },
     { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#1F5C8A",      adminOnly: true },
@@ -4510,6 +4548,7 @@ export default function AdminDashboard() {
                   if (t.key === "calls_diag") { router.push("/admin-calls" as any); return; }
                   if (t.key === "section_invites") { router.push("/admin-invites" as any); return; }
                   if (t.key === "cv_templates") { router.push("/cv-templates-admin" as any); return; }
+                  if (t.key === "legal_forms") { router.push("/legal-forms-admin" as any); return; }
                   setTab(t.key);
                 }}
                 activeOpacity={0.75}

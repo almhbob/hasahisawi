@@ -22,7 +22,7 @@ import { uploadFile } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import { paperDocument, printPaper, esc, blank } from "@/lib/paper";
-import { notify } from "@/lib/xplatform";
+import { notify, openExternal } from "@/lib/xplatform";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ type Lawyer = {
 type LawyerService = { id: number; lawyer_id: number; title: string; description: string; price_text: string; duration: string };
 type LawyerReview  = { id: number; rating: number; comment: string | null; user_name: string; created_at: string };
 type LawyerAd      = { id: number; title: string; body: string; cta_text: string; cta_phone: string; banner_color: string; lawyer_name?: string };
-type LegalForm     = { id: number; title: string; category: string; description: string; is_official: boolean };
+type LegalForm     = { id: number; title: string; category: string; description: string; is_official: boolean; file_url?: string | null; has_body?: boolean };
 type LegalFormFull = LegalForm & { content_html: string };
 type Contract      = { id: number; lawyer_id: number; lawyer_name: string; lawyer_phone: string; service_title: string; status: string; contract_no: string; created_at: string; preferred_date: string | null; details: string };
 type MyApp         = { id: number; full_name: string; status: "pending"|"approved"|"rejected"; admin_note: string; lawyer_id: number | null; created_at: string; reviewed_at?: string };
@@ -1101,8 +1101,8 @@ function LawyersScreen() {
           ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 30)}>
-              <Pressable onPress={() => printForm(item.id)} style={({ pressed }) => [s.paperCard, pressed && { opacity: 0.9 }]}
-                accessibilityRole="button" accessibilityLabel={`${item.title}، عرض وطباعة`}>
+              <Pressable onPress={() => (item.has_body === false && item.file_url ? openExternal(item.file_url) : printForm(item.id))} style={({ pressed }) => [s.paperCard, pressed && { opacity: 0.9 }]}
+                accessibilityRole="button" accessibilityLabel={item.has_body === false && item.file_url ? `${item.title}، فتح الملف` : `${item.title}، عرض وطباعة`}>
                 <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
                   <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-edit-outline" size={24} color={P.ink} /></View>
                   <View style={{ flex: 1 }}>
@@ -1115,11 +1115,26 @@ function LawyersScreen() {
                   </View>
                 </View>
                 <View style={s.paperActions}>
-                  <View style={s.printBtn}>
-                    {printingForm === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="print-outline" size={16} color="#fff" />}
-                    <Text style={s.printBtnText}>عرض وطباعة</Text>
-                  </View>
-                  <Text style={s.paperHint}>PDF · A4</Text>
+                  {item.has_body === false && item.file_url ? (
+                    <View style={s.printBtn}>
+                      <Ionicons name="download-outline" size={16} color="#fff" />
+                      <Text style={s.printBtnText}>فتح الملف</Text>
+                    </View>
+                  ) : (
+                    <View style={s.printBtn}>
+                      {printingForm === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="print-outline" size={16} color="#fff" />}
+                      <Text style={s.printBtnText}>عرض وطباعة</Text>
+                    </View>
+                  )}
+                  {item.has_body !== false && item.file_url ? (
+                    <Pressable onPress={() => openExternal(item.file_url!)} hitSlop={8} style={s.fileLink}
+                      accessibilityRole="link" accessibilityLabel={`الملف المرفق لـ ${item.title}`}>
+                      <Ionicons name="attach" size={15} color={P.ink} />
+                      <Text style={s.fileLinkText}>الملف المرفق</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={s.paperHint}>{item.has_body === false ? "ملف جاهز" : "PDF · A4"}</Text>
+                  )}
                 </View>
               </Pressable>
             </Animated.View>
@@ -1766,6 +1781,8 @@ const s = StyleSheet.create({
   paperCard: { backgroundColor: P.paper, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: P.paperBorder, borderRightWidth: 4, borderRightColor: "#B08D3C", ...Colors.shadow.card },
   paperActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: P.paperBorder, borderStyle: "dashed" },
   paperHint: { fontFamily: F.r, fontSize: 12, color: Colors.textMuted },
+  fileLink: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 40, paddingHorizontal: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: P.paperBorder },
+  fileLinkText: { fontFamily: F.s, fontSize: 12, color: P.ink },
   formIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: P.iconBg, alignItems: "center", justifyContent: "center" },
   formTitle: { color: Colors.text, fontFamily: F.b, fontSize: 14, textAlign: "right" },
   officialBadge: { borderColor: P.green, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 0, borderRadius: 6 },

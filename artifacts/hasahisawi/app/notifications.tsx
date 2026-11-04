@@ -117,6 +117,7 @@ function getNotifRoute(notif: Notification): string | null {
   if (type === "institution_application" || type === "external_partnership" ||
       type === "lawyer_application" || type === "alert") return "/admin";
   if (type === "zawajil" || (parsed as any)?.screen === "zawajil") return "/zawajil";
+  if ((parsed as any)?.screen === "organization" && (parsed as any)?.org_id) return `/organization?id=${encodeURIComponent(String((parsed as any).org_id))}`;
   if (type === "transport") return "/(tabs)";
   if (type === "follow" && (parsed as any)?.follower_id) return `/profile?id=${encodeURIComponent(String((parsed as any).follower_id))}`;
   return null;

@@ -1227,6 +1227,11 @@ async function _doInitHasahisawiDb(): Promise<void> {
     )
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_legal_forms_cat ON legal_forms(category)`);
+  // إدارة الاستمارات (admin-ops.ts): نص القالب، ملف مرفق، والنشر
+  await query(`ALTER TABLE legal_forms ADD COLUMN IF NOT EXISTS body_text TEXT NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE legal_forms ADD COLUMN IF NOT EXISTS file_url TEXT`);
+  await query(`ALTER TABLE legal_forms ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT TRUE`);
+  await query(`ALTER TABLE legal_forms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
 
   // طلبات انضمام المحامين
   await query(`
@@ -10789,10 +10794,10 @@ router.get("/legal-forms", async (req: Request, res: Response) => {
   try {
     const cat = String(req.query.category || "").trim();
     const params: any[] = [];
-    let where = "1=1";
+    let where = "is_published = TRUE";
     if (cat) { params.push(cat); where += ` AND category = $${params.length}`; }
     const { rows } = await query(
-      `SELECT id, title, category, description, is_official, sort_order FROM legal_forms WHERE ${where} ORDER BY sort_order, id`,
+      `SELECT id, title, category, description, is_official, sort_order, file_url, (content_html <> '') AS has_body FROM legal_forms WHERE ${where} ORDER BY sort_order, id`,
       params
     );
     return res.json(rows);
@@ -11583,7 +11588,7 @@ router.post("/client/cases/:id/documents", async (req: Request, res: Response) =
 // محتوى استمارة محددة (HTML للطباعة)
 router.get("/legal-forms/:id", async (req: Request, res: Response) => {
   try {
-    const { rows } = await query(`SELECT * FROM legal_forms WHERE id = $1`, [Number(req.params.id)]);
+    const { rows } = await query(`SELECT * FROM legal_forms WHERE id = $1 AND is_published = TRUE`, [Number(req.params.id)]);
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
     return res.json(rows[0]);
   } catch { return res.status(500).json({ error: "Server error" }); }
