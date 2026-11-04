@@ -25,6 +25,11 @@
   <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove"/>
   <!-- RECEIVE_BOOT_COMPLETED: restores the locally scheduled adhan notifications after a reboot -->
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+  <!-- USE_FULL_SCREEN_INTENT: incoming in-app voice call shown full screen over the lock screen (category CALL) -->
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+  <!-- Added by @notifee/react-native but unused (no foreground service / exact-alarm triggers): keep the permission set unchanged for Play -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -45,6 +50,7 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <service android:name="app.notifee.core.ForegroundService" tools:node="remove"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize|locale|layoutDirection" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="fullUser" android:resizeableActivity="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>

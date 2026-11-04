@@ -1,4 +1,3 @@
-import { withRTLScreen } from "@/components/RTLScope";
 import ViewCount from "@/components/ViewCount";
 import { usePricingVisible } from "@/lib/feature-flags-context";
 import React, { useState, useCallback, useEffect, useRef } from "react";
@@ -16,7 +15,7 @@ import Animated, {
   withRepeat, withTiming, Easing, ZoomIn, SlideInRight,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect, router } from "expo-router";
+import { useFocusEffect, router, useLocalSearchParams } from "expo-router";
 import Colors from "@/constants/colors";
 import AnimatedPress from "@/components/AnimatedPress";
 import GuestGate from "@/components/GuestGate";
@@ -26,14 +25,17 @@ import { scheduleOccasionReminder } from "@/lib/firebase/notifications";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import TicketShareModal, { type TicketData } from "@/components/travel/TicketShare";
+import { OffersFeed, AgenciesDirectory, MyAgencyRequests } from "@/components/travel/HubTabs";
+import { TRV_GRADIENT } from "@/lib/travel";
 
 
 // ═══════════════════════════════════════════════════════════════
 // الثوابت والأنواع
 // ═══════════════════════════════════════════════════════════════
-const ACCENT   = "#0EA5E9";
-const ACCENT2  = "#38BDF8";
-const GOLD     = "#F59E0B";
+const ACCENT   = "#0B5F73"; // أزرق محيطي — هوية قسم السفريات
+const ACCENT2  = "#7FC8D6";
+const GOLD     = "#9A6700"; // كهرماني داكن للنص على الخلفيات الفاتحة
+const SANDC    = "#E9C46A"; // رملي للنص على الخلفيات الداكنة
 const SCREEN_W = Dimensions.get("window").width;
 
 const SUDANESE_CITIES = [
@@ -111,7 +113,7 @@ function TicketCard({
   return (
     <Animated.View entering={FadeInDown.springify()} style={styles.ticketWrap}>
       <LinearGradient
-        colors={booking.status === "cancelled" ? ["#1E293B","#334155"] : ["#0C1D3A","#1E3A5F","#0C4A6E"]}
+        colors={booking.status === "cancelled" ? ["#1E293B","#334155"] : ["#073B4C","#0B5F73","#0B5F73"]}
         start={{ x:0, y:0 }} end={{ x:1, y:1 }}
         style={styles.ticketCard}
       >
@@ -305,21 +307,21 @@ function PaymentInstructions({
       {/* 💳 تعليمات الدفع */}
       {!submitted ? (
         <Animated.View entering={FadeInDown.delay(200).springify()}>
-          <LinearGradient colors={["#0C2A4A","#1A3D6B"]} style={{ borderRadius:18, padding:20, marginBottom:16 }}>
+          <LinearGradient colors={["#073B4C","#0B5F73"]} style={{ borderRadius:18, padding:20, marginBottom:16 }}>
             <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:16 }}>
               <View style={{ width:40, height:40, borderRadius:12, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" }}>
                 <Ionicons name="wallet-outline" size={22} color={ACCENT} />
               </View>
               <View>
                 <Text style={{ fontSize:16, fontWeight:"800", color:"#fff" }}>تعليمات الدفع</Text>
-                <Text style={{ fontSize: 13, color:"#93C5FD", marginTop:2 }}>أرسل قيمة التذكرة لإتمام الحجز</Text>
+                <Text style={{ fontSize: 13, color:"#A7D8E2", marginTop:2 }}>أرسل قيمة التذكرة لإتمام الحجز</Text>
               </View>
             </View>
 
             {payInfo?.payment_account_number ? (
               <>
                 <View style={{ backgroundColor:"#ffffff10", borderRadius:12, padding:14, marginBottom:12 }}>
-                  <Text style={{ fontSize: 13, color:"#93C5FD", marginBottom:8 }}>ادفع عبر:</Text>
+                  <Text style={{ fontSize: 13, color:"#A7D8E2", marginBottom:8 }}>ادفع عبر:</Text>
                   {[
                     ["وسيلة الدفع", payInfo.payment_account_type],
                     ["اسم الحساب",  payInfo.payment_account_name],
@@ -327,20 +329,20 @@ function PaymentInstructions({
                     ["المبلغ",       `${booking.price} جنيه`],
                   ].map(([l,v]) => (
                     <View key={l} style={{ flexDirection:"row", justifyContent:"space-between", marginBottom:6 }}>
-                      <Text style={{ fontSize: 13, color:"#93C5FD" }}>{l}</Text>
+                      <Text style={{ fontSize: 13, color:"#A7D8E2" }}>{l}</Text>
                       <Text style={{ fontSize:13, color:"#fff", fontWeight:"700" }}>{v}</Text>
                     </View>
                   ))}
                 </View>
                 <View style={{ backgroundColor:"#F59E0B11", borderRadius:10, padding:12, marginBottom:14 }}>
-                  <Text style={{ fontSize: 13, color:GOLD }}>
+                  <Text style={{ fontSize: 13, color:SANDC }}>
                     ⏳ المهلة: {payInfo.payment_booking_timeout_hrs || 3} ساعات لإرسال الإيصال
                   </Text>
                 </View>
               </>
             ) : (
               <View style={{ backgroundColor:"#ffffff10", borderRadius:12, padding:14, marginBottom:12 }}>
-                <Text style={{ fontSize:13, color:"#93C5FD", textAlign:"center" }}>
+                <Text style={{ fontSize:13, color:"#A7D8E2", textAlign:"center" }}>
                   📞 تواصل مع الشركة لمعرفة تفاصيل الدفع: {route?.company_phone || ""}
                 </Text>
               </View>
@@ -354,9 +356,9 @@ function PaymentInstructions({
               value={payRef}
               onChangeText={setPayRef}
               placeholder="مثال: TXN-123456789"
-              placeholderTextColor="#4B6A8A"
-              style={{ backgroundColor:"#0A1E38", borderRadius:10, padding:12, color:"#fff", fontSize:14,
-                borderWidth:1, borderColor:"#2D5A8A", marginBottom:12, textAlign:"right" }}
+              placeholderTextColor="#5E8F9B"
+              style={{ backgroundColor:"#052E3B", borderRadius:10, padding:12, color:"#fff", fontSize:14,
+                borderWidth:1, borderColor:"#2E7A8C", marginBottom:12, textAlign:"right" }}
             />
             <TouchableOpacity onPress={submitProof} disabled={submitting}
               style={{ backgroundColor:ACCENT, borderRadius:12, padding:14, alignItems:"center", opacity:submitting?0.6:1 }}>
@@ -548,7 +550,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>تأكيد الحجز</Text>
         </View>
-        <LinearGradient colors={["#0F2744","#1E3A5F"]} style={styles.confirmCard}>
+        <LinearGradient colors={["#073B4C","#0B5F73"]} style={styles.confirmCard}>
           <View style={styles.confirmRoute}>
             <Text style={styles.confirmCity}>{fromCity}</Text>
             <MaterialCommunityIcons name="bus" size={24} color={ACCENT2} />
@@ -576,7 +578,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
             </TouchableOpacity>
           ))}
         </View>
-        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate} placeholder="أو أدخل التاريخ: 2026-05-20" placeholderTextColor="#4B6A8A" keyboardType="numbers-and-punctuation" maxLength={10} />
+        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate} placeholder="أو أدخل التاريخ: 2026-05-20" placeholderTextColor="#5E8F9B" keyboardType="numbers-and-punctuation" maxLength={10} />
 
         <AnimatedPress onPress={submitBooking} style={[styles.bookBtn, submitting && { opacity:0.6 }]}>
           {submitting ? <ActivityIndicator color="#fff" />
@@ -624,7 +626,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
       </ScrollView>
 
       {/* بطاقة عملاء جدد */}
-      <LinearGradient colors={["#1E3A5F","#0C4A6E"]} style={styles.infoCard}>
+      <LinearGradient colors={["#0B5F73","#0B5F73"]} style={styles.infoCard}>
         <MaterialCommunityIcons name="shield-check" size={28} color={ACCENT2} />
         <View style={{ flex:1, marginStart:12 }}>
           <Text style={styles.infoCardTitle}>حجز آمن ومضمون</Text>
@@ -801,7 +803,7 @@ function MyTickets({ user }: { user: any }) {
         <View style={styles.emptyBox}>
           <MaterialCommunityIcons name="ticket-outline" size={64} color={ACCENT+"40"} />
           <Text style={styles.emptyTitle}>لا توجد تذاكر</Text>
-          <Text style={styles.emptySub}>احجز رحلتك القادمة من تبويب "حجز تذكرة"</Text>
+          <Text style={styles.emptySub}>احجز رحلتك القادمة من تبويب "الرحلات البرية"</Text>
         </View>
       ) : filtered.map(booking => (
         <View key={booking.id}>
@@ -813,7 +815,7 @@ function MyTickets({ user }: { user: any }) {
             onWhatsApp={()=>sendToWhatsApp(booking)}
           />
           {/* شريط حالة الدفع */}
-          <View style={{ backgroundColor:"#0F1F35", borderRadius:12, padding:12, marginTop:-12, marginBottom:16,
+          <View style={{ backgroundColor:"#052E3B", borderRadius:12, padding:12, marginTop:-12, marginBottom:16,
             flexDirection:"row", alignItems:"center", justifyContent:"space-between" }}>
             <PaymentBadge status={booking.payment_status || "pending_payment"} />
             {(booking.payment_status === "pending_payment" || booking.payment_status === "rejected") && (
@@ -837,7 +839,7 @@ function MyTickets({ user }: { user: any }) {
           <View style={[styles.smallModal, { maxWidth:360 }]}>
             <Text style={styles.smallModalTitle}>إرسال إيصال الدفع</Text>
             <Text style={styles.smallModalSub}>التذكرة: {payModal?.ticket_number}</Text>
-            <Text style={{ fontSize: 13, color:"#93C5FD", marginBottom:8, marginTop:4 }}>
+            <Text style={{ fontSize: 13, color:"#A7D8E2", marginBottom:8, marginTop:4 }}>
               المبلغ: {payModal?.price} جنيه
             </Text>
             <TextInput
@@ -845,7 +847,7 @@ function MyTickets({ user }: { user: any }) {
               value={payRef}
               onChangeText={setPayRef}
               placeholder="رقم العملية / المرجع (مثال: TXN-12345)"
-              placeholderTextColor="#4B6A8A"
+              placeholderTextColor="#5E8F9B"
               keyboardType="default"
             />
             <Text style={{ fontSize: 12, color:Colors.textSecondary, marginBottom:12 }}>
@@ -890,7 +892,7 @@ function MyTickets({ user }: { user: any }) {
 // ═══════════════════════════════════════════════════════════════
 // تبويب الشركاء + عقد الشراكة
 // ═══════════════════════════════════════════════════════════════
-function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
+function BusPartnersSection({ isAdmin }: { isAdmin: boolean }) {
   const showPricing = usePricingVisible();
   const [companies,  setCompanies]  = useState<TravelCompany[]>([]);
   const [showContract, setShowContract] = useState(false);
@@ -903,24 +905,13 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={{ padding:16 }}>
-      {/* وكالات السفر والسياحة */}
-      <AnimatedPress onPress={() => router.push("/travel-agencies" as any)}>
-        <LinearGradient colors={["#0A1A2E","#1D4ED8"]} style={[styles.partnerBanner, { marginBottom:10 }]}>
-          <MaterialCommunityIcons name="bus" size={32} color="#93C5FD" />
-          <View style={{ flex:1, marginStart:12 }}>
-            <Text style={styles.partnerBannerTitle}>وكالات السفر والسياحة</Text>
-            <Text style={styles.partnerBannerSub}>دليل الوكالات المعتمدة — محلية ودولية — وسجّل وكالتك</Text>
-          </View>
-          <Ionicons name="arrow-back" size={20} color="#60A5FA" />
-        </LinearGradient>
-      </AnimatedPress>
-
-      <LinearGradient colors={["#0C1D3A","#1E3A5F"]} style={styles.partnerBanner}>
+    <View style={{ paddingHorizontal:16, marginTop:22 }}>
+      <Text style={styles.sectionTitle}>شركات النقل البري الشريكة</Text>
+      <LinearGradient colors={["#073B4C","#0B5F73"]} style={styles.partnerBanner}>
         <MaterialCommunityIcons name="handshake" size={32} color={ACCENT2} />
         <View style={{ flex:1, marginStart:12 }}>
-          <Text style={styles.partnerBannerTitle}>انضم كشريك في السفر</Text>
-          <Text style={styles.partnerBannerSub}>وفّر خدمات نقل موثوقة لأهالي الحصاحيصا واكسب أكثر</Text>
+          <Text style={styles.partnerBannerTitle}>انضم كشريك في السفر البري</Text>
+          <Text style={styles.partnerBannerSub}>وفّر خدمات نقل موثوقة لأهالي الحصاحيصا واستقبل الحجوزات من التطبيق</Text>
         </View>
       </LinearGradient>
 
@@ -940,32 +931,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>مساحة وكالات السفر والسياحة</Text>
-      <View style={styles.agencyPanel}>
-        <View style={styles.agencyHeroIcon}>
-          <MaterialCommunityIcons name="office-building-marker-outline" size={30} color={ACCENT2} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.agencyTitle}>بوابة احترافية للوكالات</Text>
-          <Text style={styles.agencySub}>استقبال الحجوزات، إدارة العروض، وتنسيق الرحلات السياحية من مكان واحد.</Text>
-        </View>
-      </View>
-      <View style={styles.agencyGrid}>
-        {[
-          ["calendar-clock", "طلبات الحجز", "متابعة الطلبات الواردة"],
-          ["tag-multiple-outline", "العروض السياحية", "باقات ورحلات موسمية"],
-          ["account-tie-outline", "ملفات الوكالات", "بيانات الترخيص والاتصال"],
-          ["chart-box-outline", "التقارير", "متابعة الأداء والحجوزات"],
-        ].map(([icon, title, sub]) => (
-          <View key={title} style={styles.agencyFeatureCard}>
-            <MaterialCommunityIcons name={icon as any} size={24} color={ACCENT2} />
-            <Text style={styles.agencyFeatureTitle}>{title}</Text>
-            <Text style={styles.agencyFeatureSub}>{sub}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>شركاؤنا الحاليون</Text>
+      <Text style={[styles.sectionTitle, { fontSize:14 }]}>شركاؤنا الحاليون</Text>
       {companies.length === 0 ? (
         <View style={styles.emptyBox}>
           <MaterialCommunityIcons name="bus" size={48} color={ACCENT+"44"} />
@@ -986,7 +952,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
                   <Text style={styles.metaChipTxt}>عمولة {c.commission_pct}%</Text>
                 </View>
               ) : (
-                <View style={[styles.metaChip, {backgroundColor:"#1E3A5F"}]}>
+                <View style={[styles.metaChip, {backgroundColor:"#0B5F73"}]}>
                   <Text style={styles.metaChipTxt}>{c.subscription_type === "annual" ? "اشتراك سنوي" : "اشتراك شهري"}</Text>
                 </View>
               )}
@@ -994,12 +960,12 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
           </View>
           <View style={styles.companyCardActions}>
             {c.phone ? (
-              <TouchableOpacity onPress={()=>Linking.openURL(`tel:${c.phone}`)} style={styles.callBtn}>
+              <TouchableOpacity onPress={()=>Linking.openURL(`tel:${c.phone}`)} style={styles.callBtn} accessibilityRole="button" accessibilityLabel={`اتصال بـ ${c.name}`} hitSlop={8}>
                 <Ionicons name="call" size={16} color="#fff" />
               </TouchableOpacity>
             ) : null}
             {c.wa_number ? (
-              <TouchableOpacity onPress={()=>Linking.openURL(`https://wa.me/${c.wa_number}`)} style={styles.waCircleBtn}>
+              <TouchableOpacity onPress={()=>Linking.openURL(`https://wa.me/${c.wa_number}`)} style={styles.waCircleBtn} accessibilityRole="button" accessibilityLabel={`واتساب ${c.name}`} hitSlop={8}>
                 <MaterialCommunityIcons name="whatsapp" size={16} color="#fff" />
               </TouchableOpacity>
             ) : null}
@@ -1008,7 +974,7 @@ function PartnersTab({ isAdmin }: { isAdmin: boolean }) {
       ))}
 
       <ContractModal visible={showContract} onClose={()=>setShowContract(false)} />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -1073,7 +1039,7 @@ function ContractModal({ visible, onClose }: { visible: boolean; onClose: () => 
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={{ padding:20 }}>
-          <LinearGradient colors={["#0C1D3A","#1E3A5F"]} style={styles.contractBadge}>
+          <LinearGradient colors={["#073B4C","#0B5F73"]} style={styles.contractBadge}>
             <Ionicons name="document-text" size={32} color={ACCENT2} />
             <Text style={styles.contractBadgeTitle}>عقد شراكة رسمي</Text>
             <Text style={styles.contractBadgeSub}>تطبيق حصاحيصاوي — خدمة السفريات</Text>
@@ -1144,15 +1110,35 @@ function sendToWhatsApp(booking: TravelBooking) {
 // ═══════════════════════════════════════════════════════════════
 // الشاشة الرئيسية
 // ═══════════════════════════════════════════════════════════════
-function TravelScreen() {
-  const { user: authUser, token } = useAuth();
+// على الويب لا يُطبَّق direction من StyleSheet.create (يُطبَّق كنمط مباشر فقط، كما في RTLScope)
+const RTL_SCOPE = { flex:1, direction:"rtl" as const };
+
+type HubTab = "road" | "offers" | "agencies" | "mine";
+const HUB_TABS: { key: HubTab; label: string; icon: string }[] = [
+  { key:"road",     label:"الرحلات البرية", icon:"bus" },
+  { key:"offers",   label:"عروض الوكالات",  icon:"tag-multiple-outline" },
+  { key:"agencies", label:"الوكالات",        icon:"office-building-marker-outline" },
+  { key:"mine",     label:"حجوزاتي",         icon:"ticket-outline" },
+];
+const TAB_ALIASES: Record<string, HubTab> = { book:"road", tickets:"mine", partners:"agencies", requests:"mine" };
+
+/**
+ * مركز السفريات: الرحلات البرية (حجز تذاكر الحافلات)، عروض الوكالات، دليل الوكالات، وحجوزاتي.
+ * يُستخدم كتبويب «السفريات» وكشاشة «/travel-agencies» العامة (روابط الدعوات) بنفس الهوية.
+ */
+export function TravelHub({ initialTab, inviteToken, initialKind }: { initialTab?: string; inviteToken?: string; initialKind?: string }) {
+  const { user: authUser, token, isGuest } = useAuth();
   // المكوّنات الفرعية تقرأ رمز الجلسة من user._token — نمرّره هنا صراحةً.
   const user = React.useMemo(() => (authUser ? { ...(authUser as any), _token: token || "" } : null), [authUser, token]);
   const [shareT, setShareT] = useState<TravelBooking | null>(null);
   useEffect(() => { openTicketShare = (b) => setShareT(b); return () => { openTicketShare = null; }; }, []);
-  const [activeTab, setActiveTab] = useState<"book"|"tickets"|"partners">("book");
-  const [myBookingsCount, setMyBookingsCount] = useState(0);
+  const resolveTab = (t?: string): HubTab => (HUB_TABS.some(x => x.key === t) ? t as HubTab : (t && TAB_ALIASES[t]) || (inviteToken ? "agencies" : "road"));
+  const [activeTab, setActiveTab] = useState<HubTab>(resolveTab(initialTab));
+  useEffect(() => { if (initialTab) setActiveTab(resolveTab(initialTab)); }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [mineView, setMineView] = useState<"tickets"|"agency">("tickets");
+  const [, setMyBookingsCount] = useState(0);
   const planeX = useSharedValue<number>(0);
+  const canGoBack = router.canGoBack();
 
   useEffect(() => {
     planeX.value = withRepeat(
@@ -1167,59 +1153,75 @@ function TravelScreen() {
 
   return (
     <View style={styles.container}>
-      {/* رأس الصفحة */}
+      {/* رأس الصفحة — هوية السفريات الموحّدة */}
       <ModernHeader
         title="السفريات"
-        subtitle="حجوزات موثوقة عبر شركات ووكالات السفر"
-        icon="bus-outline"
-        gradient={Colors.gradients.gold}
+        subtitle="رحلات برية، عروض الوكالات المعتمدة، وحجوزاتك في مكان واحد"
+        icon="airplane-outline"
+        gradient={TRV_GRADIENT}
+        showBack={canGoBack}
       >
-        {/* حافلة متحركة */}
         <View style={styles.planeLine}>
           <Animated.View style={[styles.movingPlane, planeStyle]}>
-            <MaterialCommunityIcons name="bus" size={18} color="rgba(255,255,255,0.55)" />
+            <MaterialCommunityIcons name={activeTab === "road" ? "bus" : "airplane"} size={18} color="rgba(255,255,255,0.6)" />
           </Animated.View>
         </View>
       </ModernHeader>
 
       {/* تبويبات */}
-      <View style={styles.tabBar}>
-        {([
-          { key:"book",     label:"حجز تذكرة",  icon:"bus-outline" },
-          { key:"tickets",  label:"تذاكري",      icon:"ticket-outline" },
-          { key:"partners", label:"الشركاء",     icon:"handshake-outline" },
-        ] as const).map(tab => (
-          <TouchableOpacity key={tab.key} onPress={()=>{ Haptics.selectionAsync(); setActiveTab(tab.key); }}
-            style={[styles.tabItem, activeTab===tab.key && styles.tabItemActive]}>
-            <MaterialCommunityIcons
-              name={tab.icon as any}
-              size={18}
-              color={activeTab===tab.key ? Colors.accent : Colors.textMuted}
-            />
-            <Text style={[styles.tabLabel, activeTab===tab.key && styles.tabLabelActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.tabBar} accessibilityRole="tablist">
+        {HUB_TABS.map(tab => {
+          const on = activeTab === tab.key;
+          return (
+            <TouchableOpacity key={tab.key} onPress={()=>{ Haptics.selectionAsync(); setActiveTab(tab.key); }}
+              accessibilityRole="tab" accessibilityState={{ selected:on }} accessibilityLabel={tab.label}
+              style={[styles.tabItem, on && styles.tabItemActive]}>
+              <MaterialCommunityIcons name={tab.icon as any} size={20} color={on ? ACCENT : Colors.textMuted} />
+              <Text style={[styles.tabLabel, on && styles.tabLabelActive]} numberOfLines={1}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* المحتوى */}
       <View style={{ flex:1 }}>
-        {activeTab === "book" && (
-          <GuestGate title="سجّل دخولك لحجز تذاكر السفر">
-            <BookingForm user={user} onBooked={()=>setMyBookingsCount(n=>n+1)} />
+        {activeTab === "road" && (
+          <GuestGate title="سجّل دخولك لحجز تذاكر السفر البري">
+            <View style={RTL_SCOPE}><BookingForm user={user} onBooked={()=>setMyBookingsCount(n=>n+1)} /></View>
           </GuestGate>
         )}
-        {activeTab === "tickets" && (
-          <GuestGate title="سجّل دخولك لعرض تذاكرك">
-            <MyTickets user={user} />
+        {/* مكوّنات الوكالات مكتوبة بـ row-reverse فتعمل في سياق LTR؛ أجزاء الحافلات القديمة مكتوبة بـ row في سياق RTL */}
+        {activeTab === "offers" && <OffersFeed initialKind={initialKind} />}
+        {activeTab === "agencies" && (
+          <AgenciesDirectory inviteToken={inviteToken}>
+            <View style={{ direction:"rtl" }}><BusPartnersSection isAdmin={user?.role === "admin"} /></View>
+          </AgenciesDirectory>
+        )}
+        {activeTab === "mine" && (
+          <GuestGate title="سجّل دخولك لعرض حجوزاتك">
+            <View style={styles.segWrap}>
+              {([["tickets","تذاكر الحافلات","ticket-outline"],["agency","طلبات الوكالات","clipboard-text-outline"]] as const).map(([k,l,ic]) => (
+                <TouchableOpacity key={k} onPress={()=>setMineView(k)} style={[styles.seg, mineView===k && styles.segOn]}
+                  accessibilityRole="tab" accessibilityState={{ selected: mineView===k }} accessibilityLabel={l}>
+                  <MaterialCommunityIcons name={ic as any} size={16} color={mineView===k ? "#fff" : ACCENT} />
+                  <Text style={[styles.segTxt, mineView===k && { color:"#fff" }]}>{l}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {mineView === "tickets" ? <View style={RTL_SCOPE}><MyTickets user={user} /></View> : (
+              <ScrollView contentContainerStyle={{ padding:16, paddingBottom:110 }}>{!isGuest && <MyAgencyRequests />}</ScrollView>
+            )}
           </GuestGate>
         )}
-        {activeTab === "partners" && <PartnersTab isAdmin={user?.role === "admin"} />}
       </View>
       <TicketShareModal ticket={shareT as unknown as TicketData | null} codes={CITY_CODES} onClose={() => setShareT(null)} />
     </View>
   );
+}
+
+function TravelScreen() {
+  const params = useLocalSearchParams<{ tab?: string; invite?: string; kind?: string }>();
+  return <TravelHub initialTab={params.tab} inviteToken={params.invite} initialKind={params.kind} />;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1230,11 +1232,15 @@ const styles = StyleSheet.create({
   planeLine:       { height:24, overflow:"hidden", marginTop:2 },
   movingPlane:     { position:"absolute", top:2 },
 
-  tabBar:          { flexDirection:"row", backgroundColor:Colors.cardBg, borderBottomWidth:1, borderColor:Colors.borderSubtle },
-  tabItem:         { flex:1, alignItems:"center", paddingVertical:10, gap:3 },
-  tabItemActive:   { borderBottomWidth:2, borderBottomColor:Colors.accent },
-  tabLabel:        { fontSize: 12, color:Colors.textMuted, fontWeight:"500" },
-  tabLabelActive:  { color:Colors.accent, fontWeight:"700" },
+  tabBar:          { flexDirection:"row-reverse", backgroundColor:Colors.cardBg, borderBottomWidth:1, borderColor:Colors.borderSubtle },
+  tabItem:         { flex:1, alignItems:"center", justifyContent:"center", paddingVertical:8, minHeight:56, gap:2, borderBottomWidth:3, borderBottomColor:"transparent" },
+  tabItemActive:   { borderBottomColor:ACCENT },
+  tabLabel:        { fontSize: 12, color:Colors.textMuted, fontFamily:"Cairo_600SemiBold" },
+  tabLabelActive:  { color:ACCENT, fontFamily:"Cairo_700Bold" },
+  segWrap:         { flexDirection:"row-reverse", gap:8, paddingHorizontal:16, paddingTop:12 },
+  seg:             { flex:1, flexDirection:"row-reverse", alignItems:"center", justifyContent:"center", gap:6, minHeight:44, borderRadius:Colors.radius.pill, borderWidth:1, borderColor:ACCENT+"55", backgroundColor:Colors.cardBg },
+  segOn:           { backgroundColor:ACCENT, borderColor:ACCENT },
+  segTxt:          { fontFamily:"Cairo_700Bold", fontSize:13, color:ACCENT },
 
   sectionTitle:    { fontSize:16, fontWeight:"700", color:Colors.text, marginBottom:12, marginTop:8 },
 
@@ -1242,7 +1248,7 @@ const styles = StyleSheet.create({
   cityPickerBtn:   { flex:1, flexDirection:"row", alignItems:"center", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:12, gap:6, borderWidth:1, borderColor:Colors.borderSubtle },
   cityPickerTxt:   { flex:1, fontSize:13, color:Colors.text },
   swapBtn:         { width:36, height:36, borderRadius:18, backgroundColor:ACCENT+"22", justifyContent:"center", alignItems:"center" },
-  searchBtn:       { flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
+  searchBtn:       { flexDirection:"row", backgroundColor:ACCENT, borderRadius:Colors.radius.md, padding:14, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   searchBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:15 },
 
   destChip:        { backgroundColor:Colors.cardBg, borderRadius:20, paddingHorizontal:14, paddingVertical:8, marginEnd:8, borderWidth:1, borderColor:ACCENT+"44" },
@@ -1250,18 +1256,18 @@ const styles = StyleSheet.create({
 
   infoCard:        { flexDirection:"row", borderRadius:16, padding:16, alignItems:"center", marginTop:8 },
   infoCardTitle:   { color:"#fff", fontWeight:"700", fontSize:14, marginBottom:4 },
-  infoCardSub:     { color:"#93C5FD", fontSize: 13, lineHeight:18 },
+  infoCardSub:     { color:"#A7D8E2", fontSize: 13, lineHeight:18 },
 
   fieldLabel:      { fontSize:13, color:Colors.textMuted, marginBottom:4, marginTop:12 },
   input:           { backgroundColor:Colors.cardBg, borderRadius:10, padding:12, color:Colors.text, fontSize:14, borderWidth:1, borderColor:Colors.borderSubtle },
   dateChipGrid:    { flexDirection:"row", flexWrap:"wrap", gap:8, marginBottom:10 },
   dateChip:        { minWidth:"30%", flexGrow:1, backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, paddingVertical:10, paddingHorizontal:10, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"center", gap:3 },
-  dateChipActive:  { backgroundColor:Colors.primary, borderColor:Colors.primary },
+  dateChipActive:  { backgroundColor:ACCENT, borderColor:ACCENT },
   dateChipText:    { color:Colors.text, fontSize: 13, fontWeight:"700" },
   dateChipSub:     { color:Colors.textMuted, fontSize: 11, fontWeight:"600" },
   dateChipTextActive:{ color:"#fff" },
 
-  bookBtn:         { flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.lg, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
+  bookBtn:         { flexDirection:"row", backgroundColor:ACCENT, borderRadius:Colors.radius.lg, padding:15, justifyContent:"center", alignItems:"center", gap:10, marginTop:20 },
   bookBtnText:     { color:"#fff", fontWeight:"700", fontSize:16 },
 
   sectionHeader:   { flexDirection:"row", alignItems:"center", gap:8, marginBottom:16 },
@@ -1284,17 +1290,17 @@ const styles = StyleSheet.create({
   confirmCard:     { borderRadius:Colors.radius.lg, padding:20, marginBottom:16, alignItems:"center" },
   confirmRoute:    { flexDirection:"row", alignItems:"center", gap:12, marginBottom:8 },
   confirmCity:     { fontSize:18, fontWeight:"700", color:"#fff" },
-  confirmCompany:  { fontSize:14, color:"#93C5FD", marginBottom:4 },
+  confirmCompany:  { fontSize:14, color:"#A7D8E2", marginBottom:4 },
   confirmCompanyBadge:{ flexDirection:"row-reverse", alignItems:"center", gap:6, backgroundColor:"#ffffff12", borderWidth:1, borderColor:ACCENT2+"35", paddingHorizontal:12, paddingVertical:6, borderRadius:999, marginBottom:6 },
   confirmCompanyBadgeText:{ fontSize:14, color:"#E0F2FE", fontWeight:"800" },
   confirmTime:     { fontSize:13, color:"#CBD5E1" },
-  confirmPrice:    { fontSize:24, fontWeight:"800", color:GOLD, marginTop:8 },
+  confirmPrice:    { fontSize:24, fontWeight:"800", color:SANDC, marginTop:8 },
 
   successHeader:   { marginBottom:16 },
   successBadge:    { borderRadius:20, padding:24, alignItems:"center" },
   successTitle:    { fontSize:22, fontWeight:"800", color:"#fff", marginTop:12 },
   successSub:      { fontSize:14, color:"#6EE7B7" },
-  newBookingBtn:   { backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:14, alignItems:"center", marginTop:16 },
+  newBookingBtn:   { backgroundColor:ACCENT, borderRadius:Colors.radius.md, padding:14, alignItems:"center", marginTop:16 },
   newBookingBtnText:{ color:"#fff", fontWeight:"700", fontSize:15 },
 
   // بطاقة التذكرة
@@ -1304,14 +1310,14 @@ const styles = StyleSheet.create({
   ticketHeaderLeft:{ flexDirection:"row", alignItems:"center", gap:10 },
   airlineLogoWrap: { width:36, height:36, borderRadius:18, backgroundColor:"#ffffff15", justifyContent:"center", alignItems:"center" },
   ticketAirline:   { fontSize:14, fontWeight:"700", color:"#fff" },
-  ticketBookingRef:{ fontSize: 12, color:"#93C5FD" },
+  ticketBookingRef:{ fontSize: 12, color:"#A7D8E2" },
   statusBadge:     { borderRadius:8, paddingHorizontal:8, paddingVertical:3 },
   statusText:      { fontSize: 12, fontWeight:"700" },
 
   routeRow:        { flexDirection:"row", alignItems:"center", paddingHorizontal:16, paddingVertical:8 },
   cityBlock:       { width:80, alignItems:"flex-end" },
   cityCode:        { fontSize:28, fontWeight:"900", color:"#fff", letterSpacing:1 },
-  cityName:        { fontSize: 12, color:"#93C5FD", marginTop:2, maxWidth:75, textAlign:"right" },
+  cityName:        { fontSize: 12, color:"#A7D8E2", marginTop:2, maxWidth:75, textAlign:"right" },
   routeCenter:     { flex:1, flexDirection:"row", alignItems:"center" },
   routeLine:       { flex:1, height:1, backgroundColor:"#ffffff30" },
   planIcon:        { marginHorizontal:4 },
@@ -1324,7 +1330,7 @@ const styles = StyleSheet.create({
 
   ticketDetails:   { paddingHorizontal:16, paddingVertical:8 },
   detailRow:       { flexDirection:"row", alignItems:"center", gap:8, marginBottom:6 },
-  detailLabel:     { fontSize: 13, color:"#93C5FD", width:90 },
+  detailLabel:     { fontSize: 13, color:"#A7D8E2", width:90 },
   detailValue:     { fontSize:13, color:"#fff", fontWeight:"600", flex:1 },
 
   qrSection:       { flexDirection:"row", alignItems:"center", padding:16, gap:12 },
@@ -1334,13 +1340,13 @@ const styles = StyleSheet.create({
   qrFilled:        { backgroundColor:"#000" },
   qrEmpty:         { backgroundColor:"transparent" },
   ticketNumberBlock:{ flex:1 },
-  ticketNumberLabel:{ fontSize: 12, color:"#93C5FD" },
+  ticketNumberLabel:{ fontSize: 12, color:"#A7D8E2" },
   ticketNumberValue:{ fontSize:13, color:"#fff", fontWeight:"700", marginTop:2 },
 
   ticketActions:   { flexDirection:"row", padding:12, gap:6, borderTopWidth:1, borderColor:"#ffffff20" },
   ticketBtn:       { flex:1, flexDirection:"row", justifyContent:"center", alignItems:"center", paddingVertical:8, borderRadius:8, gap:4 },
   ticketBtnText:   { fontSize: 12, color:"#fff", fontWeight:"600" },
-  shareBtn:        { backgroundColor:"#0369A1" },
+  shareBtn:        { backgroundColor:"#0B5F73" },
   waBtn:           { backgroundColor:"#16A34A" },
   rescheduleBtn:   { backgroundColor:"#D97706" },
   cancelBtn:       { backgroundColor:"#DC2626" },
@@ -1348,7 +1354,7 @@ const styles = StyleSheet.create({
   // قوائم
   filterRow:       { flexDirection:"row", gap:8, marginBottom:16 },
   filterChip:      { flex:1, paddingVertical:7, borderRadius:Colors.radius.md, alignItems:"center", backgroundColor:Colors.cardBg, borderWidth:1, borderColor:Colors.borderSubtle },
-  filterChipActive:{ backgroundColor:Colors.primary, borderColor:Colors.primary },
+  filterChipActive:{ backgroundColor:ACCENT, borderColor:ACCENT },
   filterChipTxt:   { fontSize:13, color:Colors.textMuted, fontWeight:"600" },
   filterChipTxtActive:{ color:Colors.white },
 
@@ -1357,19 +1363,11 @@ const styles = StyleSheet.create({
   emptySub:        { fontSize:13, color:Colors.textMuted, textAlign:"center", maxWidth:260 },
 
   // الشركاء
-  agencyPanel:      { flexDirection:"row-reverse", alignItems:"center", gap:12, backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.lg, borderWidth:1, borderColor:Colors.borderGlow, padding:16, marginBottom:12 },
-  agencyHeroIcon:   { width:56, height:56, borderRadius:Colors.radius.md, backgroundColor:Colors.primaryGlow, borderWidth:1, borderColor:Colors.borderGlow, justifyContent:"center", alignItems:"center" },
-  agencyTitle:      { color:"#fff", fontSize:16, fontWeight:"900", textAlign:"right", marginBottom:4 },
-  agencySub:        { color:"#93C5FD", fontSize: 13, lineHeight:19, textAlign:"right" },
-  agencyGrid:       { flexDirection:"row-reverse", flexWrap:"wrap", gap:10, marginBottom:18 },
-  agencyFeatureCard:{ width:"48%", backgroundColor:Colors.cardBg, borderRadius:Colors.radius.lg, padding:14, borderWidth:1, borderColor:Colors.borderSubtle, alignItems:"flex-end", gap:6, ...Colors.shadow.card },
-  agencyFeatureTitle:{ color:Colors.text, fontSize:13, fontWeight:"800", textAlign:"right" },
-  agencyFeatureSub: { color:Colors.textMuted, fontSize: 12, lineHeight:17, textAlign:"right" },
 
   partnerBanner:   { borderRadius:Colors.radius.lg, padding:16, flexDirection:"row", alignItems:"center", marginBottom:16 },
   partnerBannerTitle:{ color:"#fff", fontWeight:"700", fontSize:15, marginBottom:4 },
-  partnerBannerSub:{ color:"#93C5FD", fontSize: 13, lineHeight:18 },
-  contractBtn:       { flexDirection:"row", backgroundColor:Colors.primaryDeep, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
+  partnerBannerSub:{ color:"#A7D8E2", fontSize: 13, lineHeight:18 },
+  contractBtn:       { flexDirection:"row", backgroundColor:"#073B4C", borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginBottom:20 },
   contractBtnTxt:    { color:"#fff", fontWeight:"700", fontSize:14 },
   contractLockedBox: { flexDirection:"row-reverse", alignItems:"flex-start", gap:10, backgroundColor:Colors.cardBg, borderRadius:Colors.radius.md, padding:14, marginBottom:20, borderWidth:1, borderColor:Colors.borderSubtle },
   contractLockedTxt: { flex:1, fontSize:13, color:Colors.textSecondary, textAlign:"right" as const, lineHeight:20 },
@@ -1379,7 +1377,7 @@ const styles = StyleSheet.create({
   companyCardName: { fontSize:15, fontWeight:"700", color:Colors.text },
   companyCardOwner:{ fontSize: 13, color:Colors.textMuted, marginTop:2 },
   companyCardMeta: { flexDirection:"row", gap:6, marginTop:6 },
-  metaChip:        { backgroundColor:"#1E3A5F", borderRadius:6, paddingHorizontal:8, paddingVertical:3 },
+  metaChip:        { backgroundColor:"#0B5F73", borderRadius:6, paddingHorizontal:8, paddingVertical:3 },
   metaChipTxt:     { fontSize: 12, color:ACCENT2 },
   companyCardActions:{ gap:6 },
   callBtn:         { width:32, height:32, borderRadius:16, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center" },
@@ -1390,9 +1388,9 @@ const styles = StyleSheet.create({
   contractHeaderTitle:{ fontSize:18, fontWeight:"700", color:Colors.text },
   contractBadge:   { borderRadius:Colors.radius.lg, padding:20, alignItems:"center", marginBottom:16 },
   contractBadgeTitle:{ color:"#fff", fontWeight:"700", fontSize:18, marginTop:8 },
-  contractBadgeSub:{ color:"#93C5FD", fontSize:13, marginTop:4 },
+  contractBadgeSub:{ color:"#A7D8E2", fontSize:13, marginTop:4 },
   contractBody:    { fontSize:13, color:Colors.textSecondary, lineHeight:22, textAlign:"right" },
-  shareContractBtn:{ flexDirection:"row", backgroundColor:Colors.primary, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginTop:20 },
+  shareContractBtn:{ flexDirection:"row", backgroundColor:ACCENT, borderRadius:Colors.radius.md, padding:13, justifyContent:"center", alignItems:"center", gap:8, marginTop:20 },
   shareContractBtnTxt:{ color:"#fff", fontWeight:"700", fontSize:14 },
 
   // موديالات
@@ -1413,4 +1411,5 @@ const styles = StyleSheet.create({
   modalConfirmTxt: { color:"#fff", fontWeight:"700" },
 });
 
-export default withRTLScreen(TravelScreen);
+// الشاشة نفسها LTR (صفوفها الجديدة row-reverse)، وأجزاء الحافلات القديمة المكتوبة بـ row ملفوفة بسياق RTL.
+export default TravelScreen;

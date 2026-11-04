@@ -21,7 +21,8 @@ import React, { useEffect, useState } from "react";
 import { reloadAppAsync } from "expo";
 import { usePresencePing } from "@/lib/chat-plus";
 import { rescheduleAdhanFromCache } from "@/lib/adhan";
-import { callsApi, getActiveCall } from "@/lib/calls";
+import { callsApi, getActiveCall, openIncomingCall } from "@/lib/calls";
+import { useIncomingCallBridge } from "@/lib/incoming-call";
 import { isAppActive } from "@/lib/chat-plus";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -147,6 +148,7 @@ function AuthGate() {
     registerForPushNotifications(user.uid ?? String(user.id), token ?? undefined).catch(() => {});
     const unsub = addNotificationListener(
       (n) => {
+        if ((n.request.content.data as any)?.type === "call_cancel") return; // رسالة صامتة لإخفاء إشعار المكالمة
         // اهتزاز مخصص بحسب القناة عند وصول الإشعار في الـ Foreground
         const channelId = (n.request.content.data as any)?.channelId as string | undefined;
         const soundType: SoundType =
@@ -157,7 +159,7 @@ function AuthGate() {
         vibrateForType(soundType).catch(() => {});
         const d: any = n.request.content.data;
         if (d?.type === "call" && d?.callId && getActiveCall() !== Number(d.callId)) {
-          router.push({ pathname: "/call", params: { callId: String(d.callId), role: "callee", name: String(d.callerName ?? "") } } as any);
+          openIncomingCall(router, { callId: Number(d.callId), name: String(d.callerName ?? ""), avatar: d.callerAvatar ? String(d.callerAvatar) : "" });
         }
       },
       (data) => {
@@ -166,7 +168,7 @@ function AuthGate() {
 
         // ── مكالمة صوتية واردة ──
         if (type === "call" && data?.callId) {
-          if (getActiveCall() !== Number(data.callId)) router.push({ pathname: "/call", params: { callId: String(data.callId), role: "callee", name: String(data.callerName ?? "") } } as any);
+          openIncomingCall(router, { callId: Number(data.callId), name: String(data.callerName ?? ""), avatar: data.callerAvatar ? String(data.callerAvatar) : "" });
           return;
         }
 
@@ -210,6 +212,16 @@ function AuthGate() {
           router.push({ pathname: "/" + screen, params } as any);
           return;
         }
+        // ── وكالات السفر: طلب حجز جديد للوكالة، وتحديث حالة الطلب للعميل ──
+        if (screen === "travel-agency-portal" || type === "travel_offer_request" || type === "travel_agency_approved" || type === "travel_agency_staff") {
+          router.push({ pathname: "/travel-agency-portal", params: data?.tab ? { tab: String(data.tab) } : {} } as any);
+          return;
+        }
+        if (type === "travel_offer_status" || (screen === "travel" && data?.tab)) {
+          router.push({ pathname: "/travel", params: { tab: String(data?.tab || "mine") } } as any);
+          return;
+        }
+        if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
         if (type === "volunteer") { router.push("/volunteer" as any); return; }
         if (type === "contest" && data?.contest_id) { router.push({ pathname: "/contest", params: { id: String(data.contest_id) } } as any); return; }
@@ -280,7 +292,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor", "invitation"];
+    const PUBLIC_JOIN = ["travel-agencies", "travel-offer", "travel-agency", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor", "invitation"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -372,6 +384,9 @@ function PresenceBeat() {
     return () => clearTimeout(t);
   }, [token, isGuest]);
 
+  // Android: فتح شاشة المكالمة عند التشغيل من إشعار المكالمة بملء الشاشة وزرَّي «رد/رفض»
+  useIncomingCallBridge(isGuest ? null : token);
+
   // مراقبة المكالمات الواردة أثناء فتح التطبيق (احتياطاً إن تأخّر الإشعار)
   const nav = useRouter();
   useEffect(() => {
@@ -383,7 +398,7 @@ function PresenceBeat() {
         const r = await callsApi.incoming(token);
         if (r.call && r.call.id !== seen) {
           seen = r.call.id;
-          nav.push({ pathname: "/call", params: { callId: String(r.call.id), role: "callee", name: r.call.caller_name || "", avatar: r.call.caller_avatar || "" } } as any);
+          openIncomingCall(nav, { callId: r.call.id, name: r.call.caller_name || "", avatar: r.call.caller_avatar || "" });
         }
       } catch {}
     };
@@ -486,10 +501,14 @@ function RootLayoutNav() {
         <Stack.Screen name="get"                      options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="invitation"               options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="admin-invites"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="cv-templates-admin"       options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="travel-agencies"          options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-offer"             options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-agency"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-agency-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="qr-scanner"               options={{ headerShown: false, animation: "slide_from_bottom", presentation: "fullScreenModal" }} />
         <Stack.Screen name="qr-web-login"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="stores"                   options={{ headerShown: false, animation: "slide_from_right" }} />

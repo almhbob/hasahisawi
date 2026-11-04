@@ -3112,15 +3112,8 @@ router.get("/women-services", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/organizations", async (_req: Request, res: Response) => {
-  try {
-    const result = await query(`SELECT * FROM organizations ORDER BY name`);
-    return res.json({ organizations: result.rows });
-  } catch (err) {
-    logger.error({ err }, "route error");
-    return res.status(500).json({ error: "Server error" });
-  }
-});
+// (أُزيل مسار GET /organizations القديم هنا: كان يسبق المسار الكامل أدناه فيتجاهل
+//  الفلترة والبحث ويعرض المنظمات المعطّلة أيضاً.)
 
 // ── إعدادات مواقيت الآذان (عام) ──
 router.get("/prayer-settings", async (_req: Request, res: Response) => {

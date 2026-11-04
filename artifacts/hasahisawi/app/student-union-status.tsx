@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Platform,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Image, useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,48 +32,77 @@ function fmtDate(s?: string | null) {
   catch { return s; }
 }
 
-// ── بطاقة العضوية الرقمية ───────────────────────────────────────────
-function StudentUnionCard({ card }: { card: SuCard }) {
+// ── بطاقة العضوية الرسمية ───────────────────────────────────────────
+// مقاس بطاقة الهوية (ID-1 ≈ 1.586:1) بألوان شعار الاتحاد (لهب أحمر/برتقالي وذهبي)، مع شعاري الاتحاد وحصاحيصاوي.
+const UNION_LOGO = require("@/assets/images/student-union-logo.png");
+const APP_LOGO = require("@/assets/images/logo.png");
+const FLAME = ["#7F1D1D", "#B91C1C", "#EA580C"] as const;
+const GOLD = "#F5C451";
+
+function StudentUnionCard({ card, avatar, width }: { card: SuCard; avatar?: string | null; width: number }) {
+  const h = Math.round(width / 1.586);
+  const k = width / 360;
+  const initials = card.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join(" ");
   return (
-    <LinearGradient colors={["#0B1224", "#16324F", UC]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cd.card}>
-      <View style={cd.ring} />
-      <View style={cd.top}>
-        <View style={cd.emblem}><Ionicons name="school" size={22} color="#fff" /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={cd.org}>اتحاد طلاب محلية الحصاحيصا</Text>
-          <Text style={cd.orgSub}>بطاقة عضوية رقمية</Text>
+    <View style={[cd.card, { width, height: h }]}>
+      <LinearGradient colors={FLAME} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+      {/* علامة مائية: شعار الاتحاد */}
+      <Image source={UNION_LOGO} style={[cd.watermark, { width: h * 1.05, height: h * 1.05, left: -h * 0.28, top: h * 0.05 }]} />
+      <View style={[cd.goldStripe, { top: h * 0.27 }]} />
+
+      {/* الترويسة: شعار الاتحاد يميناً، الاسم الرسمي في الوسط، شعار حصاحيصاوي يساراً */}
+      <View style={[cd.head, { paddingHorizontal: 12 * k, paddingTop: 9 * k }]}>
+        <Image source={UNION_LOGO} style={{ width: 44 * k, height: 44 * k }} accessibilityLabel="شعار الاتحاد العام للطلاب السودانيين" />
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text style={[cd.org, { fontSize: 11.5 * k }]} numberOfLines={1}>الاتحاد العام للطلاب السودانيين</Text>
+          <Text style={[cd.orgSub, { fontSize: 10 * k }]} numberOfLines={1}>ولاية الجزيرة · محلية الحصاحيصا</Text>
+          <Text style={[cd.orgEn, { fontSize: 7.5 * k }]} numberOfLines={1}>GENERAL STUDENTS' UNION · GAZIRA STATE</Text>
         </View>
-        <View style={[cd.state, { backgroundColor: card.valid ? "#22C55E" : "#F59E0B" }]}>
-          <Text style={cd.stateText}>{card.valid ? "سارية" : "منتهية"}</Text>
+        <View style={[cd.appLogo, { width: 40 * k, height: 40 * k, borderRadius: 10 * k }]}>
+          <Image source={APP_LOGO} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" accessibilityLabel="شعار حصاحيصاوي" />
         </View>
       </View>
 
-      <View style={cd.body}>
-        <View style={cd.qrBox}>
-          <QRCode value={card.verify_url} size={92} color="#0B1224" backgroundColor="#FFFFFF" ecl="M" />
+      {/* الهوية */}
+      <View style={[cd.body, { paddingHorizontal: 12 * k, gap: 10 * k }]}>
+        <View style={[cd.photo, { width: 62 * k, height: 76 * k, borderRadius: 10 * k }]}>
+          {avatar ? <Image source={{ uri: avatar }} style={{ width: "100%", height: "100%" }} /> : <Text style={[cd.initials, { fontSize: 20 * k }]}>{initials}</Text>}
         </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={cd.name} numberOfLines={2}>{card.full_name}</Text>
-          <Text style={cd.line} numberOfLines={1}>{card.institution}</Text>
-          <Text style={cd.line} numberOfLines={1}>{card.major}{card.year ? ` — ${card.year}` : ""}</Text>
+        <View style={{ flex: 1, gap: 1 }}>
+          <Text style={[cd.kind, { fontSize: 9.5 * k }]}>بطاقة عضوية رسمية · MEMBERSHIP CARD</Text>
+          <Text style={[cd.name, { fontSize: 15.5 * k, lineHeight: 24 * k }]} numberOfLines={1}>{card.full_name}</Text>
+          <Text style={[cd.line, { fontSize: 11 * k }]} numberOfLines={1}>{card.institution}</Text>
+          <Text style={[cd.line, { fontSize: 11 * k }]} numberOfLines={1}>{card.major}{card.year ? ` · ${card.year}` : ""}</Text>
+        </View>
+        <View style={{ alignItems: "center", gap: 4 * k }}>
+          <View style={[cd.qrBox, { padding: 4 * k, borderRadius: 8 * k }]}>
+            <QRCode value={card.verify_url} size={Math.round(58 * k)} color="#450A0A" backgroundColor="#FFFFFF" ecl="M" />
+          </View>
+          <View style={[cd.state, { backgroundColor: card.valid ? "#16A34A" : "#D97706" }]}>
+            <Text style={[cd.stateText, { fontSize: 9 * k }]}>{card.valid ? "سارية · VALID" : "منتهية · EXPIRED"}</Text>
+          </View>
         </View>
       </View>
 
-      <View style={cd.foot}>
+      {/* الأرقام */}
+      <View style={[cd.foot, { paddingHorizontal: 12 * k, paddingBottom: 8 * k }]}>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={cd.k}>رقم العضوية</Text>
-          <Text style={cd.v}>{card.member_no}</Text>
+          <Text style={[cd.k, { fontSize: 8.5 * k }]}>رقم العضوية · Member No.</Text>
+          <Text style={[cd.v, { fontSize: 13 * k }]}>{card.member_no}</Text>
+        </View>
+        <View style={{ alignItems: "center" }}>
+          <Text style={[cd.k, { fontSize: 8.5 * k }]}>الإصدار · Issued</Text>
+          <Text style={[cd.vSmall, { fontSize: 11 * k }]}>{fmtDate(card.issued_at)}</Text>
         </View>
         <View style={{ alignItems: "flex-start" }}>
-          <Text style={cd.k}>صالحة حتى</Text>
-          <Text style={cd.vSmall}>{fmtDate(card.expires_at)}</Text>
+          <Text style={[cd.k, { fontSize: 8.5 * k }]}>صالحة حتى · Valid until</Text>
+          <Text style={[cd.vSmall, { fontSize: 11 * k }]}>{fmtDate(card.expires_at)}</Text>
         </View>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
-// ── عنصر في الخط الزمني ─────────────────────────────────────────────
 function Step({ icon, color, title, sub, done, last, children }: {
   icon: string; color: string; title: string; sub?: string; done: boolean; last?: boolean; children?: React.ReactNode;
 }) {
@@ -96,7 +125,9 @@ function Step({ icon, color, title, sub, done, last, children }: {
 
 export default function StudentUnionStatusScreen() {
   const insets = useSafeAreaInsets();
-  const { token, isGuest } = useAuth();
+  const { token, isGuest, user } = useAuth();
+  const { width: winW } = useWindowDimensions();
+  const cardW = Math.min(winW - 32, 420);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [app, setApp] = useState<SuApplication | null>(null);
@@ -134,7 +165,7 @@ export default function StudentUnionStatusScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <LinearGradient colors={["#0B1224", "#172554"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={["#7F1D1D", "#B91C1C"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={UC2} />
         </TouchableOpacity>
@@ -182,7 +213,7 @@ export default function StudentUnionStatusScreen() {
           <>
             {card && (
               <Animated.View entering={FadeInDown.springify()} style={{ gap: 10 }}>
-                <StudentUnionCard card={card} />
+                <StudentUnionCard card={card} avatar={(user as any)?.avatar_url ?? (user as any)?.avatarUrl ?? null} width={cardW} />
                 <View style={s.actions}>
                   <TouchableOpacity style={s.actBtn} onPress={share}>
                     <Ionicons name="share-social-outline" size={18} color={UC} />
@@ -246,22 +277,28 @@ export default function StudentUnionStatusScreen() {
 }
 
 const cd = StyleSheet.create({
-  card: { borderRadius: 22, padding: 18, overflow: "hidden", minHeight: 210, ...(Platform.OS === "web" ? {} : { elevation: 6 }) },
-  ring: { position: "absolute", width: 220, height: 220, borderRadius: 110, borderWidth: 28, borderColor: "rgba(255,255,255,0.05)", top: -80, left: -70 },
-  top: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
-  emblem: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" },
-  org: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" },
-  orgSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: UC2, textAlign: "right" },
-  state: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  stateText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
-  body: { flexDirection: "row-reverse", alignItems: "center", gap: 14, marginTop: 16 },
-  qrBox: { backgroundColor: "#fff", padding: 6, borderRadius: 12 },
-  name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right", lineHeight: 26 },
-  line: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.85)", textAlign: "right" },
-  foot: { flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.15)" },
-  k: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: UC2 },
-  v: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", letterSpacing: 0.5 },
-  vSmall: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: "#fff" },
+  card: { borderRadius: 18, overflow: "hidden", alignSelf: "center", justifyContent: "space-between",
+    shadowColor: "#7F1D1D", shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  watermark: { position: "absolute", opacity: 0.1 },
+  goldStripe: { position: "absolute", left: 0, right: 0, height: 2, backgroundColor: GOLD, opacity: 0.85 },
+  head: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  org: { fontFamily: "Cairo_700Bold", color: "#fff", textAlign: "center" },
+  orgSub: { fontFamily: "Cairo_600SemiBold", color: GOLD, textAlign: "center" },
+  orgEn: { fontFamily: "Cairo_600SemiBold", color: "rgba(255,255,255,0.8)", letterSpacing: 0.6, textAlign: "center" },
+  appLogo: { backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  body: { flexDirection: "row-reverse", alignItems: "center" },
+  photo: { borderWidth: 2, borderColor: GOLD, backgroundColor: "rgba(255,255,255,0.15)", overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  initials: { fontFamily: "Cairo_700Bold", color: "#fff" },
+  kind: { fontFamily: "Cairo_700Bold", color: GOLD, textAlign: "right" },
+  name: { fontFamily: "Cairo_700Bold", color: "#fff", textAlign: "right" },
+  line: { fontFamily: "Cairo_400Regular", color: "rgba(255,255,255,0.9)", textAlign: "right" },
+  qrBox: { backgroundColor: "#fff" },
+  state: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  stateText: { fontFamily: "Cairo_700Bold", color: "#fff" },
+  foot: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-end" },
+  k: { fontFamily: "Cairo_400Regular", color: "rgba(255,255,255,0.75)" },
+  v: { fontFamily: "Cairo_700Bold", color: "#fff", letterSpacing: 0.8 },
+  vSmall: { fontFamily: "Cairo_600SemiBold", color: "#fff" },
 });
 
 const tl = StyleSheet.create({

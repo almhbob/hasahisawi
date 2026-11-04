@@ -7,6 +7,7 @@ import { logger } from "../lib/logger";
 import { query, sessionUser, dbEnabled } from "../lib/shared-db";
 import { isBlockedBetween } from "./chat-plus";
 import { CALL_PAGE } from "./calls-page";
+import { ensurePushCols, CALL_FS_VER } from "../lib/push-normalize";
 
 const router = Router();
 const RING_SEC = 45;
@@ -72,6 +73,28 @@ async function pushTo(userId: number, title: string, body: string, data: Record<
   } catch (e: any) { logger.warn({ err: e?.message }, "[calls] push failed"); }
 }
 
+/** إخفاء شاشة/إشعار المكالمة الواردة على أجهزة المستلم الحديثة (انتهت، رُفضت، أو رُدّ عليها من جهاز آخر) */
+async function pushCallCancel(userId: number, callId: number, reason: string) {
+  try {
+    await ensurePushCols();
+    const { rows } = await query(`SELECT DISTINCT token FROM push_tokens WHERE user_id=$1 AND channel_ver >= $2 AND token LIKE 'ExponentPushToken[%'`, [userId, CALL_FS_VER]);
+    if (!rows.length) return;
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 2500);
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rows.map((r: any) => ({ to: r.token, priority: "high", ttl: RING_SEC, data: { type: "call_cancel", callId, reason } }))),
+    }).finally(() => clearTimeout(t));
+  } catch (e: any) { logger.warn({ err: e?.message }, "[calls] cancel push failed"); }
+}
+
+/** صورة المتصل في رسالة المكالمة (روابط قصيرة فقط — حدّ حجم الإشعار 4KB) */
+async function avatarFor(userId: number): Promise<string> {
+  try {
+    const u = String((await query(`SELECT avatar_url FROM users WHERE id=$1`, [userId])).rows[0]?.avatar_url || "");
+    return /^https?:\/\//.test(u) && u.length <= 400 ? u : "";
+  } catch { return ""; }
+}
+
 /** خوادم ICE: STUN عامة + TURN إن ضُبطت متغيرات البيئة */
 async function iceServers() {
   const list: any[] = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] }];
@@ -123,7 +146,9 @@ async function callFor(req: Request, res: Response) {
 async function finish(call: any, status: string, byId: number | null) {
   const upd = await query(`UPDATE voice_calls SET status=$1, ended_at=NOW(), ended_by=$2 WHERE id=$3 AND status IN ('ringing','accepted') RETURNING answered_at, ended_at`,
     [status, byId, call.id]);
-  if (!upd.rows[0] || !call.chat_id) return;
+  if (!upd.rows[0]) return;
+  await pushCallCancel(call.callee_id, call.id, status);
+  if (!call.chat_id) return;
   const ans = upd.rows[0].answered_at;
   const text = status === "ended" && ans
     ? `📞 مكالمة صوتية · ${fmtDur((new Date(upd.rows[0].ended_at).getTime() - new Date(ans).getTime()) / 1000)}`
@@ -159,7 +184,8 @@ router.post("/calls", async (req: Request, res: Response) => {
     await query(`UPDATE voice_calls SET status='ended', ended_at=NOW() WHERE (caller_id=$1 OR callee_id=$1) AND status IN ('ringing','accepted')`, [Number(me.id)]);
     const r = await query(`INSERT INTO voice_calls (chat_id, caller_id, callee_id) VALUES ($1,$2,$3) RETURNING *`, [chatId, Number(me.id), otherId]);
     const callee = (await query(`SELECT name, avatar_url FROM users WHERE id=$1`, [otherId])).rows[0] || {};
-    await pushTo(otherId, "📞 مكالمة صوتية واردة", `${me.name} يتصل بك…`, { type: "call", callId: r.rows[0].id, callerName: me.name, screen: "call" });
+    // ts وcallerAvatar للنسخ الحديثة (شاشة المكالمة بملء الشاشة)، والنسخ القديمة تتجاهلهما
+    await pushTo(otherId, "📞 مكالمة صوتية واردة", `${me.name} يتصل بك…`, { type: "call", callId: r.rows[0].id, callerName: me.name, callerAvatar: await avatarFor(Number(me.id)), ts: Date.now(), screen: "call" });
     return res.json({ call: { ...r.rows[0], caller_name: me.name, callee_name: callee.name, callee_avatar: callee.avatar_url }, ice: await iceServers() });
   } catch (err) { logger.error({ err }, "[calls] start"); return res.status(500).json({ error: "تعذّر بدء المكالمة" }); }
 });
@@ -265,6 +291,7 @@ router.post("/calls/:id/accept", async (req, res) => {
     if (c.call.callee_id !== Number(c.me.id)) return res.status(403).json({ error: "غير مسموح" });
     const r = await query(`UPDATE voice_calls SET status='accepted', answered_at=NOW() WHERE id=$1 AND status='ringing' RETURNING *`, [c.call.id]);
     if (!r.rows[0]) return res.status(409).json({ error: "انتهت المكالمة", status: c.call.status });
+    await pushCallCancel(c.call.callee_id, c.call.id, "answered"); // أوقف الرنين على أجهزة المستخدم الأخرى
     return res.json({ call: { ...c.call, ...r.rows[0] }, ice: await iceServers() });
   } catch (err) { logger.error({ err }, "[calls] accept"); return res.status(500).json({ error: "خطأ" }); }
 });

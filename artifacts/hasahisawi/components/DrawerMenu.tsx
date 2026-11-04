@@ -82,11 +82,9 @@ const GROUPS: Group[] = [
     items: [
       { title: "الطالب والمعلم — كل الخدمات التعليمية", icon: "school-outline", route: "/(tabs)/student", color: "#0F766E" },
       { title: "إثراء — المكتبة الثقافية", icon: "library-outline", route: "/ithraa",       color: "#1B4D6B"      },
-      { title: "ديوان الكُتّاب", icon: "create-outline", route: "/writers",            color: "#7A2E3A"      },
+      { title: "ديوان الكُتّاب — النصوص والعضوية والمسابقة", icon: "create-outline", route: "/writers",            color: "#7A2E3A"      },
       { title: "نافذة الصحافة", icon: "newspaper-outline", route: "/press",               color: "#C8102E"      },
       { title: "شركات المقاولات", icon: "construct-outline", route: "/contractors",        color: "#B45309"      },
-      { title: "عضوية الكُتّاب والبطاقة", icon: "id-card-outline", route: "/writers-membership", color: "#7A2E3A" },
-      { title: "مسابقة حصاحيصاوي الأدبية", icon: "trophy-outline", route: "/lit-contest", color: "#C99A2E"  },
       { title: "الوظائف",     icon: "briefcase-outline",  route: "/(tabs)/jobs",        color: Colors.accent  },
       { title: "منشئ السيرة الذاتية", icon: "document-text-outline", route: "/(tabs)/cv-builder", color: "#2F8A8A" },
     ],
@@ -458,6 +456,18 @@ export default function DrawerMenu() {
                 )}
                 <Ionicons name="chevron-back" size={16} color="#B7820088" style={styles.chevron} />
               </Pressable>
+              {user?.role === "admin" && (
+                <Pressable
+                  style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+                  onPress={() => navigate("/admin-invites")}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: "#00966A1F" }]}>
+                    <Ionicons name="paper-plane" size={20} color="#00966A" />
+                  </View>
+                  <Text style={[styles.itemLabel, { color: "#00704F" }]}>دعوات الأقسام</Text>
+                  <Ionicons name="chevron-back" size={16} color="#00966A88" style={styles.chevron} />
+                </Pressable>
+              )}
             </View>
           )}
         </ScrollView>

@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { notify } from "@/lib/xplatform";
 import UserAvatar from "@/components/UserAvatar";
 import { litApi, WINE, GOLD, INK, PHASE_META, countdown, type LitMeta, type LitText, type Contest } from "@/lib/lit";
+import { stripMarkup } from "@/lib/lit-markup";
 import { TextCard, DocBadge, groupColor } from "@/components/lit/ui";
 import { Pill, Empty, SectionTitle, ithraaStyles as u } from "@/components/ithraa/ui";
 
@@ -158,7 +159,7 @@ export default function WritersScreen() {
                           <Ionicons name="star" size={14} color={GOLD} style={{ alignSelf: "flex-end" }} />
                           <Text style={s.featForm}>{t.form_label}</Text>
                           <Text style={s.featTitle} numberOfLines={2}>{t.title}</Text>
-                          <Text style={s.featBody} numberOfLines={4}>{t.excerpt}</Text>
+                          <Text style={s.featBody} numberOfLines={4}>{stripMarkup(t.excerpt)}</Text>
                           <Text style={s.featAuthor} numberOfLines={1}>— {t.author_name}</Text>
                           <ViewCount count={t.views} color="rgba(255,255,255,0.8)" />
                         </Pressable>

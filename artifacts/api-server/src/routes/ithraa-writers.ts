@@ -13,6 +13,7 @@ import { query, sessionUser, isStaff, type SessionUser } from "../lib/shared-db"
 import { writeLimiter } from "../lib/rate-limiters";
 import { moderateContent } from "../lib/content-moderator";
 import { assessOriginality, minhash, similarity, textHash } from "../lib/lit-originality";
+import { stripMarkup, stripControl, sanitizeLayout, validImageUrl, TRANSLATION_LANGS, type LitLayout } from "../lib/lit-markup";
 
 const router = Router();
 const API_BASE = (process.env.PUBLIC_API_BASE || "https://api-server-gilt-ten.vercel.app").replace(/\/$/, "");
@@ -88,6 +89,14 @@ export function ensureWritersDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       published_at TIMESTAMPTZ
     )`);
+    // مرفقات النص: ترجمة وصورة وتفضيلات العرض (التنسيق داخل body بعلامات lit-markup)
+    await query(`ALTER TABLE lit_texts
+      ADD COLUMN IF NOT EXISTS translation TEXT,
+      ADD COLUMN IF NOT EXISTS translation_lang VARCHAR(8),
+      ADD COLUMN IF NOT EXISTS translation_by VARCHAR(120),
+      ADD COLUMN IF NOT EXISTS image_url TEXT,
+      ADD COLUMN IF NOT EXISTS image_caption VARCHAR(200),
+      ADD COLUMN IF NOT EXISTS layout JSONB`);
     await query(`CREATE INDEX IF NOT EXISTS idx_lit_browse ON lit_texts (status, grp, form, published_at DESC)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_lit_author ON lit_texts (author_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_lit_hash ON lit_texts (doc_hash)`);
@@ -124,7 +133,9 @@ function ipTag(req: Request): string {
   return createHash("sha256").update(`lit:${ip}`).digest("hex").slice(0, 16);
 }
 function lines(body: string) { return body.split("\n").map((l) => l.trim()).filter(Boolean); }
-function validateBody(form: LitForm, body: string): string | null {
+/** يتحقق من الطول والأسطر على النص الصافي (بعد نزع علامات التنسيق) */
+export function validateBody(form: LitForm, raw: string): string | null {
+  const body = stripMarkup(raw);
   const len = body.length;
   if (len < form.min) return `النص قصير على «${form.label}» — ${form.min} حرفاً على الأقل`;
   if (len > form.max) return `النص أطول من المسموح لـ«${form.label}» (${form.max} حرف)`;
@@ -139,16 +150,62 @@ function validateBody(form: LitForm, body: string): string | null {
 }
 const STRICT_BAD = ["شرموطة", "منيوك", "متناك", "ابن الشرموطة", "نيك", "عرص"];
 
+// ─── المرفقات (ترجمة/صورة/تنسيق العرض) ─────────────────────────
+export type LitAttachments = {
+  translation: string | null; translation_lang: string | null; translation_by: string | null;
+  image_url: string | null; image_caption: string | null; layout: LitLayout | null;
+};
+/** يقرأ المرفقات من الطلب ويتحقق منها. partial=true: الحقول الغائبة لا تُعدَّل (للتحديث) */
+export function parseAttachments(b: Record<string, any>, form: LitForm, partial = false): { error: string } | { value: Partial<LitAttachments> } {
+  const out: Partial<LitAttachments> = {};
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(b, k);
+  if (!partial || has("translation") || has("translation_lang") || has("translation_by")) {
+    const tr = stripControl(String(b.translation ?? "")).replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+    if (tr) {
+      if (tr.length > form.max * 2) return { error: `الترجمة أطول من المسموح (${form.max * 2} حرف)` };
+      if (tr.length < 2) return { error: "الترجمة قصيرة جداً" };
+      const lang = String(b.translation_lang ?? "");
+      if (!(TRANSLATION_LANGS as readonly string[]).includes(lang)) return { error: "اختر لغة الترجمة" };
+      out.translation = tr; out.translation_lang = lang;
+      out.translation_by = clean(stripControl(b.translation_by), 120) || null;
+    } else { out.translation = null; out.translation_lang = null; out.translation_by = null; }
+  }
+  if (!partial || has("image_url")) {
+    const raw = String(b.image_url ?? "").trim();
+    if (raw) {
+      const url = validImageUrl(raw);
+      if (!url) return { error: "رابط الصورة غير صالح — يُقبل https فقط" };
+      out.image_url = url;
+    } else out.image_url = null;
+  }
+  if (!partial || has("image_caption")) out.image_caption = clean(stripControl(b.image_caption), 200) || null;
+  if (out.image_url === null) out.image_caption = null;
+  if (!partial || has("layout")) out.layout = sanitizeLayout(b.layout);
+  return { value: out };
+}
+/** فحص الإشراف على نصوص المرفقات (الترجمة والتعليق) */
+async function moderateAttachments(a: Partial<LitAttachments>): Promise<string | null> {
+  const txt = [a.translation, a.image_caption, a.translation_by].filter(Boolean).join("\n");
+  if (!txt) return null;
+  if (STRICT_BAD.some((w) => txt.includes(w))) return "تحتوي المرفقات على ألفاظ غير لائقة";
+  const mod = await moderateContent(txt.slice(0, 1800));
+  return mod.allowed ? null : (mod.reason || "محتوى المرفقات غير مسموح");
+}
+
 export function litRow(r: Record<string, any>, opts: { full?: boolean; reveal?: boolean; liked?: boolean } = {}) {
   const f = FORM.get(r.form);
+  const plain = stripMarkup(String(r.body || ""));
   return {
     id: r.id, doc_no: r.doc_no || null, doc_hash: r.doc_hash, form: r.form, form_label: f?.label ?? r.form, group: r.grp, group_label: GROUP_LABEL[r.grp] ?? r.grp,
-    title: r.title, excerpt: String(r.body || "").slice(0, 260), ...(opts.full ? { body: r.body, dedication: r.dedication || null } : {}),
+    title: r.title, excerpt: plain.slice(0, 260), ...(opts.full ? { body: r.body, dedication: r.dedication || null } : {}),
+    image_url: r.image_url || null, image_caption: r.image_caption || null, layout: r.layout || null,
+    has_translation: !!r.translation, translation_lang: r.translation_lang || null,
+    ...(opts.full ? { translation: r.translation || null, translation_by: r.translation_by || null } : {}),
     author_id: r.author_id, author_name: r.pen_name || r.author_name || "كاتب", author_avatar: r.author_avatar ?? null,
     status: r.status, featured: !!r.featured, views: r.views, likes: r.likes, liked: !!opts.liked,
     created_at: r.created_at, published_at: r.published_at, pledge_at: r.pledge_at, contest_id: r.contest_id,
-    lines: r.grp === "poetry" ? lines(String(r.body || "")).length : null,
-    words: String(r.body || "").split(/\s+/).filter(Boolean).length,
+    lines: r.grp === "poetry" ? lines(plain).length : null,
+    words: plain.split(/\s+/).filter(Boolean).length,
     verify_url: r.doc_no ? LIT_VERIFY_URL(r.doc_no) : null,
     ...(opts.reveal ? {
       review_note: r.review_note || null, ai_score: r.ai_score, ai_verdict: r.ai_verdict, ai_signals: r.ai_signals || [],
@@ -191,13 +248,16 @@ function fail(res: Response, err: unknown, tag: string) {
 export type CreateTextInput = {
   user: SessionUser; req: Request; form: LitForm; title: string; body: string; pen_name: string | null; dedication: string | null;
   signature: string; telemetry: Record<string, unknown>; contest_id?: number | null; direct?: boolean;
+  attachments?: Partial<LitAttachments>;
 };
 export type CreateTextOutcome =
   | { ok: true; row: Record<string, any> }
   | { ok: false; status: number; error: string; code?: string; extra?: Record<string, unknown> };
 
 export async function createLitText(i: CreateTextInput): Promise<CreateTextOutcome> {
-  const hash = textHash(i.body);
+  // البصمة والتشابه والإشراف والأصالة على النص الصافي — التنسيق لا يغيّر النتيجة
+  const plain = stripMarkup(i.body);
+  const hash = textHash(plain);
   // 1) تطابق حرفي مع نص موثّق
   const same = (await query(`SELECT id, doc_no, author_id FROM lit_texts WHERE doc_hash=$1 AND status <> 'ai_flagged' LIMIT 1`, [hash])).rows[0];
   if (same) {
@@ -206,7 +266,7 @@ export async function createLitText(i: CreateTextInput): Promise<CreateTextOutco
       : { ok: false, status: 409, code: "copied", error: "هذا النص موثّق مسبقاً باسم كاتب آخر — لا يُقبل النص المنقول" };
   }
   // 2) تشابه عالٍ (اقتباس/نقل مع تعديل بسيط)
-  const fp = minhash(i.body);
+  const fp = minhash(plain);
   const cand = await query(`SELECT id, doc_no, author_id, fingerprint FROM lit_texts WHERE form=$1 AND status <> 'ai_flagged' ORDER BY id DESC LIMIT 4000`, [i.form.key]);
   for (const c of cand.rows) {
     const sim = similarity(fp, c.fingerprint || []);
@@ -217,23 +277,29 @@ export async function createLitText(i: CreateTextInput): Promise<CreateTextOutco
     }
   }
   // 3) المحتوى المسيء (قائمة مخففة للأدب + الفحص العام)
-  if (STRICT_BAD.some((w) => i.body.includes(w) || i.title.includes(w))) return { ok: false, status: 400, error: "يحتوي النص على ألفاظ غير لائقة" };
-  const mod = await moderateContent(`${i.title}\n${i.body.slice(0, 1800)}`);
+  if (STRICT_BAD.some((w) => plain.includes(w) || i.title.includes(w))) return { ok: false, status: 400, error: "يحتوي النص على ألفاظ غير لائقة" };
+  const mod = await moderateContent(`${i.title}\n${plain.slice(0, 1800)}`);
   if (!mod.allowed) return { ok: false, status: 400, error: mod.reason || "المحتوى غير مسموح" };
+  const att = i.attachments || {};
+  const attBad = await moderateAttachments(att);
+  if (attBad) return { ok: false, status: 400, error: attBad };
   // 4) الأصالة (الذكاء الاصطناعي)
   const t = i.telemetry || {};
-  const orig = await assessOriginality(i.body, i.form.key, { pasted_chars: Number(t.pasted_chars), typed_chars: Number(t.typed_chars), compose_seconds: Number(t.compose_seconds) });
-  const pasted = i.body.length ? Math.min(1, Math.max(0, Number(t.pasted_chars) || 0) / i.body.length) : 0;
+  const orig = await assessOriginality(plain, i.form.key, { pasted_chars: Number(t.pasted_chars), typed_chars: Number(t.typed_chars), compose_seconds: Number(t.compose_seconds) });
+  const pasted = plain.length ? Math.min(1, Math.max(0, Number(t.pasted_chars) || 0) / plain.length) : 0;
   const flagged = orig.verdict === "ai";
   const status = flagged ? "ai_flagged" : i.contest_id ? "contest" : (i.direct && orig.verdict === "human") ? "approved" : "pending";
   const docNo = flagged ? null : await nextDocNo();
   const { rows } = await query(
     `INSERT INTO lit_texts (doc_no, doc_hash, fingerprint, author_id, pen_name, form, grp, title, body, dedication, pledge_signature, pledge_ip,
-       ai_score, ai_verdict, ai_signals, ai_llm, pasted_ratio, compose_seconds, status, contest_id, reviewed_by, reviewed_at, published_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
+       ai_score, ai_verdict, ai_signals, ai_llm, pasted_ratio, compose_seconds, status, contest_id, reviewed_by, reviewed_at, published_at,
+       translation, translation_lang, translation_by, image_url, image_caption, layout)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29) RETURNING *`,
     [docNo, hash, fp, i.user.id, i.pen_name, i.form.key, i.form.group, i.title, i.body, i.dedication, i.signature, ipTag(i.req),
      orig.score, orig.verdict, JSON.stringify(orig.signals), orig.llm, pasted, Math.round(Number(t.compose_seconds) || 0) || null,
-     status, i.contest_id ?? null, status === "approved" ? i.user.id : null, status === "approved" ? new Date() : null, status === "approved" ? new Date() : null],
+     status, i.contest_id ?? null, status === "approved" ? i.user.id : null, status === "approved" ? new Date() : null, status === "approved" ? new Date() : null,
+     att.translation ?? null, att.translation_lang ?? null, att.translation ? (att.translation_by || i.pen_name || i.user.name || null) : null,
+     att.image_url ?? null, att.image_url ? (att.image_caption ?? null) : null, att.layout ? JSON.stringify(att.layout) : null],
   );
   if (flagged) {
     return { ok: false, status: 422, code: "ai_flagged", error: "رجّح الفحص الآلي أن النص مولَّد بالذكاء الاصطناعي، فلم يُوثَّق.",
@@ -351,16 +417,18 @@ router.post("/lit/texts", writeLimiter, async (req: Request, res: Response) => {
     if (!form) return res.status(400).json({ error: "اختر نوع النص" });
     const title = clean(b.title, 160);
     if (title.length < 2) return res.status(400).json({ error: "اكتب عنواناً للنص" });
-    const body = String(b.body ?? "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+    const body = stripControl(String(b.body ?? "")).replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
     const bad = validateBody(form, body);
     if (bad) return res.status(400).json({ error: bad });
+    const att = parseAttachments(b, form);
+    if ("error" in att) return res.status(400).json({ error: att.error });
     const pledge = parsePledge(b, me);
     if ("error" in pledge) return res.status(400).json({ error: pledge.error });
     const today = await query(`SELECT COUNT(*)::int AS n FROM lit_texts WHERE author_id=$1 AND created_at > NOW() - INTERVAL '1 day'`, [me.id]);
     if (today.rows[0].n >= 10) return res.status(429).json({ error: "وصلت لحد النصوص اليومي (10) — عُد غداً" });
     const out = await createLitText({
       user: me, req, form, title, body, pen_name: clean(b.pen_name, 80) || null, dedication: clean(b.dedication, 200) || null,
-      signature: pledge.signature, telemetry: b.telemetry || {}, direct: await isWritersReviewer(me),
+      signature: pledge.signature, telemetry: b.telemetry || {}, direct: await isWritersReviewer(me), attachments: att.value,
     });
     if (!out.ok) return res.status(out.status).json({ error: out.error, code: out.code, ...(out.extra || {}) });
     const row = out.row;
@@ -372,6 +440,39 @@ router.post("/lit/texts", writeLimiter, async (req: Request, res: Response) => {
       message: row.status === "approved" ? "وُثّق النص ونُشر" : "وُثّق النص برقمه الخاص وأُرسل لمراجعة المشرف",
     });
   } catch (err) { return fail(res, err, "create"); }
+});
+
+// تحديث مرفقات النص وتنسيق عرضه (الترجمة، الصورة، المحاذاة/الحجم/التباعد).
+// متن النص نفسه لا يُعدَّل هنا: بصمته موثّقة برقم التوثيق.
+router.patch("/lit/texts/:id", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    if (!/^\d+$/.test(String(req.params.id))) return res.status(404).json({ error: "غير موجود" });
+    await ensureWritersDb();
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const cur = (await query(`SELECT * FROM lit_texts WHERE id=$1`, [Number(req.params.id)])).rows[0];
+    if (!cur) return res.status(404).json({ error: "غير موجود" });
+    if (cur.author_id !== me.id) return res.status(403).json({ error: "للكاتب فقط" });
+    if (["contest", "withdrawn"].includes(cur.status)) return res.status(409).json({ error: "لا يمكن تعديل مرفقات هذا النص" });
+    const b = req.body || {};
+    if ("body" in b || "title" in b) return res.status(400).json({ error: "متن النص وعنوانه موثّقان ولا يُعدَّلان — يمكن تعديل المرفقات والتنسيق فقط" });
+    const form = FORM.get(cur.form)!;
+    const att = parseAttachments(b, form, true);
+    if ("error" in att) return res.status(400).json({ error: att.error });
+    const v = att.value;
+    if (!Object.keys(v).length) return res.status(400).json({ error: "لا توجد تغييرات" });
+    const bad = await moderateAttachments(v);
+    if (bad) return res.status(400).json({ error: bad });
+    if (v.translation && !v.translation_by) v.translation_by = cur.pen_name || me.name || null;
+    const cols = Object.keys(v) as (keyof LitAttachments)[];
+    const vals = cols.map((k) => (k === "layout" ? (v.layout ? JSON.stringify(v.layout) : null) : v[k] ?? null));
+    const row = (await query(`UPDATE lit_texts SET ${cols.map((k, n) => `${k}=$${n + 2}`).join(", ")} WHERE id=$1 RETURNING *`, [cur.id, ...vals])).rows[0];
+    // صورة أو ترجمة جديدة على نص منشور: يُبلَّغ المشرفون للاطلاع
+    if (cur.status === "approved" && ((v.image_url && v.image_url !== cur.image_url) || (v.translation && v.translation !== cur.translation))) {
+      void notifyLit((await reviewerIds()).filter((x) => x !== me.id), "مرفقات جديدة على نص منشور", `«${cur.title}» — ${v.image_url && v.image_url !== cur.image_url ? "صورة" : "ترجمة"} أضافها الكاتب`, { id: cur.id });
+    }
+    return res.json({ text: litRow({ ...row, author_name: me.name }, { full: true, reveal: true }), message: "حُفظت المرفقات" });
+  } catch (err) { return fail(res, err, "update"); }
 });
 
 // طلب مراجعة بشرية لنص رفضه الفحص الآلي

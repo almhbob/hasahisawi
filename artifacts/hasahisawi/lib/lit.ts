@@ -1,5 +1,7 @@
 // ديوان الكُتّاب ومسابقة حصاحيصاوي الأدبية — واجهة الخادم والأنواع
 import { getApiUrl } from "@/lib/query-client";
+import { splitVerseMarked, type LitLayout } from "@/lib/lit-markup";
+export type { LitLayout } from "@/lib/lit-markup";
 
 export const INK = "#3A1E1A";
 export const WINE = "#7A2E3A";
@@ -20,6 +22,13 @@ export type LitText = {
   created_at: string; published_at: string | null; pledge_at: string; contest_id: number | null; lines: number | null; words: number; verify_url: string | null;
   review_note?: string | null; ai_score?: number; ai_verdict?: "human" | "review" | "ai"; ai_signals?: { key: string; label: string; weight: number }[];
   appeal?: boolean; appeal_note?: string | null; pasted_ratio?: number | null; reviewer_name?: string | null;
+  image_url?: string | null; image_caption?: string | null; layout?: LitLayout | null;
+  has_translation?: boolean; translation_lang?: string | null; translation?: string | null; translation_by?: string | null;
+};
+/** مرفقات النص: ترجمة وصورة وتنسيق العرض */
+export type LitAttachments = {
+  translation?: string; translation_lang?: string; translation_by?: string;
+  image_url?: string; image_caption?: string; layout?: LitLayout | null;
 };
 export type Pledge = { original: boolean; not_copied: boolean; no_ai: boolean; unpublished?: boolean; signature: string };
 export type Telemetry = { pasted_chars: number; typed_chars: number; compose_seconds: number };
@@ -74,8 +83,11 @@ export const litApi = {
   top: () => call<{ writers: { id: number; name: string; avatar_url: string | null; texts: number; likes: number }[] }>(`/lit/writers/top`),
   text: (id: number, t?: string | null) => call<{ text: LitText; is_owner: boolean; can_review: boolean; more: LitText[] }>(`/lit/texts/${id}`, t),
   mine: (t: string) => call<{ texts: LitText[] }>(`/lit/mine`, t),
-  create: (t: string, b: { form: string; title: string; body: string; pen_name?: string; dedication?: string; pledge: Pledge; telemetry: Telemetry }) =>
+  create: (t: string, b: { form: string; title: string; body: string; pen_name?: string; dedication?: string; pledge: Pledge; telemetry: Telemetry } & LitAttachments) =>
     call<{ text: LitText; message: string }>(`/lit/texts`, t, { method: "POST", ...json(b) }),
+  /** تحديث المرفقات والتنسيق فقط (المتن موثّق ولا يُعدَّل) */
+  updateAttachments: (t: string, id: number, b: LitAttachments) =>
+    call<{ text: LitText; message: string }>(`/lit/texts/${id}`, t, { method: "PATCH", ...json(b) }),
   appeal: (t: string, id: number, note: string) => call<{ ok: true; message: string }>(`/lit/texts/${id}/appeal`, t, { method: "POST", ...json({ note }) }),
   like: (t: string, id: number) => call<{ liked: boolean; likes: number }>(`/lit/texts/${id}/like`, t, { method: "POST" }),
   withdraw: (t: string, id: number) => call<{ ok: true }>(`/lit/texts/${id}`, t, { method: "DELETE" }),
@@ -135,6 +147,5 @@ export function countdown(to: string): string {
 }
 /** يقسم بيت الشعر العمودي إلى صدر وعجز */
 export function splitVerse(line: string): [string, string] | null {
-  const m = line.split(/\s*(?:\*{2,3}|…|\.{3}|\t| {3,}|\s\|\s)\s*/);
-  return m.length === 2 && m[0].trim() && m[1].trim() ? [m[0].trim(), m[1].trim()] : null;
+  return splitVerseMarked(line);
 }

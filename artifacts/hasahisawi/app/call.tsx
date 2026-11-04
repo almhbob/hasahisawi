@@ -9,7 +9,9 @@ import { WebView } from "react-native-webview";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import UserAvatar from "@/components/UserAvatar";
-import { callsApi, callPageUrl, setActiveCall, type VoiceCall } from "@/lib/calls";
+import { callsApi, callPageUrl, setActiveCall, consumeAutoAnswer, isAutoAnswerPending, onAutoAnswer, type VoiceCall } from "@/lib/calls";
+import { setCallWindow } from "@/lib/call-native";
+import { dismissIncomingCall } from "@/lib/incoming-call";
 
 type Phase = "loading" | "incoming" | "ringing" | "connecting" | "active" | "ended";
 
@@ -43,6 +45,7 @@ export default function CallScreen() {
   const [reconnecting, setReconnecting] = useState(false);
   const web = useRef<WebView>(null);
   const ring = useRef<any>(null);
+  const ringGen = useRef(0);
   const finished = useRef(false);
 
   const otherName = (role === "caller" ? call?.callee_name : call?.caller_name) || p.name || "مستخدم";
@@ -50,6 +53,7 @@ export default function CallScreen() {
 
   // ── نغمة الرنين للمكالمة الواردة ──
   const stopRing = useCallback(() => {
+    ringGen.current++;
     Vibration.cancel();
     const s = ring.current; ring.current = null;
     if (s) { s.stopAsync().catch(() => {}); s.unloadAsync().catch(() => {}); }
@@ -57,13 +61,14 @@ export default function CallScreen() {
   // kind: "incoming" نغمة رنين + اهتزاز | "ringback" نغمة الانتظار للمتصل
   const startRing = useCallback(async (kind: "incoming" | "ringback" = "incoming") => {
     if (Platform.OS === "web") return;
+    const gen = ++ringGen.current;
     if (kind === "incoming") Vibration.vibrate([0, 900, 700], true);
     try {
       const { Audio } = await import("expo-av");
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: false, staysActiveInBackground: false, playThroughEarpieceAndroid: false });
       const src = kind === "incoming" ? require("../assets/sounds/hasahisawi_ring.mp3") : require("../assets/sounds/ringback.wav");
       const { sound } = await Audio.Sound.createAsync(src, { shouldPlay: true, isLooping: true, volume: kind === "incoming" ? 1 : 0.6 });
-      if (finished.current) { sound.unloadAsync().catch(() => {}); return; }
+      if (finished.current || gen !== ringGen.current) { sound.unloadAsync().catch(() => {}); return; }
       ring.current = sound;
     } catch {}
   }, []);
@@ -107,7 +112,8 @@ export default function CallScreen() {
         setCall(r.call); setIce(r.ice);
         if (!["ringing", "accepted"].includes(r.call.status)) { close(r.call.status === "missed" ? "انتهت المكالمة" : "المكالمة منتهية"); return; }
         if (role === "callee") {
-          if (r.call.status === "ringing") { setPhase("incoming"); startRing(); }
+          // «رد» من الإشعار: نقبل مباشرة دون رنين
+          if (r.call.status === "ringing") { setPhase("incoming"); if (!isAutoAnswerPending(callId)) startRing(); }
           else close("المكالمة منتهية");
         } else {
           if (!(await micPermission())) { callsApi.end(token, callId).catch(() => {}); close("لا يمكن الاتصال بدون إذن الميكروفون"); return; }
@@ -134,8 +140,16 @@ export default function CallScreen() {
     return () => clearInterval(t);
   }, [phase]);
 
+  // Android: الشاشة فوق القفل ومضاءة أثناء الرنين، وإيقاف رنين إشعار المكالمة (الشاشة ترن بنفسها)
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    if (callId) dismissIncomingCall(callId);
+    setCallWindow(phase !== "ended", phase === "loading" || phase === "incoming" || phase === "ringing" || phase === "connecting");
+  }, [phase, callId]);
+
   // عند مغادرة الشاشة: أنهِ المكالمة
   useEffect(() => () => {
+    setCallWindow(false, false);
     stopRing(); setActiveCall(null);
     if (!finished.current && token && callId) callsApi.end(token, callId).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -164,6 +178,15 @@ export default function CallScreen() {
       setIce(r.ice); setPhase("connecting"); setWebOn(true);
     } catch (e: any) { close(e?.message || "انتهت المكالمة"); }
   };
+  // الرد التلقائي بعد ضغط «رد» على إشعار المكالمة
+  const acceptRef = useRef(accept);
+  acceptRef.current = accept;
+  useEffect(() => {
+    if (phase !== "incoming") return;
+    if (consumeAutoAnswer(callId)) { acceptRef.current(); return; }
+    return onAutoAnswer((id) => { if (id === callId && consumeAutoAnswer(id)) acceptRef.current(); });
+  }, [phase, callId]);
+
   const decline = () => { if (token) callsApi.decline(token, callId).catch(() => {}); close("رُفضت المكالمة"); };
 
   const toggleMute = () => {

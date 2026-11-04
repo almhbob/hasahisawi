@@ -12,7 +12,8 @@ import { randomBytes } from "node:crypto";
 import { logger } from "../lib/logger";
 import { query, sessionUser, isStaff, type SessionUser } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
-import { ensureWritersDb, createLitText, parsePledge, notifyLit, LIT_FORMS, litRow } from "./ithraa-writers";
+import { ensureWritersDb, createLitText, parsePledge, notifyLit, LIT_FORMS, litRow, validateBody } from "./ithraa-writers";
+import { stripControl } from "../lib/lit-markup";
 
 const router = Router();
 const FORM = new Map(LIT_FORMS.map((f) => [f.key, f]));
@@ -240,13 +241,10 @@ router.post("/lit/contests/:id/enter", writeLimiter, async (req: Request, res: R
     if (count >= c.max_entries) return res.status(409).json({ error: `الحد الأقصى ${c.max_entries} مشاركة لكل كاتب` });
     const title = clean(b.title, 160);
     if (title.length < 2) return res.status(400).json({ error: "اكتب عنواناً للنص" });
-    const body = String(b.body ?? "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
-    if (body.length < form.min) return res.status(400).json({ error: `النص قصير على «${form.label}» — ${form.min} حرفاً على الأقل` });
-    if (body.length > form.max) return res.status(400).json({ error: `النص أطول من المسموح لـ«${form.label}»` });
-    if (form.lines) {
-      const n = body.split("\n").filter((l) => l.trim()).length;
-      if (n < form.lines[0] || n > form.lines[1]) return res.status(400).json({ error: `عدد الأسطر غير مناسب لـ«${form.label}»` });
-    }
+    // التنسيق مسموح (يُحكَم على النص الصافي)، والمرفقات غير مسموحة في التحكيم السري
+    const body = stripControl(String(b.body ?? "")).replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+    const bad = validateBody(form, body);
+    if (bad) return res.status(400).json({ error: bad });
     const pledge = parsePledge(b, me);
     if ("error" in pledge) return res.status(400).json({ error: pledge.error });
     if (b.pledge?.unpublished !== true) return res.status(400).json({ error: "أقرّ بأن النص لم يُنشر ولم يشارك في مسابقة سابقة" });

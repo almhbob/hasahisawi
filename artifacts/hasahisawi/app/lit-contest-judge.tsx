@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { notify } from "@/lib/xplatform";
 import { litApi, WINE, GOLD, INK, PAPER, type Criterion, type JudgeEntry } from "@/lib/lit";
 import { LitBody } from "@/components/lit/ui";
+import { stripMarkup } from "@/lib/lit-markup";
 import { Empty, Pill, ithraaStyles as u } from "@/components/ithraa/ui";
 
 export default function JudgeScreen() {
@@ -84,7 +85,7 @@ export default function JudgeScreen() {
               </View>
               <Text style={st.eTitle}>{e.title}</Text>
               <View style={[u.rowR, { justifyContent: "space-between", marginTop: 4 }]}>
-                <Text style={u.hint}>{e.body.split(/\s+/).length} كلمة</Text>
+                <Text style={u.hint}>{stripMarkup(e.body).split(/\s+/).length} كلمة</Text>
                 {e.my_total != null ? <Text style={st.myTotal}>{e.my_total} / 100</Text> : <Text style={[u.hint, { color: "#B7791F" }]}>لم تُقيَّم</Text>}
               </View>
             </Pressable>

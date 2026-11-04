@@ -13,11 +13,22 @@ buildscript {
   }
 }
 
+// @hasahisawi-call-screen: local Maven repo holding app.notifee:core (@notifee/react-native adds it
+// itself too; resolving it explicitly keeps pnpm's symlinked layout working)
+def notifeeLibsDir = null
+try {
+  def notifeePkg = ["node", "--print", "require.resolve('@notifee/react-native/package.json')"].execute(null, rootDir).text.trim()
+  if (notifeePkg) notifeeLibsDir = new File(new File(notifeePkg).getParentFile(), "android/libs").absolutePath
+} catch (ignored) {}
+
 allprojects {
   repositories {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
+    if (notifeeLibsDir != null) {
+      maven { url notifeeLibsDir }
+    }
   }
 }
 

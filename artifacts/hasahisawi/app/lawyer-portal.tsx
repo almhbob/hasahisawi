@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import { uploadFile } from "@/lib/firebase/storage";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -303,6 +304,8 @@ function LegalFormsTab({ token }: { token: string }) {
 type Tab = "dashboard" | "cases" | "chat" | "docs" | "forms" | "settings";
 
 function LawyerPortal() {
+  // الخطط والاشتراكات مخفية ما لم تفعّلها الإدارة
+  const showPricing = usePricingVisible();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token } = useAuth();
@@ -507,7 +510,7 @@ function LawyerPortal() {
       const r = await apiFetch("/api/my-lawyer-pdf-data", {}, token);
       if (!r.ok) throw new Error("فشل جلب البيانات");
       const data = await r.json();
-      const html = buildPdfHtml(data);
+      const html = buildPdfHtml(showPricing ? data : { ...data, subscription_history: [], profile: { ...(data.profile || {}), plan_name_ar: null, plan_icon: null } });
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf", dialogTitle: "مشاركة ملف المحامي" });
@@ -562,7 +565,7 @@ function LawyerPortal() {
               <Text style={{ color: PURPLE, fontSize: 13 }}>{profile?.title}</Text>
               {profile?.is_verified && <Text style={{ fontSize: 13 }}>✅ موثّق</Text>}
               {profile?.is_featured && <Text style={{ fontSize: 13 }}>⭐ مميّز</Text>}
-              {profile?.plan_icon && <Text style={{ fontSize: 13 }}>{profile.plan_icon} {profile.plan_name_ar}</Text>}
+              {showPricing && profile?.plan_name_ar && <Text style={{ fontSize: 13, color: Colors.textMuted }}>{profile.plan_name_ar}</Text>}
             </Row>
           </View>
           {stats?.unread_messages ? (
@@ -667,6 +670,7 @@ function LawyerPortal() {
 //                             TAB: لوحتي
 // ══════════════════════════════════════════════════════════════════════════════
 function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases }: any) {
+  const showPricing = usePricingVisible();
   useEffect(() => { onRefresh(); loadCases(); }, []);
   const isExpiringSoon = profile?.sub_expires && new Date(profile.sub_expires) < new Date(Date.now() + 30 * 86400000);
   const isExpired      = profile?.sub_expires && new Date(profile.sub_expires) < new Date();
@@ -674,7 +678,7 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
   return (
     <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       {/* Subscription Alert */}
-      {(isExpired || isExpiringSoon) && (
+      {showPricing && (isExpired || isExpiringSoon) && (
         <View style={{ backgroundColor: isExpired ? "#7F1D1D" : "#78350F", borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: isExpired ? RED : GOLD }}>
           <Row style={{ gap: 8 }}>
             <Text style={{ fontSize: 20 }}>{isExpired ? "⛔" : "⚠️"}</Text>
@@ -707,7 +711,8 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
         </View>
       )}
 
-      {/* Subscription Card */}
+      {/* Subscription Card — يظهر فقط عند تفعيل عرض الأسعار */}
+      {showPricing && <>
       <SectionTitle text="خطة الاشتراك" />
       <LinearGradient
         colors={profile?.plan_color ? [profile.plan_color + "33", profile.plan_color + "11"] : ["#2D1B69", "#1A0A2E"]}
@@ -736,6 +741,7 @@ function DashboardTab({ profile, stats, onRefresh, onOpenCase, cases, loadCases 
           ))}
         </View>
       </LinearGradient>
+      </>}
 
       {/* Rating */}
       {profile?.review_count > 0 && (
@@ -945,6 +951,7 @@ function DocsListTab({ cases, loading, onOpen }: any) {
 //                             TAB: الإعدادات
 // ══════════════════════════════════════════════════════════════════════════════
 function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdfLoading, onExportPdf, profile }: any) {
+  const showPricing = usePricingVisible();
   const [section, setSection] = useState<"profile"|"services"|"backup">("profile");
   const f = (key: string) => (v: string) => setForm((p: any) => ({ ...p, [key]: v }));
 
@@ -1053,7 +1060,7 @@ function SettingsTab({ form, setForm, services, setServices, saving, onSave, pdf
               📋 بياناتك الشخصية والمهنية{"\n"}
               ⚖️ قائمة جميع قضاياك ({profile.total_contracts} قضية){"\n"}
               🌟 تقييماتك ({profile.review_count} تقييم){"\n"}
-              💳 سجل الاشتراكات{"\n"}
+              {showPricing ? <>💳 سجل الاشتراكات{"\n"}</> : null}
               🔧 خدماتك المُقدَّمة
             </Text>
 

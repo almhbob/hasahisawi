@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { notify, confirmAction } from "@/lib/xplatform";
 import UserAvatar from "@/components/UserAvatar";
 import { litApi, WINE, GOLD, INK, PHASE_META, fmtDate, type Contest, type LitMeta, type SupEntry, type UserHit, type Criterion, type Prize } from "@/lib/lit";
+import { stripMarkup } from "@/lib/lit-markup";
 import { groupColor } from "@/components/lit/ui";
 import { Pill, Empty, ithraaStyles as u } from "@/components/ithraa/ui";
 
@@ -293,7 +294,7 @@ function Entries({ token, contest }: { token: string; contest: Contest }) {
             {isOpen && (
               <View style={{ marginTop: 8 }}>
                 {e.ai_signals?.map((s, i) => <Text key={i} style={st.sig}>• {s.label}</Text>)}
-                <Text style={st.body}>{e.body}</Text>
+                <Text style={st.body}>{stripMarkup(e.body)}</Text>
                 {!contest.results_published && (
                   <>
                     <TextInput value={note} onChangeText={setNote} placeholder="سبب الاستبعاد (يصل للمشارك)" placeholderTextColor={Colors.textMuted} style={[u.input, { marginTop: 8 }]} />

@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
   Linking, Alert, ActivityIndicator, RefreshControl, Modal,
-  Pressable, TextInput, Dimensions, KeyboardAvoidingView, FlatList,
+  Pressable, TextInput, Dimensions, KeyboardAvoidingView, FlatList, Image,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, ZoomIn, useSharedValue,
@@ -109,172 +109,12 @@ const MEMBERSHIP_TYPES = [
   { key: "honorary",  label: "عضو فخري"   },
 ];
 
-// ── تبويب اتحاد الطلاب ──────────────────────────────────────────────
-function StudentUnionTab() {
-  const router = useRouter();
-  const SU_FEATURES = [
-    { icon: "person-add-outline",        label: "الانتساب لاتحاد الطلاب",          route: "/student-union-join",    color: SU },
-    { icon: "chatbubbles-outline",       label: "تواصل مع مجلس الاتحاد",            route: "/student-union-contact", color: "#2F8A8A" },
-    { icon: "megaphone-outline",         label: "إعلانات وأنشطة الاتحاد",           route: "/student-union-join",    color: "#F59E0B" },
-    { icon: "people-outline",            label: "اللجان والأمانات",                  route: "/student-union-join",    color: "#22C55E" },
-    { icon: "trophy-outline",            label: "الأنشطة الطلابية والفعاليات",       route: "/student-union-join",    color: "#C46A3A" },
-    { icon: "shield-checkmark-outline",  label: "حقوق الطلاب والمناصرة",            route: "/student-union-join",    color: "#F97316" },
-  ];
-
-  const SU_COMMITTEES = [
-    { name: "الأمانة العامة",              icon: "star-outline" },
-    { name: "أمانة الإعلام والثقافة",      icon: "megaphone-outline" },
-    { name: "أمانة التدريب والتطوير",      icon: "school-outline" },
-    { name: "أمانة الشؤون الأكاديمية",    icon: "book-outline" },
-    { name: "أمانة الأنشطة والفعاليات",   icon: "calendar-outline" },
-    { name: "أمانة المرأة والأسرة",        icon: "flower-outline" },
-    { name: "أمانة الخدمات والرفاه",       icon: "heart-outline" },
-    { name: "أمانة العلاقات الخارجية",    icon: "earth-outline" },
-    { name: "أمانة الصحة والبيئة",         icon: "medkit-outline" },
-    { name: "أمانة المال والإدارة",        icon: "cash-outline" },
-  ];
-
-  return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-
-      {/* بطاقة الهوية */}
-      <Animated.View entering={FadeInDown.delay(80).springify()}>
-        <LinearGradient colors={[SU, "#173F5F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={stuStyles.heroBanner}>
-          <View style={stuStyles.heroOrb} />
-          <View style={stuStyles.heroOrb2} />
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 14 }}>
-            <View style={stuStyles.heroIcon}>
-              <Ionicons name="school" size={36} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={stuStyles.heroTitle}>اتحاد طلاب الحصاحيصا</Text>
-              <Text style={stuStyles.heroSub}>منظمة طلابية مستقلة تمثل وتخدم الطلاب</Text>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
-                <View style={stuStyles.activeBadge}>
-                  <View style={stuStyles.activeDot} />
-                  <Text style={stuStyles.activeText}>نشط</Text>
-                </View>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                  تأسس عام 2010
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* إحصائيات سريعة */}
-          <View style={stuStyles.statsRow}>
-            {[
-              { val: "1,200+", label: "طالب عضو" },
-              { val: "10",     label: "لجنة" },
-              { val: "50+",    label: "نشاط سنوي" },
-            ].map((s, i) => (
-              <View key={i} style={[stuStyles.statItem, i === 1 && stuStyles.statItemCenter]}>
-                <Text style={stuStyles.statVal}>{s.val}</Text>
-                <Text style={stuStyles.statLbl}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-        </LinearGradient>
-      </Animated.View>
-
-      {/* الخدمات والروابط */}
-      <Animated.View entering={FadeInDown.delay(140).springify()}>
-        <Text style={stuStyles.sectionTitle}>خدمات الاتحاد</Text>
-        <View style={stuStyles.featuresGrid}>
-          {SU_FEATURES.map((f, i) => (
-            <Animated.View key={i} entering={FadeInDown.delay(160 + i * 50).springify()} style={{ width: "48%" }}>
-              <TouchableOpacity
-                style={stuStyles.featureCard}
-                onPress={() => router.push(f.route as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[stuStyles.featureIcon, { backgroundColor: f.color + "20" }]}>
-                  <Ionicons name={f.icon as any} size={22} color={f.color} />
-                </View>
-                <Text style={stuStyles.featureLabel}>{f.label}</Text>
-                <View style={[stuStyles.featureArrow, { backgroundColor: f.color + "15" }]}>
-                  <Ionicons name="chevron-back" size={13} color={f.color} />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* زر الانضمام الكبير */}
-      <Animated.View entering={FadeInDown.delay(300).springify()}>
-        <TouchableOpacity onPress={() => router.push("/student-union-join" as any)} activeOpacity={0.85}>
-          <LinearGradient colors={[SU, "#173F5F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={stuStyles.joinBtn}>
-            <Ionicons name="person-add-outline" size={22} color="#fff" />
-            <View>
-              <Text style={stuStyles.joinBtnTitle}>انضم إلى الاتحاد الآن</Text>
-              <Text style={stuStyles.joinBtnSub}>سجّل اهتمامك وكن جزءاً من المسيرة الطلابية</Text>
-            </View>
-            <Ionicons name="arrow-back" size={18} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* اللجان والأمانات */}
-      <Animated.View entering={FadeInDown.delay(360).springify()}>
-        <Text style={stuStyles.sectionTitle}>اللجان والأمانات</Text>
-        <View style={stuStyles.committeesGrid}>
-          {SU_COMMITTEES.map((c, i) => (
-            <View key={i} style={stuStyles.committeeChip}>
-              <Ionicons name={c.icon as any} size={14} color={SU} />
-              <Text style={stuStyles.committeeText}>{c.name}</Text>
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* زر التواصل */}
-      <Animated.View entering={FadeInDown.delay(420).springify()}>
-        <TouchableOpacity
-          style={stuStyles.contactBtn}
-          onPress={() => router.push("/student-union-contact" as any)}
-          activeOpacity={0.85}
-        >
-          <View style={stuStyles.contactIcon}>
-            <Ionicons name="chatbubbles-outline" size={22} color="#2F8A8A" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={stuStyles.contactTitle}>تواصل مع مجلس الاتحاد</Text>
-            <Text style={stuStyles.contactSub}>اقتراحات · شكاوى · استفسارات</Text>
-          </View>
-          <Ionicons name="chevron-back" size={18} color="#2F8A8A" />
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* بوابة إدارة الاتحاد */}
-      <Animated.View entering={FadeInDown.delay(490).springify()}>
-        <TouchableOpacity
-          style={stuStyles.portalBtn}
-          onPress={() => router.push("/union-manager-portal" as any)}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={[SU, "#173F5F"]} style={stuStyles.portalGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <View style={stuStyles.portalIconWrap}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={stuStyles.portalTitle}>بوابة إدارة الاتحاد</Text>
-              <Text style={stuStyles.portalSub}>للمسؤولين المعتمدين فقط · دخول آمن</Text>
-            </View>
-            <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.7)" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-
-    </ScrollView>
-  );
-}
 
 function UnionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token } = useAuth();
-  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my" | "student">("unions");
+  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my">("unions");
 
   // Unions list
   const [unions, setUnions] = useState<Union[]>([]);
@@ -885,7 +725,6 @@ function UnionsScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44 }} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
           {[
             { key: "unions",   label: "النقابات",     icon: "business-outline",      activeColor: UC  },
-            { key: "student",  label: "الاتحاد",      icon: "school-outline",        activeColor: SU  },
             { key: "programs", label: "البرامج",       icon: "clipboard-outline",     activeColor: UC  },
             { key: "laws",     label: "القوانين",      icon: "document-lock-outline", activeColor: UC  },
             { key: "apply",    label: "انضم",          icon: "person-add-outline",    activeColor: UC  },
@@ -1104,7 +943,6 @@ function UnionsScreen() {
         )
       )}
 
-      {tab === "student" && <StudentUnionTab />}
       {tab === "apply" && <ApplicationForm />}
       {tab === "my" && <MyMemberships />}
 

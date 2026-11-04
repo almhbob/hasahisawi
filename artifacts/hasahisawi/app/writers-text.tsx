@@ -12,6 +12,8 @@ import UserAvatar from "@/components/UserAvatar";
 import { litApi, WINE, GOLD, INK, PAPER, fmtDate, type LitText } from "@/lib/lit";
 import { LitBody, DocBadge, TextStatus, TextCard, groupColor } from "@/components/lit/ui";
 import { ithraaStyles as u } from "@/components/ithraa/ui";
+import { AttachmentsCard, LayoutControls, RatioImage, emptyAttach, type AttachState } from "@/components/lit/editor";
+import { isLtrText, langMeta, type LitLayout } from "@/lib/lit-markup";
 
 const WEB = "https://hasahisawi.pages.dev";
 
@@ -25,6 +27,8 @@ export default function WritersText() {
   const [note, setNote] = useState("");
   const [appealNote, setAppealNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<"text" | "tr">("text");
+  const [editAtt, setEditAtt] = useState<{ a: AttachState; layout: LitLayout } | null>(null);
 
   const load = useCallback(async () => {
     try { setErr(""); setD(await litApi.text(Number(id), token)); } catch (e: any) { setErr(e?.message || "تعذّر التحميل"); }
@@ -53,6 +57,25 @@ export default function WritersText() {
     if (!token) return;
     try { const r = await litApi.appeal(token, t.id, appealNote.trim()); notify("أُرسل", r.message); load(); } catch (e: any) { notify("تعذّر", e?.message); }
   };
+  const startEdit = () => setEditAtt({
+    a: { ...emptyAttach(), translation: t.translation || "", lang: t.translation_lang || "en", by: t.translation_by || "", imageUrl: t.image_url || "", caption: t.image_caption || "" },
+    layout: t.layout || {},
+  });
+  const saveAtt = async () => {
+    if (!token || !editAtt) return;
+    const a = editAtt.a;
+    setBusy(true);
+    try {
+      const r = await litApi.updateAttachments(token, t.id, {
+        translation: a.translation.trim(), translation_lang: a.lang, translation_by: a.by.trim(),
+        image_url: a.imageUrl, image_caption: a.caption.trim(), layout: editAtt.layout,
+      });
+      setD({ ...d, text: { ...t, ...r.text, liked: t.liked } }); setEditAtt(null); notify("تم", r.message);
+    } catch (e: any) { notify("تعذّر الحفظ", e?.message); } finally { setBusy(false); }
+  };
+  const hasTr = !!t.translation;
+  const trLtr = hasTr && isLtrText(t.translation_lang, t.translation || "");
+  const trLabel = langMeta(t.translation_lang)?.label ?? "الترجمة";
   const withdraw = async () => {
     if (!token || !(await confirmAction("سحب النص", "سيُخفى النص من الديوان، ويبقى رقم توثيقه صالحاً للتحقق.", "سحب", true))) return;
     try { await litApi.withdraw(token, t.id); back(); } catch (e: any) { notify("تعذّر", e?.message); }
@@ -75,7 +98,32 @@ export default function WritersText() {
         {!!t.dedication && <Text style={st.ded}>{t.dedication}</Text>}
         <View style={st.ornament}><View style={st.line} /><Ionicons name="leaf" size={14} color={GOLD} /><View style={st.line} /></View>
 
-        <LitBody text={t} size={size} />
+        {!!t.image_url && (
+          <View style={{ marginBottom: 18 }}>
+            <RatioImage uri={t.image_url} label={t.image_caption || `صورة مرفقة بنص ${t.title}`} />
+            {!!t.image_caption && <Text style={st.cap}>{t.image_caption}</Text>}
+          </View>
+        )}
+
+        {hasTr && (
+          <View style={st.seg} accessibilityRole="tablist">
+            {([["text", "النص"], ["tr", `الترجمة (${trLabel})`]] as const).map(([k, l]) => (
+              <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} accessibilityLabel={l}
+                style={[st.segBtn, tab === k && st.segOn]}>
+                <Text style={[st.segT, tab === k && { color: "#fff" }]}>{l}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {hasTr && tab === "tr" ? (
+          <View>
+            <Text style={[st.tr, { fontSize: size - 1, lineHeight: (size - 1) * 1.8 }, trLtr ? { textAlign: "left", writingDirection: "ltr" } : { textAlign: "right", writingDirection: "rtl" }]}>{t.translation}</Text>
+            {!!t.translation_by && <Text style={st.trBy}>ترجمة: {t.translation_by}</Text>}
+          </View>
+        ) : (
+          <LitBody text={t} size={size} />
+        )}
 
         <View style={[st.ornament, { marginTop: 24 }]}><View style={st.line} /><Ionicons name="ellipse" size={6} color={GOLD} /><View style={st.line} /></View>
         <Pressable onPress={() => router.push({ pathname: "/profile", params: { id: String(t.author_id) } } as any)} style={[u.rowR, { gap: 10, justifyContent: "center" }]}>
@@ -134,6 +182,25 @@ export default function WritersText() {
           </View>
         )}
 
+        {d.is_owner && !["contest", "withdrawn"].includes(t.status) && (editAtt ? (
+          <View style={[u.card, { marginTop: 16, backgroundColor: "#FFFDF8" }]}>
+            <Text style={st.h}>مرفقات النص وتنسيق عرضه</Text>
+            <Text style={[u.hint, { marginTop: 2 }]}>متن النص موثّق ولا يتغيّر؛ يمكنك تعديل الترجمة والصورة وطريقة العرض.</Text>
+            <LayoutControls value={editAtt.layout} onChange={(layout) => setEditAtt({ ...editAtt, layout })} />
+            <AttachmentsCard token={token} value={editAtt.a} onChange={(a) => setEditAtt({ ...editAtt, a })} defaultBy={t.author_name} initiallyOpen />
+            <View style={[u.rowR, { gap: 8, marginTop: 12 }]}>
+              <Pressable onPress={saveAtt} disabled={busy} style={[u.primaryBtn, { flex: 1, backgroundColor: WINE, opacity: busy ? 0.7 : 1 }]} accessibilityRole="button">
+                {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="save-outline" size={18} color="#fff" />}<Text style={u.primaryText}>حفظ</Text>
+              </Pressable>
+              <Pressable onPress={() => setEditAtt(null)} style={[u.ghostBtn, { minHeight: 48, paddingHorizontal: 18 }]} accessibilityRole="button"><Text style={u.ghostText}>إلغاء</Text></Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable onPress={startEdit} style={[u.ghostBtn, { marginTop: 16, minHeight: 44, borderColor: WINE + "55" }]} accessibilityRole="button" accessibilityLabel="تعديل مرفقات النص وتنسيقه">
+            <Ionicons name="attach" size={16} color={WINE} /><Text style={[u.ghostText, { color: WINE }]}>{t.image_url || hasTr ? "تعديل المرفقات والتنسيق" : "إضافة ترجمة أو صورة"}</Text>
+          </Pressable>
+        ))}
+
         {d.is_owner && !["contest", "withdrawn"].includes(t.status) && (
           <Pressable onPress={withdraw} style={[u.ghostBtn, { marginTop: 14, borderColor: "#C0392B55" }]}>
             <Ionicons name="archive-outline" size={16} color="#C0392B" /><Text style={[u.ghostText, { color: "#C0392B" }]}>سحب النص من الديوان</Text>
@@ -166,6 +233,13 @@ const st = StyleSheet.create({
   barBtn: { minWidth: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   barTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   aa: { fontFamily: "Cairo_700Bold", fontSize: 14, color: INK },
+  cap: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: "#6B5B4B", textAlign: "center", marginTop: 6, fontStyle: "italic" },
+  seg: { flexDirection: "row-reverse", alignSelf: "center", backgroundColor: "#F1E8D8", borderRadius: 14, padding: 3, marginBottom: 16, gap: 3 },
+  segBtn: { minHeight: 40, paddingHorizontal: 16, borderRadius: 11, justifyContent: "center" },
+  segOn: { backgroundColor: WINE },
+  segT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: INK },
+  tr: { fontFamily: "Cairo_400Regular", color: INK },
+  trBy: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: WINE, textAlign: "center", marginTop: 14 },
   feat: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: GOLD, textAlign: "center" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 26, color: INK, textAlign: "center", lineHeight: 40 },
   ded: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#8A7A6A", textAlign: "center", fontStyle: "italic", marginTop: 2 },

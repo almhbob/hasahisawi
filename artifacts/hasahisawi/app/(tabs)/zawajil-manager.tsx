@@ -17,8 +17,8 @@ import { notify, confirmAction } from "@/lib/xplatform";
 import { uploadFile } from "@/lib/firebase/storage";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
-const PINK = "#D6367A";
-const GRAD = ["#7A1E4B", "#B8336A", "#D6367A"] as const;
+const PINK = "#8E2F55";
+const GRAD = ["#4A1A2E", "#6E2643", "#8E2F55"] as const;
 
 const STATUS: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   pending_review:         { label: "بانتظار المراجعة", color: "#D97706", icon: "time-outline" },
@@ -228,7 +228,7 @@ function OrdersTab({ call, onChange }: { call: Call; onChange: () => void }) {
     <>
       <RtlScrollRow contentContainerStyle={st.filters}>
         {FILTERS.map((f) => {
-          const on = filter === f; const c = f === "all" ? PINK : STATUS[f].color;
+          const on = filter === f; const c = PINK; // الفلتر النشط بلون زواجل الموحّد؛ ألوان الحالات تبقى في شارات الطلبات
           return (
             <TouchableOpacity key={f} onPress={() => setFilter(f)} style={[st.chip, on && { backgroundColor: c, borderColor: c }]}>
               <Text style={[st.chipTxt, on && { color: "#fff" }]}>{f === "all" ? "الكل" : STATUS[f].label}</Text>
@@ -566,7 +566,7 @@ const st = StyleSheet.create({
   tab: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 4, height: 40, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
   tabOn: { backgroundColor: PINK, borderColor: PINK },
   tabTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
-  badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#B45309", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   badgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#fff" },
   filters: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 12, paddingTop: 12 },
   chip: { paddingHorizontal: 13, height: 34, borderRadius: 17, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.cardBg, justifyContent: "center" },

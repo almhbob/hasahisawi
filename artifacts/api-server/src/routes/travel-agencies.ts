@@ -40,6 +40,25 @@ async function getSessionAdmin(req: Request): Promise<boolean> {
   return rows[0]?.role === "admin";
 }
 
+async function sessionUserId(req: Request): Promise<number | null> {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return null;
+  const { rows } = await q(`SELECT s.user_id FROM user_sessions s WHERE s.token=$1 AND (s.expires_at IS NULL OR s.expires_at > NOW()) LIMIT 1`, [auth.slice(7)]).catch(() => ({ rows: [] as any[] }));
+  return rows[0]?.user_id ? Number(rows[0].user_id) : null;
+}
+
+/** صاحب الوكالة عند الاعتماد: مقدّم الطلب المسجّل، وإلا رقم هاتف مطابق لحساب واحد فقط */
+async function resolveAgencyOwner(app: Record<string, any>): Promise<number | null> {
+  if (app.applicant_user_id) return Number(app.applicant_user_id);
+  for (const p of [app.phone, app.whatsapp]) {
+    const d = String(p ?? "").replace(/\D/g, "").slice(-9);
+    if (d.length < 9) continue;
+    const u = await q(`SELECT id FROM users WHERE right(regexp_replace(COALESCE(phone,''),'\\D','','g'),9)=$1 ORDER BY id LIMIT 2`, [d]);
+    if (u.rows.length === 1) return Number(u.rows[0].id);
+  }
+  return null;
+}
+
 async function isAdmin(req: Request) {
   if (await getSessionAdmin(req).catch(() => false)) return true;
   return pinMatches(req.headers["x-admin-pin"]);
@@ -151,6 +170,62 @@ export function initTravelAgenciesDb(): Promise<void> {
         CHECK (status IN ('pending','approved','rejected','needs_info'));
     END IF;
   END $$`);
+  // ── ربط الوكالة بأصحابها وفريقها + عروض الوكالات وطلبات العملاء ──
+  await q(`ALTER TABLE travel_agency_applications ADD COLUMN IF NOT EXISTS applicant_user_id INT`);
+  await q(`ALTER TABLE travel_agencies ADD COLUMN IF NOT EXISTS cover_url TEXT`);
+  await q(`ALTER TABLE travel_agencies ADD COLUMN IF NOT EXISTS address TEXT`);
+  await q(`CREATE TABLE IF NOT EXISTS travel_agency_staff (
+    agency_id INT NOT NULL REFERENCES travel_agencies(id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'agent' CHECK (role IN ('owner','manager','agent')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (agency_id, user_id)
+  )`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_travel_agency_staff_user ON travel_agency_staff(user_id)`);
+  await q(`CREATE TABLE IF NOT EXISTS travel_agency_offers (
+    id SERIAL PRIMARY KEY,
+    agency_id INT NOT NULL REFERENCES travel_agencies(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('flight','bus','umrah','hajj','tour','hotel','visa','package')),
+    title TEXT NOT NULL,
+    from_city TEXT,
+    destination TEXT,
+    country TEXT,
+    depart_date DATE,
+    return_date DATE,
+    duration_days INT,
+    price NUMERIC(14,2),
+    currency TEXT NOT NULL DEFAULT 'SDG',
+    price_note TEXT,
+    seats INT,
+    seats_left INT,
+    includes TEXT[] NOT NULL DEFAULT '{}',
+    images TEXT[] NOT NULL DEFAULT '{}',
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','expired')),
+    is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+    created_by INT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_travel_offers_feed ON travel_agency_offers(status, kind, depart_date)`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_travel_offers_agency ON travel_agency_offers(agency_id, created_at DESC)`);
+  await q(`CREATE TABLE IF NOT EXISTS travel_offer_requests (
+    id SERIAL PRIMARY KEY,
+    offer_id INT NOT NULL REFERENCES travel_agency_offers(id) ON DELETE CASCADE,
+    agency_id INT NOT NULL REFERENCES travel_agencies(id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    travellers INT NOT NULL DEFAULT 1,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','contacted','confirmed','cancelled')),
+    agency_note TEXT,
+    seats_held INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_travel_offer_requests_agency ON travel_offer_requests(agency_id, status, created_at DESC)`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_travel_offer_requests_user ON travel_offer_requests(user_id, created_at DESC)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agencies_active_type ON travel_agencies(active, agency_type)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agency_applications_status ON travel_agency_applications(status, created_at DESC)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_travel_agency_applications_email_pending ON travel_agency_applications(LOWER(email), status) WHERE email IS NOT NULL`);
@@ -168,8 +243,10 @@ router.get("/travel-agencies", async (_req, res) => {
     await initTravelAgenciesDb();
     const { rows } = await q(`SELECT id, name, name_en, agency_type, specialties, destinations,
       services_offered, booking_products, description, logo_url, website, phone, whatsapp, email,
-      city, country, license_number, founded_year, is_featured, settings
-      FROM travel_agencies WHERE active = TRUE ORDER BY is_featured DESC, created_at DESC`);
+      city, country, license_number, founded_year, is_featured, settings, cover_url, address,
+      (SELECT COUNT(*)::int FROM travel_agency_offers o WHERE o.agency_id=travel_agencies.id AND o.status='active'
+         AND (o.depart_date IS NULL OR o.depart_date >= CURRENT_DATE)) AS offers_count
+      FROM travel_agencies WHERE active = TRUE ORDER BY is_featured DESC, offers_count DESC, created_at DESC`);
     res.json({ agencies: rows });
   } catch (err) {
     logger.error({ err }, "list travel agencies failed");
@@ -219,14 +296,14 @@ router.post("/travel-agencies/apply", heavyWriteLimiter, async (req, res) => {
     const { rows } = await q(`INSERT INTO travel_agency_applications
       (agency_name, agency_name_en, agency_type, contact_name, contact_role, phone, whatsapp, email,
        city, country, license_number, founded_year, website, specialties, destinations, services_offered,
-       booking_products, target_routes, description, workspace_settings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19,$20::jsonb)
+       booking_products, target_routes, description, workspace_settings, applicant_user_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19,$20::jsonb,$21)
       RETURNING id, status, created_at`, [
         agencyName, str(b.agency_name_en, 160), agencyType, contactName,
         str(b.contact_role, 100), phone, whatsapp, normalized(email), str(b.city, 100), str(b.country, 100) || "السودان",
         str(b.license_number, 100), b.founded_year ? Number(b.founded_year) : null, website,
         JSON.stringify(arr(b.specialties)), JSON.stringify(arr(b.destinations)), JSON.stringify(arr(b.services_offered)), JSON.stringify(bookingProducts), str(b.target_routes, 800),
-        str(b.description, 1600), JSON.stringify(workspaceSettings),
+        str(b.description, 1600), JSON.stringify(workspaceSettings), await sessionUserId(req),
       ]);
     // ربط الطلب برابط الدعوة إن وُجد، حتى تظهر الدعوة "مُستخدمة" في لوحة الإدارة.
     const inviteToken = str(b.invite_token, 64);
@@ -279,7 +356,17 @@ router.post("/admin/travel-agencies/applications/:id/approve", async (req, res) 
       app.services_offered, app.booking_products, app.description, app.website, app.phone, app.whatsapp,
       app.email, app.city, app.country, app.license_number, app.founded_year, app.workspace_settings]);
   await q(`UPDATE travel_agency_applications SET status='approved', reviewed_at=NOW(), created_agency_id=$1 WHERE id=$2`, [inserted.rows[0].id, id]);
-  return res.json({ agency: inserted.rows[0], message: "تم اعتماد الوكالة وإنشاء مساحتها" });
+  // صاحب الوكالة يحصل على لوحة إدارتها (العروض والطلبات والفريق)
+  const forced = Number(req.body?.owner_user_id);
+  const ownerId = Number.isInteger(forced) && forced > 0 ? forced : await resolveAgencyOwner(app).catch(() => null);
+  if (ownerId) {
+    await q(`INSERT INTO travel_agency_staff (agency_id, user_id, role) VALUES ($1,$2,'owner') ON CONFLICT (agency_id, user_id) DO UPDATE SET role='owner'`, [inserted.rows[0].id, ownerId])
+      .catch((err) => logger.warn({ err }, "travel agency owner link failed"));
+    await q(`INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'travel_agency_approved',$2,$3,$4)`,
+      [ownerId, "تم اعتماد وكالتك", `«${app.agency_name}» أصبحت معتمدة — افتح لوحة الوكالة لنشر العروض`, JSON.stringify({ screen: "travel-agency-portal", agency_id: inserted.rows[0].id })])
+      .catch(() => {});
+  }
+  return res.json({ agency: inserted.rows[0], owner_user_id: ownerId, message: ownerId ? "تم اعتماد الوكالة وإنشاء مساحتها وربطها بصاحبها" : "تم اعتماد الوكالة — لم يُعثر على حساب صاحبها، اربطه من إدارة الوكالات" });
 });
 
 export default router;
