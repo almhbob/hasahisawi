@@ -12,7 +12,10 @@ import AnimatedPress from "@/components/AnimatedPress";
 import ModernHeader from "@/components/ui/ModernHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CVFrame from "@/components/CVFrame";
-import { CV_TEMPLATES, SAMPLE_CV, buildCVHtml, type CVData, type CVTemplateMeta } from "@/lib/cv-templates";
+import { CV_TEMPLATES, SAMPLE_CV, buildCVHtml, defaultTheme, cvLevelKey, type CVData, type CVTemplateId } from "@/lib/cv-templates";
+import { sanitizeTheme, type CVTheme } from "@/lib/cv-theme";
+import { useCvCatalog, trackCvEvent, type CatalogItem } from "@/lib/cv-catalog";
+import CVColorPanel from "@/components/cv/CVColorPanel";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { useAuth } from "@/lib/auth-context";
 import { profileApi } from "@/lib/profile-api";
@@ -51,6 +54,15 @@ const SUMMARY_HINTS = [
 
 const { width } = Dimensions.get("window");
 
+type Filter = "all" | "free" | "premium" | "photo" | "nophoto" | "ats";
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "الكل" }, { id: "free", label: "مجاني" }, { id: "premium", label: "مميز" },
+  { id: "photo", label: "بصورة" }, { id: "nophoto", label: "بدون صورة" }, { id: "ats", label: "ATS" },
+];
+const matchFilter = (t: CatalogItem, f: Filter) =>
+  f === "all" || (f === "free" && t.tier === "free") || (f === "premium" && t.tier === "premium") ||
+  (f === "photo" && t.photo) || (f === "nophoto" && !t.photo) || (f === "ats" && !!t.ats);
+
 function InputField({ label, value, onChangeText, placeholder, multiline = false, keyboardType = "default" }: {
   label: string; value: string; onChangeText: (v: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: any;
 }) {
@@ -72,8 +84,13 @@ function InputField({ label, value, onChangeText, placeholder, multiline = false
 
 export default function CVBuilderScreen() {
   const [step, setStep] = useState(0);
-  const [tmpl, setTmpl] = useState<CVTemplateMeta>(CV_TEMPLATES[0]);
-  const [color, setColor] = useState(CV_TEMPLATES[0].colors[0]);
+  const catalog = useCvCatalog();
+  const [tmplId, setTmplId] = useState<CVTemplateId>(CV_TEMPLATES[0].id);
+  const tmpl: CatalogItem = catalog.list.find((x) => x.id === tmplId)
+    || { ...(CV_TEMPLATES.find((x) => x.id === tmplId) || CV_TEMPLATES[0]), badge: null };
+  const [theme, setTheme] = useState<CVTheme>(defaultTheme(CV_TEMPLATES[0].id));
+  const [filter, setFilter] = useState<Filter>("all");
+  const selectedSent = useRef<Set<string>>(new Set());
   const [cv, setCv] = useState<CVData>({ ...EMPTY_CV });
   const [loading, setLoading] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -112,6 +129,7 @@ export default function CVBuilderScreen() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || "تعذّر إرسال الطلب");
       Alert.alert("تم", d.message || "أُرسل طلبك للإدارة");
+      trackCvEvent(templateId as CVTemplateId, "request", token);
       loadPremium();
     } catch (e: any) { Alert.alert("خطأ", e?.message || "تعذّر إرسال الطلب"); }
     finally { setPremBusy(false); }
@@ -156,7 +174,12 @@ export default function CVBuilderScreen() {
           const d = JSON.parse(raw);
           if (d?.cv) setCv({ ...EMPTY_CV, ...d.cv });
           const t = CV_TEMPLATES.find((x) => x.id === d?.template);
-          if (t) { setTmpl(t); setColor(d?.color || t.colors[0]); }
+          if (t) {
+            setTmplId(t.id);
+            const base = defaultTheme(t.id);
+            // مسودات قديمة كانت تحفظ لوناً واحداً فقط
+            setTheme(d?.theme ? sanitizeTheme(d.theme, base) : d?.color ? sanitizeTheme({ ...base, primary: d.color, side: d.color }, base) : base);
+          }
         }
       } catch {}
       setRestored(true);
@@ -172,14 +195,25 @@ export default function CVBuilderScreen() {
   // حفظ تلقائي
   useEffect(() => {
     if (!restored) return;
-    const t = setTimeout(() => { AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ cv, template: tmpl.id, color })).catch(() => {}); }, 600);
+    const t = setTimeout(() => { AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ cv, template: tmplId, theme })).catch(() => {}); }, 600);
     return () => clearTimeout(t);
-  }, [cv, tmpl, color, restored]);
+  }, [cv, tmplId, theme, restored]);
+  // قالب أخفته الإدارة: ننتقل لأول قالب ظاهر
+  useEffect(() => {
+    if (catalog.fromServer && catalog.list.length && !catalog.list.some((x) => x.id === tmplId)) chooseTemplate(catalog.list[0], false);
+  }, [catalog.fromServer, catalog.list]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasData = !!(cv.name.trim() || cv.title.trim() || cv.experience.some((x) => x.position));
-  const locked = !!tmpl.premium && !isAdminUser && !unlocked.includes(tmpl.id);
+  const locked = tmpl.tier === "premium" && !isAdminUser && !unlocked.includes(tmpl.id) && !unlocked.includes("all");
   const myPremReq = premReqs.find((r) => r.template_id === tmpl.id || r.template_id === "all");
-  const previewHtml = useMemo(() => buildCVHtml(hasData ? cv : { ...SAMPLE_CV, showPhoto: tmpl.photo }, tmpl.id, color, undefined, { watermark: locked }), [cv, tmpl, color, hasData, locked]);
+  const previewHtml = useMemo(() => buildCVHtml(hasData ? cv : { ...SAMPLE_CV, showPhoto: tmpl.photo }, tmpl.id, theme, undefined, { watermark: locked }), [cv, tmpl.id, tmpl.photo, theme, hasData, locked]);
+  const shown = useMemo(() => catalog.list.filter((t) => matchFilter(t, filter)), [catalog.list, filter]);
+  const thumbW = Math.floor((previewW - 12) / 2);
+  const thumbs = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const t of shown) m[t.id] = buildCVHtml({ ...SAMPLE_CV, showPhoto: t.photo }, t.id, null);
+    return m;
+  }, [shown]);
 
   function updateCv(field: keyof CVData, value: any) { setCv(prev => ({ ...prev, [field]: value })); }
   function updateEducation(index: number, field: keyof EducationItem, value: string) { const arr = [...cv.education]; arr[index] = { ...arr[index], [field]: value }; updateCv("education", arr); }
@@ -189,7 +223,14 @@ export default function CVBuilderScreen() {
   function removeAt<K extends "experience" | "education" | "skills" | "languages" | "courses">(field: K, i: number) {
     const arr = [...(cv[field] as any[])]; arr.splice(i, 1); updateCv(field, arr.length ? arr : (field === "experience" ? [{ position: "", company: "", period: "", desc: "" }] : field === "education" ? [{ degree: "", institution: "", year: "" }] : [""]));
   }
-  function chooseTemplate(t: CVTemplateMeta) { setTmpl(t); setColor(t.colors[0]); }
+  function chooseTemplate(t: CatalogItem, track = true) {
+    setTmplId(t.id); setTheme(defaultTheme(t.id));
+    if (track) trackCvEvent(t.id, "preview", token);
+  }
+  function setLevel(field: "skillLevels" | "langLevels", item: string, lv: number) {
+    const k = cvLevelKey(item); if (!k) return;
+    setCv((prev) => ({ ...prev, [field]: { ...(prev[field] || {}), [k]: lv } }));
+  }
 
   async function pickCvPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -218,7 +259,8 @@ export default function CVBuilderScreen() {
     }
     setLoading(true);
     try {
-      const html = buildCVHtml(cv, tmpl.id, color, await photoDataUri());
+      const html = buildCVHtml(cv, tmpl.id, theme, await photoDataUri());
+      trackCvEvent(tmpl.id, "export", token);
       if (Platform.OS === "web") {
         const w = window.open("", "_blank");
         if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 800); }
@@ -242,7 +284,12 @@ export default function CVBuilderScreen() {
     Alert.alert("بدء سيرة جديدة", "سيتم مسح كل البيانات المكتوبة.", [{ text: "إلغاء", style: "cancel" }, { text: "مسح", style: "destructive", onPress: go }]);
   }
 
-  function nextStep() { if (step < STEPS.length - 1) { setStep(x => x + 1); scrollRef.current?.scrollTo({ y: 0, animated: true }); } }
+  function goStep(n: number) {
+    // «اختيار» القالب: حين يغادر المستخدم شاشة النماذج به (مرة لكل قالب في الجلسة)
+    if (step === 0 && n > 0 && !selectedSent.current.has(tmpl.id)) { selectedSent.current.add(tmpl.id); trackCvEvent(tmpl.id, "select", token); }
+    setStep(n); scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }
+  function nextStep() { if (step < STEPS.length - 1) goStep(step + 1); }
   function prevStep() { if (step > 0) { setStep(x => x - 1); scrollRef.current?.scrollTo({ y: 0, animated: true }); } }
 
   return (
@@ -250,7 +297,7 @@ export default function CVBuilderScreen() {
       <Animated.View entering={FadeInDown.duration(350)}>
         <ModernHeader
           title="السيرة الذاتية"
-          subtitle={`${CV_TEMPLATES.length} نماذج عصرية · منها مميزة · PDF مطابق للمعاينة`}
+          subtitle={`${catalog.list.length} نموذجاً عصرياً · ألوان قابلة للتخصيص · PDF مطابق للمعاينة`}
           showBack
           onBack={() => router.back()}
           rightSlot={
@@ -262,37 +309,55 @@ export default function CVBuilderScreen() {
         />
       </Animated.View>
 
-      <View style={s.stepsBar}>{STEPS.map((st, i) => <TouchableOpacity key={st.id} onPress={() => setStep(i)} style={s.stepItem}><View style={[s.stepCircle, step === i && { backgroundColor: Colors.primary, borderColor: Colors.primary }, i < step && { borderColor: Colors.primary }]}><Ionicons name={i < step ? "checkmark" : st.icon} size={14} color={step === i ? "#fff" : i < step ? Colors.primary : Colors.textMuted} /></View><Text style={[s.stepLabel, step === i && { color: Colors.primary }]}>{st.label}</Text></TouchableOpacity>)}</View>
+      <View style={s.stepsBar}>{STEPS.map((st, i) => <TouchableOpacity key={st.id} onPress={() => goStep(i)} style={s.stepItem} accessibilityRole="button" accessibilityLabel={`الخطوة: ${st.label}`}><View style={[s.stepCircle, step === i && { backgroundColor: Colors.primary, borderColor: Colors.primary }, i < step && { borderColor: Colors.primary }]}><Ionicons name={i < step ? "checkmark" : st.icon} size={14} color={step === i ? "#fff" : i < step ? Colors.primary : Colors.textMuted} /></View><Text style={[s.stepLabel, step === i && { color: Colors.primary }]}>{st.label}</Text></TouchableOpacity>)}</View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
           {step === 0 && <Animated.View entering={FadeInDown.delay(60).springify()}>
             <Text style={s.sectionTitle}>اختر النموذج</Text>
             <RtlScrollRow contentContainerStyle={s.tmplRow}>
-              {CV_TEMPLATES.map((t) => {
-                const on = t.id === tmpl.id;
+              {FILTERS.map((f) => {
+                const on = f.id === filter; const n = catalog.list.filter((t) => matchFilter(t, f.id)).length;
                 return (
-                  <TouchableOpacity key={t.id} onPress={() => chooseTemplate(t)} style={[s.tmplChip, on && { borderColor: t.colors[0], backgroundColor: t.colors[0] }]}>
-                    <Text style={[s.tmplChipTxt, on && { color: "#fff" }]}>{t.name}</Text>
-                    {t.premium ? (
-                      <View style={[s.premBadge, on && { backgroundColor: "rgba(255,255,255,0.25)" }]}>
-                        <Ionicons name={isAdminUser || unlocked.includes(t.id) ? "star" : "lock-closed"} size={9} color={on ? "#fff" : "#9A6B00"} />
-                        <Text style={[s.premBadgeTxt, on && { color: "#fff" }]}>مميز</Text>
-                      </View>
-                    ) : null}
+                  <TouchableOpacity key={f.id} onPress={() => setFilter(f.id)} style={[s.filterChip, on && s.filterChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                    <Text style={[s.filterTxt, on && { color: "#fff" }]}>{f.label} <Text style={{ fontSize: 12 }}>({n})</Text></Text>
                   </TouchableOpacity>
                 );
               })}
             </RtlScrollRow>
+            <View style={s.gallery}>
+              {shown.map((t) => {
+                const on = t.id === tmpl.id; const open = isAdminUser || unlocked.includes(t.id) || unlocked.includes("all");
+                return (
+                  <TouchableOpacity key={t.id} onPress={() => chooseTemplate(t)} style={[s.thumbCard, { width: thumbW }, on && s.thumbOn]} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`نموذج ${t.name}${t.tier === "premium" ? "، مميز" : "، مجاني"}`}>
+                    <View pointerEvents="none"><CVFrame html={thumbs[t.id] || ""} width={thumbW - 12} /></View>
+                    <View style={s.thumbBadges}>
+                      {t.badge ? <View style={s.newBadge}><Text style={s.newBadgeTxt}>{t.badge}</Text></View> : null}
+                    </View>
+                    <View style={s.thumbFoot}>
+                      <Text style={s.thumbName} numberOfLines={1}>{t.name}</Text>
+                      {t.tier === "premium" ? (
+                        <View style={s.premBadge}>
+                          <Ionicons name={open ? "star" : "lock-closed"} size={10} color="#7A5400" />
+                          <Text style={s.premBadgeTxt}>{catalog.pricing && t.price ? `${t.price} ج.س` : "مميز"}</Text>
+                        </View>
+                      ) : <View style={s.freeTag}><Text style={s.freeTagTxt}>مجاني</Text></View>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {!shown.length ? <Text style={[s.helperText, { textAlign: "center", flex: 1 }]}>لا توجد نماذج بهذا التصنيف حالياً</Text> : null}
+            </View>
+            <Text style={[s.helperText, { textAlign: "center" }]}>الصور المصغّرة ببيانات مثال توضيحية فقط</Text>
             <View style={s.tmplInfo}>
               <Text style={s.tmplName}>{tmpl.name} <Text style={s.tmplDesc}>— {tmpl.desc}</Text></Text>
               <Text style={s.tmplBest}>مناسب لـ: {tmpl.bestFor}</Text>
             </View>
-            {tmpl.premium ? (
+            {tmpl.tier === "premium" ? (
               <View style={s.premCard}>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
                   <Ionicons name={locked ? "lock-closed" : "star"} size={18} color="#9A6B00" />
-                  <Text style={s.premTitle}>{locked ? "قالب مميز" : "قالب مميز — مفتوح لك"}{pricingVisible ? " · مدفوع" : ""}</Text>
+                  <Text style={s.premTitle}>{locked ? "قالب مميز" : "قالب مميز — مفتوح لك"}{pricingVisible ? (tmpl.price ? ` · ${tmpl.price} ج.س` : " · مدفوع") : ""}</Text>
                 </View>
                 <Text style={s.premTxt}>
                   {!locked ? "يمكنك تحميل سيرتك بهذا القالب بلا علامة معاينة."
@@ -324,11 +389,13 @@ export default function CVBuilderScreen() {
                 ))}
               </View>
             ) : null}
-            <View style={s.colorRow}>
-              <Text style={s.fieldLabel}>اللون:</Text>
-              {tmpl.colors.map(c => <TouchableOpacity key={c} onPress={() => setColor(c)} accessibilityLabel={`لون ${c}`} style={[s.colorDot, { backgroundColor: c }, color === c && s.colorDotOn]} />)}
-            </View>
-            <View style={{ alignItems: "center" }}><CVFrame html={previewHtml} width={previewW} /></View>
+            {isAdminUser ? (
+              <TouchableOpacity onPress={() => router.push("/cv-templates-admin" as any)} style={[s.addLine, { marginTop: 10 }]} accessibilityRole="button">
+                <Ionicons name="settings-outline" size={16} color={Colors.primary} /><Text style={s.addLineText}>إدارة القوالب والإحصائيات</Text>
+              </TouchableOpacity>
+            ) : null}
+            <View style={{ alignItems: "center", marginTop: 12 }}><CVFrame html={previewHtml} width={previewW} /></View>
+            <CVColorPanel theme={theme} defaults={defaultTheme(tmpl.id)} roles={tmpl.roles} onChange={setTheme} />
             {!hasData ? <Text style={[s.helperText, { textAlign: "center", marginTop: 8 }]}>المعاينة ببيانات مثال — ستظهر بياناتك فور كتابتها</Text> : null}
             {fillMsg && hasData ? <Text style={[s.helperText, { textAlign: "center", marginTop: 8, color: Colors.primary }]}>{fillMsg}</Text> : null}
           </Animated.View>}
@@ -364,7 +431,7 @@ export default function CVBuilderScreen() {
             {tmpl.photo ? (<>
               <View style={s.photoBox}><View style={{ flex: 1 }}><Text style={s.fieldLabel}>الصورة الشخصية</Text><Text style={s.helperText}>اختيارية — نموذج «{tmpl.name}» يعرضها</Text></View><Switch value={cv.showPhoto} onValueChange={v => updateCv("showPhoto", v)} /></View>
               {cv.showPhoto ? <View style={s.photoActions}>{cv.photoUri ? <Image source={{ uri: cv.photoUri }} style={s.cvPhotoPreview} /> : <View style={s.cvPhotoPlaceholder}><Ionicons name="person" size={26} color={Colors.textMuted} /></View>}<TouchableOpacity onPress={pickCvPhoto} style={s.photoBtn}><Ionicons name="image-outline" size={18} color="#fff"/><Text style={s.photoBtnText}>اختيار الصورة</Text></TouchableOpacity></View> : null}
-            </>) : <Text style={s.helperText}>نموذج «{tmpl.name}» بدون صورة — اختر الشريط أو البطاقات أو الجريء لإضافة صورة.</Text>}
+            </>) : <Text style={s.helperText}>نموذج «{tmpl.name}» بدون صورة — استخدم مرشّح «بصورة» في شاشة النماذج لاختيار قالب يعرض الصورة.</Text>}
           </Animated.View>}
 
           {step === 2 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 12 }}>
@@ -382,15 +449,16 @@ export default function CVBuilderScreen() {
           </Animated.View>}
 
           {step === 3 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 12 }}>
-            <ListEditor title="المهارات" field="skills" items={cv.skills} update={updateListItem} add={addListItem} remove={(i) => removeAt("skills", i)} />
-            <ListEditor title="اللغات" field="languages" items={cv.languages} update={updateListItem} add={addListItem} remove={(i) => removeAt("languages", i)} />
+            <ListEditor title="المهارات" field="skills" items={cv.skills} update={updateListItem} add={addListItem} remove={(i) => removeAt("skills", i)} levels={cv.skillLevels} onLevel={(item, lv) => setLevel("skillLevels", item, lv)} />
+            <ListEditor title="اللغات" field="languages" items={cv.languages} update={updateListItem} add={addListItem} remove={(i) => removeAt("languages", i)} levels={cv.langLevels} onLevel={(item, lv) => setLevel("langLevels", item, lv)} />
             <ListEditor title="الدورات والشهادات" field="courses" items={cv.courses} update={updateListItem} add={addListItem} remove={(i) => removeAt("courses", i)} />
           </Animated.View>}
 
           {step === 4 && <Animated.View entering={FadeInDown.delay(70).springify()} style={{ gap: 12, alignItems: "center" }}>
             <Text style={[s.sectionTitle, { alignSelf: "stretch" }]}>المعاينة النهائية — نموذج {tmpl.name}</Text>
             <CVFrame html={previewHtml} width={previewW} />
-            <TouchableOpacity onPress={() => setStep(0)} style={s.addLine}><Ionicons name="albums-outline" size={16} color={Colors.primary} /><Text style={s.addLineText}>تغيير النموذج أو اللون</Text></TouchableOpacity>
+            <CVColorPanel theme={theme} defaults={defaultTheme(tmpl.id)} roles={tmpl.roles} onChange={setTheme} />
+            <TouchableOpacity onPress={() => goStep(0)} style={s.addLine}><Ionicons name="albums-outline" size={16} color={Colors.primary} /><Text style={s.addLineText}>تغيير النموذج</Text></TouchableOpacity>
             <View style={s.brandNote}><Text style={s.brandNoteText}>يُحفظ عملك تلقائياً على جهازك — يمكنك الخروج والعودة لاحقاً</Text></View>
           </Animated.View>}
         </ScrollView>
@@ -401,8 +469,21 @@ export default function CVBuilderScreen() {
   );
 }
 
-function ListEditor({ title, field, items, update, add, remove }: { title: string; field: "skills" | "languages" | "courses"; items: string[]; update: (field: any, index: number, value: string) => void; add: (field: any) => void; remove: (i: number) => void }) {
-  return <View style={s.groupCard}><Text style={s.subTitle}>{title}</Text>{items.map((item, i) => <View key={i} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}><View style={{ flex: 1 }}><InputField label={`${title} ${i + 1}`} value={item} onChangeText={v => update(field, i, v)} /></View>{items.length > 1 ? <TouchableOpacity onPress={() => remove(i)} accessibilityLabel="حذف" style={{ paddingTop: 14 }}><Ionicons name="close-circle" size={20} color={Colors.textMuted} /></TouchableOpacity> : null}</View>)}<TouchableOpacity onPress={() => add(field)} style={s.addLine}><Ionicons name="add" size={18} color={Colors.primary}/><Text style={s.addLineText}>إضافة</Text></TouchableOpacity></View>;
+const LEVEL_LABELS = ["مبتدئ", "مقبول", "جيد", "جيد جداً", "متقن"];
+function ListEditor({ title, field, items, update, add, remove, levels, onLevel }: { title: string; field: "skills" | "languages" | "courses"; items: string[]; update: (field: any, index: number, value: string) => void; add: (field: any) => void; remove: (i: number) => void; levels?: Record<string, number>; onLevel?: (item: string, lv: number) => void }) {
+  return <View style={s.groupCard}><Text style={s.subTitle}>{title}</Text>
+    {onLevel ? <Text style={s.helperText}>حدّد مستواك — يظهر كمؤشر في القوالب التي تعرض المستويات</Text> : null}
+    {items.map((item, i) => {
+      const lv = Number(levels?.[cvLevelKey(item)]) || 4;
+      return <View key={i}>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}><View style={{ flex: 1 }}><InputField label={`${title} ${i + 1}`} value={item} onChangeText={v => update(field, i, v)} /></View>{items.length > 1 ? <TouchableOpacity onPress={() => remove(i)} accessibilityLabel="حذف" hitSlop={10} style={{ paddingTop: 14 }}><Ionicons name="close-circle" size={22} color={Colors.textMuted} /></TouchableOpacity> : null}</View>
+        {onLevel && item.trim() ? <View style={s.levelRow}>
+          {[1, 2, 3, 4, 5].map((n) => <TouchableOpacity key={n} onPress={() => onLevel(item, n)} style={s.levelHit} accessibilityRole="button" accessibilityLabel={`المستوى ${LEVEL_LABELS[n - 1]}`} accessibilityState={{ selected: n === lv }}><View style={[s.levelDot, n <= lv && s.levelDotOn]} /></TouchableOpacity>)}
+          <Text style={s.levelTxt}>{LEVEL_LABELS[lv - 1]}</Text>
+        </View> : null}
+      </View>;
+    })}
+    <TouchableOpacity onPress={() => add(field)} style={s.addLine}><Ionicons name="add" size={18} color={Colors.primary}/><Text style={s.addLineText}>إضافة</Text></TouchableOpacity></View>;
 }
 
 const s = StyleSheet.create({
@@ -422,7 +503,24 @@ const s = StyleSheet.create({
   subTitle: { fontFamily: "Cairo_700Bold", color: Colors.primary, fontSize: 14, textAlign: "right", marginBottom: 6 },
   freeNotice: { flexDirection: "row-reverse", alignItems: "center", gap: 7, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#22C55E40", backgroundColor: "#22C55E18", padding: 10, marginBottom: 14 },
   freeNoticeText: { fontFamily: "Cairo_600SemiBold", color: "#22C55E", fontSize: 13, flex: 1, textAlign: "right" },
-  colorRow: { flexDirection: "row-reverse", flexWrap: "wrap", alignItems: "center", gap: 10, marginVertical: 12 },
+  filterChip: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.cardBg },
+  filterChipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
+  gallery: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 12, marginTop: 12, marginBottom: 6 },
+  thumbCard: { padding: 6, borderRadius: 16, borderWidth: 2, borderColor: Colors.borderSubtle || Colors.border, backgroundColor: Colors.cardBg, gap: 6, ...Colors.shadow.card },
+  thumbOn: { borderColor: Colors.primary, backgroundColor: Colors.primarySoft },
+  thumbBadges: { position: "absolute", top: 10, right: 10, gap: 4, alignItems: "flex-end" },
+  newBadge: { backgroundColor: "#B42318", borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 },
+  newBadgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
+  thumbFoot: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 4, paddingHorizontal: 2 },
+  thumbName: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  freeTag: { backgroundColor: Colors.primarySoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 },
+  freeTagTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.primaryDeep },
+  levelRow: { flexDirection: "row-reverse", alignItems: "center", gap: 0, marginTop: -4, marginBottom: 6 },
+  levelHit: { width: 36, height: 44, alignItems: "center", justifyContent: "center" },
+  levelDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: Colors.primary },
+  levelDotOn: { backgroundColor: Colors.primary },
+  levelTxt: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary, marginRight: 6 },
   tmplRow: { flexDirection: "row-reverse", gap: 8, paddingBottom: 4 },
   tmplChip: { flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.cardBg },
   tmplChipTxt: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },
@@ -438,7 +536,7 @@ const s = StyleSheet.create({
   colorDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
   colorDotOn: { borderWidth: 3, borderColor: Colors.accent, transform: [{ scale: 1.06 }] },
   premBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: "#F6E7B8", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, marginRight: 6 },
-  premBadgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#9A6B00" },
+  premBadgeTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#7A5400" },
   premCard: { marginTop: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: "#E9C46A", backgroundColor: "#FFF8E6", gap: 6 },
   premTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#7A5400", textAlign: "right" },
   premTxt: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },

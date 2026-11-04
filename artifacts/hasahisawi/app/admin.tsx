@@ -46,7 +46,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites";
+type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -4303,6 +4303,7 @@ export default function AdminDashboard() {
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#1F5C8A",      adminOnly: true, badge: adminMerchants.filter(m=>m.status==="pending").length || undefined },
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#1F5C8A",      adminOnly: true, badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
     { key: "section_invites",  label: "دعوات الأقسام",     icon: "mail-open",          color: "#0B6B49",      adminOnly: true },
+    { key: "cv_templates",     label: "قوالب السيرة",      icon: "document-text",      color: "#7A5400",      adminOnly: true },
     { key: "sections_config",  label: "أقسام التطبيق",     icon: "toggle",             color: "#10B981",      adminOnly: true },
     { key: "calls_diag",       label: "تشخيص المكالمات",   icon: "call",               color: "#0EA5E9",      adminOnly: true },
     { key: "legal_suggestions", label: "اقتراحات قانونية",  icon: "document-text",     color: "#1F5C8A",      adminOnly: true },
@@ -4508,6 +4509,7 @@ export default function AdminDashboard() {
                   if (t.key === "sections_config") { router.push("/admin-sections-config" as any); return; }
                   if (t.key === "calls_diag") { router.push("/admin-calls" as any); return; }
                   if (t.key === "section_invites") { router.push("/admin-invites" as any); return; }
+                  if (t.key === "cv_templates") { router.push("/cv-templates-admin" as any); return; }
                   setTab(t.key);
                 }}
                 activeOpacity={0.75}
