@@ -1,4 +1,5 @@
 import { useFeatureFlags } from "@/lib/feature-flags-context";
+const UNION_LOGO = require("@/assets/images/student-union-logo.png");
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,7 +37,7 @@ type Service = {
   sub: string;
   keywords?: string;
   icon: any;
-  iconType: "ionicons" | "material" | "srcs";
+  iconType: "ionicons" | "material" | "srcs" | "union";
   group: GroupKey;
   route: any;
   isNew?: boolean;
@@ -62,6 +63,7 @@ const SERVICES: Service[] = [
   { id: "ithraa", label: "إثراء — المكتبة الثقافية", short: "إثراء", sub: "كتب ومقالات وارفع مساهمتك", keywords: "اثراء مكتبة كتاب كتب مقال مقالات قراءة رواية ادب ثقافة pdf", icon: "library", iconType: "ionicons", group: "health", route: "/ithraa", isNew: true },
   { id: "writers", label: "ديوان الكُتّاب", short: "الديوان", sub: "قصة وشعر وخواطر موثّقة", keywords: "ديوان كاتب كتاب شعر قصيدة قصة خاطرة هايكو دوبيت مسدار مسابقة ادبية", icon: "create", iconType: "ionicons", group: "health", route: "/writers", isNew: true },
   { id: "student", label: "الطالب والمعلم", short: "التعليم", sub: "مدارس · مناهج · جداول · نقل", keywords: "مدرسة جامعة معهد تعليم طالب معلم منهج كتب جدول حصص نقل اتحاد الطلاب شهادة", icon: "school", iconType: "ionicons", group: "health", route: "/(tabs)/student" },
+  { id: "student-union", label: "اتحاد الطلاب", short: "اتحاد الطلاب", sub: "العضوية والبطاقة والأخبار", keywords: "اتحاد الطلاب طالب جامعة عضوية بطاقة انتساب مجلس الاتحاد العام للطلاب السودانيين", icon: "people", iconType: "union", group: "community", route: "/(tabs)/student?tab=union", isNew: true },
   // المجتمع
   { id: "press", label: "نافذة الصحافة", short: "الصحافة", sub: "بيانات النقابة ودليل الصحفيين", keywords: "صحافة صحفي نقابة الصحفيين بيان خبر عاجل مراسل اعلام ارشيف", icon: "newspaper", iconType: "ionicons", group: "community", route: "/press", isNew: true },
   { id: "contractors", label: "شركات المقاولات", short: "المقاولات", sub: "مشاريع، عروض أسعار، عقود، عمال", keywords: "مقاول مقاولات بناء تشطيب سباكة كهرباء عمال عرض سعر عقد", icon: "construct", iconType: "ionicons", group: "pro", route: "/contractors", isNew: true },
@@ -126,6 +128,7 @@ function greeting() {
 function SvcIcon({ item, size, color }: { item: Service; size: number; color: string }) {
   // الشارة تُرسم دائماً هلالاً أحمر على أرضية بيضاء (هيئتها المعتمدة)
   if (item.iconType === "srcs") return <RedCrescentMark size={size + 6} background="#FFFFFF" />;
+  if (item.iconType === "union") return <Image source={UNION_LOGO} style={{ width: size + 10, height: size + 10 }} accessibilityLabel="شعار اتحاد الطلاب" />;
   return item.iconType === "ionicons"
     ? <Ionicons name={item.icon} size={size} color={color} />
     : <MaterialCommunityIcons name={item.icon} size={size} color={color} />;
