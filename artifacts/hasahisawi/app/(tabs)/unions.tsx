@@ -109,55 +109,12 @@ const MEMBERSHIP_TYPES = [
   { key: "honorary",  label: "عضو فخري"   },
 ];
 
-// ── تبويب اتحاد الطلاب ──────────────────────────────────────────────
-function StudentUnionTab() {
-  const router = useRouter();
-  // مساحة اتحاد الطلاب موحّدة داخل «الطالب والمعلم» — هنا مدخل واحد إليها بدل نسخة مكررة
-  const go = (path: string, params?: Record<string, string>) => router.push((params ? { pathname: path, params } : path) as any);
-  return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      <Pressable onPress={() => go("/(tabs)/student", { tab: "union" })} style={({ pressed }) => [suStyles.hero, pressed && { opacity: 0.92 }]} accessibilityRole="button" accessibilityLabel="مساحة اتحاد الطلاب">
-        <LinearGradient colors={["#7F1D1D", "#B91C1C", "#EA580C"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={suStyles.heroIn}>
-          <Image source={require("@/assets/images/student-union-logo.png")} style={{ width: 72, height: 72 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={suStyles.title}>مساحة اتحاد الطلاب</Text>
-            <Text style={suStyles.sub}>الاتحاد العام للطلاب السودانيين · محلية الحصاحيصا</Text>
-            <Text style={suStyles.sub2}>العضوية والبطاقة · الأخبار · التواصل مع المجلس</Text>
-          </View>
-          <Ionicons name="chevron-back" size={22} color="#fff" />
-        </LinearGradient>
-      </Pressable>
-      {([
-        { icon: "person-add-outline", label: "الانتساب لاتحاد الطلاب", path: "/student-union-join" },
-        { icon: "id-card-outline", label: "عضويتي وبطاقتي", path: "/student-union-status" },
-        { icon: "megaphone-outline", label: "أخبار وإعلانات الاتحاد", path: "/student-union-news" },
-        { icon: "chatbubbles-outline", label: "تواصل مع مجلس الاتحاد", path: "/student-union-contact" },
-      ] as const).map((x) => (
-        <Pressable key={x.path} onPress={() => go(x.path)} style={({ pressed }) => [suStyles.row, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={x.label}>
-          <View style={suStyles.rowIcon}><Ionicons name={x.icon as any} size={20} color="#B91C1C" /></View>
-          <Text style={suStyles.rowT}>{x.label}</Text>
-          <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
-        </Pressable>
-      ))}
-    </ScrollView>
-  );
-}
-const suStyles = StyleSheet.create({
-  hero: { borderRadius: 20, overflow: "hidden" },
-  heroIn: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 16 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right" },
-  sub: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FDE68A", textAlign: "right" },
-  sub2: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "right", marginTop: 2 },
-  row: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.divider },
-  rowIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#B91C1C14", alignItems: "center", justifyContent: "center" },
-  rowT: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
-});
 
 function UnionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token } = useAuth();
-  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my" | "student">("unions");
+  const [tab, setTab] = useState<"unions" | "programs" | "laws" | "apply" | "my">("unions");
 
   // Unions list
   const [unions, setUnions] = useState<Union[]>([]);
@@ -768,7 +725,6 @@ function UnionsScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 44 }} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
           {[
             { key: "unions",   label: "النقابات",     icon: "business-outline",      activeColor: UC  },
-            { key: "student",  label: "الاتحاد",      icon: "school-outline",        activeColor: SU  },
             { key: "programs", label: "البرامج",       icon: "clipboard-outline",     activeColor: UC  },
             { key: "laws",     label: "القوانين",      icon: "document-lock-outline", activeColor: UC  },
             { key: "apply",    label: "انضم",          icon: "person-add-outline",    activeColor: UC  },
@@ -987,7 +943,6 @@ function UnionsScreen() {
         )
       )}
 
-      {tab === "student" && <StudentUnionTab />}
       {tab === "apply" && <ApplicationForm />}
       {tab === "my" && <MyMemberships />}
 
