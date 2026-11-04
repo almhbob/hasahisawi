@@ -43,6 +43,7 @@ import demoCleanupRouter, { purgeDemoData } from "./demo-cleanup";
 import bookingEntitiesRouter, { ensureBookingEntities } from "./booking-entities";
 import cvPremiumRouter, { ensureCvPremiumDb } from "./cv-premium";
 const router: IRouter = Router();
+import orgActivitiesRouter, { ensureOrgActivitiesDb } from "./org-activities";
 
 router.use(healthRouter);
 // حواجز الوصول وتسجيل تنبيهات الإدارة قبل أي مسار.
@@ -82,6 +83,7 @@ router.use(demoCleanupRouter);
 router.use(bookingEntitiesRouter);
 router.use(cvPremiumRouter);
 router.use(contestsRouter);
+router.use(orgActivitiesRouter);
 router.use(callsRouter);
 router.use(campaignRouter);
 router.use(zawajilAdminRouter);
@@ -121,6 +123,7 @@ async function initializeDatabaseSchemas() {
   await ensureCvPremiumDb().catch(() => {});
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
+  await ensureOrgActivitiesDb().catch(() => {});
   await ensureAdminAlertsDb();
 }
 
