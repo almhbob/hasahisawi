@@ -10,6 +10,9 @@ const before = src;
 
 function replaceOnce(from, to, label) {
   if (src.includes(to)) return;
+  // آمن للتكرار: إن كانت كل الأسطر المضافة موجودة أصلاً في الملف (ولو في مواضع أخرى) فلا نضيفها مجدداً
+  const added = to.split('\n').map((l) => l.trim()).filter((l) => l && !from.split('\n').map((x) => x.trim()).includes(l));
+  if (added.length && added.every((l) => src.includes(l))) return;
   if (!src.includes(from)) {
     console.warn(`[fix-lawyer-join-upload] skipped ${label}: source not found`);
     return;
