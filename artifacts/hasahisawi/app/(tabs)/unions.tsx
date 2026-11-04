@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity,
   Linking, Alert, ActivityIndicator, RefreshControl, Modal,
-  Pressable, TextInput, Dimensions, KeyboardAvoidingView, FlatList,
+  Pressable, TextInput, Dimensions, KeyboardAvoidingView, FlatList, Image,
 } from "react-native";
 import Animated, {
   FadeInDown, FadeIn, ZoomIn, useSharedValue,
@@ -112,163 +112,46 @@ const MEMBERSHIP_TYPES = [
 // ── تبويب اتحاد الطلاب ──────────────────────────────────────────────
 function StudentUnionTab() {
   const router = useRouter();
-  const SU_FEATURES = [
-    { icon: "person-add-outline",        label: "الانتساب لاتحاد الطلاب",          route: "/student-union-join",    color: SU },
-    { icon: "chatbubbles-outline",       label: "تواصل مع مجلس الاتحاد",            route: "/student-union-contact", color: "#2F8A8A" },
-    { icon: "megaphone-outline",         label: "إعلانات وأنشطة الاتحاد",           route: "/student-union-join",    color: "#F59E0B" },
-    { icon: "people-outline",            label: "اللجان والأمانات",                  route: "/student-union-join",    color: "#22C55E" },
-    { icon: "trophy-outline",            label: "الأنشطة الطلابية والفعاليات",       route: "/student-union-join",    color: "#C46A3A" },
-    { icon: "shield-checkmark-outline",  label: "حقوق الطلاب والمناصرة",            route: "/student-union-join",    color: "#F97316" },
-  ];
-
-  const SU_COMMITTEES = [
-    { name: "الأمانة العامة",              icon: "star-outline" },
-    { name: "أمانة الإعلام والثقافة",      icon: "megaphone-outline" },
-    { name: "أمانة التدريب والتطوير",      icon: "school-outline" },
-    { name: "أمانة الشؤون الأكاديمية",    icon: "book-outline" },
-    { name: "أمانة الأنشطة والفعاليات",   icon: "calendar-outline" },
-    { name: "أمانة المرأة والأسرة",        icon: "flower-outline" },
-    { name: "أمانة الخدمات والرفاه",       icon: "heart-outline" },
-    { name: "أمانة العلاقات الخارجية",    icon: "earth-outline" },
-    { name: "أمانة الصحة والبيئة",         icon: "medkit-outline" },
-    { name: "أمانة المال والإدارة",        icon: "cash-outline" },
-  ];
-
+  // مساحة اتحاد الطلاب موحّدة داخل «الطالب والمعلم» — هنا مدخل واحد إليها بدل نسخة مكررة
+  const go = (path: string, params?: Record<string, string>) => router.push((params ? { pathname: path, params } : path) as any);
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-
-      {/* بطاقة الهوية */}
-      <Animated.View entering={FadeInDown.delay(80).springify()}>
-        <LinearGradient colors={[SU, "#173F5F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={stuStyles.heroBanner}>
-          <View style={stuStyles.heroOrb} />
-          <View style={stuStyles.heroOrb2} />
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 14 }}>
-            <View style={stuStyles.heroIcon}>
-              <Ionicons name="school" size={36} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={stuStyles.heroTitle}>اتحاد طلاب الحصاحيصا</Text>
-              <Text style={stuStyles.heroSub}>منظمة طلابية مستقلة تمثل وتخدم الطلاب</Text>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
-                <View style={stuStyles.activeBadge}>
-                  <View style={stuStyles.activeDot} />
-                  <Text style={stuStyles.activeText}>نشط</Text>
-                </View>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                  تأسس عام 2010
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* إحصائيات سريعة */}
-          <View style={stuStyles.statsRow}>
-            {[
-              { val: "1,200+", label: "طالب عضو" },
-              { val: "10",     label: "لجنة" },
-              { val: "50+",    label: "نشاط سنوي" },
-            ].map((s, i) => (
-              <View key={i} style={[stuStyles.statItem, i === 1 && stuStyles.statItemCenter]}>
-                <Text style={stuStyles.statVal}>{s.val}</Text>
-                <Text style={stuStyles.statLbl}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-        </LinearGradient>
-      </Animated.View>
-
-      {/* الخدمات والروابط */}
-      <Animated.View entering={FadeInDown.delay(140).springify()}>
-        <Text style={stuStyles.sectionTitle}>خدمات الاتحاد</Text>
-        <View style={stuStyles.featuresGrid}>
-          {SU_FEATURES.map((f, i) => (
-            <Animated.View key={i} entering={FadeInDown.delay(160 + i * 50).springify()} style={{ width: "48%" }}>
-              <TouchableOpacity
-                style={stuStyles.featureCard}
-                onPress={() => router.push(f.route as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[stuStyles.featureIcon, { backgroundColor: f.color + "20" }]}>
-                  <Ionicons name={f.icon as any} size={22} color={f.color} />
-                </View>
-                <Text style={stuStyles.featureLabel}>{f.label}</Text>
-                <View style={[stuStyles.featureArrow, { backgroundColor: f.color + "15" }]}>
-                  <Ionicons name="chevron-back" size={13} color={f.color} />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* زر الانضمام الكبير */}
-      <Animated.View entering={FadeInDown.delay(300).springify()}>
-        <TouchableOpacity onPress={() => router.push("/student-union-join" as any)} activeOpacity={0.85}>
-          <LinearGradient colors={[SU, "#173F5F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={stuStyles.joinBtn}>
-            <Ionicons name="person-add-outline" size={22} color="#fff" />
-            <View>
-              <Text style={stuStyles.joinBtnTitle}>انضم إلى الاتحاد الآن</Text>
-              <Text style={stuStyles.joinBtnSub}>سجّل اهتمامك وكن جزءاً من المسيرة الطلابية</Text>
-            </View>
-            <Ionicons name="arrow-back" size={18} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* اللجان والأمانات */}
-      <Animated.View entering={FadeInDown.delay(360).springify()}>
-        <Text style={stuStyles.sectionTitle}>اللجان والأمانات</Text>
-        <View style={stuStyles.committeesGrid}>
-          {SU_COMMITTEES.map((c, i) => (
-            <View key={i} style={stuStyles.committeeChip}>
-              <Ionicons name={c.icon as any} size={14} color={SU} />
-              <Text style={stuStyles.committeeText}>{c.name}</Text>
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* زر التواصل */}
-      <Animated.View entering={FadeInDown.delay(420).springify()}>
-        <TouchableOpacity
-          style={stuStyles.contactBtn}
-          onPress={() => router.push("/student-union-contact" as any)}
-          activeOpacity={0.85}
-        >
-          <View style={stuStyles.contactIcon}>
-            <Ionicons name="chatbubbles-outline" size={22} color="#2F8A8A" />
-          </View>
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <Pressable onPress={() => go("/(tabs)/student", { tab: "union" })} style={({ pressed }) => [suStyles.hero, pressed && { opacity: 0.92 }]} accessibilityRole="button" accessibilityLabel="مساحة اتحاد الطلاب">
+        <LinearGradient colors={["#7F1D1D", "#B91C1C", "#EA580C"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={suStyles.heroIn}>
+          <Image source={require("@/assets/images/student-union-logo.png")} style={{ width: 72, height: 72 }} />
           <View style={{ flex: 1 }}>
-            <Text style={stuStyles.contactTitle}>تواصل مع مجلس الاتحاد</Text>
-            <Text style={stuStyles.contactSub}>اقتراحات · شكاوى · استفسارات</Text>
+            <Text style={suStyles.title}>مساحة اتحاد الطلاب</Text>
+            <Text style={suStyles.sub}>الاتحاد العام للطلاب السودانيين · محلية الحصاحيصا</Text>
+            <Text style={suStyles.sub2}>العضوية والبطاقة · الأخبار · التواصل مع المجلس</Text>
           </View>
-          <Ionicons name="chevron-back" size={18} color="#2F8A8A" />
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* بوابة إدارة الاتحاد */}
-      <Animated.View entering={FadeInDown.delay(490).springify()}>
-        <TouchableOpacity
-          style={stuStyles.portalBtn}
-          onPress={() => router.push("/union-manager-portal" as any)}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={[SU, "#173F5F"]} style={stuStyles.portalGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <View style={stuStyles.portalIconWrap}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={stuStyles.portalTitle}>بوابة إدارة الاتحاد</Text>
-              <Text style={stuStyles.portalSub}>للمسؤولين المعتمدين فقط · دخول آمن</Text>
-            </View>
-            <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.7)" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-
+          <Ionicons name="chevron-back" size={22} color="#fff" />
+        </LinearGradient>
+      </Pressable>
+      {([
+        { icon: "person-add-outline", label: "الانتساب لاتحاد الطلاب", path: "/student-union-join" },
+        { icon: "id-card-outline", label: "عضويتي وبطاقتي", path: "/student-union-status" },
+        { icon: "megaphone-outline", label: "أخبار وإعلانات الاتحاد", path: "/student-union-news" },
+        { icon: "chatbubbles-outline", label: "تواصل مع مجلس الاتحاد", path: "/student-union-contact" },
+      ] as const).map((x) => (
+        <Pressable key={x.path} onPress={() => go(x.path)} style={({ pressed }) => [suStyles.row, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={x.label}>
+          <View style={suStyles.rowIcon}><Ionicons name={x.icon as any} size={20} color="#B91C1C" /></View>
+          <Text style={suStyles.rowT}>{x.label}</Text>
+          <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+        </Pressable>
+      ))}
     </ScrollView>
   );
 }
+const suStyles = StyleSheet.create({
+  hero: { borderRadius: 20, overflow: "hidden" },
+  heroIn: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 16 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right" },
+  sub: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#FDE68A", textAlign: "right" },
+  sub2: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "right", marginTop: 2 },
+  row: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.divider },
+  rowIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#B91C1C14", alignItems: "center", justifyContent: "center" },
+  rowT: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "right" },
+});
 
 function UnionsScreen() {
   const insets = useSafeAreaInsets();

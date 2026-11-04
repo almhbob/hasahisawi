@@ -1,15 +1,16 @@
 import ShahadaCalculator from "@/components/edu/ShahadaCalculator";
+const UNION_LOGO = require("@/assets/images/student-union-logo.png");
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Platform, Linking, TextInput, Modal, Alert, KeyboardAvoidingView, Pressable, ActivityIndicator,
+  Platform, Linking, TextInput, Modal, Alert, KeyboardAvoidingView, Pressable, ActivityIndicator, Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
-import { useFocusEffect, useRouter, router as curriculumRouter } from "expo-router";
+import { useFocusEffect, useRouter, useLocalSearchParams, router as curriculumRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -1895,7 +1896,9 @@ export default function StudentScreen() {
   });
   const nav = useRouter();
 
-  const [activeTab, setActiveTab]         = useState<Tab>("services");
+  const tabParam = useLocalSearchParams<{ tab?: string }>().tab;
+  const [activeTab, setActiveTab]         = useState<Tab>((["services","institutions","libraries","forms","join","union"] as string[]).includes(String(tabParam)) ? (tabParam as Tab) : "services");
+  useEffect(() => { if (tabParam && (["services","institutions","libraries","forms","join","union"] as string[]).includes(String(tabParam))) setActiveTab(tabParam as Tab); }, [tabParam]);
   // أخبار وإعلانات اتحاد الطلاب (أحدث 3) — تُجلب عند فتح تبويب الإتحاد
   const [unionPosts, setUnionPosts] = useState<{ id: number; title: string; body: string; is_pinned: boolean; created_at: string }[]>([]);
   useEffect(() => {
@@ -2249,13 +2252,13 @@ export default function StudentScreen() {
               { k: "tch", title: "مساحة المعلم", sub: "الدرجات · الحضور · الدروس · الاختبارات", icon: "easel", color: "#2F7D6D", go: () => curriculumRouter.push({ pathname: "/edu-hub", params: { role: "teacher" } } as any) },
               { k: "forms", title: "التسجيل والنقل", sub: "تسجيل طالب · نقل · متابعة الطلبات", icon: "document-text", color: Colors.primary, go: () => setActiveTab("forms") },
               { k: "libs", title: "المكتبات والقرطاسية", sub: "كتب · طباعة · زي مدرسي · دروس", icon: "book", color: "#8A5A1F", go: () => setActiveTab("libraries") },
-              { k: "union", title: "اتحاد الطلاب", sub: "العضوية والتواصل", icon: "people-circle", color: "#6B4E9B", go: () => setActiveTab("union") },
+              { k: "union", title: "اتحاد الطلاب", sub: "العضوية · البطاقة · الأخبار", icon: "people-circle", color: "#B91C1C", go: () => setActiveTab("union") },
               { k: "join", title: "سجّل مؤسستك", sub: "مدرسة · معهد · جامعة", icon: "add-circle", color: Colors.accent, go: () => setActiveTab("join") },
             ] as const).map((t) => (
               <View key={t.k} style={{ width: "48%", flexGrow: 1 }}><AnimatedPress onPress={t.go}>
                 <View style={{ backgroundColor: Colors.cardBg, borderRadius: 16, padding: 14, minHeight: 112, gap: 6, borderWidth: 1, borderColor: t.color + "30" }}>
                   <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: t.color + "18", alignItems: "center", justifyContent: "center", alignSelf: "flex-end" }}>
-                    <Ionicons name={t.icon as any} size={22} color={t.color} />
+                    {t.k === "union" ? <Image source={UNION_LOGO} style={{ width: 34, height: 34 }} /> : <Ionicons name={t.icon as any} size={22} color={t.color} />}
                   </View>
                   <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" }}>{t.title}</Text>
                   <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 18 }}>{t.sub}</Text>
@@ -2762,7 +2765,7 @@ export default function StudentScreen() {
           <Animated.View entering={FadeInDown.springify()}>
             <LinearGradient colors={["#1F5C8A18", Colors.cardBg]} style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:Colors.radius.lg, marginBottom:20, borderWidth:1, borderColor:"#1F5C8A30", ...Colors.shadow.card }}>
               <View style={{ width:52, height:52, borderRadius:Colors.radius.md, backgroundColor:"#1F5C8A20", alignItems:"center", justifyContent:"center" }}>
-                <Ionicons name="people-circle" size={32} color="#1F5C8A" />
+                <Image source={UNION_LOGO} style={{ width: 46, height: 46 }} accessibilityLabel="شعار الاتحاد العام للطلاب السودانيين" />
               </View>
               <View style={{ flex:1 }}>
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right" }}>إتحاد الطلاب</Text>
