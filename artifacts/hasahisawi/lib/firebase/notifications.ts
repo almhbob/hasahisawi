@@ -1,11 +1,14 @@
 import { Platform } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
+import { supportsFullScreenCalls } from "@/lib/incoming-call";
 
 // ── إصدار القنوات — ارفع الرقم عند تغيير إعدادات الصوت ──────────────────────
 // Android يجمّد إعدادات القناة بعد أول إنشاء؛ تغيير الإصدار يُجبر إعادة البناء
 const CHANNEL_VERSION     = "7";
 /** إصدار القنوات الذي يُبلَّغ به الخادم ليختار القناة الصحيحة لكل جهاز */
 export const PUSH_CHANNEL_VER = 3;
+/** 4 = قنوات الجيل الثالث + شاشة المكالمة الواردة بملء الشاشة (Android) — الخادم يرسل المكالمة رسالة بيانات صامتة */
+const pushChannelVer = () => (supportsFullScreenCalls() ? 4 : PUSH_CHANNEL_VER);
 const CHANNEL_VERSION_KEY = "@hasahisawi/notif_ch_v";
 
 // ── معرّفات قنوات التنبيه (Android) ─────────────────────────────────────────
@@ -154,7 +157,8 @@ async function setupHandler(
       const channelId = (notification.request.content.data as any)?.channelId as string | undefined;
       const isUrgent  = channelId === CHANNELS.URGENT || channelId === CHANNELS.TRANSPORT;
       // المكالمة الواردة والتطبيق مفتوح: شاشة الرنين داخل التطبيق تكفي
-      if ((notification.request.content.data as any)?.type === "call") {
+      const t = (notification.request.content.data as any)?.type;
+      if (t === "call" || t === "call_cancel") {
         return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: true };
       }
       return {
@@ -228,7 +232,7 @@ export async function registerForPushNotifications(
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ token, platform: Platform.OS, channel_ver: PUSH_CHANNEL_VER }),
+        body: JSON.stringify({ token, platform: Platform.OS, channel_ver: pushChannelVer() }),
       }).catch(() => {});
     }
     lastPushToken = token;

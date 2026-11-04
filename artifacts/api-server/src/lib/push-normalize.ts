@@ -4,6 +4,9 @@
 // — قنوات الجيل الثالث (-s3: تنبيه منبثق بصوت) للأجهزة التي حدّثت التطبيق،
 //   وقنوات -s2 للنسخ الأقدم
 // — المكالمات: قناة نغمة رنين خاصة
+// — المكالمات للأجهزة التي تدعم شاشة المكالمة الواردة (channel_ver ≥ 4):
+//   رسالة بيانات صامتة (بلا عنوان/نص) يعرضها التطبيق بملء الشاشة بنفسه،
+//   ورسائل call_cancel لإخفائها. الأجهزة الأقدم تبقى على إشعار الرنين كما هو.
 // ════════════════════════════════════════════════════════════════
 import { query, dbEnabled } from "./shared-db";
 import { logger } from "./logger";
@@ -46,6 +49,15 @@ async function versions(tokens: string[]): Promise<Map<string, number>> {
 }
 export function forgetPushToken(token: string) { cache.delete(token); }
 
+/** أول إصدار قنوات يعرض المكالمة الواردة بملء الشاشة (Android) */
+export const CALL_FS_VER = 4;
+
+/** رسالة بيانات فقط: بلا title/body لا يعرضها Expo، فتستقبلها مهمة الخلفية في التطبيق */
+function dataOnly(m: any, extra: Record<string, unknown> = {}): any {
+  const { channelId: _c, ...data } = m.data || {};
+  return { to: m.to, data: { ...data, ...extra }, priority: "high", ttl: m.ttl ?? 45 };
+}
+
 function mapChannel(ch: string | undefined, v3: boolean, isCall: boolean): string {
   if (v3 && isCall) return "hasahisawi-call-s3";
   const base = String(ch || "hasahisawi-default").replace(/-s[23]$/, "");
@@ -64,10 +76,19 @@ export async function normalizePushBody(body: string): Promise<string> {
   const arr: any[] = Array.isArray(parsed) ? parsed : [parsed];
   const tokens = arr.map((m) => m?.to).filter((t) => typeof t === "string");
   const ver = await versions(tokens);
+  const out: any[] = [];
   for (const m of arr) {
-    if (!m || typeof m !== "object") continue;
-    const v3 = typeof m.to === "string" && (ver.get(m.to) ?? 2) >= 3;
-    const isCall = m.data?.type === "call";
+    if (!m || typeof m !== "object") { out.push(m); continue; }
+    const v = typeof m.to === "string" ? (ver.get(m.to) ?? 2) : 2;
+    const type = m.data?.type;
+    if (type === "call_cancel") {
+      if (v >= CALL_FS_VER) out.push(dataOnly(m)); // النسخ القديمة لا تحتاجها (ولا تفهمها)
+      continue;
+    }
+    if (type === "call" && v >= CALL_FS_VER) { out.push(dataOnly(m, { fs: "1" })); continue; }
+    out.push(m);
+    const v3 = v >= 3;
+    const isCall = type === "call";
     const ch = mapChannel(m.channelId, v3, isCall);
     m.channelId = ch;
     m.data = { ...(m.data || {}), channelId: ch };
@@ -76,8 +97,10 @@ export async function normalizePushBody(body: string): Promise<string> {
     m.priority = "high";
     if (m.ttl === undefined) m.ttl = isCall ? 45 : 60 * 60 * 24;
   }
-  return JSON.stringify(Array.isArray(parsed) ? arr : arr[0]);
+  return JSON.stringify(Array.isArray(parsed) ? out : (out[0] ?? []));
 }
+
+const fakeOk = () => new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
 
 let installed = false;
 export function installPushNormalizer() {
@@ -88,6 +111,9 @@ export function installPushNormalizer() {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input?.url || "";
       if (url.includes(PUSH_URL) && init && typeof init.body === "string") {
         init = { ...init, body: await normalizePushBody(init.body) };
+        if (init.body === "[]") return fakeOk(); // لا شيء يُرسل (مثلاً call_cancel لأجهزة قديمة فقط)
+        // تشخيص محلي: PUSH_DRY_RUN=1 يسجّل الحمولة بدل إرسالها إلى Expo
+        if (process.env.PUSH_DRY_RUN === "1") { logger.info({ pushDryRun: JSON.parse(init.body) }, "[push] dry-run"); return fakeOk(); }
       }
     } catch (e: any) { logger.warn({ err: e?.message }, "[push] normalize failed"); }
     return orig(input, init);

@@ -33,3 +33,30 @@ export const callPageUrl = () => `${getApiUrl().replace(/\/$/, "")}/api/calls/pa
 let activeCallId: number | null = null;
 export const setActiveCall = (id: number | null) => { activeCallId = id; };
 export const getActiveCall = () => activeCallId;
+
+// ── الرد التلقائي: ضغط «رد» على إشعار المكالمة يفتح الشاشة ويقبلها مباشرة ──
+let autoAnswerId: number | null = null;
+const autoAnswerSubs = new Set<(id: number) => void>();
+export function requestAutoAnswer(id: number) { autoAnswerId = id; autoAnswerSubs.forEach((f) => f(id)); }
+export const isAutoAnswerPending = (id: number) => autoAnswerId === id;
+export function consumeAutoAnswer(id: number): boolean {
+  if (autoAnswerId !== id) return false;
+  autoAnswerId = null; return true;
+}
+export function onAutoAnswer(f: (id: number) => void): () => void {
+  autoAnswerSubs.add(f); return () => { autoAnswerSubs.delete(f); };
+}
+
+/** فتح شاشة المكالمة الواردة مرة واحدة فقط مهما تعددت المصادر (إشعار، استطلاع، زر) */
+let lastOpened = { id: 0, at: 0 };
+export function openIncomingCall(
+  nav: { push: (href: any) => void },
+  p: { callId: number; name?: string; avatar?: string | null; auto?: boolean },
+) {
+  const id = Number(p.callId);
+  if (!id) return;
+  if (p.auto) requestAutoAnswer(id);
+  if (getActiveCall() === id || (lastOpened.id === id && Date.now() - lastOpened.at < 10_000)) return;
+  lastOpened = { id, at: Date.now() };
+  nav.push({ pathname: "/call", params: { callId: String(id), role: "callee", name: p.name || "", avatar: p.avatar || "" } });
+}

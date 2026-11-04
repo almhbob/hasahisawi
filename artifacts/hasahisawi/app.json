@@ -86,6 +86,7 @@
         }
       ],
       "./plugins/withResizeableActivity",
+      "./plugins/withIncomingCallScreen",
       [
         "expo-local-authentication",
         {

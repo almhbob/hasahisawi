@@ -1,6 +1,7 @@
 package com.almhbob.hasahisawi
 import expo.modules.splashscreen.SplashScreenManager
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 
@@ -21,6 +22,13 @@ class MainActivity : ReactActivity() {
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
     super.onCreate(null)
+    // @hasahisawi-call-screen: مكالمة واردة بملء الشاشة → فوق قفل الشاشة مع إضاءتها
+    CallWindow.onActivityIntent(this, intent)
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    CallWindow.onActivityIntent(this, intent)
   }
 
   /**
