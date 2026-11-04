@@ -681,7 +681,7 @@ router.patch("/srcs/admin/members/:id", writeLimiter, async (req, res) => {
       ["cohort_id", cur.cohort_id, cohort], ["perms", JSON.stringify(cur.perms), JSON.stringify(perms)], ["revoked", !!cur.revoked_at, !!revokedAt]] as const)
       if (String(before ?? "") !== String(after ?? "")) changed[k] = { from: before, to: after };
     if (b.renew_card) changed.renew_card = true;
-    if (Object.keys(changed).length) audit(Number(me.id), status === "banned" && cur.status !== "banned" ? "ban" : b.perms !== undefined && changed.perms ? "perms" : changed.revoked ? "card_revoke" : "member_update", `member:${cur.id} ${cur.name}`, { ...changed, reason: revokeReason && changed.revoked ? revokeReason : undefined }, unitId ?? cur.unit_id);
+    if (Object.keys(changed).length) await audit(Number(me.id), status === "banned" && cur.status !== "banned" ? "ban" : b.perms !== undefined && changed.perms ? "perms" : changed.revoked ? "card_revoke" : "member_update", `member:${cur.id} ${cur.name}`, { ...changed, reason: revokeReason && changed.revoked ? revokeReason : undefined }, unitId ?? cur.unit_id);
     if (becameActive) await query(`UPDATE srcs_member_docs SET verified=TRUE WHERE user_id=$1 AND source='join'`, [cur.user_id]).catch(() => {});
     if (becameActive) notifyUsers(uid, "🚑 مرحباً بك في الهلال الأحمر", `قُبل طلبك بصفة ${ROLE_LABEL[role]}${unitText ? ` في ${unitText}` : ""} — بطاقتك جاهزة في التطبيق`, { kind: "srcs_accepted" });
     else if (status === "rejected" && cur.status !== "rejected") notifyUsers(uid, "طلب الانضمام للهلال الأحمر", "لم يُقبل طلبك حالياً" + (b.admin_note ? `: ${str(b.admin_note, 200)}` : ""), {});
@@ -728,7 +728,7 @@ router.post("/srcs/admin/units", writeLimiter, async (req, res) => {
     const r = await query(`INSERT INTO srcs_units (name, code, description, created_by) VALUES ($1,$2,$3,$4) ON CONFLICT (name) DO NOTHING RETURNING *`,
       [name, str(req.body?.code, 30) || null, str(req.body?.description, 2000) || null, me.id]);
     if (!r.rows[0]) return res.status(409).json({ error: "توجد وحدة بهذا الاسم" });
-    audit(Number(me.id), "unit_create", `unit:${r.rows[0].id} ${name}`, {}, Number(r.rows[0].id));
+    await audit(Number(me.id), "unit_create", `unit:${r.rows[0].id} ${name}`, {}, Number(r.rows[0].id));
     return res.json({ unit: r.rows[0] });
   } catch (err) { return fail(res, err, "unit create"); }
 });
@@ -748,7 +748,7 @@ router.patch("/srcs/admin/units/:id", writeLimiter, async (req, res) => {
     if (name !== cur.name) await query(`UPDATE srcs_members SET unit=$2 WHERE unit_id=$1`, [cur.id, name]);
     const changed: Record<string, unknown> = {};
     for (const k of ["name", "code", "description", "is_active"]) if (String(cur[k] ?? "") !== String(r.rows[0][k] ?? "")) changed[k] = { from: cur[k], to: r.rows[0][k] };
-    if (Object.keys(changed).length) audit(Number(me.id), "unit_update", `unit:${cur.id} ${name}`, changed, Number(cur.id));
+    if (Object.keys(changed).length) await audit(Number(me.id), "unit_update", `unit:${cur.id} ${name}`, changed, Number(cur.id));
     return res.json({ unit: r.rows[0] });
   } catch (err) { return fail(res, err, "unit patch"); }
 });
@@ -766,7 +766,7 @@ router.put("/srcs/admin/units/:id/managers/:userId", writeLimiter, async (req, r
     const prev = (await query(`SELECT perms FROM srcs_unit_managers WHERE unit_id=$1 AND user_id=$2`, [unit.id, user.id])).rows[0];
     await query(`INSERT INTO srcs_unit_managers (unit_id, user_id, perms, created_by) VALUES ($1,$2,$3,$4)
                  ON CONFLICT (unit_id, user_id) DO UPDATE SET perms=$3`, [unit.id, user.id, perms, me.id]);
-    audit(Number(me.id), prev ? "unit_manager_perms" : "unit_manager_add", `unit:${unit.id} ${unit.name}`, { user_id: user.id, name: user.name, perms: JSON.stringify(perms) }, Number(unit.id));
+    await audit(Number(me.id), prev ? "unit_manager_perms" : "unit_manager_add", `unit:${unit.id} ${unit.name}`, { user_id: user.id, name: user.name, perms: JSON.stringify(perms) }, Number(unit.id));
     notifyUsers([Number(user.id)], prev ? "🔑 تحديث صلاحيات الوحدة" : "🚑 أصبحت مديراً لوحدة", prev
       ? `حُدّثت صلاحياتك في إدارة «${unit.name}»`
       : `عُيّنت مديراً لـ«${unit.name}» في الهلال الأحمر — افتح لوحة الإدارة لإدارة وحدتك`, { kind: "srcs_unit_manager", unit_id: unit.id });
@@ -779,7 +779,7 @@ router.delete("/srcs/admin/units/:id/managers/:userId", writeLimiter, async (req
     const r = await query(`DELETE FROM srcs_unit_managers um USING srcs_units un WHERE un.id=um.unit_id AND um.unit_id=$1 AND um.user_id=$2 RETURNING un.name`,
       [Number(req.params.id) || 0, Number(req.params.userId) || 0]);
     if (!r.rows[0]) return res.status(404).json({ error: "ليس مديراً لهذه الوحدة" });
-    audit(Number(me.id), "unit_manager_remove", `unit:${req.params.id} ${r.rows[0].name}`, { user_id: Number(req.params.userId) }, Number(req.params.id));
+    await audit(Number(me.id), "unit_manager_remove", `unit:${req.params.id} ${r.rows[0].name}`, { user_id: Number(req.params.userId) }, Number(req.params.id));
     notifyUsers([Number(req.params.userId)], "إدارة الوحدة", `انتهى تكليفك بإدارة «${r.rows[0].name}»`, { kind: "srcs_unit_manager" });
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "unit manager delete"); }

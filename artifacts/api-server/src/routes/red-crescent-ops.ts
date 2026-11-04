@@ -148,7 +148,7 @@ router.post("/srcs/admin/export-link", writeLimiter, async (req: Request, res: R
       const row = await loadScoped(EXPORT_TABLE[kind as keyof typeof EXPORT_TABLE], id, ctx.acc, res); if (!row) return;
       unitId = row.unit_id ?? null;
     }
-    audit(Number(ctx.me.id), "export", `${kind}:${id ?? "all"}`, { format }, unitId);
+    await audit(Number(ctx.me.id), "export", `${kind}:${id ?? "all"}`, { format }, unitId);
     return res.json({ url: exportUrl(kind, id, format, scopeKey(U)) });
   } catch (err) { return fail(res, err, "export link"); }
 });
@@ -263,7 +263,7 @@ router.post("/srcs/admin/checkin", writeLimiter, async (req: Request, res: Respo
       await query(`INSERT INTO srcs_enrollments (course_id, user_id, attended) VALUES ($1,$2,TRUE)
                    ON CONFLICT (course_id, user_id) DO UPDATE SET attended=TRUE`, [courseId, m.user_id]);
     }
-    audit(Number(me.id), "checkin", meetingId ? `meeting:${meetingId}` : `course:${courseId}`, { member: m.id, name: m.name }, item.unit_id ?? null);
+    await audit(Number(me.id), "checkin", meetingId ? `meeting:${meetingId}` : `course:${courseId}`, { member: m.id, name: m.name }, item.unit_id ?? null);
     return res.json({ ok: true, member: { name: m.name, role: m.role, role_label: ROLE_LABEL[m.role as keyof typeof ROLE_LABEL], unit: m.unit, card_no: m.card_no } });
   } catch (err) { return fail(res, err, "checkin"); }
 });

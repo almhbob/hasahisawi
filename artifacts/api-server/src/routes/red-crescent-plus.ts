@@ -57,7 +57,7 @@ router.patch("/srcs/admin/settings", writeLimiter, async (req, res) => {
     }
     if (b.cert_currency !== undefined) updates.push(["cert_currency", str(b.cert_currency, 10) || "SDG"]);
     if (b.cert_payment_info !== undefined) updates.push(["cert_payment_info", str(b.cert_payment_info, 1000)]);
-    if (updates.length) audit(Number(me!.id), "settings", "certificate", Object.fromEntries(updates));
+    if (updates.length) await audit(Number(me!.id), "settings", "certificate", Object.fromEntries(updates));
     for (const [k, v] of updates)
       await query(`INSERT INTO srcs_settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value=$2, updated_by=$3, updated_at=NOW()`, [k, v, me!.id]);
     const s = await settings();
@@ -369,7 +369,7 @@ router.patch("/srcs/admin/courses/:id", writeLimiter, async (req, res) => {
     if (publishResults) { vals.push(b.results_published); sets.push(`results_published=$${vals.length}`); }
     if (!sets.length) return res.json({ course: cur });
     const r = await query(`UPDATE srcs_courses SET ${sets.join(", ")} WHERE id=$1 RETURNING *`, vals);
-    if (publishResults && b.results_published !== cur.results_published) audit(Number(me.id), b.results_published ? "results_publish" : "results_hide", `course:${cur.id} ${cur.title}`, {}, cur.unit_id);
+    if (publishResults && b.results_published !== cur.results_published) await audit(Number(me.id), b.results_published ? "results_publish" : "results_hide", `course:${cur.id} ${cur.title}`, {}, cur.unit_id);
     if (publishResults && b.results_published && !cur.results_published) {
       const ids = (await query(`SELECT user_id FROM srcs_enrollments WHERE course_id=$1`, [cur.id])).rows.map((x: any) => Number(x.user_id));
       notifyUsers(ids, "📊 ظهرت النتيجة", `أُعلنت نتيجة «${String(cur.title).slice(0, 80)}» — اطّلع عليها الآن`, { kind: "srcs_results", id: cur.id });
@@ -384,7 +384,7 @@ router.delete("/srcs/admin/courses/:id", async (req, res) => {
     const issued = (await query(`SELECT COUNT(*)::int AS n FROM srcs_enrollments WHERE course_id=$1 AND cert_status='issued'`, [c.id])).rows[0].n;
     if (issued) return res.status(400).json({ error: "لا يمكن حذف دورة صدرت لها شهادات — أخفِها بدلاً من ذلك" });
     await query(`DELETE FROM srcs_courses WHERE id=$1`, [c.id]);
-    audit(Number(ctx.me.id), "course_delete", `course:${c.id} ${c.title}`, {}, c.unit_id);
+    await audit(Number(ctx.me.id), "course_delete", `course:${c.id} ${c.title}`, {}, c.unit_id);
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "course delete"); }
 });
@@ -446,7 +446,7 @@ router.patch("/srcs/admin/enrollments/:id/certificate", writeLimiter, async (req
     const action = String(req.body?.action || "");
     const e = (await query(`SELECT e.*, c.title, c.unit_id FROM srcs_enrollments e JOIN srcs_courses c ON c.id=e.course_id WHERE e.id=$1`, [Number(req.params.id) || 0])).rows[0];
     if (!e || !canTouch(ctx.acc, e.unit_id)) return res.status(404).json({ error: "غير موجود أو خارج نطاق وحدتك" });
-    audit(Number(me.id), `cert_${action}`, `enrollment:${e.id} ${e.title}`, { user_id: e.user_id, amount: e.cert_amount, ref: e.payment_ref, note: req.body?.note }, e.unit_id);
+    await audit(Number(me.id), `cert_${action}`, `enrollment:${e.id} ${e.title}`, { user_id: e.user_id, amount: e.cert_amount, ref: e.payment_ref, note: req.body?.note }, e.unit_id);
     if (action === "approve" || action === "issue") {
       if (!e.passed) return res.status(400).json({ error: "لا تُصدر الشهادة إلا للناجحين" });
       return res.json({ enrollment: await issueCertificate(e.id, Number(me.id)) });
@@ -523,7 +523,7 @@ router.delete("/srcs/admin/cohorts/:id", async (req, res) => {
     await query(`UPDATE srcs_members SET cohort_id=NULL WHERE cohort_id=$1`, [co.id]);
     await query(`UPDATE srcs_courses SET cohort_id=NULL WHERE cohort_id=$1`, [co.id]);
     await query(`DELETE FROM srcs_cohorts WHERE id=$1`, [co.id]);
-    audit(Number(ctx.me.id), "cohort_delete", `cohort:${co.id} ${co.name}`, {}, co.unit_id);
+    await audit(Number(ctx.me.id), "cohort_delete", `cohort:${co.id} ${co.name}`, {}, co.unit_id);
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "cohort delete"); }
 });
@@ -540,7 +540,7 @@ router.patch("/srcs/admin/docs/:id", writeLimiter, async (req, res) => {
     const d = (await query(`SELECT d.id, m.unit_id FROM srcs_member_docs d LEFT JOIN srcs_members m ON m.user_id=d.user_id WHERE d.id=$1`, [Number(req.params.id) || 0])).rows[0];
     if (!d || !canTouch(ctx.acc, d.unit_id)) return res.status(404).json({ error: "غير موجود أو خارج نطاق وحدتك" });
     const r = await query(`UPDATE srcs_member_docs SET verified=$2 WHERE id=$1 RETURNING *`, [d.id, !!req.body?.verified]);
-    audit(Number(ctx.me.id), req.body?.verified ? "doc_verify" : "doc_unverify", `doc:${d.id}`, { user_id: r.rows[0]?.user_id, title: r.rows[0]?.title }, d.unit_id);
+    await audit(Number(ctx.me.id), req.body?.verified ? "doc_verify" : "doc_unverify", `doc:${d.id}`, { user_id: r.rows[0]?.user_id, title: r.rows[0]?.title }, d.unit_id);
     if (r.rows[0]?.profile_cert_id) await query(`UPDATE user_certificates SET reviewed=$2 WHERE id=$1`, [r.rows[0].profile_cert_id, !!req.body?.verified]).catch(() => {});
     return res.json({ doc: exposeRow(r.rows[0] ?? null) });
   } catch (err) { return fail(res, err, "doc verify"); }
