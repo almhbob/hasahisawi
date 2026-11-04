@@ -5,9 +5,11 @@ import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { query, sessionUser, dbEnabled } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
+import cvTemplatesRouter, { ensureCvTemplatesDb, premiumTemplateIds } from "./cv-templates";
 
 const router = Router();
-export const CV_PREMIUM_IDS = ["hexa", "diagonal", "accent", "arch"] as const;
+// إعدادات القوالب وإحصاءاتها (المستوى المجاني/المميز تحدده الإدارة من هناك)
+router.use(cvTemplatesRouter);
 const ALL = "all";
 
 let ready: Promise<void> | null = null;
@@ -27,6 +29,7 @@ export function ensureCvPremiumDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
     await query(`CREATE INDEX IF NOT EXISTS idx_cv_premium_user ON cv_premium_requests (user_id, status)`);
+    await ensureCvTemplatesDb();
   })().catch((e) => { ready = null; throw e; }));
 }
 
@@ -36,7 +39,8 @@ const isAdmin = (u: { role?: string } | null) => !!u && u.role === "admin";
 async function unlockedFor(userId: number): Promise<string[]> {
   const r = await query(`SELECT DISTINCT template_id FROM cv_premium_requests WHERE user_id=$1 AND status='approved'`, [userId]);
   const ids = r.rows.map((x: any) => x.template_id);
-  return ids.includes(ALL) ? [...CV_PREMIUM_IDS] : ids.filter((x: string) => (CV_PREMIUM_IDS as readonly string[]).includes(x));
+  const prem = await premiumTemplateIds();
+  return ids.includes(ALL) ? prem : ids.filter((x: string) => prem.includes(x));
 }
 
 // GET /api/cv/premium/me → { unlocked, requests, all_unlocked }
@@ -45,10 +49,13 @@ router.get("/cv/premium/me", async (req: Request, res: Response) => {
     await ensureCvPremiumDb();
     const me = await sessionUser(req);
     if (!me) return res.json({ unlocked: [], requests: [], all_unlocked: false });
-    if (isAdmin(me)) return res.json({ unlocked: [...CV_PREMIUM_IDS], requests: [], all_unlocked: true, is_admin: true });
+    if (isAdmin(me)) return res.json({ unlocked: await premiumTemplateIds(), requests: [], all_unlocked: true, is_admin: true });
     const reqs = await query(`SELECT id, template_id, status, admin_note, created_at FROM cv_premium_requests WHERE user_id=$1 ORDER BY id DESC LIMIT 30`, [me.id]);
     const unlocked = await unlockedFor(me.id);
-    return res.json({ unlocked, requests: reqs.rows, all_unlocked: unlocked.length === CV_PREMIUM_IDS.length });
+    const prem = await premiumTemplateIds();
+    // «all_unlocked» تعني موافقة شاملة تشمل أي قالب يصبح مميزاً لاحقاً
+    const allApproved = reqs.rows.some((x: any) => x.template_id === ALL && x.status === "approved");
+    return res.json({ unlocked, requests: reqs.rows, all_unlocked: allApproved || (prem.length > 0 && unlocked.length === prem.length) });
   } catch (err) { logger.error({ err }, "cv/premium/me"); return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -59,7 +66,7 @@ router.post("/cv/premium/request", writeLimiter, async (req: Request, res: Respo
     const me = await sessionUser(req);
     if (!me) return res.status(401).json({ error: "سجّل الدخول لطلب القالب" });
     const tid = String(req.body?.template_id || "");
-    if (tid !== ALL && !(CV_PREMIUM_IDS as readonly string[]).includes(tid)) return res.status(400).json({ error: "قالب غير معروف" });
+    if (tid !== ALL && !(await premiumTemplateIds()).includes(tid)) return res.status(400).json({ error: "قالب غير معروف أو أصبح مجانياً" });
     if ((await unlockedFor(me.id)).includes(tid)) return res.json({ ok: true, status: "approved", message: "القالب مفتوح لك بالفعل" });
     const dup = await query(`SELECT id FROM cv_premium_requests WHERE user_id=$1 AND template_id=$2 AND status='pending'`, [me.id, tid]);
     if (dup.rows[0]) return res.json({ ok: true, status: "pending", message: "طلبك قيد المراجعة لدى الإدارة" });
@@ -93,8 +100,8 @@ router.post("/admin/cv/premium/requests/:id", writeLimiter, async (req: Request,
     const note = clean(req.body?.note, 300) || null;
     // all=true: الموافقة تفتح كل القوالب المميزة لهذا المستخدم
     const r = await query(
-      `UPDATE cv_premium_requests SET status=$1, admin_note=$2, reviewed_by=$3, reviewed_at=NOW(),
-         template_id=CASE WHEN $5::boolean AND $1='approved' THEN 'all' ELSE template_id END
+      `UPDATE cv_premium_requests SET status=$1::varchar, admin_note=$2, reviewed_by=$3, reviewed_at=NOW(),
+         template_id=CASE WHEN $5::boolean AND $1::varchar='approved' THEN 'all' ELSE template_id END
        WHERE id=$4 RETURNING user_id, template_id`, [action === "approve" ? "approved" : "rejected", note, me!.id, Number(req.params.id), !!req.body?.all]);
     const row = r.rows[0];
     if (!row) return res.status(404).json({ error: "غير موجود" });
