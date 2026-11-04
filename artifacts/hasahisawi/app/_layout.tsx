@@ -210,6 +210,16 @@ function AuthGate() {
           router.push({ pathname: "/" + screen, params } as any);
           return;
         }
+        // ── وكالات السفر: طلب حجز جديد للوكالة، وتحديث حالة الطلب للعميل ──
+        if (screen === "travel-agency-portal" || type === "travel_offer_request" || type === "travel_agency_approved" || type === "travel_agency_staff") {
+          router.push({ pathname: "/travel-agency-portal", params: data?.tab ? { tab: String(data.tab) } : {} } as any);
+          return;
+        }
+        if (type === "travel_offer_status" || (screen === "travel" && data?.tab)) {
+          router.push({ pathname: "/travel", params: { tab: String(data?.tab || "mine") } } as any);
+          return;
+        }
+        if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
         if (type === "volunteer") { router.push("/volunteer" as any); return; }
         if (type === "contest" && data?.contest_id) { router.push({ pathname: "/contest", params: { id: String(data.contest_id) } } as any); return; }
@@ -280,7 +290,7 @@ function AuthGate() {
     const inCompleteProfile = segments[0] === "complete-profile";
     // صفحات متاحة بدون تسجيل دخول (استعادة كلمة المرور لا يجب أن تعيد المستخدم لصفحة الدخول)
     // صفحات الانضمام العامة: الجهات والشركات تفتح رابط الدعوة وتقدّم طلبها بدون حساب
-    const PUBLIC_JOIN = ["travel-agencies", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor", "invitation"];
+    const PUBLIC_JOIN = ["travel-agencies", "travel-offer", "travel-agency", "org-join", "union-partnership-apply", "external-partnership", "get", "invite", "ithraa", "ithraa-item", "writers", "writers-text", "writers-cert", "lit-contest", "writers-membership", "press", "press-post", "contractors", "contractor", "invitation"];
     const inPublicAuth      = segments[0] === "forgot-password" || segments[0] === "auth-callback" || PUBLIC_JOIN.includes(String(segments[0]));
 
     if (!user) {
@@ -490,6 +500,9 @@ function RootLayoutNav() {
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="travel-agencies"          options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-offer"             options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-agency"            options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="travel-agency-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="qr-scanner"               options={{ headerShown: false, animation: "slide_from_bottom", presentation: "fullScreenModal" }} />
         <Stack.Screen name="qr-web-login"             options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="stores"                   options={{ headerShown: false, animation: "slide_from_right" }} />

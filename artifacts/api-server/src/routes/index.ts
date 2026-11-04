@@ -3,6 +3,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import adminUsersFirebaseRouter from "./admin-users-firebase";
 import travelAgenciesRouter, { initTravelAgenciesDb } from "./travel-agencies";
+import travelOffersRouter from "./travel-offers";
 import extraRouter, { initExtraDb } from "./extra";
 import lawyersAdminRouter, { ensureLawyersDb } from "./lawyers-admin";
 import transportLiveRouter, { initTransportLiveDb } from "./transport-live";
@@ -42,8 +43,8 @@ import eduInstRouter, { ensureEduInstDb } from "./edu-institutions";
 import demoCleanupRouter, { purgeDemoData } from "./demo-cleanup";
 import bookingEntitiesRouter, { ensureBookingEntities } from "./booking-entities";
 import cvPremiumRouter, { ensureCvPremiumDb } from "./cv-premium";
-const router: IRouter = Router();
 import orgActivitiesRouter, { ensureOrgActivitiesDb } from "./org-activities";
+const router: IRouter = Router();
 
 router.use(healthRouter);
 // حواجز الوصول وتسجيل تنبيهات الإدارة قبل أي مسار.
@@ -82,13 +83,14 @@ router.use(eduInstRouter);
 router.use(demoCleanupRouter);
 router.use(bookingEntitiesRouter);
 router.use(cvPremiumRouter);
-router.use(contestsRouter);
 router.use(orgActivitiesRouter);
+router.use(contestsRouter);
 router.use(callsRouter);
 router.use(campaignRouter);
 router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
+router.use(travelOffersRouter);
 router.use(extraRouter);
 // المحامون أولاً حتى تعمل الإدارة والاشتراكات حتى لو كانت المسارات القديمة ناقصة.
 router.use(lawyersAdminRouter);
@@ -121,9 +123,9 @@ async function initializeDatabaseSchemas() {
   await purgeDemoData().catch(() => {});
   await ensureBookingEntities().catch(() => {});
   await ensureCvPremiumDb().catch(() => {});
+  await ensureOrgActivitiesDb().catch(() => {});
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
-  await ensureOrgActivitiesDb().catch(() => {});
   await ensureAdminAlertsDb();
 }
 

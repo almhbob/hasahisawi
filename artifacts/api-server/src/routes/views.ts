@@ -15,7 +15,7 @@ export const VIEW_KINDS = new Set([
   "social_post", "city_news", "job", "ad", "market", "rental", "missing", "event", "greeting", "honored", "report",
   "contest", "store", "restaurant", "lawyer", "specialist", "organization", "community", "women_service", "men_service",
   "union", "farmer", "factory", "sports_club", "culture", "occasion", "travel", "zawajil", "srcs_announcement",
-  "srcs_activity", "volunteer_task", "landmark", "telecom", "merchant", "product", "ithraa", "lit_text", "press_post",
+  "srcs_activity", "volunteer_task", "landmark", "telecom", "merchant", "product", "ithraa", "lit_text", "press_post", "travel_offer",
 ]);
 
 let ready: Promise<void> | null = null;
