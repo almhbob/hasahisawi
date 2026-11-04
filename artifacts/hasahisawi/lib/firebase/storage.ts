@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 
 // يطابق TOKEN_KEY في lib/auth-context.tsx — الخادم يرفض الرفع بلا جلسة
@@ -88,6 +89,22 @@ async function uploadToBackend(
   try { token = await AsyncStorage.getItem(TOKEN_KEY); } catch {}
   if (!token) throw new Error("سجّل الدخول أولاً لرفع الملفات");
 
+  const meta = inferFileMeta(uri, filePath, options);
+  // في المتصفح لا يفهم FormData الكائن {uri,name,type} الخاص بتطبيق الجوال: كان يُرسَل نصاً
+  // "[object Object]" بلا ملف، فيرد الخادم "لم يتم إرسال أي ملف". نحوّل الرابط (blob:/data:) إلى ملف حقيقي.
+  let filePartValue: Blob | { uri: string; name: string; type: string };
+  if (Platform.OS === "web") {
+    let blob: Blob;
+    try {
+      blob = await (await fetch(uri)).blob();
+    } catch {
+      throw new Error("تعذّرت قراءة الملف المختار، اختره مرة أخرى");
+    }
+    filePartValue = new File([blob], meta.name, { type: blob.type || meta.type });
+  } else {
+    filePartValue = { uri, name: meta.name, type: meta.type };
+  }
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
@@ -131,13 +148,8 @@ async function uploadToBackend(
     xhr.open("POST", `${getApiUrl()}/api/upload`);
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
-    const meta = inferFileMeta(uri, filePath, options);
     const formData = new FormData();
-    formData.append("file", {
-      uri,
-      name: meta.name,
-      type: meta.type,
-    } as any);
+    formData.append("file", filePartValue as any);
 
     // معلومات إضافية مفيدة للخادم، ولا تكسر الخوادم التي تتجاهلها.
     formData.append("path", filePath);

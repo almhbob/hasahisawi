@@ -401,8 +401,11 @@ function UploadForm({ meta, api, token, isMod, onDone }: { meta: Meta; api: stri
     const sig = await sr.json().catch(() => ({}));
     if (!sr.ok) throw new Error(sig.error || "تعذّر بدء الرفع");
     const form = new FormData();
-    if (Platform.OS === "web" && (a as any).file) form.append("file", (a as any).file as File);
-    else form.append("file", { uri: a.uri, name: a.name, type: a.mimeType || "application/octet-stream" } as any);
+    if (Platform.OS === "web") {
+      // بعض المتصفحات لا تعيد كائن File؛ نقرأ الرابط كملف بدل إرسال كائن الجوال الذي لا يفهمه المتصفح
+      const webFile: File = (a as any).file ?? new File([await (await fetch(a.uri)).blob()], a.name || "file", { type: a.mimeType || "application/octet-stream" });
+      form.append("file", webFile);
+    } else form.append("file", { uri: a.uri, name: a.name, type: a.mimeType || "application/octet-stream" } as any);
     form.append("api_key", sig.api_key);
     form.append("timestamp", String(sig.timestamp));
     form.append("folder", sig.folder);
