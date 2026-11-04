@@ -69,10 +69,26 @@ const e = (v?: string) => String(v || "").replace(/&/g, "&amp;").replace(/</g, "
 const nl = (v?: string) => e(v).replace(/\n/g, "<br>");
 
 const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800;900&family=Amiri:wght@400;700&family=Reem+Kufi:wght@500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">`;
-const BASE = `*{box-sizing:border-box}html,body{margin:0;padding:0}@page{size:A4;margin:0}body{width:794px;min-height:1123px;-webkit-print-color-adjust:exact;print-color-adjust:exact}h1,h2,h3,p{margin:0}ul{margin:0}.ltr{direction:ltr;unicode-bidi:embed}.foot{font-size:10px;color:#9AA4AC}`;
+// ── قواعد الطباعة متعددة الصفحات (Chromium: الويب و Android) ──
+// • sideBand()/pageArt(): أشرطة جانبية وزخارف تتكرر في كل صفحة مطبوعة عبر خلفية الجذر (html) المكرّرة بارتفاع صفحة A4
+//   (خلفية الجذر تُرسم على كامل الورقة حتى بعد نهاية المحتوى في الصفحة الأخيرة، بخلاف position:fixed) — للطباعة فقط فلا تتغير المعاينة.
+// • .cl: يكرّر الحشوة العلوية/السفلية والخلفية في كل جزء من العمود حين ينقسم على الصفحات (box-decoration-break:clone).
+// • .nb: لا تنقسم الكتلة (خبرة/تعليم/مهارة) بين صفحتين؛ والعناوين لا تبقى يتيمة أسفل الصفحة.
+const BASE = `*{box-sizing:border-box}html,body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:0}body{width:794px;min-height:1123px}h1,h2,h3,p{margin:0}ul{margin:0}.ltr{direction:ltr;unicode-bidi:embed}.foot{font-size:10px;color:#9AA4AC}
+.cl{-webkit-box-decoration-break:clone;box-decoration-break:clone}.nb{break-inside:avoid}h1,h2,.kh{break-after:avoid}li{break-inside:avoid}
+@media print{body{min-height:0;background:transparent!important}.pg{background:transparent!important}}`;
+const A4H = "297mm";
+/** شريط عمودي بلون واحد يتكرر في كل صفحة مطبوعة (right/width بالبكسل، مع هامش علوي/سفلي اختياري) */
+function sideBand(right: number, width: number, color: string, top = 0, bottom = 0) {
+  return `<style>@media print{html{background-image:linear-gradient(transparent ${top}px,${color} ${top}px,${color} calc(100% - ${bottom}px),transparent calc(100% - ${bottom}px));background-position:right ${right}px top;background-size:${width}px ${A4H};background-repeat:repeat-y}}</style>`;
+}
+/** رسم SVG بحجم صفحة كاملة (794×1123) يتكرر خلف كل صفحة مطبوعة */
+function pageArt(svg: string) {
+  return `<style>@media print{html{background-image:url("data:image/svg+xml;utf8,${encodeURIComponent(svg).replace(/'/g, "%27")}");background-position:left top;background-size:794px ${A4H};background-repeat:repeat-y}}</style>`;
+}
 
 function doc(body: string, css: string, font: string, bg = "#fff") {
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=794">${FONTS}<style>${BASE}body{font-family:'${font}',Tahoma,Arial,sans-serif;background:${bg}}${css}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=794">${FONTS}<style>${BASE}body{font-family:'${font}',Tahoma,Arial,sans-serif;background:${bg}}@media print{html{background-color:${bg}}}${css}</style></head><body>${body}</body></html>`;
 }
 
 type ContactKind = "phone" | "email" | "web" | "address";
@@ -185,8 +201,9 @@ function nile(cv: CVData, t: RT, photo?: string) {
   .per{font-size:12px;color:${t.muted};display:block;margin-bottom:2px}.tl h3,.ed h3{font-size:16px;font-weight:700}.tl p{font-size:13.5px;line-height:1.85;color:${t.ink};opacity:.88;margin-top:4px}
   .ed{margin-bottom:10px}.ed span{font-size:13px;color:${t.muted}}
   .side{display:flex;flex-direction:column;gap:26px}.li{font-size:13.5px;line-height:1.7;display:flex;gap:8px;align-items:baseline}.li:before{content:"";width:6px;height:6px;border-radius:3px;background:${t.p};flex-shrink:0;transform:translateY(-2px)}
-  .ft{display:flex;justify-content:space-between;border-top:1px solid ${t.line};padding-top:12px}`;
-  return doc(`<div class="pg">
+  .ft{display:flex;justify-content:space-between;border-top:1px solid ${t.line};padding-top:12px}
+  .tl,.ed,.hd,.ft,.li{break-inside:avoid}`;
+  return doc(`<div class="pg cl">
     <div class="hd"><div style="display:flex;gap:18px;align-items:center">${photo ? `<img class="ph" src="${photo}">` : ""}<div><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}</div></div>
     <div class="ct">${d.contact.map(ctxt).join("")}</div></div>
     ${d.summary ? `<p class="sum">${nl(d.summary)}</p>` : ""}
@@ -211,9 +228,10 @@ function band(cv: CVData, t: RT, photo?: string) {
   .mn{flex:1;padding:34px 44px;display:flex;flex-direction:column;gap:20px}
   .mh{font-size:19px;font-weight:800;display:flex;align-items:center;gap:10px}.mh span{width:26px;height:4px;border-radius:2px;background:${t.p}}
   .it .r{display:flex;justify-content:space-between;gap:12px;align-items:baseline}.it h3{font-size:16px;font-weight:700}.it .d{font-size:12px;color:${t.muted};white-space:nowrap}.it .co{font-size:13.5px;font-weight:600;color:${c}}.it p{font-size:13.5px;line-height:1.85;margin-top:4px;opacity:.88}
-  .sm{font-size:13px;line-height:1.8}`;
+  .sm{font-size:13px;line-height:1.8}
+  .sd,.mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.it,.sd>div{break-inside:avoid}.mh{break-after:avoid}`;
   const avatar = cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(t.onP)}</div>` : "";
-  return doc(`<div class="pg"><div class="top">${avatar}<div><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}<div class="ct">${d.contact.map(ctxt).join("")}</div></div></div>
+  return doc(`${sideBand(0, 250, sideBg)}<div class="pg"><div class="top">${avatar}<div><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}<div class="ct">${d.contact.map(ctxt).join("")}</div></div></div>
   <div class="cols"><div class="sd">${d.summary ? `<div><h2>نبذة</h2><p>${nl(d.summary)}</p></div>` : ""}
   ${d.skills.length ? `<div><h2>المهارات</h2><div class="chips">${d.skills.map((s) => `<span class="chip">${e(s)}</span>`).join("")}</div></div>` : ""}
   ${d.langs.length ? `<div><h2>اللغات</h2><div class="sm">${d.langs.map(e).join(" · ")}</div></div>` : ""}
@@ -234,7 +252,8 @@ function editorial(cv: CVData, t: RT) {
   .g{display:grid;grid-template-columns:1fr 3fr;gap:18px 30px}.g h2{font-size:12px;color:${c};font-weight:600;padding-top:6px}
   .hr{grid-column:1/-1;height:1px;background:${t.line}}.cell{display:flex;flex-direction:column;gap:16px}
   .cell h3{font-family:'Amiri',serif;font-size:22px;font-weight:700}.cell .m{font-size:12.5px;color:${t.muted}}.cell p{font-size:13.5px;line-height:1.85;margin-top:4px;opacity:.9}
-  .flow{font-size:14px;line-height:2}.mono{font-family:'Amiri',serif;font-size:26px;color:${c}}`;
+  .flow{font-size:14px;line-height:2}.mono{font-family:'Amiri',serif;font-size:26px;color:${c}}
+  .cell>div{break-inside:avoid}.g h2{break-after:avoid}`;
   const body = [
     d.exp.length && row("الخبرة", d.exp.map((x) => `<div><h3>${e(x.position)}</h3><span class="m">${e(x.company)}${x.period ? ` · ${e(x.period)}` : ""}</span>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")),
     d.edu.length && row("التعليم", d.edu.map((x) => `<div><h3>${e(x.degree)}</h3><span class="m">${e(x.institution)}${x.year ? ` · ${e(x.year)}` : ""}</span></div>`).join("")),
@@ -242,7 +261,7 @@ function editorial(cv: CVData, t: RT) {
     d.langs.length && row("اللغات", `<p class="flow">${d.langs.map(e).join(" · ")}</p>`),
     d.courses.length && row("الدورات", `<p class="flow">${d.courses.map(e).join("<br>")}</p>`),
   ].filter(Boolean).join("");
-  return doc(`<div class="pg"><div style="display:flex;flex-direction:column;gap:8px"><span class="kick">السيرة الذاتية</span><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}</div>
+  return doc(`<div class="pg cl"><div style="display:flex;flex-direction:column;gap:8px"><span class="kick">السيرة الذاتية</span><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}</div>
   <div class="ct">${d.contact.map(ctxt).join("")}</div>
   ${d.summary ? `<p class="q">«${nl(d.summary)}»</p>` : ""}<div class="g">${body}</div><div style="flex:1"></div>
   <div style="display:flex;justify-content:space-between;align-items:center"><span class="mono">${e(initials(d.name))}</span><span class="foot">المراجع تُقدَّم عند الطلب · حصاحيصاوي</span></div></div>`, css, "IBM Plex Sans Arabic", t.bg);
@@ -264,7 +283,8 @@ function cards(cv: CVData, t: RT, photo?: string) {
   .row{display:flex;gap:14px;margin-bottom:16px}.ic{width:40px;height:40px;border-radius:12px;background:${soft};display:flex;align-items:center;justify-content:center;flex-shrink:0}
   .row h3{font-size:15px;font-weight:700}.row .m{font-size:12px;color:${t.muted}}.row p{font-size:13px;line-height:1.8;margin-top:4px;opacity:.88}
   .tags{display:flex;flex-wrap:wrap;gap:7px}.tag{font-size:12.5px;font-weight:600;border-radius:10px;padding:5px 11px;background:${soft};color:${ensure(t.p, soft, 4.5)}}.tag.on{background:${t.p};color:${t.onP}}
-  .ln{font-size:13px;line-height:1.8}`;
+  .ln{font-size:13px;line-height:1.8}
+  .pg,.card{-webkit-box-decoration-break:clone;box-decoration-break:clone}.row,.hd,.col>.card{break-inside:avoid}`;
   const avatar = cv.showPhoto && photo ? `<img src="${photo}">` : e(initials(d.name));
   return doc(`<div class="pg"><div class="card hd"><div class="av">${avatar}</div><div style="flex:1"><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}
   <div class="pills">${d.contact.map((x) => `<span class="pill ${x.ltr ? "ltr" : ""}">${e(x.v)}</span>`).join("")}</div></div>
@@ -285,8 +305,9 @@ function ats(cv: CVData, t: RT) {
   .hd{text-align:center}.hd h1{font-size:32px;font-weight:700}.hd .role{font-size:15px;font-weight:500}.hd .ct{font-size:12.5px;color:${t.muted};margin-top:6px}
   h2{font-size:14px;font-weight:700;border-bottom:1.5px solid ${c};color:${c};padding-bottom:4px;margin-bottom:8px}
   .r{display:flex;justify-content:space-between;gap:12px}.r h3{font-size:14.5px;font-weight:700}.r span{font-size:12.5px;color:${t.muted};white-space:nowrap}
-  p,li{font-size:13.5px;line-height:1.85}ul{margin:2px 0 10px;padding-right:18px}.blk{margin-bottom:10px}`;
-  return doc(`<div class="pg"><div class="hd"><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}<p class="ct">${d.contact.map(ctxt).join(" · ")}</p></div>
+  p,li{font-size:13.5px;line-height:1.85}ul{margin:2px 0 10px;padding-right:18px}.blk{margin-bottom:10px}
+  .blk,.hd{break-inside:avoid}.blk .r{break-after:avoid}`;
+  return doc(`<div class="pg cl"><div class="hd"><h1>${e(d.name)}</h1>${d.title ? `<p class="role">${e(d.title)}</p>` : ""}<p class="ct">${d.contact.map(ctxt).join(" · ")}</p></div>
   ${d.summary ? `<div><h2>الملخص المهني</h2><p>${nl(d.summary)}</p></div>` : ""}
   ${d.exp.length ? `<div><h2>الخبرة العملية</h2>${d.exp.map((x) => `<div class="blk"><div class="r"><h3>${e(x.position)}${x.company ? ` — ${e(x.company)}` : ""}</h3>${x.period ? `<span>${e(x.period)}</span>` : ""}</div>${x.desc ? `<ul>${x.desc.split(/\n+/).filter(Boolean).map((l) => `<li>${e(l.replace(/^[-•·]\s*/, ""))}</li>`).join("")}</ul>` : ""}</div>`).join("")}</div>` : ""}
   ${d.edu.length ? `<div><h2>التعليم</h2>${d.edu.map((x) => `<div class="blk r"><h3>${e(x.degree)}${x.institution ? ` — ${e(x.institution)}` : ""}</h3>${x.year ? `<span>${e(x.year)}</span>` : ""}</div>`).join("")}</div>` : ""}
@@ -306,8 +327,9 @@ function bold(cv: CVData, t: RT, photo?: string) {
   .mn{flex:1;padding:56px 46px;display:flex;flex-direction:column;gap:24px}
   .mn h1{font-size:48px;font-weight:900;line-height:1.1;color:${t.pT}}.role{display:inline-block;background:${gold};color:${t.onA};font-size:15px;font-weight:800;padding:4px 14px;border-radius:8px;margin-top:10px}
   .sum{font-size:14px;line-height:1.9}.mn h2{font-size:20px;font-weight:900;color:${t.pT};margin-bottom:12px}
-  .it{border-right:4px solid ${t.line};padding-right:14px;margin-bottom:14px}.it.f{border-color:${gold}}.it h3{font-size:16px;font-weight:800}.it .m{font-size:12.5px;color:${t.muted}}.it p{font-size:13.5px;line-height:1.85;margin-top:4px;opacity:.88}`;
-  return doc(`<div class="pg"><div class="sd">${cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(t.onS)}</div>` : ""}
+  .it{border-right:4px solid ${t.line};padding-right:14px;margin-bottom:14px}.it.f{border-color:${gold}}.it h3{font-size:16px;font-weight:800}.it .m{font-size:12.5px;color:${t.muted}}.it p{font-size:13.5px;line-height:1.85;margin-top:4px;opacity:.88}
+  .sd,.mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.it,.sd>div{break-inside:avoid}`;
+  return doc(`${sideBand(0, 280, t.s)}<div class="pg"><div class="sd">${cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(t.onS)}</div>` : ""}
   ${d.contact.length ? `<div><h2>التواصل</h2>${d.contact.map((x) => `<div class="l ${x.ltr ? "ltr" : ""}" style="text-align:right">${e(x.v)}</div>`).join("")}</div>` : ""}
   ${d.skills.length ? `<div><h2>المهارات</h2><div class="tg">${d.skills.map((s) => `<span>${e(s)}</span>`).join("")}</div></div>` : ""}
   ${d.langs.length ? `<div><h2>اللغات</h2><div class="l">${d.langs.map(e).join(" · ")}</div></div>` : ""}
@@ -322,7 +344,7 @@ function hexa(cv: CVData, t: RT, photo?: string) {
   const d = clean(cv); const S = t.s; const on = t.onS; const navyT = ensure(S, t.bg, 4.5);
   const HEX = "polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%)";
   const css = `.pg{position:relative;min-height:1123px;background:${t.bg};color:${t.ink};display:flex}
-  .sd{width:268px;flex-shrink:0;background:${S};color:${on};padding:262px 30px 40px;display:flex;flex-direction:column;gap:26px;position:relative}
+  .sd{width:268px;flex-shrink:0;background:${S};color:${on};padding:40px 30px 40px;display:flex;flex-direction:column;gap:26px;position:relative}.sd>:first-child{margin-top:222px}.sd.nph>:first-child{margin-top:200px}
   .topband{position:absolute;top:0;left:0;right:0;height:64px;background:${S}}
   .plate{position:absolute;top:64px;left:0;right:268px;height:150px;background:${t.bg};border-top-right-radius:46px}
   .hx{position:absolute;top:44px;right:30px;width:236px;height:206px;z-index:3}
@@ -338,7 +360,8 @@ function hexa(cv: CVData, t: RT, photo?: string) {
   .sk{margin:10px 0}.sk span{display:block;text-align:center;font-size:12px;font-weight:600;margin-bottom:4px}.bar{height:9px;border:1.5px solid ${on};border-radius:5px;padding:1.5px}.bar b{display:block;height:100%;border-radius:3px;background:${on}}
   .rings{display:flex;gap:14px;flex-wrap:wrap}.rg{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:600}
   .ring{width:58px;height:58px;border-radius:29px;background:conic-gradient(${on} var(--p),${alpha(on, 0.22)} 0);display:flex;align-items:center;justify-content:center}.ring span{width:46px;height:46px;border-radius:23px;background:${S};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-  .mn{flex:1;min-width:0;padding:236px 40px 40px 44px;display:flex;flex-direction:column;gap:20px}
+  .mn{flex:1;min-width:0;padding:40px 40px 40px 44px;display:flex;flex-direction:column;gap:20px}.mn>:first-child{margin-top:196px}
+  .sd,.mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.tl,.sk,.ci,.rg{break-inside:avoid}.tg{break-after:avoid}
   .tg{display:flex;align-items:center;margin-bottom:12px}.tg b{background:${S};color:${on};font-size:15px;font-weight:700;padding:5px 22px 5px 30px;clip-path:polygon(100% 0,14px 0,0 50%,14px 100%,100% 100%);margin-right:-44px;padding-right:44px}
   .tg i{flex:1;height:2px;background:${S};position:relative}.tg i:after{content:"";position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:5px;background:${S}}
   .sum{font-size:13px;line-height:1.85;padding:0 6px}
@@ -348,10 +371,10 @@ function hexa(cv: CVData, t: RT, photo?: string) {
   .tl .c{position:relative}.tl .c:before{content:"";position:absolute;right:-15px;top:7px;width:10px;height:10px;border-radius:5px;background:${S}}
   .tl h3{font-size:14px;font-weight:800;color:${navyT}}.tl .co{font-size:12px;font-weight:600;color:${t.muted}}.tl p{font-size:12px;line-height:1.75;margin-top:3px;opacity:.85}`;
   const per = (s: string) => e(s).replace(/\s*[—–-]\s*/, "<br>");
-  return doc(`<div class="pg"><div class="topband"></div><div class="plate"></div>
+  return doc(`${sideBand(0, 268, S)}<div class="pg"><div class="topband"></div><div class="plate"></div>
   ${cv.showPhoto ? `<div class="hx"><div class="o"></div><div class="m"></div><div class="i">${photo ? `<img src="${photo}">` : PERSON(on)}</div></div><div class="conn"></div>` : ""}
   <div class="np" style="${cv.showPhoto ? "" : "right:30px"}"><div class="nm">${e(d.name)}</div>${d.title ? `<div class="rl"><span>${e(d.title)}</span><i></i></div>` : ""}</div>
-  <div class="sd" style="${cv.showPhoto ? "" : "padding-top:240px"}">
+  <div class="sd${cv.showPhoto ? "" : " nph"}">
     ${d.contact.length ? `<div><h2>التواصل</h2>${d.contact.map((x) => `<div class="ci"><b>${cic(x, S, 15)}</b>${ctxt(x)}</div>`).join("")}</div>` : ""}
     ${d.skills.length ? `<div><h2>المهارات</h2>${d.skills.map((s, i) => `<div class="sk"><span>${e(s)}</span><div class="bar"><b style="width:${pct(d.skillLv[i])}%"></b></div></div>`).join("")}</div>` : ""}
     ${d.langs.length ? `<div><h2>اللغات</h2><div class="rings">${d.langs.map((l, i) => `<div class="rg"><div class="ring" style="--p:${pct(d.langLv[i])}%"><span class="ltr">${pct(d.langLv[i])}%</span></div>${e(l)}</div>`).join("")}</div></div>` : ""}
@@ -368,23 +391,27 @@ function hexa(cv: CVData, t: RT, photo?: string) {
 function diagonal(cv: CVData, t: RT, photo?: string) {
   const d = clean(cv); const grey = t.a; const onG = onColor(grey);
   const star = (n: number) => Array.from({ length: 5 }, (_, i) => `<span style="color:${i < n ? onG : alpha(onG, 0.28)}">★</span>`).join("");
-  const css = `.pg{position:relative;min-height:1123px;background:${t.bg};color:${t.ink};overflow:hidden}
+  // الأعمدة في التدفق الطبيعي (لا تموضع مطلق) كي تنساب السيرة الطويلة إلى صفحات تالية بعمود رمادي كامل الارتفاع
+  const css = `.pg{position:relative;min-height:1123px;background:${t.bg};color:${t.ink}}
   .dk{position:absolute;top:0;right:0;left:0;height:420px;background:${t.s};clip-path:polygon(0 0,100% 0,100% 100%,0 26%)}
-  .gr{position:absolute;top:300px;right:0;width:340px;bottom:0;background:${grey};clip-path:polygon(0 18%,100% 0,100% 100%,0 100%)}
+  .wg{position:absolute;top:0;right:0;width:340px;height:620px;background:${t.bg};z-index:-1}
+  .gr{position:absolute;top:300px;right:0;width:340px;height:823px;background:${grey};clip-path:polygon(0 18%,100% 0,100% 100%,0 100%)}
+  .cols{position:relative;z-index:3;display:flex;align-items:flex-start;padding-top:260px}
   .ph{position:absolute;top:44px;right:52px;width:230px;height:230px;border-radius:50%;border:7px solid ${t.bg};overflow:hidden;background:${alpha(t.onS, 0.12)};display:flex;align-items:center;justify-content:center;z-index:3}.ph img{width:100%;height:100%;object-fit:cover}
   .hd{position:absolute;top:56px;left:56px;right:330px;color:${t.onS};z-index:3}.hd h1{font-size:46px;font-weight:800;line-height:1.12}.hd p{font-size:17px;margin-top:8px;opacity:.9;font-weight:600}
-  .sd{position:absolute;top:400px;right:0;width:340px;padding:0 44px 40px 34px;color:${onG};display:flex;flex-direction:column;gap:24px;z-index:3}
+  .sd{width:340px;flex-shrink:0;padding:40px 44px 40px 34px;color:${onG};display:flex;flex-direction:column;gap:24px}.sd>:first-child{margin-top:100px}
   .sd h2{font-size:15px;font-weight:800;padding-bottom:6px;border-bottom:1.5px solid ${alpha(onG, 0.75)};margin-bottom:10px}.sd p,.sd li{font-size:12.5px;line-height:1.85}.sd ul{margin:0;padding-right:16px}
   .st{display:flex;justify-content:space-between;font-size:12.5px;margin:5px 0}.st b{font-weight:400;letter-spacing:1px}
-  .mn{position:absolute;top:300px;right:380px;left:52px;display:flex;flex-direction:column;gap:22px;z-index:3}
+  .mn{flex:1;min-width:0;margin:0 40px 0 52px;padding:40px 0;display:flex;flex-direction:column;gap:22px}
+  .sd,.mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.it,.sk,.ci,.st,.sd li{break-inside:avoid}
   .mn h2{font-size:16px;font-weight:800;padding-bottom:6px;border-bottom:1.5px solid ${t.ink};margin-bottom:10px;width:80%}
   .it{margin-bottom:12px}.it h3{font-size:14px;font-weight:800}.it .y{font-size:13px;font-weight:800;color:${t.muted}}.it p{font-size:12.5px;line-height:1.8;opacity:.85;text-align:justify}
   .sk{margin:6px 0}.sk span{font-size:12.5px}.bar{height:9px;background:${mix(grey, t.bg, 0.55)};width:85%;margin-top:4px}.bar b{display:block;height:100%;background:${t.s}}
   .ci{display:flex;gap:10px;align-items:center;font-size:12.5px;margin:6px 0}.ci i{width:22px;height:22px;border-radius:11px;background:${t.s};flex-shrink:0;display:flex;align-items:center;justify-content:center}`;
-  return doc(`<div class="pg"><div class="dk"></div><div class="gr"></div>
+  return doc(`${sideBand(0, 340, grey)}<div class="pg"><div class="wg"></div><div class="dk"></div><div class="gr"></div>
   ${cv.showPhoto ? `<div class="ph">${photo ? `<img src="${photo}">` : PERSON(t.onS)}</div>` : ""}
   <div class="hd" style="${cv.showPhoto ? "" : "right:56px"}"><h1>${e(d.name)}</h1>${d.title ? `<p>${e(d.title)}</p>` : ""}</div>
-  <div class="sd">
+  <div class="cols"><div class="sd">
     ${d.summary ? `<div><h2>نبذة عني</h2><p>${nl(d.summary)}</p></div>` : ""}
     ${d.edu.length ? `<div><h2>التعليم</h2><ul>${d.edu.map((x) => `<li>${e(x.institution || x.degree)}<br>${e(x.degree)}${x.year ? ` (${e(x.year)})` : ""}</li>`).join("")}</ul></div>` : ""}
     ${d.langs.length ? `<div><h2>اللغات</h2>${d.langs.map((l, i) => `<div class="st"><span>${e(l)}</span><b>${star(d.langLv[i])}</b></div>`).join("")}</div>` : ""}
@@ -394,26 +421,28 @@ function diagonal(cv: CVData, t: RT, photo?: string) {
     ${d.exp.length ? `<div><h2>الخبرات العملية</h2>${d.exp.map((x) => `<div class="it"><h3>${e(x.position)}</h3><div class="y">${[x.period, x.company].filter(Boolean).map(e).join(" — ")}</div>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")}</div>` : ""}
     ${d.skills.length ? `<div><h2>المهارات</h2>${d.skills.map((s, i) => `<div class="sk"><span>${e(s)}</span><div class="bar"><b style="width:${pct(d.skillLv[i])}%"></b></div></div>`).join("")}</div>` : ""}
     ${d.contact.length ? `<div><h2>التواصل</h2>${d.contact.map((x) => `<div class="ci"><i>${cic(x, t.onS, 12)}</i>${ctxt(x)}</div>`).join("")}</div>` : ""}
-  </div></div>`, css, "Cairo", t.bg);
+  </div></div></div>`, css, "Cairo", t.bg);
 }
 
 // ── 9. اللمسة الذهبية ─────────────────────────────────────
 function accent(cv: CVData, t: RT, photo?: string) {
   const d = clean(cv); const ink = t.s; const c = t.a; const onI = t.onS; const cOnI = ensure(c, ink, 4.5);
-  const css = `.pg{display:flex;min-height:1123px;background:${t.bg};color:${t.ink}}
-  .sd{width:290px;background:${ink};color:${onI};margin:40px 40px 40px 0;display:flex;flex-direction:column}
+  // حشوة الصفحة (40px أعلى وأسفل) تتكرر في كل صفحة مطبوعة فيبقى العمود الداكن مؤطّراً بالهامش نفسه
+  const css = `.pg{display:flex;min-height:1123px;background:${t.bg};color:${t.ink};padding:40px 0;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .sd{width:290px;background:${ink};color:${onI};margin:0 40px 0 0;display:flex;flex-direction:column}
   .ph{height:300px;background:${mix(ink, onI, 0.08)};border-radius:0 0 90px 0;overflow:hidden;display:flex;align-items:center;justify-content:center}.ph img{width:100%;height:100%;object-fit:cover}
   .sb{padding:26px 26px 30px;display:flex;flex-direction:column;gap:22px;flex:1;border-radius:0 70px 0 0;background:${ink};margin-top:-30px;position:relative}
   .yt{display:inline-block;background:${c};color:${t.onA};font-size:12.5px;font-weight:900;padding:3px 14px;border-radius:0 10px 10px 0}
   .sb h3{font-size:13.5px;font-weight:800;margin-top:10px}.sb p{font-size:11.5px;line-height:1.7;opacity:.82}
   .cr{border-right:5px solid ${c};padding:4px 10px;margin:6px 0;background:linear-gradient(90deg,transparent,${alpha(onI, 0.06)})}.cr b{display:block;font-size:12px;color:${cOnI}}.cr span{font-size:11.5px}
-  .mn{flex:1;padding:70px 44px 40px 30px;display:flex;flex-direction:column;gap:22px}
-  .acc{width:40px;height:110px;background:${c};border-radius:0 0 20px 20px;position:absolute;top:0;left:30px}
+  .mn{flex:1;padding:30px 44px 0 30px;display:flex;flex-direction:column;gap:22px}
+  .acc{width:40px;height:110px;background:${c};border-radius:0 0 20px 20px;position:absolute;top:-40px;left:30px}
   .mn h1{font-size:44px;font-weight:900;line-height:1.05}.mn .rl{font-size:16px;color:${t.muted};margin-top:6px;font-weight:600}
   .mn .yt{border-radius:10px}.sum{font-size:13px;line-height:1.85;color:${t.muted};margin-top:8px}
   .ex{display:grid;grid-template-columns:96px 1fr;gap:6px 16px;margin-top:10px}.ex .y{font-size:12px;font-weight:700;color:${t.muted}}.ex h3{font-size:13.5px;font-weight:800}.ex .co{font-size:12px;font-weight:600;color:${t.muted}}.ex p{font-size:12px;line-height:1.75;color:${t.muted}}
-  .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;margin-top:10px}.sg span{font-size:12px}.ln{height:3px;background:${t.line};margin-top:4px}.ln b{display:block;height:100%;background:${c}}`;
-  return doc(`<div class="pg"><div class="sd">
+  .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;margin-top:10px}.sg span{font-size:12px}.ln{height:3px;background:${t.line};margin-top:4px}.ln b{display:block;height:100%;background:${c}}
+  .sb{-webkit-box-decoration-break:clone;box-decoration-break:clone}.ex>div,.sg>div,.cr,.sb>div{break-inside:avoid}.yt{break-after:avoid}`;
+  return doc(`${sideBand(40, 290, ink, 40, 40)}<div class="pg"><div class="sd">
     ${cv.showPhoto ? `<div class="ph">${photo ? `<img src="${photo}">` : PERSON(alpha(onI, 0.6))}</div>` : `<div style="height:40px"></div>`}
     <div class="sb">
       ${d.edu.length ? `<div><span class="yt">التعليم</span>${d.edu.map((x) => `<h3>${e(x.degree)}</h3><p>${e(x.institution)}${x.year ? `<br>${e(x.year)}` : ""}</p>`).join("")}</div>` : ""}
@@ -432,7 +461,8 @@ function accent(cv: CVData, t: RT, photo?: string) {
 // ── 10. القوس ─────────────────────────────────────────────
 function arch(cv: CVData, t: RT, photo?: string) {
   const d = clean(cv); const c = t.p; const dk = mix(c, "#000000", 0.25); const onC = onColor(c); const onDk = onColor(dk);
-  const css = `.pg{position:relative;min-height:1123px;background:${t.bg};color:${t.ink};display:flex;padding:54px 46px 40px 40px;gap:0}
+  const css = `.pg{position:relative;min-height:1123px;background:${t.bg};color:${t.ink};display:flex;padding:54px 46px 40px 40px;gap:0;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .cap{position:absolute;top:0;right:46px;width:280px;height:200px;background:${t.bg};z-index:-1}
   .col{width:280px;background:${c};border-radius:140px 140px 0 0;padding:28px 0 30px;display:flex;flex-direction:column;gap:22px;flex-shrink:0;position:relative}
   .av{width:170px;height:170px;border-radius:85px;background:${t.bg};align-self:center;overflow:hidden;display:flex;align-items:center;justify-content:center;border:6px solid ${t.bg}}.av img{width:100%;height:100%;object-fit:cover}
   .rb{position:relative;background:${dk};color:${onDk};font-size:16px;font-weight:800;text-align:center;padding:9px 0;margin:0 -18px 0 -18px}
@@ -442,8 +472,9 @@ function arch(cv: CVData, t: RT, photo?: string) {
   .hd{padding:30px 34px 10px}.hd h1{font-size:40px;font-weight:900;line-height:1.15}.hd p{font-size:18px;margin-top:4px}
   .mr{background:${dk};color:${onDk};font-size:18px;font-weight:800;padding:10px 30px;margin-right:-18px;text-align:center}
   .tl{position:relative;padding:4px 34px 4px 30px;border-right:2px solid ${t.ink};margin:10px 46px 6px 30px}.tl:before{content:"";position:absolute;right:-7px;top:6px;width:12px;height:12px;border-radius:6px;background:${t.ink}}
-  .tl h3{font-size:14px;font-weight:800}.tl .m{font-size:12.5px;color:${t.muted};margin:2px 0}.tl p{font-size:12px;line-height:1.75;opacity:.85}`;
-  return doc(`<div class="pg"><div class="col">
+  .tl h3{font-size:14px;font-weight:800}.tl .m{font-size:12.5px;color:${t.muted};margin:2px 0}.tl p{font-size:12px;line-height:1.75;opacity:.85}
+  .tl,.cb{break-inside:avoid}.rbw,.mr{break-after:avoid}`;
+  return doc(`${sideBand(46, 280, c, 54, 40)}<div class="pg"><div class="cap"></div><div class="col">
     ${cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(c)}</div>` : `<div style="height:60px"></div>`}
     ${d.summary ? `<div class="rbw"><div class="rb">نبذة عني</div></div><div class="cb">${nl(d.summary)}</div>` : ""}
     ${d.skills.length ? `<div class="rbw"><div class="rb">المهارات</div></div><div class="cb"><ul>${d.skills.map((s) => `<li>${e(s)}</li>`).join("")}</ul></div>` : ""}
@@ -492,10 +523,12 @@ function mustard(cv: CVData, t: RT, photo?: string) {
   .xp .v{background:${t.line};margin:20px 0}
   .xp .c{padding:20px 0;border-bottom:1px solid ${t.line};font-size:12.5px;line-height:1.85}
   .xp .c ul{padding:4px 18px 0 0;color:${t.muted};font-style:italic}.xp .c li{font-size:11.5px;line-height:1.8}.xp .c li::marker{color:${A}}
-  .cs{margin-top:22px}.cs li{font-size:12.5px;line-height:1.9;margin-right:18px}.cs li::marker{color:${A}}`;
+  .cs{margin-top:22px}.cs li{font-size:12.5px;line-height:1.9;margin-right:18px}.cs li::marker{color:${A}}
+  .body .sd{padding-top:40px}.body .sd>:first-child{margin-top:-40px}.body .mn{padding-top:40px}.body .mn>:first-child{margin-top:-12px}
+  .body .sd,.body .mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.ci,.sk,.ed,.xp>div{break-inside:avoid}.mh,.bh,.sh h2,.sh .ul{break-after:avoid}`;
   const exp = d.exp.map((x) => { const p = descParts(x.desc); return `<div class="m"><h3>${e(x.position)}</h3>${x.period ? `<div class="p">${e(x.period)}</div>` : ""}${x.company ? `<div class="co">${e(x.company)}</div>` : ""}</div><div class="v"></div><div class="c">${p.lead ? e(p.lead) : ""}${p.rest.length ? `<ul>${p.rest.map((l) => `<li>${e(l)}</li>`).join("")}</ul>` : ""}</div>`; }).join("");
-  return doc(`<div class="pg">
-  <div class="row"><div class="sd ph">${cv.showPhoto && photo ? `<img src="${photo}">` : `<span class="ini">${e(initials(d.name, " "))}</span>`}</div>
+  return doc(`${sideBand(0, 262, S)}<div class="pg">
+  <div class="row" style="position:relative"><i style="position:absolute;inset:0;background:${t.bg};z-index:-1"></i><div class="sd ph">${cv.showPhoto && photo ? `<img src="${photo}">` : `<span class="ini">${e(initials(d.name, " "))}</span>`}</div>
     <div class="mn hd"><h1>${e(n1)}${n2 ? `<br>${e(n2)}` : ""}</h1>${d.title ? `<div class="strip">${e(d.title)}</div>` : ""}${cv.address ? `<div class="adr">العنوان: ${e(cv.address)}</div>` : ""}</div></div>
   ${d.summary ? `<div class="row band"><div class="sd"><b>النبذة<br>المهنية</b><i></i></div><div class="mn">${nl(d.summary)}</div></div>` : ""}
   <div class="row body"><div class="sd">
@@ -527,7 +560,9 @@ function wave(cv: CVData, t: RT, photo?: string) {
   .lv{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;margin:9px 0}
   .sg{display:flex;gap:3px;direction:ltr}.sg i{width:15px;height:7px;background:${alpha(onS, 0.22)}}.sg i.on{background:${alpha(onS, 0.88)}}
   .cs{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.6;margin:8px 0}.cs b{width:24px;height:24px;border-radius:12px;background:${onS};display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .mn{flex:1;min-width:0;position:relative;padding:0 36px 70px 40px}
+  .mn{flex:1;min-width:0;position:relative;padding:40px 36px 70px 40px}.mn>.hd{margin-top:-40px}
+  .sd,.mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.it,.ci,.lv,.cs{break-inside:avoid}.rb,.pill{break-after:avoid}
+  @media print{.ft,.dc1,.dc2{position:fixed!important}.dc1,.dc2{z-index:-1}}
   .hdw{position:absolute;top:0;left:-1px;right:0;height:300px;z-index:0}
   .hd{position:relative;z-index:1;padding:44px 0 0;height:236px;color:${onGrad}}
   .hd h1{font-size:42px;font-weight:900;line-height:1.15;max-width:420px}.hd p{font-size:21px;font-weight:500;margin-top:6px;opacity:.95}
@@ -544,7 +579,7 @@ function wave(cv: CVData, t: RT, photo?: string) {
   const pill = (icon: string, label: string) => `<div class="pill"><b>${ic(icon, onGrad, 16)}</b>${label}${sw}</div>`;
   const wv = `<svg class="hdw" viewBox="0 0 470 300" preserveAspectRatio="none"><defs><linearGradient id="hg" x1="1" x2="0" y1="0" y2="0"><stop offset="0" stop-color="${L}"/><stop offset="1" stop-color="${P}"/></linearGradient></defs><path d="M0 0 H470 V196 C 300 200, 150 196, 80 236 C 40 258, 14 280, 0 300 Z" fill="url(#hg)"/></svg>`;
   const footTxt = d.contact.find((x) => x.k === "web") || d.contact.find((x) => x.k === "email");
-  return doc(`<div class="pg"><div class="sd"><div class="c1"></div>
+  return doc(`${sideBand(24, 262, S)}<div class="pg"><div class="sd"><div class="c1"></div>
     ${cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(S, 0.7)}</div><div class="c2"></div>` : ""}
     ${d.contact.length ? `<div><div class="rb">التواصل</div><div class="pd">${d.contact.map((x) => `<div class="ci"><b>${cic(x, S, 14)}</b>${ctxt(x)}</div>`).join("")}</div></div>` : ""}
     ${d.langs.length ? `<div><div class="rb">اللغات</div><div class="pd">${d.langs.map((l, i) => `<div class="lv"><span>${e(l)}</span>${seg(d.langLv[i])}</div>`).join("")}</div></div>` : ""}
@@ -556,9 +591,8 @@ function wave(cv: CVData, t: RT, photo?: string) {
     ${d.summary ? `<div class="sec">${pill("user", "نبذة")}<p class="bd">${nl(d.summary)}</p></div>` : ""}
     ${d.edu.length ? `<div class="sec">${pill("cap", "التعليم")}<div class="bd">${d.edu.map((x) => `<div class="it">${x.year ? `<div class="y">${e(x.year)}</div>` : ""}<h3>${e(x.degree)}</h3><div class="co">${e(x.institution)}</div></div>`).join("")}</div></div>` : ""}
     ${d.exp.length ? `<div class="sec">${pill("brief", "الخبرات")}<div class="bd">${d.exp.map((x) => `<div class="it">${x.period ? `<div class="y">${e(x.period)}</div>` : ""}<h3>${e(x.position)}${x.company ? ` — ${e(x.company)}` : ""}</h3>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")}</div></div>` : ""}
-    <div class="dc1"></div><div class="dc2"></div>
-  </div>
-  <div class="ft">${footTxt ? ctxt(footTxt) : ""}</div></div>`, css, "Cairo", t.bg);
+  </div></div>
+  <div class="dc1"></div><div class="dc2"></div><div class="ft">${footTxt ? ctxt(footTxt) : ""}</div>`, css, "Cairo", t.bg);
 }
 
 // ── 13. أحادي اللون (مرجع 15): كتلة اسم سوداء + صندوق تواصل + عمود رمادي + خط زمني بالتواريخ ──
@@ -575,20 +609,22 @@ function mono(cv: CVData, t: RT) {
   .cb{width:300px;background:${K};color:${onK};padding:14px 20px;display:flex;flex-direction:column;justify-content:center;gap:7px;font-size:11.5px}
   .cb div{display:flex;align-items:center;gap:12px}
   .cols{display:flex;flex:1;margin-top:22px}
-  .gc{width:278px;background:${grey};color:${onG};padding:22px 26px 40px 24px;margin-right:46px;display:flex;flex-direction:column;gap:22px}
+  .gc{width:278px;background:${grey};color:${onG};padding:40px 26px 40px 24px;margin-right:46px;display:flex;flex-direction:column;gap:22px}.gc>:first-child{margin-top:-18px}
+  .cap{position:absolute;top:0;right:46px;width:278px;height:218px;background:${t.bg};z-index:-1}
   .sh{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:800;padding-bottom:6px;border-bottom:1.5px solid ${alpha(onG, 0.55)};margin-bottom:10px}
   .gc p{font-size:12px;line-height:1.85}
   .ed{margin-bottom:12px}.ed .y{font-size:11px;opacity:.8}.ed h3{font-size:12.5px;font-weight:800}.ed i{font-size:11.5px;opacity:.85}
   .sk{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:7px 0}.sk span:first-child:before{content:"•";margin-left:6px}
   .dt{display:flex;gap:3px;direction:ltr}.dt i{width:8px;height:8px;border:1px solid ${onG}}.dt i.on{background:${onG}}
-  .mn{flex:1;min-width:0;padding:22px 40px 40px 46px}
+  .mn{flex:1;min-width:0;padding:40px 40px 40px 46px}.mn>:first-child{margin-top:-18px}
+  .gc,.mn{-webkit-box-decoration-break:clone;box-decoration-break:clone}.ed,.sk,.tl>div,.mn>div>div{break-inside:avoid}.sh{break-after:avoid}
   .tl{display:grid;grid-template-columns:52px 14px 1fr;gap:0 12px;margin-top:6px}
   .tl .y{font-size:11.5px;color:${t.muted};text-align:center;padding-top:16px;line-height:1.6}
   .tl .ln{position:relative}.tl .ln:before{content:"";position:absolute;right:6px;top:0;bottom:0;width:1.5px;background:${t.ink}}.tl .ln:after{content:"";position:absolute;right:2px;top:20px;width:10px;height:10px;border-radius:5px;background:${t.ink}}
   .tl .c{padding:14px 0 18px;border-bottom:1px solid ${t.line}}
   .tl h3{font-size:13.5px;font-weight:800}.tl .co{font-size:12px;color:${t.muted};margin-bottom:6px}.tl p{font-size:12px;line-height:1.85}.tl ul{padding:6px 16px 0 0}.tl li{font-size:11.5px;line-height:1.75}`;
   const exp = d.exp.map((x) => { const p = descParts(x.desc); return `<div class="y">${per(x.period)}</div><div class="ln"></div><div class="c"><h3>${e(x.position)}</h3>${x.company ? `<div class="co">${e(x.company)}</div>` : ""}${p.lead ? `<p>${e(p.lead)}</p>` : ""}${p.rest.length ? `<ul>${p.rest.map((l) => `<li>${e(l)}</li>`).join("")}</ul>` : ""}</div>`; }).join("");
-  return doc(`<div class="pg">
+  return doc(`${sideBand(46, 278, grey)}<div class="pg" style="position:relative"><div class="cap"></div>
   <div class="top"><div class="nb"><div class="blk"></div><div style="display:flex;flex-direction:column;justify-content:center"><h1>${e(n1)}${n2 ? `<br>${e(n2)}` : ""}</h1>${d.title ? `<div class="rl">${e(d.title)}</div>` : ""}</div></div>
     ${d.contact.length ? `<div class="cb">${d.contact.map((x) => `<div>${cic(x, onK, 13)}${ctxt(x)}</div>`).join("")}</div>` : ""}</div>
   <div class="cols"><div class="gc">
@@ -610,11 +646,12 @@ function calm(cv: CVData, t: RT, photo?: string) {
     const y = y0 + i * 7; const k = flip ? -1 : 1;
     return `<path d="M-40 ${y} C 220 ${y - 220 * k + i * 4}, 520 ${y + 260 * k - i * 3}, 840 ${y - 40 * k + i * 6}" />`;
   }).join("");
-  const bgSvg = `<svg class="bgw" viewBox="0 0 794 1123" preserveAspectRatio="none"><g fill="none" stroke="${lineC}" stroke-width="1">${waves(160, false)}${waves(820, true)}</g>
+  const bgArt = `<g fill="none" stroke="${lineC}" stroke-width="1">${waves(160, false)}${waves(820, true)}</g>
     <g fill="none" stroke="${mix(t.bg, t.ink, 0.35)}" stroke-width="1.2"><path d="M300 0 L390 80 L460 0"/><path d="M80 120 L160 40 L80 -40"/></g>
     <polygon points="0,0 360,0 330,44 0,44" fill="${N}"/><polygon points="360,0 540,0 510,22 330,22" fill="${G}"/>
     <path d="M0 1123 L0 1040 C 160 990, 330 1110, 520 1070 C 640 1045, 720 1060, 794 1090 L794 1123 Z" fill="${G}" opacity=".55"/>
-    <path d="M0 1123 L0 1075 C 180 1040, 330 1123, 560 1100 C 660 1090, 740 1110, 794 1123 Z" fill="${N}"/></svg>`;
+    <path d="M0 1123 L0 1075 C 180 1040, 330 1123, 560 1100 C 660 1090, 740 1110, 794 1123 Z" fill="${N}"/>`;
+  const bgSvg = `<svg class="bgw" viewBox="0 0 794 1123" preserveAspectRatio="none">${bgArt}</svg>`;
   const css = `.pg{position:relative;min-height:1123px;background:${t.bg};color:${t.ink};overflow:hidden}
   .bgw{position:absolute;inset:0;width:794px;height:1123px;z-index:0}
   .wrap{position:relative;z-index:1;display:flex;padding:66px 46px 110px 44px;gap:0}
@@ -629,9 +666,11 @@ function calm(cv: CVData, t: RT, photo?: string) {
   .tx{font-size:13px;line-height:1.85}
   .nm h1{font-size:44px;font-weight:900;color:${NT};line-height:1.12}.nm p{font-size:21px;font-weight:500;margin-top:4px}
   .xp{margin-bottom:16px}.xp h3{font-size:15px;font-weight:800;color:${NT}}.xp .ps{font-size:13.5px}.xp .y{font-size:13px;color:${t.muted}}.xp ul{padding:6px 20px 0 0}.xp li{font-size:12.5px;line-height:1.75}
-  .sec{margin-top:26px}`;
+  .sec{margin-top:26px}
+  @media print{.bgw{display:none}}
+  .wrap{-webkit-box-decoration-break:clone;box-decoration-break:clone}.xp,.ed,.ci,.nm,.lc .sec:last-child{break-inside:avoid}`;
   const exp = d.exp.map((x) => { const p = descParts(x.desc); const items = [p.lead, ...p.rest].filter(Boolean); return `<div class="xp"><h3>${e(x.company || x.position)}</h3>${x.company ? `<div class="ps">${e(x.position)}</div>` : ""}${x.period ? `<div class="y">${e(x.period)}</div>` : ""}${items.length ? `<ul>${items.map((l) => `<li>${e(l)}</li>`).join("")}</ul>` : ""}</div>`; }).join("");
-  return doc(`<div class="pg">${bgSvg}<div class="wrap">
+  return doc(`${pageArt(`<svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123" viewBox="0 0 794 1123" preserveAspectRatio="none">${bgArt}</svg>`)}<div class="pg">${bgSvg}<div class="wrap">
   <div class="rc">
     ${cv.showPhoto ? `<div class="av">${photo ? `<img src="${photo}">` : PERSON(N, 0.6)}</div>` : `<div style="height:40px"></div>`}
     ${d.contact.length ? `<h2>التواصل</h2>${d.contact.map((x) => `<div class="ci"><b>${cic(x, onN, 14)}</b>${ctxt(x)}</div>`).join("")}<div class="hr"></div>` : ""}
@@ -675,8 +714,19 @@ function sadu(cv: CVData, t: RT, photo?: string) {
   .it h3{font-size:14.5px;font-weight:800}.it .m{font-size:12px;color:${t.muted}}.it p{font-size:12.5px;line-height:1.8;margin-top:3px}
   .sk{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;margin:9px 0}.mt{display:flex;gap:5px;direction:ltr}
   .ed{margin-bottom:10px}.ed h3{font-size:13.5px;font-weight:800}.ed span{font-size:12px;color:${t.muted}}
-  .tg{display:inline-block;font-size:12px;background:${P};color:${onP};padding:3px 10px;margin:0 0 6px 6px}`;
-  return doc(`<div class="pg"><div class="bt"></div><div class="bb"></div><div class="bl"></div><div class="br"></div><div class="in"></div><div class="in2"></div>
+  .tg{display:inline-block;font-size:12px;background:${P};color:${onP};padding:3px 10px;margin:0 0 6px 6px}
+  @media print{.bt,.bb,.bl,.br,.in,.in2{display:none}}
+  .pg{-webkit-box-decoration-break:clone;box-decoration-break:clone}.it,.sk,.ed,.hd,.sum{break-inside:avoid}.sh{break-after:avoid}`;
+  // الإطار نفسه كرسم صفحة كاملة يتكرر في كل صفحة مطبوعة
+  const pat = (id: string, w: number, h: number, body: string) => `<pattern id="${id}" width="${w}" height="${h}" patternUnits="userSpaceOnUse">${body}</pattern>`;
+  const frame = `<svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123" viewBox="0 0 794 1123"><defs>
+    ${pat("h", 36, 24, `<path d="M0 0 L18 12 L0 24 Z M36 0 L18 12 L36 24 Z" fill="${P}"/><path d="M18 4 L24 12 L18 20 L12 12 Z" fill="${A}"/>`)}
+    ${pat("v", 24, 36, `<path d="M0 0 L12 18 L24 0 Z M0 36 L12 18 L24 36 Z" fill="${P}"/><path d="M4 18 L12 12 L20 18 L12 24 Z" fill="${A}"/>`)}</defs>
+    <g transform="translate(0 3.5)"><rect y="20.5" width="24" height="1075" fill="url(#v)"/></g><g transform="translate(770 3.5)"><rect y="20.5" width="24" height="1075" fill="url(#v)"/></g>
+    <g transform="translate(-17 0)"><rect x="17" width="794" height="24" fill="url(#h)"/></g><g transform="translate(-17 1099)"><rect x="17" width="794" height="24" fill="url(#h)"/></g>
+    <rect x="32.75" y="32.75" width="728.5" height="1057.5" fill="none" stroke="${P}" stroke-width="1.5"/>
+    <rect x="37.4" y="37.4" width="719.2" height="1048.2" fill="none" stroke="${A}" stroke-width=".8"/></svg>`;
+  return doc(`${pageArt(frame)}<div class="pg"><div class="bt"></div><div class="bb"></div><div class="bl"></div><div class="br"></div><div class="in"></div><div class="in2"></div>
   <div class="hd">${cv.showPhoto ? `<div class="ph"><div>${photo ? `<img src="${photo}">` : PERSON(P, 0.7)}</div></div>` : `<div style="display:flex;gap:8px">${dia(A, 10)}${dia(P, 10)}${dia(A, 10)}</div>`}
     <h1>${e(d.name)}</h1>${d.title ? `<div class="rl">${dia(A)}<span>${e(d.title)}</span>${dia(A)}</div>` : ""}
     <div class="ct">${d.contact.map((x) => `<span class="x">${cic(x, PT, 13)}${ctxt(x)}</span>`).join("")}</div></div>
@@ -697,7 +747,7 @@ function swiss(cv: CVData, t: RT) {
   const num = ["01", "02", "03", "04", "05", "06", "07"]; let k = 0;
   const sec = (label: string, body: string) => `<div class="sec"><div class="lb"><b>${num[k++]}</b><span>${label}</span></div><div class="bd">${body}</div></div>`;
   const ticks = (lv: number) => `<span class="tk">${Array.from({ length: 5 }, (_, i) => `<i class="${i < lv ? "on" : ""}"></i>`).join("")}</span>`;
-  const css = `.pg{min-height:1123px;background:${t.bg};color:${t.ink};padding:0 64px 50px;display:flex;flex-direction:column}
+  const css = `.pg{min-height:1123px;background:${t.bg};color:${t.ink};padding:40px 64px 50px;display:flex;flex-direction:column;-webkit-box-decoration-break:clone;box-decoration-break:clone}.pg>.bar{margin-top:-40px}
   .bar{height:10px;background:${t.p};margin:0 -64px}.sq{width:46px;height:46px;background:${R};margin-top:44px}
   .hd{display:grid;grid-template-columns:1fr 230px;gap:30px;margin-top:22px;padding-bottom:26px;border-bottom:3px solid ${t.ink}}
   .hd h1{font-size:54px;font-weight:700;line-height:1.05;letter-spacing:-.5px}.hd .rl{font-size:18px;font-weight:600;margin-top:10px;color:${RT_}}
@@ -708,7 +758,8 @@ function swiss(cv: CVData, t: RT) {
   .xp{display:grid;grid-template-columns:1fr 110px;gap:4px 16px;margin-bottom:14px}.xp h3{font-size:14.5px;font-weight:700}.xp .y{font-size:12px;color:${t.muted};text-align:left}.xp .co{font-size:12.5px;color:${t.muted};grid-column:1/-1}.xp p{grid-column:1/-1;font-size:12.5px;line-height:1.8}
   .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 18px}.g3 div{font-size:12.5px;display:flex;flex-direction:column;gap:5px;border-top:2px solid ${t.ink};padding-top:6px}
   .tk{display:flex;gap:3px;direction:ltr}.tk i{flex:1;height:4px;background:${t.line}}.tk i.on{background:${t.ink}}
-  .ft{margin-top:auto;padding-top:20px;display:flex;justify-content:space-between;font-size:10.5px;color:${t.muted}}`;
+  .ft{margin-top:auto;padding-top:20px;display:flex;justify-content:space-between;font-size:10.5px;color:${t.muted}}
+  .xp,.g3>div,.hd{break-inside:avoid}.sec:has(.bd>p:only-child),.sec:has(.g3){break-inside:avoid}`;
   const body = [
     d.summary && sec("الملف", `<p>${nl(d.summary)}</p>`),
     d.exp.length && sec("الخبرة", d.exp.map((x) => `<div class="xp"><h3>${e(x.position)}</h3><div class="y">${e(x.period)}</div>${x.company ? `<div class="co">${e(x.company)}</div>` : ""}${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`).join("")),
@@ -740,14 +791,15 @@ function magazine(cv: CVData, t: RT, photo?: string) {
   .ct span.x{display:flex;align-items:center;gap:6px}
   .q{position:relative;font-family:Amiri,serif;font-size:22px;line-height:1.7;text-align:center;padding:26px 90px 22px}
   .q .qm{position:absolute;top:14px;right:44px;opacity:.9}
-  .body{display:grid;grid-template-columns:1fr 1fr 220px;gap:0;padding:0 48px 40px;flex:1}
+  .body{display:grid;grid-template-columns:1fr 1fr 220px;gap:0;padding:40px 48px 40px;margin-top:-40px;flex:1;-webkit-box-decoration-break:clone;box-decoration-break:clone}
   .body>div{padding:0 0 0 22px;margin-left:22px;border-left:1px solid ${t.line}}.body>div:last-child{border:0;margin:0;padding:0}
   h2{font-family:Amiri,serif;font-size:21px;font-weight:700;border-top:3px solid ${t.ink};padding-top:6px;margin:14px 0 10px}
   .ar{margin-bottom:16px}.ar .n{font-family:Amiri,serif;font-size:30px;color:${AT};line-height:1;float:right;margin-left:8px}
   .ar h3{font-size:14px;font-weight:800}.ar .m{font-size:11.5px;color:${t.muted}}.ar p{font-size:12px;line-height:1.85;clear:both;padding-top:4px;text-align:justify}
   .box{background:${mix(t.bg, A, 0.14)};padding:14px 16px;margin-top:14px}.box h2{border:0;margin:0 0 8px;padding:0;font-size:18px}
   .box li{font-size:12.5px;line-height:1.85;list-style:none}.box li:before{content:"■";color:${AT};font-size:8px;margin-left:8px;vertical-align:middle}
-  .ed{margin-bottom:10px}.ed h3{font-size:13px;font-weight:800}.ed span{font-size:11.5px;color:${t.muted}}`;
+  .ed{margin-bottom:10px}.ed h3{font-size:13px;font-weight:800}.ed span{font-size:11.5px;color:${t.muted}}
+  .ar,.ed,.box,.cv,.q{break-inside:avoid}`;
   const half = Math.ceil(d.exp.length / 2);
   const art = (x: CVData["experience"][number], i: number) => `<div class="ar"><span class="n">${String(i + 1).replace(/\d/g, (c) => "٠١٢٣٤٥٦٧٨٩"[+c])}</span><h3>${e(x.position)}</h3><div class="m">${[x.company, x.period].filter(Boolean).map(e).join(" · ")}</div>${x.desc ? `<p>${nl(x.desc)}</p>` : ""}</div>`;
   return doc(`<div class="pg"><div class="cv"><div class="tx">
@@ -780,7 +832,7 @@ function rings(cv: CVData, t: RT, photo?: string) {
   .hd .ct{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:12px}.hd .ct span.x{display:flex;align-items:center;gap:6px}
   .st{display:grid;grid-template-columns:repeat(${Math.max(stats.length, 1)},1fr);gap:14px;padding:0 52px;margin-top:-34px;position:relative;z-index:2}
   .st div{background:${t.bg};border-radius:16px;padding:14px 10px;text-align:center;box-shadow:0 6px 18px ${alpha(S, 0.14)};border-top:4px solid ${A}}.st b{display:block;font-size:30px;font-weight:900;color:${PT};line-height:1.1}.st span{font-size:12px;font-weight:700;color:${t.muted};display:flex;gap:5px;justify-content:center;align-items:center}
-  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:34px;padding:26px 52px 44px;flex:1}
+  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:34px;padding:40px 52px 44px;flex:1;-webkit-box-decoration-break:clone;box-decoration-break:clone}.cols>div{margin-top:-14px}
   h2{font-size:18px;font-weight:900;color:${PT};display:flex;align-items:center;gap:8px;margin:14px 0 12px}h2 i{width:26px;height:4px;border-radius:2px;background:linear-gradient(90deg,${A},${P})}
   .sum{font-size:13px;line-height:1.9}
   .tl{position:relative;padding-right:30px}.tl:before{content:"";position:absolute;right:9px;top:6px;bottom:6px;width:4px;border-radius:2px;background:linear-gradient(${P},${A})}
@@ -789,7 +841,8 @@ function rings(cv: CVData, t: RT, photo?: string) {
   .rg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px}.rg div{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:11.5px;font-weight:700;line-height:1.3}
   .ring{width:70px;height:70px;border-radius:35px;background:conic-gradient(${P} 0,${A} var(--p),${t.line} var(--p));display:flex;align-items:center;justify-content:center}.ring span{width:54px;height:54px;border-radius:27px;background:${t.bg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:${PT}}
   .lg{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:600;margin:8px 0}.dots{display:flex;gap:4px;direction:ltr}.dots i{width:11px;height:11px;border-radius:6px;background:${t.line}}.dots i.on{background:${P}}
-  .ed{background:${mix(t.bg, P, 0.06)};border-radius:12px;padding:10px 12px;margin-bottom:8px}.ed h3{font-size:13px;font-weight:800}.ed span{font-size:11.5px;color:${t.muted}}`;
+  .ed{background:${mix(t.bg, P, 0.06)};border-radius:12px;padding:10px 12px;margin-bottom:8px}.ed h3{font-size:13px;font-weight:800}.ed span{font-size:11.5px;color:${t.muted}}
+  .ti,.ed,.lg,.rg>div{break-inside:avoid}`;
   return doc(`<div class="pg"><div class="hd">
     ${cv.showPhoto ? `<div class="av"><div>${photo ? `<img src="${photo}">` : PERSON(onS, 0.7)}</div></div>` : ""}
     <div><h1>${e(d.name)}</h1>${d.title ? `<div class="rl">${e(d.title)}</div>` : ""}<div class="ct">${d.contact.map((x) => `<span class="x">${cic(x, onS, 13)}${ctxt(x)}</span>`).join("")}</div></div></div>
