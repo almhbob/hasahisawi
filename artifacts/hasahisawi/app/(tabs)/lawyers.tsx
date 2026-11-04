@@ -1,13 +1,13 @@
 import { withRTLScreen } from "@/components/RTLScope";
 import { trackOpen } from "@/lib/views";
 import ViewCount from "@/components/ViewCount";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Modal, FlatList, Alert, Platform, ActivityIndicator, Pressable, Linking,
   KeyboardAvoidingView, Image,
 } from "react-native";
-import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { fetch } from "@/lib/net-fetch";
@@ -17,6 +17,7 @@ import * as DocumentPicker from "expo-document-picker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 import { uploadFile } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
@@ -44,17 +45,72 @@ type LegalFormFull = LegalForm & { content_html: string };
 type Contract      = { id: number; lawyer_id: number; lawyer_name: string; lawyer_phone: string; service_title: string; status: string; contract_no: string; created_at: string; preferred_date: string | null; details: string };
 type MyApp         = { id: number; full_name: string; status: "pending"|"approved"|"rejected"; admin_note: string; lawyer_id: number | null; created_at: string; reviewed_at?: string };
 
-const LEGAL_SERVICES: { title: string; icon: string; spec: string }[] = [
-  { title: "أحوال شخصية وأسرة", icon: "account-group-outline", spec: "أحوال شخصية" },
-  { title: "عقارات وإيجارات", icon: "home-city-outline", spec: "عقارات" },
-  { title: "صياغة العقود", icon: "file-sign", spec: "عقود" },
-  { title: "قضايا جنائية", icon: "gavel", spec: "جنائية" },
-  { title: "العمل والعمّال", icon: "briefcase-account-outline", spec: "عمل" },
-  { title: "شركات وتجارة", icon: "domain", spec: "تجارية" },
-  { title: "تحكيم وفضّ نزاعات", icon: "scale-balance", spec: "تحكيم" },
-  { title: "اعرف حقوقك", icon: "shield-check-outline", spec: "rights" },
-  { title: "استمارات جاهزة", icon: "file-document-multiple-outline", spec: "forms" },
+// ─── تخصصات (مجموعات بكلمات مفتاحية؛ التصفية تتم على بيانات الخادم الحقيقية) ───
+type SpecKey = "family" | "realestate" | "contracts" | "criminal" | "labor" | "commercial" | "arbitration";
+const SPEC_GROUPS: { key: SpecKey; label: string; kw: string[] }[] = [
+  { key: "family",      label: "أحوال شخصية",  kw: ["أحوال", "أسرة", "أسري", "نفقة", "حضانة", "ميراث", "مواريث", "تركات", "طلاق", "زواج"] },
+  { key: "realestate",  label: "عقارات",        kw: ["عقار", "إيجار", "أراض", "أراضي"] },
+  { key: "contracts",   label: "عقود وتوثيق",   kw: ["عقود", "عقد", "توثيق", "صياغة"] },
+  { key: "criminal",    label: "جنائية",        kw: ["جنائ", "جزائ", "مرافعات", "طعون"] },
+  { key: "labor",       label: "عمل وعمّال",    kw: ["عمال", "عمالي", "عمل"] },
+  { key: "commercial",  label: "تجارية وشركات", kw: ["تجار", "شركات", "شركة", "استثمار", "بنوك", "مصارف"] },
+  { key: "arbitration", label: "تحكيم ونزاعات", kw: ["تحكيم", "نزاع", "وساطة", "تسوية", "محكم"] },
 ];
+const norm = (t: string) => String(t || "")
+  .replace(/[\u064B-\u0652\u0640]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase();
+function inGroup(lw: { specialties: string; title: string }, key: SpecKey): boolean {
+  const g = SPEC_GROUPS.find(x => x.key === key);
+  if (!g) return true;
+  const hay = norm(`${lw.specialties} ${lw.title}`);
+  return g.kw.some(k => hay.includes(norm(k)));
+}
+function splitSpecs(t: string): string[] {
+  return String(t || "").split(/[,،\/؛;|]+/).map(x => x.trim()).filter(Boolean);
+}
+function initials(name: string): string {
+  const parts = String(name || "").replace(/^(د\.|أ\.|م\.|الأستاذ|الأستاذة|الدكتور)\s*/, "").trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map(p => p.replace(/^ال/, "").charAt(0)).join(" ") || "م";
+}
+
+type Tile = { title: string; icon: string; action: SpecKey | "rights" | "forms" };
+const LEGAL_SERVICES: Tile[] = [
+  { title: "أحوال شخصية وأسرة", icon: "account-group-outline", action: "family" },
+  { title: "عقارات وإيجارات", icon: "home-city-outline", action: "realestate" },
+  { title: "صياغة العقود", icon: "file-sign", action: "contracts" },
+  { title: "قضايا جنائية", icon: "gavel", action: "criminal" },
+  { title: "العمل والعمّال", icon: "briefcase-account-outline", action: "labor" },
+  { title: "شركات وتجارة", icon: "domain", action: "commercial" },
+  { title: "تحكيم وفضّ نزاعات", icon: "scale-balance", action: "arbitration" },
+  { title: "اعرف حقوقك", icon: "shield-check-outline", action: "rights" },
+  { title: "استمارات جاهزة", icon: "file-document-multiple-outline", action: "forms" },
+];
+
+// ─── ألوان القسم القانوني (كحلي + ذهبي) مع بدائل للوضع الداكن ───
+// محتوى النوافذ (Modal) يُرسم خارج شجرة الشاشة على الويب فيفقد اتجاه RTL؛ يُمرَّر كنمط مباشر لأن StyleSheet على الويب يتجاهل direction
+const RTL = { direction: "rtl" } as const;
+const DARK = Colors.isDark;
+const NAVY = "#14213D";
+const P = {
+  soft:       DARK ? Colors.surface3 : "#FBF8F1",
+  softBorder: DARK ? Colors.borderStrong : "#E6DCC5",
+  iconBg:     DARK ? "#26352E" : "#EFE7D3",
+  ink:        DARK ? "#E3C27A" : NAVY,
+  gold:       DARK ? "#E3C27A" : "#7A5A12",
+  activeBg:   DARK ? "#E3C27A" : NAVY,
+  activeFg:   DARK ? NAVY : "#FFFFFF",
+  btn:        DARK ? "#2B3D66" : NAVY,
+  paper:      DARK ? Colors.surface3 : "#FFFDF8",
+  paperBorder: DARK ? Colors.border : "#E7DFCB",
+  skeleton:   DARK ? "rgba(255,255,255,0.08)" : "rgba(20,33,61,0.07)",
+  green:      DARK ? "#6EE7B7" : "#047857",
+  greenBtn:   "#047857",
+  wa:         DARK ? "#4ADE80" : "#0F7B4B",
+  star:       DARK ? "#FBBF24" : "#B45309",
+  starOff:    DARK ? "rgba(255,255,255,0.25)" : "#CFC6B2",
+  amber:      DARK ? "#FBBF24" : "#B45309",
+  blue:       DARK ? "#93C5FD" : "#1D4ED8",
+  red:        DARK ? "#FCA5A5" : "#B91C1C",
+};
 
 const RIGHTS_GUIDE: { title: string; icon: string; points: string[] }[] = [
   { title: "قبل توقيع أي عقد", icon: "file-sign", points: ["اقرأ جميع البنود كاملة قبل التوقيع، ولا توقّع على ورقة فيها فراغات.", "تأكّد من هوية الطرف الآخر وصفته في التعاقد.", "احصل على نسخة موقّعة من العقد واحتفظ بها في مكان آمن.", "إذا كان المبلغ كبيراً فاستشر محامياً قبل التوقيع."] },
@@ -65,7 +121,6 @@ const RIGHTS_GUIDE: { title: string; icon: string; points: string[] }[] = [
   { title: "عند الاستدعاء أو القبض", icon: "shield-account-outline", points: ["من حقك معرفة سبب الاستدعاء أو القبض.", "من حقك الاستعانة بمحامٍ والتواصل مع أسرتك.", "لا توقّع على أقوال لم تقرأها أو لم تفهمها."] },
 ];
 
-const SPECIALTIES = ["الكل","تجارية","عقارات","شركات","أحوال شخصية","ميراث","نفقة","حضانة","جنائية","عمل","تحكيم","عقود"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function apiBase() { return getApiUrl(); }
@@ -82,22 +137,22 @@ async function getDeviceId(): Promise<string> {
 }
 
 const STATUS_AR: Record<string,{label:string;color:string}> = {
-  pending:     { label: "قيد المراجعة", color: "#F59E0B" },
-  accepted:    { label: "مقبول",         color: "#3B82F6" },
+  pending:     { label: "قيد المراجعة", color: P.amber },
+  accepted:    { label: "مقبول",         color: P.blue },
   in_progress: { label: "قيد التنفيذ",  color: Colors.text },
-  completed:   { label: "مكتمل",         color: "#10B981" },
-  rejected:    { label: "مرفوض",         color: "#EF4444" },
+  completed:   { label: "مكتمل",         color: P.green },
+  rejected:    { label: "مرفوض",         color: P.red },
   cancelled:   { label: "ملغي",          color: Colors.textSecondary },
-  approved:    { label: "مقبول ✓",       color: "#10B981" },
+  approved:    { label: "مقبول",         color: P.green },
 };
 
 // ─── Star ─────────────────────────────────────────────────────────────────────
-function Stars({ value, size = 13, color = "#F59E0B" }: { value: number; size?: number; color?: string }) {
+function Stars({ value, size = 13, color = P.star }: { value: number; size?: number; color?: string }) {
   return (
     <View style={{ flexDirection: "row", gap: 1 }}>
       {[1,2,3,4,5].map(s => (
         <Ionicons key={s} name={s <= Math.round(value) ? "star" : "star-outline"} size={size}
-          color={s <= Math.round(value) ? color : "#D6CFC0"} />
+          color={s <= Math.round(value) ? color : P.starOff} />
       ))}
     </View>
   );
@@ -106,8 +161,9 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v:number)=>
   return (
     <View style={{ flexDirection: "row", gap: 10, justifyContent: "center" }}>
       {[1,2,3,4,5].map(s => (
-        <Pressable key={s} onPress={() => { onChange(s); if (Platform.OS !== "web") Haptics.selectionAsync(); }}>
-          <Ionicons name={s <= value ? "star" : "star-outline"} size={42} color={s <= value ? "#F59E0B" : "#D6CFC0"} />
+        <Pressable key={s} onPress={() => { onChange(s); if (Platform.OS !== "web") Haptics.selectionAsync(); }}
+          accessibilityRole="button" accessibilityLabel={`${s} من 5 نجوم`} hitSlop={4}>
+          <Ionicons name={s <= value ? "star" : "star-outline"} size={42} color={s <= value ? P.star : P.starOff} />
         </Pressable>
       ))}
     </View>
@@ -120,6 +176,9 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v:number)=>
 function LawyersScreen() {
   const router = useRouter();
   const { user, token } = useAuth();
+  const showPricing = usePricingVisible();
+  const listRef = useRef<FlatList<Lawyer>>(null);
+  const [listTopY, setListTopY] = useState(0);
   const [tab, setTab] = useState<"directory" | "forms" | "contracts">("directory");
 
   // shared
@@ -130,8 +189,10 @@ function LawyersScreen() {
   const [lawyers, setLawyers] = useState<Lawyer[]>([]);
   const [ads, setAds] = useState<LawyerAd[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("الكل");
+  const [filter, setFilter] = useState<SpecKey | "all">("all");
+  const [plans, setPlans] = useState<{ id: number; name: string; name_ar: string; price_label: string; color: string }[]>([]);
   const [selected, setSelected] = useState<Lawyer | null>(null);
 
   // detail
@@ -141,6 +202,7 @@ function LawyersScreen() {
 
   // contract modal
   const [contractFor, setContractFor] = useState<LawyerService | null>(null);
+  const [reqLawyer, setReqLawyer] = useState<Lawyer | null>(null);
   const [contract, setContract] = useState({ name: user?.name || "", phone: user?.phone || "", details: "", date: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -155,6 +217,7 @@ function LawyersScreen() {
   const [formQ, setFormQ] = useState("");
   const [formCat, setFormCat] = useState("الكل");
   const [formsLoading, setFormsLoading] = useState(false);
+  const [formsError, setFormsError] = useState(false);
 
   // my contracts
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
@@ -178,22 +241,45 @@ function LawyersScreen() {
 
   // ── Loaders ────────────────────────────────────────────────────────────────
   const loadDirectory = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setLoadError(false);
     try {
-      const [lr, ar] = await Promise.all([
-        apiFetch(`/api/lawyers${filter !== "الكل" ? `?specialty=${encodeURIComponent(filter)}` : ""}${search ? `${filter !== "الكل" ? "&" : "?"}search=${encodeURIComponent(search)}` : ""}`),
-        apiFetch(`/api/lawyer-ads`),
-      ]);
-      if (lr.ok) setLawyers(await lr.json());
-      if (ar.ok) setAds(await ar.json());
-    } catch (e) { console.warn(e); }
+      const [lr, ar] = await Promise.all([apiFetch(`/api/lawyers`), apiFetch(`/api/lawyer-ads`)]);
+      if (!lr.ok) throw new Error(String(lr.status));
+      const list = await lr.json();
+      setLawyers(Array.isArray(list) ? list : []);
+      if (ar.ok) { const a = await ar.json(); setAds(Array.isArray(a) ? a : []); }
+    } catch (e) { console.warn(e); setLoadError(true); }
     finally { setLoading(false); }
-  }, [filter, search]);
+  }, []);
+
+  // الخطط تُجلب من الخادم فقط عند تفعيل عرض الأسعار من لوحة الإدارة
+  useEffect(() => {
+    if (!showPricing) { setPlans([]); return; }
+    apiFetch(`/api/subscription-plans`).then(r => (r.ok ? r.json() : [])).then(d => setPlans(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [showPricing]);
+
+  const filtered = useMemo(() => {
+    const q = norm(search.trim());
+    return lawyers.filter(l =>
+      (filter === "all" || inGroup(l, filter)) &&
+      (!q || norm(`${l.full_name} ${l.title} ${l.specialties} ${l.district} ${l.office_addr}`).includes(q)));
+  }, [lawyers, filter, search]);
+  const groupCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const g of SPEC_GROUPS) c[g.key] = lawyers.filter(l => inGroup(l, g.key)).length;
+    return c;
+  }, [lawyers]);
+
+  const pickGroup = (key: SpecKey | "all") => {
+    setFilter(f => (f === key ? "all" : key));
+    if (Platform.OS !== "web") Haptics.selectionAsync();
+    setTimeout(() => listRef.current?.scrollToOffset({ offset: Math.max(0, listTopY - 8), animated: true }), 60);
+  };
 
   const loadForms = useCallback(async () => {
-    setFormsLoading(true);
-    try { const r = await apiFetch(`/api/legal-forms`); if (r.ok) setForms(await r.json()); }
-    catch {} finally { setFormsLoading(false); }
+    setFormsLoading(true); setFormsError(false);
+    try { const r = await apiFetch(`/api/legal-forms`); if (!r.ok) throw new Error(); const d = await r.json(); setForms(Array.isArray(d) ? d : []); }
+    catch { setFormsError(true); } finally { setFormsLoading(false); }
   }, []);
 
   const loadMyContracts = useCallback(async () => {
@@ -274,7 +360,7 @@ function LawyersScreen() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "فشل الإرسال");
-      Alert.alert("✅ تم استلام طلبك", "ستتم مراجعة طلب التعاقد من قبل الإدارة. تابع الحالة من تبويب \"تعاقداتي\".");
+      Alert.alert("تم استلام طلبك", "ستتم مراجعة طلب التعاقد من قبل الإدارة. تابع الحالة من تبويب \"تعاقداتي\".");
       setJoinOpen(false); setAppForm(EMPTY_APP); loadMyContracts();
       setTab("contracts");
     } catch (e: any) {
@@ -283,6 +369,22 @@ function LawyersScreen() {
   };
 
   useFocusEffect(useCallback(() => { loadDirectory(); }, [loadDirectory]));
+  // تعبئة نموذج الطلب من بيانات الحساب عند فتحه
+  // نافذتان متداخلتان لا تعملان على iOS، لذا نغلق الملف أولاً ثم نفتح الطلب
+  const openRequest = (svc: LawyerService, lw: Lawyer) => {
+    setReqLawyer(lw);
+    setContract(c => ({ ...c, name: c.name || user?.name || "", phone: c.phone || user?.phone || "" }));
+    if (selected) { setSelected(null); setTimeout(() => setContractFor(svc), 350); }
+    else setContractFor(svc);
+  };
+  const generalRequest = (lw: Lawyer): LawyerService => ({ id: 0, lawyer_id: lw.id, title: "طلب استشارة", description: "", price_text: "", duration: "" });
+  const callLawyer = (phone?: string) => { if (phone) Linking.openURL(`tel:${phone}`).catch(() => {}); };
+  const waLawyer = (wa?: string) => {
+    const d = String(wa || "").replace(/\D/g, "");
+    if (!d) return;
+    const intl = d.startsWith("0") ? `249${d.slice(1)}` : d;
+    Linking.openURL(`https://wa.me/${intl}`).catch(() => {});
+  };
   useEffect(() => { if (tab === "forms")     loadForms();       }, [tab, loadForms]);
   useEffect(() => { if (tab === "contracts") loadMyContracts(); }, [tab, loadMyContracts]);
 
@@ -301,13 +403,14 @@ function LawyersScreen() {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const submitContract = async () => {
-    if (!selected) return;
+    const target = reqLawyer;
+    if (!target) return;
     if (!contract.name.trim() || !contract.phone.trim()) {
       Alert.alert("بيانات ناقصة", "الرجاء إدخال الاسم ورقم الهاتف"); return;
     }
     setSubmitting(true);
     try {
-      const r = await apiFetch(`/api/lawyers/${selected.id}/contracts`, {
+      const r = await apiFetch(`/api/lawyers/${target.id}/contracts`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
@@ -319,7 +422,7 @@ function LawyersScreen() {
         }),
       });
       if (!r.ok) throw new Error();
-      Alert.alert("✅ تم إرسال الطلب", `سيتواصل معك المحامي قريباً.\nيمكنك متابعة الطلب من تبويب "تعاقداتي".`);
+      Alert.alert("تم إرسال الطلب", `سيتواصل معك المحامي قريباً.\nيمكنك متابعة الطلب من تبويب "تعاقداتي".`);
       setContractFor(null); setContract({ name: user?.name || "", phone: user?.phone || "", details: "", date: "" });
       loadMyContracts();
     } catch { Alert.alert("خطأ", "تعذّر إرسال الطلب — حاول لاحقاً"); }
@@ -335,7 +438,7 @@ function LawyersScreen() {
         body: JSON.stringify({ rating: rateValue, comment: rateComment, device_id: deviceId }),
       });
       if (!r.ok) throw new Error();
-      Alert.alert("✅ شكراً لك", "تم تسجيل تقييمك");
+      Alert.alert("شكراً لك", "تم تسجيل تقييمك");
       setRateOpen(false); setRateComment(""); setRateValue(5);
       openLawyer(selected); // إعادة تحميل
       loadDirectory();
@@ -344,16 +447,16 @@ function LawyersScreen() {
 
   // ── طباعة بطاقة المحامي ──
   const printLawyerCard = async (lw: Lawyer, svcs: LawyerService[]) => {
-    const svcRows = svcs.map((sv, i) => `<tr><td>${i + 1}</td><td class="r"><b>${esc(sv.title)}</b>${sv.description ? `<br/><small>${esc(sv.description)}</small>` : ""}</td><td>${esc(sv.price_text || "—")}</td><td>${esc(sv.duration || "—")}</td></tr>`).join("");
+    const svcRows = svcs.map((sv, i) => `<tr><td>${i + 1}</td><td class="r"><b>${esc(sv.title)}</b>${sv.description ? `<br/><small>${esc(sv.description)}</small>` : ""}</td>${showPricing ? `<td>${esc(sv.price_text || "—")}</td>` : ""}<td>${esc(sv.duration || "—")}</td></tr>`).join("");
     const html = paperDocument({
-      theme: "legal", title: lw.full_name, subtitle: `${lw.title}${lw.is_verified ? " · موثّق ✓" : ""}`, ref: lw.bar_number ? `نقابة ${lw.bar_number}` : undefined,
+      theme: "legal", title: lw.full_name, subtitle: `${lw.title}${lw.is_verified ? " · موثّق" : ""}`, ref: lw.bar_number ? `نقابة ${lw.bar_number}` : undefined,
       bodyHtml: `<div class="box kv">
           <div>التخصصات: <b>${esc(lw.specialties)}</b></div><div>الخبرة: <b>${lw.experience_y} سنة</b></div>
           <div>الهاتف: <b>${esc(lw.phone || "—")}</b></div><div>العنوان: <b>${esc(lw.office_addr || lw.district || "—")}</b></div>
-          <div>اللغات: <b>${esc(lw.languages || "—")}</b></div><div>رسوم الاستشارة: <b>${esc(lw.consult_fee || "—")}</b></div>
-          <div>التقييم: <b>${Number(lw.avg_rating || 0).toFixed(1)} / 5 (${lw.review_count} مراجعة)</b></div></div>
+          <div>اللغات: <b>${esc(lw.languages || "—")}</b></div>${showPricing ? `<div>رسوم الاستشارة: <b>${esc(lw.consult_fee || "—")}</b></div>` : ""}
+          ${lw.review_count > 0 ? `<div>التقييم: <b>${Number(lw.avg_rating || 0).toFixed(1)} / 5 (${lw.review_count} مراجعة)</b></div>` : ""}</div>
         ${lw.bio ? `<h2>نبذة</h2><p>${esc(lw.bio)}</p>` : ""}
-        ${svcs.length ? `<h2>الخدمات القانونية</h2><table><thead><tr><th>#</th><th class="r">الخدمة</th><th>الأتعاب</th><th>المدة</th></tr></thead><tbody>${svcRows}</tbody></table>` : ""}`,
+        ${svcs.length ? `<h2>الخدمات القانونية</h2><table><thead><tr><th>#</th><th class="r">الخدمة</th>${showPricing ? "<th>الأتعاب</th>" : ""}<th>المدة</th></tr></thead><tbody>${svcRows}</tbody></table>` : ""}`,
     });
     try { await printPaper(html, `بطاقة ${lw.full_name}`); } catch (e: any) { notify("تعذّرت الطباعة", e?.message || ""); }
   };
@@ -782,242 +885,229 @@ function LawyersScreen() {
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────
+  const TABS = [
+    { key: "directory" as const, label: "المحامون", icon: "account-tie" as const },
+    { key: "forms"     as const, label: "الاستمارات", icon: "file-document-outline" as const },
+    { key: "contracts" as const, label: "تعاقداتي",  icon: "handshake-outline" as const },
+  ];
+  const activeGroup = SPEC_GROUPS.find(g => g.key === filter);
+
   return (
     <View style={s.container}>
-      {/* Header */}
-      <ModernHeader
-        title="الخدمات القانونية"
-        subtitle="محامون · استشارات · استمارات"
-        showBack
-        onBack={() => router.back()}
-      >
-        {/* Tabs */}
-        <View style={s.tabsRow}>
-          {[
-            { key: "directory" as const, label: "المحامون", icon: "account-tie" as const },
-            { key: "forms"     as const, label: "الاستمارات", icon: "file-document-outline" as const },
-            { key: "contracts" as const, label: "تعاقداتي",  icon: "handshake-outline" as const },
-          ].map(t => (
-            <Pressable key={t.key} onPress={() => setTab(t.key)} style={[s.tabBtn, tab === t.key && s.tabBtnActive]}>
-              <MaterialCommunityIcons name={t.icon} size={16} color={tab === t.key ? "#fff" : "#B08D3C"} />
-              <Text style={[s.tabLabel, tab === t.key && s.tabLabelActive]}>{t.label}</Text>
-            </Pressable>
-          ))}
+      <ModernHeader title="الخدمات القانونية" subtitle="محامون · استشارات · استمارات" showBack onBack={() => router.back()}>
+        <View style={s.tabsRow} accessibilityRole="tablist">
+          {TABS.map(t => {
+            const on = tab === t.key;
+            return (
+              <Pressable key={t.key} onPress={() => setTab(t.key)} style={[s.tabBtn, on && s.tabBtnActive]}
+                accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={t.label}>
+                <MaterialCommunityIcons name={t.icon} size={17} color={on ? NAVY : "#FFFFFF"} />
+                <Text style={[s.tabLabel, on && s.tabLabelActive]}>{t.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </ModernHeader>
 
       {/* ── DIRECTORY ── */}
       {tab === "directory" && (
         <FlatList
-          data={lawyers}
+          ref={listRef}
+          data={filtered}
           keyExtractor={i => String(i.id)}
+          keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
-              {/* بانر إعلاني */}
+              {/* إعلانات المحامين (من الخادم) */}
               {ads.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} style={{ marginBottom: 12 }}>
                   {ads.map(ad => (
-                    <TouchableOpacity key={ad.id} activeOpacity={0.85}
-                      onPress={() => ad.cta_phone && Linking.openURL(`tel:${ad.cta_phone}`)}
-                      style={[s.adCard, { borderColor: ad.banner_color + "55", backgroundColor: ad.banner_color + "12" }]}>
-                      <View style={[s.adBadge, { backgroundColor: ad.banner_color }]}>
-                        <Text style={s.adBadgeText}>إعلان</Text>
-                      </View>
+                    <Pressable key={ad.id} onPress={() => callLawyer(ad.cta_phone)}
+                      accessibilityRole="button" accessibilityLabel={`${ad.title}، ${ad.cta_text || "اتصال"}`}
+                      style={[s.adCard, { borderColor: (ad.banner_color || NAVY) + "66" }]}>
+                      <View style={s.adBadge}><Text style={s.adBadgeText}>إعلان</Text></View>
                       <Text style={s.adTitle} numberOfLines={1}>{ad.title}</Text>
                       <Text style={s.adBody} numberOfLines={2}>{ad.body}</Text>
                       <View style={s.adCtaRow}>
-                        <View style={[s.adCta, { backgroundColor: ad.banner_color }]}>
-                          <Ionicons name="call" size={12} color="#fff" />
-                          <Text style={s.adCtaText}>{ad.cta_text}</Text>
+                        <View style={s.adCta}>
+                          <Ionicons name="call" size={13} color="#fff" />
+                          <Text style={s.adCtaText}>{ad.cta_text || "اتصال"}</Text>
                         </View>
-                        {ad.lawyer_name && <Text style={s.adAuthor} numberOfLines={1}>— {ad.lawyer_name}</Text>}
+                        {!!ad.lawyer_name && <Text style={s.adAuthor} numberOfLines={1}>{ad.lawyer_name}</Text>}
                       </View>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </ScrollView>
               )}
 
-              {/* مركز الخدمات القانونية */}
+              {/* بماذا نساعدك اليوم؟ */}
               <View style={s.svcHub}>
                 <Text style={s.svcHubTitle}>بماذا نساعدك اليوم؟</Text>
+                <Text style={s.svcHubSub}>اختر نوع قضيتك لعرض المحامين المختصين بها</Text>
                 <View style={s.svcGrid}>
-                  {LEGAL_SERVICES.map(sv => (
-                    <Pressable key={sv.title} style={({ pressed }) => [s.svcTile, filter === sv.spec && s.svcTileOn, pressed && { opacity: 0.8 }]}
-                      onPress={() => { if (sv.spec === "rights") setRightsOpen(true); else if (sv.spec === "forms") setTab("forms"); else setFilter(f => (f === sv.spec ? "الكل" : sv.spec)); }}>
-                      <View style={[s.svcTileIcon, filter === sv.spec && { backgroundColor: "#B08D3C" }]}>
-                        <MaterialCommunityIcons name={sv.icon as any} size={20} color={filter === sv.spec ? "#fff" : "#14213D"} />
-                      </View>
-                      <Text style={s.svcTileText} numberOfLines={2}>{sv.title}</Text>
-                    </Pressable>
-                  ))}
+                  {LEGAL_SERVICES.map(sv => {
+                    const isGroup = sv.action !== "rights" && sv.action !== "forms";
+                    const on = isGroup && filter === sv.action;
+                    const count = isGroup ? groupCounts[sv.action] ?? 0 : null;
+                    return (
+                      <Pressable key={sv.title}
+                        style={({ pressed }) => [s.svcTile, on && s.svcTileOn, pressed && { opacity: 0.85 }]}
+                        accessibilityRole="button" accessibilityState={{ selected: on }}
+                        accessibilityLabel={isGroup ? `${sv.title}، ${count} محامٍ` : sv.title}
+                        onPress={() => {
+                          if (sv.action === "rights") setRightsOpen(true);
+                          else if (sv.action === "forms") setTab("forms");
+                          else pickGroup(sv.action);
+                        }}>
+                        <View style={[s.svcTileIcon, on && { backgroundColor: P.activeBg }]}>
+                          <MaterialCommunityIcons name={sv.icon as any} size={21} color={on ? P.activeFg : P.ink} />
+                        </View>
+                        <Text style={[s.svcTileText, on && { color: P.gold }]} numberOfLines={2}>{sv.title}</Text>
+                        {count !== null && count > 0 && <Text style={s.svcTileCount}>{count} محامٍ</Text>}
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
 
-              {/* انضم كمحامي */}
-              <TouchableOpacity onPress={() => setJoinOpen(true)} activeOpacity={0.85} style={s.joinBanner}>
-                <View style={s.joinIcon}>
-                  <MaterialCommunityIcons name="briefcase-plus" size={20} color="#fff" />
-                </View>
+              {/* انضم كمحامٍ */}
+              <Pressable onPress={() => setJoinOpen(true)} style={({ pressed }) => [s.joinBanner, pressed && { opacity: 0.9 }]}
+                accessibilityRole="button" accessibilityLabel="هل أنت محامٍ؟ قدّم طلب الانضمام">
+                <View style={s.joinIcon}><MaterialCommunityIcons name="briefcase-plus" size={22} color="#fff" /></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.joinTitle}>هل أنت محامي؟ انضم لقائمتنا</Text>
-                  <Text style={s.joinSub}>ابدأ مجاناً · أو اختر خطة مدفوعة لمزيد من المميزات</Text>
+                  <Text style={s.joinTitle}>هل أنت محامٍ؟ انضم إلى الدليل</Text>
+                  <Text style={s.joinSub}>
+                    {showPricing ? "ابدأ بالخطة المجانية أو اختر خطة مدفوعة" : "سجّل بياناتك ورقم قيدك بالنقابة، وتراجع الإدارة طلبك"}
+                  </Text>
                 </View>
                 <Ionicons name="chevron-back" size={18} color="#fff" />
-              </TouchableOpacity>
-              {/* بانر الخطط المدمج */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 2, gap: 8 }} style={{ marginHorizontal: -2, marginBottom: 4 }}>
-                {[
-                  { icon: "🔓", name: "مجاني", sub: "5 تواصلات/شهر", color: Colors.textSecondary },
-                  { icon: "⭐", name: "أساسي",  sub: "500 ج.س · تواصل غير محدود", color: "#3B82F6" },
-                  { icon: "💎", name: "محترف", sub: "1,500 ج.س · إعلانات + موثّق", color: Colors.text },
-                  { icon: "👑", name: "بريميوم", sub: "3,000 ج.س · الصدارة + 8%", color: "#F59E0B" },
-                ].map(p => (
-                  <View key={p.name} style={{ backgroundColor: p.color + "18", borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: p.color + "44", alignItems: "center", minWidth: 110 }}>
-                    <Text style={{ fontSize: 18, marginBottom: 2 }}>{p.icon}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: p.color }}>{p.name}</Text>
-                    <Text style={{ fontSize: 11, color: Colors.textSecondary, textAlign: "center", marginTop: 2 }}>{p.sub}</Text>
-                  </View>
-                ))}
-              </ScrollView>
+              </Pressable>
+
+              {/* الخطط: تظهر فقط عند تفعيل عرض الأسعار، ومن بيانات الخادم */}
+              {showPricing && plans.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }} style={{ marginBottom: 12 }}>
+                  {plans.map(p => (
+                    <View key={p.id} style={s.planCard}>
+                      <View style={[s.planDot, { backgroundColor: p.color || NAVY }]} />
+                      <Text style={s.planName}>{p.name_ar}</Text>
+                      <Text style={s.planPrice}>{p.price_label}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
 
               {/* بحث */}
               <View style={s.searchBox}>
-                <Ionicons name="search" size={17} color={Colors.textMuted} />
+                <Ionicons name="search" size={18} color={Colors.textMuted} />
                 <TextInput
                   style={s.searchInput} placeholder="ابحث باسم المحامي أو التخصص أو الحي" placeholderTextColor={Colors.textMuted}
-                  value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={loadDirectory}
+                  value={search} onChangeText={setSearch} returnKeyType="search" accessibilityLabel="بحث في المحامين"
                 />
                 {search.length > 0 && (
-                  <TouchableOpacity onPress={() => { setSearch(""); setTimeout(loadDirectory, 100); }}>
-                    <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
-                  </TouchableOpacity>
+                  <Pressable onPress={() => setSearch("")} hitSlop={12} accessibilityRole="button" accessibilityLabel="مسح البحث">
+                    <Ionicons name="close-circle" size={20} color={Colors.textSecondary} />
+                  </Pressable>
                 )}
               </View>
 
-              {/* فلاتر */}
+              {/* شرائح التخصص */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
-                {SPECIALTIES.map(sp => (
-                  <Pressable key={sp} onPress={() => setFilter(sp)}
-                    style={[s.chip, filter === sp && s.chipActive]}>
-                    <Text style={[s.chipText, filter === sp && s.chipTextActive]}>{sp}</Text>
-                  </Pressable>
-                ))}
+                {[{ key: "all" as const, label: "الكل" }, ...SPEC_GROUPS].map(g => {
+                  const on = filter === g.key;
+                  return (
+                    <Pressable key={g.key} onPress={() => setFilter(g.key)} style={[s.chip, on && s.chipActive]}
+                      accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`تخصص ${g.label}`}>
+                      <Text style={[s.chipText, on && s.chipTextActive]}>{g.label}</Text>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
+
+              <View style={s.resultsRow} onLayout={e => setListTopY(e.nativeEvent.layout.y + 14)}>
+                <Text style={s.resultsText}>
+                  {loading && lawyers.length === 0 ? "جارٍ التحميل…" : `${filtered.length} ${filtered.length === 1 ? "محامٍ" : "محامين"}${activeGroup ? ` · ${activeGroup.label}` : ""}`}
+                </Text>
+                {(filter !== "all" || !!search) && (
+                  <Pressable onPress={() => { setFilter("all"); setSearch(""); }} hitSlop={10} style={s.clearBtn}
+                    accessibilityRole="button" accessibilityLabel="إلغاء التصفية">
+                    <Ionicons name="close" size={14} color={P.gold} />
+                    <Text style={s.clearText}>إلغاء التصفية</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
           }
-          renderItem={({ item, index }) => {
-            const planColor = item.plan_color || "#6B7280";
-            const isPremium  = item.plan_name === "premium";
-            const isPro      = item.plan_name === "professional";
-            const isBasic    = item.plan_name === "basic";
-            const hasPlan    = !!item.plan_name && item.plan_name !== "free";
-            return (
-              <Animated.View entering={FadeInDown.delay(40 * index).springify()}>
-                <TouchableOpacity onPress={() => openLawyer(item)} activeOpacity={0.85}
-                  style={[s.lawyerCard, isPremium && { borderColor: "#F59E0B", borderWidth: 1.5 }, isPro && { borderColor: "#14213D", borderWidth: 1 }]}>
-                  {/* شارة الخطة / مميّز */}
-                  <View style={{ position: "absolute", top: 10, left: 10, flexDirection: "row", gap: 5, zIndex: 2 }}>
-                    {hasPlan && (
-                      <View style={{ backgroundColor: planColor + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: planColor + "66" }}>
-                        <Text style={{ fontSize: 12 }}>{item.plan_icon}</Text>
-                        <Text style={{ fontSize: 11, fontWeight: "800", color: planColor }}>{item.plan_name_ar}</Text>
-                      </View>
-                    )}
-                    {item.is_featured && !hasPlan && (
-                      <View style={s.featBadge}><MaterialCommunityIcons name="star-circle" size={11} color="#FBBF24" /><Text style={s.featBadgeText}>مميّز</Text></View>
-                    )}
-                  </View>
-                  <View style={[s.lawyerHead, hasPlan && { marginTop: 22 }]}>
-                    <View style={[s.avatar, hasPlan && { borderWidth: 2, borderColor: planColor + "88" }]}>
-                      {item.photo_url ? <Image source={{ uri: item.photo_url }} style={{ width: "100%", height: "100%", borderRadius: Colors.radius.md }} />
-                        : <MaterialCommunityIcons name="account-tie" size={28} color={hasPlan ? planColor : "#B08D3C"} />}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Text style={s.lawyerName} numberOfLines={1}>{item.full_name}</Text>
-                        {item.is_verified && <Ionicons name="checkmark-circle" size={15} color="#0E8A5F" />}
-                        {isPremium && <Text style={{ fontSize: 14 }}>👑</Text>}
-                        {isPro && !isPremium && <Text style={{ fontSize: 13 }}>💎</Text>}
-                        {isBasic && <Text style={{ fontSize: 13 }}>⭐</Text>}
-                      </View>
-                      <Text style={s.lawyerTitle} numberOfLines={1}>{item.title}</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-                        <Stars value={item.avg_rating} size={12} />
-                        <Text style={s.lawyerMeta}>{item.avg_rating.toFixed(1)} ({item.review_count})</Text>
-                        <ViewCount kind="lawyer" id={String(item.id)} />
-                        <Text style={s.lawyerMeta}>· {item.experience_y} سنة خبرة</Text>
-                      </View>
-                    </View>
-                  </View>
-                  <Text style={s.lawyerSpec} numberOfLines={2}>{item.specialties}</Text>
-                  <View style={s.lawyerFooter}>
-                    <View style={s.lawyerLocPill}>
-                      <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
-                      <Text style={s.lawyerLocText} numberOfLines={1}>{item.district || "الحصاحيصا"}</Text>
-                    </View>
-                    <Text style={s.lawyerFee} numberOfLines={1}>{item.consult_fee || "تواصل للتفاصيل"}</Text>
-                  </View>
-                  {/* شريط أسفل البطاقة للبريميوم */}
-                  {isPremium && (
-                    <View style={{ marginTop: 8, backgroundColor: "#F59E0B22", borderRadius: 6, padding: 6, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={{ fontSize: 11, color: "#B45309", fontWeight: "700" }}>👑 محامي بريميوم — أعلى مستوى من الخدمة القانونية</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          }}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40)}>
+              <LawyerCard lw={item} showPricing={showPricing}
+                onOpen={() => openLawyer(item)}
+                onConsult={() => openRequest(generalRequest(item), item)}
+                onCall={() => callLawyer(item.phone)}
+                onWhatsApp={item.whatsapp ? () => waLawyer(item.whatsapp) : undefined} />
+            </Animated.View>
+          )}
           ListEmptyComponent={loading ? (
-            <View style={s.centerBox}><ActivityIndicator color={Colors.text} /></View>
+            <View style={{ gap: 10 }}>{[0, 1, 2].map(i => <SkeletonCard key={i} />)}</View>
+          ) : loadError ? (
+            <EmptyState icon="cloud-off-outline" title="تعذّر تحميل قائمة المحامين" body="تحقق من اتصالك بالإنترنت ثم أعد المحاولة."
+              action="إعادة المحاولة" onAction={loadDirectory} />
+          ) : lawyers.length === 0 ? (
+            <EmptyState icon="account-tie-outline" title="لا يوجد محامون مسجّلون بعد"
+              body="تُضاف ملفات المحامين بعد مراجعة الإدارة لطلبات الانضمام." action="قدّم طلب انضمام كمحامٍ" onAction={() => setJoinOpen(true)} />
           ) : (
-            <View style={s.centerBox}>
-              <MaterialCommunityIcons name="account-search" size={42} color="#D6CFC0" />
-              <Text style={s.emptyText}>لا يوجد محامون مطابقون</Text>
-            </View>
+            <EmptyState icon="account-search" title={activeGroup ? `لا يوجد محامٍ في تخصص «${activeGroup.label}» بعد` : "لا نتائج مطابقة"}
+              body="جرّب كلمة بحث أخرى أو اعرض جميع المحامين." action="عرض كل المحامين" onAction={() => { setFilter("all"); setSearch(""); }} />
           )}
           contentContainerStyle={{ paddingBottom: 30 }}
-          refreshing={loading} onRefresh={loadDirectory}
+          refreshing={loading && lawyers.length > 0} onRefresh={loadDirectory}
         />
       )}
 
       {/* ── FORMS ── */}
       {tab === "forms" && (
         <FlatList
-          data={forms.filter(f => (formCat === "الكل" || f.category === formCat) && (!formQ.trim() || `${f.title} ${f.description} ${f.category}`.includes(formQ.trim())))}
+          data={forms.filter(f => (formCat === "الكل" || f.category === formCat) && (!formQ.trim() || norm(`${f.title} ${f.description} ${f.category}`).includes(norm(formQ.trim()))))}
           keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 14, paddingBottom: 30 }}
+          keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View style={{ gap: 10, marginBottom: 12 }}>
               <View style={s.formsHero}>
-                <View style={s.formsHeroIcon}><MaterialCommunityIcons name="file-sign" size={26} color="#B08D3C" /></View>
+                <View style={s.formsHeroIcon}><MaterialCommunityIcons name="file-sign" size={26} color="#E3C27A" /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.formsHeroTitle}>الاستمارات والنماذج القانونية</Text>
-                  <Text style={s.formsHeroSub}>تُطبع على ورق رسمي منسّق بإطار مزخرف وخانات للتعبئة والتوقيع والختم — أو تُحفظ PDF.</Text>
+                  <Text style={s.formsHeroSub}>اطبع الاستمارة على ورق رسمي فيه خانات للتعبئة والتوقيع والختم، أو احفظها PDF.</Text>
                 </View>
               </View>
-              <View style={s.searchBox}>
-                <Ionicons name="search" size={17} color={Colors.textMuted} />
-                <TextInput style={s.searchInput} placeholder="ابحث عن استمارة: إيجار، توكيل، إقرار…" placeholderTextColor={Colors.textMuted} value={formQ} onChangeText={setFormQ} />
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {["الكل", ...Array.from(new Set(forms.map(f => f.category).filter(Boolean)))].map(c => (
-                  <Pressable key={c} onPress={() => setFormCat(c)} style={[s.chip, formCat === c && s.chipActive]}>
-                    <Text style={[s.chipText, formCat === c && s.chipTextActive]}>{c}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              {forms.length > 0 && (
+                <>
+                  <View style={s.searchBox}>
+                    <Ionicons name="search" size={18} color={Colors.textMuted} />
+                    <TextInput style={s.searchInput} placeholder="ابحث عن استمارة: إيجار، توكيل، إقرار…" placeholderTextColor={Colors.textMuted}
+                      value={formQ} onChangeText={setFormQ} accessibilityLabel="بحث في الاستمارات" />
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {["الكل", ...Array.from(new Set(forms.map(f => f.category).filter(Boolean)))].map(c => (
+                      <Pressable key={c} onPress={() => setFormCat(c)} style={[s.chip, formCat === c && s.chipActive]}
+                        accessibilityRole="button" accessibilityState={{ selected: formCat === c }}>
+                        <Text style={[s.chipText, formCat === c && s.chipTextActive]}>{c}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
             </View>
           }
           ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(30 * index).springify()}>
-              <Pressable onPress={() => printForm(item.id)} style={({ pressed }) => [s.paperCard, pressed && { opacity: 0.9 }]}>
-                <View style={s.paperFold} />
-                <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 }}>
-                  <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-edit-outline" size={24} color={Colors.text} /></View>
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 30)}>
+              <Pressable onPress={() => printForm(item.id)} style={({ pressed }) => [s.paperCard, pressed && { opacity: 0.9 }]}
+                accessibilityRole="button" accessibilityLabel={`${item.title}، عرض وطباعة`}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+                  <View style={s.formIconBox}><MaterialCommunityIcons name="file-document-edit-outline" size={24} color={P.ink} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.formTitle} numberOfLines={2}>{item.title}</Text>
-                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                       <Text style={s.formCat}>{item.category}</Text>
                       {item.is_official && <View style={s.officialBadge}><Text style={s.officialBadgeText}>معتمدة</Text></View>}
                     </View>
@@ -1029,14 +1119,18 @@ function LawyersScreen() {
                     {printingForm === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="print-outline" size={16} color="#fff" />}
                     <Text style={s.printBtnText}>عرض وطباعة</Text>
                   </View>
-                  <Text style={s.paperHint}>PDF · A4 · خانات للتعبئة والتوقيع</Text>
+                  <Text style={s.paperHint}>PDF · A4</Text>
                 </View>
               </Pressable>
             </Animated.View>
           )}
           ListEmptyComponent={formsLoading
-            ? <View style={s.centerBox}><ActivityIndicator color={Colors.text} /></View>
-            : <View style={s.centerBox}><MaterialCommunityIcons name="file-search-outline" size={40} color="#D6CFC0" /><Text style={s.emptyText}>لا توجد استمارات مطابقة</Text></View>}
+            ? <View style={{ gap: 10 }}>{[0, 1, 2].map(i => <SkeletonCard key={i} compact />)}</View>
+            : formsError
+              ? <EmptyState icon="cloud-off-outline" title="تعذّر تحميل الاستمارات" body="تحقق من اتصالك ثم أعد المحاولة." action="إعادة المحاولة" onAction={loadForms} />
+              : forms.length === 0
+                ? <EmptyState icon="file-document-outline" title="لا توجد استمارات منشورة بعد" body="تنشر إدارة القسم القانوني النماذج المعتمدة هنا تباعاً." />
+                : <EmptyState icon="file-search-outline" title="لا توجد استمارة مطابقة" body="جرّب كلمة أخرى أو اختر «الكل»." action="عرض الكل" onAction={() => { setFormQ(""); setFormCat("الكل"); }} />}
         />
       )}
 
@@ -1045,53 +1139,53 @@ function LawyersScreen() {
         <FlatList
           data={myContracts} keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 14, paddingBottom: 30 }}
+          refreshing={contractsLoading && (myContracts.length > 0 || myApps.length > 0)} onRefresh={loadMyContracts}
           ListHeaderComponent={
             myApps.length > 0 ? (
               <View style={{ marginBottom: 14 }}>
-                <Text style={s.contractsSectionTitle}>طلبات انضمامك كمحامي</Text>
+                <Text style={s.contractsSectionTitle}>طلبات انضمامك كمحامٍ</Text>
                 {myApps.map(a => {
                   const st = STATUS_AR[a.status] || { label: a.status, color: Colors.textMuted };
                   return (
-                    <View key={a.id} style={[s.contractCard, { borderColor: st.color + "55" }]}>
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <View key={a.id} style={[s.contractCard, { borderColor: st.color + "66" }]}>
+                      <View style={s.contractTop}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <MaterialCommunityIcons name="briefcase-plus" size={14} color={st.color} />
+                          <MaterialCommunityIcons name="briefcase-plus" size={15} color={st.color} />
                           <Text style={s.contractNo}>طلب #{a.id}</Text>
                         </View>
-                        <View style={[s.statusPill, { backgroundColor: st.color + "22", borderColor: st.color + "55" }]}>
+                        <View style={[s.statusPill, { borderColor: st.color }]}>
                           <Text style={[s.statusPillText, { color: st.color }]}>{st.label}</Text>
                         </View>
                       </View>
                       <Text style={s.contractLawyer}>{a.full_name}</Text>
                       <Text style={s.contractMeta}>قُدّم في {new Date(a.created_at).toLocaleDateString("ar-SD")}</Text>
-                      {a.admin_note && (
-                        <View style={{ marginTop: 8, padding: 9, backgroundColor: st.color + "11", borderRadius: 8 }}>
-                          <Text style={{ color: st.color, fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>ملاحظة الإدارة:</Text>
-                          <Text style={{ color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2 }}>{a.admin_note}</Text>
+                      {!!a.admin_note && (
+                        <View style={s.noteBox}>
+                          <Text style={[s.noteTitle, { color: st.color }]}>ملاحظة الإدارة</Text>
+                          <Text style={s.noteText}>{a.admin_note}</Text>
                         </View>
                       )}
                       {a.status === "approved" && (
                         <>
                           <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                            <Text style={{ color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 12 }}>تم تفعيل ملفك في قائمة المحامين</Text>
+                            <Ionicons name="checkmark-circle" size={15} color={P.green} />
+                            <Text style={{ color: P.green, fontFamily: "Cairo_700Bold", fontSize: 12 }}>ملفك ظاهر الآن في دليل المحامين</Text>
                           </View>
-                          <TouchableOpacity onPress={() => router.push("/lawyer-portal")}
-                            style={{ marginTop: 10, backgroundColor: "#14213D", borderRadius: Colors.radius.sm, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                          <Pressable onPress={() => router.push("/lawyer-portal")} style={s.primaryBtn}
+                            accessibilityRole="button" accessibilityLabel="فتح بوابة المحامي">
                             <Ionicons name="grid-outline" size={16} color="#fff" />
-                            <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 }}>⚖️ بوابتي — لوحة تحكم المحامي</Text>
-                          </TouchableOpacity>
+                            <Text style={s.primaryBtnText}>بوابة المحامي</Text>
+                          </Pressable>
                         </>
                       )}
                       {a.status !== "rejected" && (
-                        <TouchableOpacity onPress={() => printJoinContract(a)} activeOpacity={0.85}
-                          style={s.contractDownloadBtn}>
-                          <MaterialCommunityIcons name="file-document-outline" size={15} color="#fff" />
-                          <Text style={s.contractDownloadText}>
-                            {a.status === "approved" ? "تحميل نسخة العقد المعتمد (PDF)" : "عرض / تحميل مسودّة العقد (PDF)"}
+                        <Pressable onPress={() => printJoinContract(a)} style={s.outlineBtn}
+                          accessibilityRole="button" accessibilityLabel="تحميل عقد الانضمام">
+                          <MaterialCommunityIcons name="file-document-outline" size={16} color={P.ink} />
+                          <Text style={s.outlineBtnText}>
+                            {a.status === "approved" ? "تحميل العقد المعتمد (PDF)" : "عرض مسودّة العقد (PDF)"}
                           </Text>
-                          <Ionicons name="download-outline" size={14} color="#fff" />
-                        </TouchableOpacity>
+                        </Pressable>
                       )}
                     </View>
                   );
@@ -1103,45 +1197,45 @@ function LawyersScreen() {
           renderItem={({ item, index }) => {
             const st = STATUS_AR[item.status] || { label: item.status, color: Colors.textMuted };
             return (
-              <Animated.View entering={FadeInDown.delay(30 * index).springify()}>
+              <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 30)}>
                 <View style={s.contractCard}>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <View style={s.contractTop}>
                     <Text style={s.contractNo}>#{item.contract_no}</Text>
-                    <View style={[s.statusPill, { backgroundColor: st.color + "22", borderColor: st.color + "55" }]}>
+                    <View style={[s.statusPill, { borderColor: st.color }]}>
                       <Text style={[s.statusPillText, { color: st.color }]}>{st.label}</Text>
                     </View>
                   </View>
                   <Text style={s.contractLawyer}>{item.lawyer_name}</Text>
                   <Text style={s.contractSvc}>{item.service_title || "تواصل عام"}</Text>
-                  {item.preferred_date && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
-                      <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-                      <Text style={s.contractMeta}>{item.preferred_date}</Text>
-                    </View>
-                  )}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <Ionicons name="time-outline" size={13} color={Colors.textMuted} />
+                    <Text style={s.contractMeta}>أُرسل في {new Date(item.created_at).toLocaleDateString("ar-SD")}</Text>
+                    {!!item.preferred_date && <Text style={s.contractMeta}>· الموعد المطلوب {item.preferred_date}</Text>}
+                  </View>
                   <View style={s.contractActions}>
-                    <TouchableOpacity onPress={() => Linking.openURL(`tel:${item.lawyer_phone}`)} style={[s.miniBtn, { backgroundColor: "#10B981" + "22", borderColor: "#10B981" + "55" }]}>
-                      <Ionicons name="call" size={13} color="#10B981" /><Text style={[s.miniBtnText, { color: "#10B981" }]}>اتصال</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => router.push({ pathname: "/client-case-chat", params: { contractId: String(item.id) } })} style={[s.miniBtn, { backgroundColor: "#14213D" + "22", borderColor: "#14213D" + "55" }]}>
-                      <Ionicons name="chatbubbles-outline" size={13} color={Colors.text} /><Text style={[s.miniBtnText, { color: Colors.text }]}>دردشة</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => printContract(item)} style={[s.miniBtn, { backgroundColor: "#3B82F6" + "22", borderColor: "#3B82F6" + "55" }]}>
-                      <Ionicons name="print-outline" size={13} color="#3B82F6" /><Text style={[s.miniBtnText, { color: "#3B82F6" }]}>طباعة</Text>
-                    </TouchableOpacity>
+                    {!!item.lawyer_phone && (
+                      <Pressable onPress={() => callLawyer(item.lawyer_phone)} style={s.miniBtn} accessibilityRole="button" accessibilityLabel={`اتصال بـ ${item.lawyer_name}`}>
+                        <Ionicons name="call-outline" size={15} color={P.green} /><Text style={s.miniBtnText}>اتصال</Text>
+                      </Pressable>
+                    )}
+                    <Pressable onPress={() => router.push({ pathname: "/client-case-chat", params: { contractId: String(item.id) } })} style={s.miniBtn}
+                      accessibilityRole="button" accessibilityLabel="محادثة المحامي">
+                      <Ionicons name="chatbubbles-outline" size={15} color={P.ink} /><Text style={s.miniBtnText}>محادثة</Text>
+                    </Pressable>
+                    <Pressable onPress={() => printContract(item)} style={s.miniBtn} accessibilityRole="button" accessibilityLabel="طباعة الإيصال">
+                      <Ionicons name="print-outline" size={15} color={P.blue} /><Text style={s.miniBtnText}>إيصال</Text>
+                    </Pressable>
                   </View>
                 </View>
               </Animated.View>
             );
           }}
           ListEmptyComponent={contractsLoading
-            ? <View style={s.centerBox}><ActivityIndicator color={Colors.text} /></View>
+            ? <View style={{ gap: 10 }}>{[0, 1].map(i => <SkeletonCard key={i} compact />)}</View>
             : myApps.length === 0 ? (
-              <View style={s.centerBox}>
-                <MaterialCommunityIcons name="handshake-outline" size={42} color="#D6CFC0" />
-                <Text style={s.emptyText}>لا توجد تعاقدات بعد</Text>
-                <Text style={[s.emptyText, { fontSize: 12 }]}>اختر محامياً وأرسل طلب خدمة، أو قدّم طلب الانضمام كمحامٍ</Text>
-              </View>
+              <EmptyState icon="handshake-outline" title="لا توجد طلبات بعد"
+                body="اختر محامياً من الدليل وأرسل طلب استشارة، وستجد طلباتك وحالتها هنا."
+                action="تصفّح المحامين" onAction={() => setTab("directory")} />
             ) : null}
         />
       )}
@@ -1149,7 +1243,7 @@ function LawyersScreen() {
       {/* ═══ Lawyer Join Modal ═══ */}
       <Modal visible={joinOpen} animationType="slide" onRequestClose={() => setJoinOpen(false)} transparent>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.modalOverlay}>
-          <View style={[s.modalSheet, { maxHeight: "94%" }]}>
+          <View style={[s.modalSheet, RTL, { maxHeight: "94%" }]}>
             <View style={s.modalHandle} />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
               <View style={s.joinHead}>
@@ -1160,8 +1254,8 @@ function LawyersScreen() {
                   <Text style={s.detailName}>طلب تعاقد كمحامٍ</Text>
                   <Text style={s.detailTitle}>سيتم مراجعة الطلب من إدارة التطبيق</Text>
                 </View>
-                <TouchableOpacity onPress={() => setJoinOpen(false)} style={s.closeBtn}>
-                  <Ionicons name="close" size={20} color="#fff" />
+                <TouchableOpacity onPress={() => setJoinOpen(false)} style={s.closeBtn} accessibilityRole="button" accessibilityLabel="إغلاق">
+                  <Ionicons name="close" size={20} color={Colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -1192,7 +1286,7 @@ function LawyersScreen() {
               <Text style={s.joinSectionTitle}>المكتب والعنوان</Text>
               <Field label="عنوان المكتب" value={appForm.office_addr} onChange={(v: string) => setAppForm(f => ({ ...f, office_addr: v }))} placeholder="العنوان التفصيلي" />
               <Field label="الحي / المنطقة" value={appForm.district} onChange={(v: string) => setAppForm(f => ({ ...f, district: v }))} placeholder="مثال: حي الشرق" />
-              <Field label="رسوم الاستشارة" value={appForm.consult_fee} onChange={(v: string) => setAppForm(f => ({ ...f, consult_fee: v }))} placeholder="مثال: 5,000 ج.س / 30 دقيقة" />
+              {showPricing && <Field label="رسوم الاستشارة" value={appForm.consult_fee} onChange={(v: string) => setAppForm(f => ({ ...f, consult_fee: v }))} placeholder="مثال: 5,000 ج.س / 30 دقيقة" />}
 
               <Text style={s.joinSectionTitle}>نبذة تعريفية</Text>
               <Field label="نبذة عنك (تظهر في ملفك)" value={appForm.bio} onChange={(v: string) => setAppForm(f => ({ ...f, bio: v }))} placeholder="اكتب نبذة موجزة عن خبراتك وأسلوب عملك…" multiline />
@@ -1231,113 +1325,139 @@ function LawyersScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+
       {/* ═══ Lawyer Detail Modal ═══ */}
       <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)} transparent>
         <View style={s.modalOverlay}>
-          <View style={s.modalSheet}>
+          <View style={[s.modalSheet, RTL]}>
             <View style={s.modalHandle} />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
               {selected && (
                 <>
                   <View style={s.detailHead}>
-                    <View style={s.avatarLg}>
-                      <MaterialCommunityIcons name="account-tie" size={36} color="#B08D3C" />
-                    </View>
+                    <Avatar lw={selected} size={72} />
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Text style={s.detailName}>{selected.full_name}</Text>
-                        {selected.is_verified && <Ionicons name="checkmark-circle" size={17} color="#0E8A5F" />}
-                      </View>
+                      <Text style={s.detailName}>{selected.full_name}</Text>
                       <Text style={s.detailTitle}>{selected.title}</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
-                        <Stars value={selected.avg_rating} size={14} />
-                        <Text style={s.detailMeta}>{selected.avg_rating.toFixed(1)} ({selected.review_count} مراجعة)</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                        {selected.is_verified && <VerifiedBadge />}
+                        {selected.review_count > 0 && (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                            <Stars value={selected.avg_rating} size={13} />
+                            <Text style={s.detailMeta}>{selected.avg_rating.toFixed(1)} ({selected.review_count})</Text>
+                          </View>
+                        )}
+                        <ViewCount kind="lawyer" id={String(selected.id)} label size={12} />
                       </View>
                     </View>
-                    <TouchableOpacity onPress={() => setSelected(null)} style={s.closeBtn}>
-                      <Ionicons name="close" size={20} color="#fff" />
-                    </TouchableOpacity>
+                    <Pressable onPress={() => setSelected(null)} style={s.closeBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="إغلاق">
+                      <Ionicons name="close" size={20} color={Colors.text} />
+                    </Pressable>
                   </View>
 
-                  {/* أزرار سريعة */}
+                  {/* إجراءات */}
                   <View style={s.quickRow}>
-                    <TouchableOpacity onPress={() => Linking.openURL(`tel:${selected.phone}`)} style={[s.quickBtn, { backgroundColor: "#10B981" }]}>
-                      <Ionicons name="call" size={16} color="#fff" /><Text style={s.quickBtnText}>اتصال</Text>
-                    </TouchableOpacity>
-                    {selected.whatsapp && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://wa.me/${selected.whatsapp.replace(/\D/g,"")}`)} style={[s.quickBtn, { backgroundColor: "#25D366" }]}>
-                        <Ionicons name="logo-whatsapp" size={16} color="#fff" /><Text style={s.quickBtnText}>واتساب</Text>
-                      </TouchableOpacity>
+                    <Pressable onPress={() => openRequest(generalRequest(selected), selected)} style={[s.quickBtn, { backgroundColor: P.btn, flexBasis: "100%" }]}
+                      accessibilityRole="button" accessibilityLabel="طلب استشارة">
+                      <MaterialCommunityIcons name="scale-balance" size={18} color="#fff" /><Text style={s.quickBtnText}>طلب استشارة</Text>
+                    </Pressable>
+                    {!!selected.phone && (
+                      <Pressable onPress={() => callLawyer(selected.phone)} style={[s.quickBtn, { backgroundColor: P.greenBtn }]}
+                        accessibilityRole="button" accessibilityLabel={`اتصال بـ ${selected.full_name}`}>
+                        <Ionicons name="call" size={16} color="#fff" /><Text style={s.quickBtnText}>اتصال</Text>
+                      </Pressable>
                     )}
-                    <TouchableOpacity onPress={() => printLawyerCard(selected, services)} style={[s.quickBtn, { backgroundColor: "#14213D" }]}>
-                      <Ionicons name="print-outline" size={16} color="#fff" /><Text style={s.quickBtnText}>طباعة</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setRateOpen(true)} style={[s.quickBtn, { backgroundColor: "#F59E0B" }]}>
-                      <Ionicons name="star" size={16} color="#fff" /><Text style={s.quickBtnText}>تقييم</Text>
-                    </TouchableOpacity>
+                    {!!selected.whatsapp && (
+                      <Pressable onPress={() => waLawyer(selected.whatsapp)} style={s.quickBtnOutline}
+                        accessibilityRole="button" accessibilityLabel="مراسلة عبر واتساب">
+                        <Ionicons name="logo-whatsapp" size={17} color={P.wa} /><Text style={s.quickBtnOutlineText}>واتساب</Text>
+                      </Pressable>
+                    )}
                   </View>
 
-                  {/* معلومات */}
+                  {/* الترخيص */}
+                  <View style={s.licenseBox}>
+                    <MaterialCommunityIcons name={selected.is_verified ? "shield-check" : "shield-outline"} size={26} color={selected.is_verified ? P.green : Colors.textMuted} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.licenseLabel}>رقم القيد بنقابة المحامين</Text>
+                      <Text style={s.licenseValue}>{selected.bar_number || "غير مُدرج"}</Text>
+                      <Text style={[s.licenseNote, { color: selected.is_verified ? P.green : Colors.textMuted }]}>
+                        {selected.is_verified ? "راجعت الإدارة بطاقة القيد ووثّقت الملف" : "لم يُوثَّق بعد"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* التخصصات */}
+                  {splitSpecs(selected.specialties).length > 0 && (
+                    <View style={s.section}>
+                      <Text style={s.sectionTitle}>التخصصات</Text>
+                      <View style={s.specWrap}>
+                        {splitSpecs(selected.specialties).map(sp => <View key={sp} style={s.specChip}><Text style={s.specChipText}>{sp}</Text></View>)}
+                      </View>
+                    </View>
+                  )}
+
                   <View style={s.infoBox}>
-                    <InfoLine icon="briefcase-outline" label="التخصصات" value={selected.specialties} />
-                    <InfoLine icon="location-outline"  label="العنوان"   value={selected.office_addr || selected.district || "—"} />
-                    <InfoLine icon="card-outline"      label="رقم النقابة" value={selected.bar_number || "—"} />
-                    <InfoLine icon="time-outline"      label="الخبرة"    value={`${selected.experience_y} سنة`} />
-                    <InfoLine icon="globe-outline"     label="اللغات"    value={selected.languages} />
-                    <InfoLine icon="cash-outline"      label="الاستشارة" value={selected.consult_fee || "—"} />
+                    {selected.experience_y > 0 && <InfoLine icon="ribbon-outline" label="الخبرة" value={`${selected.experience_y} سنة`} />}
+                    <InfoLine icon="location-outline" label="المكتب" value={[selected.office_addr, selected.district].filter(Boolean).join(" — ") || "الحصاحيصا"} />
+                    {!!selected.languages && <InfoLine icon="globe-outline" label="اللغات" value={selected.languages} />}
+                    {showPricing && !!selected.consult_fee && <InfoLine icon="cash-outline" label="الاستشارة" value={selected.consult_fee} />}
                   </View>
 
-                  {selected.bio && (
-                    <View style={s.bioBox}>
-                      <Text style={s.bioTitle}>نبذة</Text>
+                  {!!selected.bio && (
+                    <View style={s.section}>
+                      <Text style={s.sectionTitle}>نبذة</Text>
                       <Text style={s.bioText}>{selected.bio}</Text>
                     </View>
                   )}
 
                   {/* الخدمات */}
                   <View style={s.section}>
-                    <Text style={s.sectionTitle}>الخدمات المتاحة</Text>
-                    {detailLoading ? <ActivityIndicator color={Colors.text} /> : services.length === 0 ? (
-                      <Text style={s.emptyInline}>لم يضِف المحامي خدمات بعد</Text>
+                    <Text style={s.sectionTitle}>الخدمات</Text>
+                    {detailLoading ? <ActivityIndicator color={P.ink} /> : services.length === 0 ? (
+                      <Text style={s.emptyInline}>لم يُضف المحامي خدمات محددة بعد. أرسل طلب استشارة عامة.</Text>
                     ) : services.map(svc => (
                       <View key={svc.id} style={s.svcCard}>
                         <View style={{ flex: 1 }}>
                           <Text style={s.svcTitle}>{svc.title}</Text>
-                          {svc.description && <Text style={s.svcDesc}>{svc.description}</Text>}
-                          <View style={{ flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-                            {svc.price_text && <View style={s.svcChip}><Text style={s.svcChipText}>💰 {svc.price_text}</Text></View>}
-                            {svc.duration   && <View style={s.svcChip}><Text style={s.svcChipText}>⏱ {svc.duration}</Text></View>}
-                          </View>
+                          {!!svc.description && <Text style={s.svcDesc}>{svc.description}</Text>}
+                          {((showPricing && !!svc.price_text) || !!svc.duration) && (
+                            <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                              {showPricing && !!svc.price_text && <View style={s.svcChip}><Ionicons name="cash-outline" size={12} color={Colors.textSecondary} /><Text style={s.svcChipText}>{svc.price_text}</Text></View>}
+                              {!!svc.duration && <View style={s.svcChip}><Ionicons name="time-outline" size={12} color={Colors.textSecondary} /><Text style={s.svcChipText}>{svc.duration}</Text></View>}
+                            </View>
+                          )}
                         </View>
-                        <TouchableOpacity onPress={() => setContractFor(svc)} style={s.contractBtn}>
-                          <MaterialCommunityIcons name="handshake" size={14} color="#fff" />
-                          <Text style={s.contractBtnText}>تعاقد</Text>
-                        </TouchableOpacity>
+                        <Pressable onPress={() => openRequest(svc, selected)} style={s.contractBtn} accessibilityRole="button" accessibilityLabel={`طلب ${svc.title}`}>
+                          <Text style={s.contractBtnText}>اطلب</Text>
+                        </Pressable>
                       </View>
                     ))}
-                    {/* تواصل عام */}
-                    <TouchableOpacity onPress={() => setContractFor({ id: 0, lawyer_id: selected.id, title: "تواصل عام", description: "", price_text: "", duration: "" })}
-                      style={s.contactGenBtn}>
-                      <MaterialCommunityIcons name="email-plus-outline" size={16} color={Colors.text} />
-                      <Text style={s.contactGenText}>طلب خدمة أخرى / تواصل عام</Text>
-                    </TouchableOpacity>
                   </View>
 
                   {/* المراجعات */}
-                  {reviews.length > 0 && (
-                    <View style={s.section}>
-                      <Text style={s.sectionTitle}>آخر المراجعات</Text>
-                      {reviews.slice(0, 8).map(r => (
-                        <View key={r.id} style={s.reviewCard}>
-                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                            <Text style={s.reviewName}>{r.user_name}</Text>
-                            <Stars value={r.rating} size={11} />
-                          </View>
-                          {r.comment && <Text style={s.reviewText}>{r.comment}</Text>}
-                        </View>
-                      ))}
+                  <View style={s.section}>
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <Text style={[s.sectionTitle, { marginBottom: 0 }]}>المراجعات</Text>
+                      <Pressable onPress={() => setRateOpen(true)} style={s.linkBtn} hitSlop={6} accessibilityRole="button" accessibilityLabel="قيّم المحامي">
+                        <Ionicons name="star-outline" size={15} color={P.gold} /><Text style={s.linkBtnText}>قيّم المحامي</Text>
+                      </Pressable>
                     </View>
-                  )}
+                    {reviews.length === 0 ? <Text style={s.emptyInline}>لا توجد مراجعات بعد.</Text> : reviews.slice(0, 8).map(r => (
+                      <View key={r.id} style={s.reviewCard}>
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                          <Text style={s.reviewName}>{r.user_name}</Text>
+                          <Stars value={r.rating} size={12} />
+                        </View>
+                        {!!r.comment && <Text style={s.reviewText}>{r.comment}</Text>}
+                      </View>
+                    ))}
+                  </View>
+
+                  <Pressable onPress={() => printLawyerCard(selected, services)} style={[s.outlineBtn, { marginTop: 16 }]}
+                    accessibilityRole="button" accessibilityLabel="طباعة بطاقة المحامي">
+                    <Ionicons name="print-outline" size={16} color={P.ink} /><Text style={s.outlineBtnText}>طباعة بطاقة المحامي</Text>
+                  </Pressable>
                 </>
               )}
             </ScrollView>
@@ -1345,30 +1465,26 @@ function LawyersScreen() {
         </View>
       </Modal>
 
-      {/* ═══ Contract Modal ═══ */}
+      {/* ═══ Request Modal ═══ */}
       <Modal visible={!!contractFor} animationType="fade" onRequestClose={() => setContractFor(null)} transparent>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.modalOverlay2}>
-          <View style={s.contractModal}>
+          <View style={[s.contractModal, RTL]}>
             <View style={s.contractHeader}>
-              <MaterialCommunityIcons name="handshake" size={20} color={Colors.text} />
-              <Text style={s.contractTitle}>طلب: {contractFor?.title}</Text>
+              <MaterialCommunityIcons name="scale-balance" size={20} color={P.ink} />
+              <Text style={s.contractTitle}>{contractFor?.title}{reqLawyer ? ` — ${reqLawyer.full_name}` : ""}</Text>
             </View>
-            <Text style={s.contractSubt}>سيتواصل معك المحامي لتأكيد التفاصيل والموعد.</Text>
+            <Text style={s.contractSubt}>يصل طلبك إلى المحامي ويتواصل معك لتأكيد التفاصيل والموعد. تابع حالته من «تعاقداتي».</Text>
 
             <Field label="الاسم *" value={contract.name} onChange={(v: string) => setContract(c => ({ ...c, name: v }))} placeholder="اسمك الكامل" />
             <Field label="رقم الهاتف *" value={contract.phone} onChange={(v: string) => setContract(c => ({ ...c, phone: v }))} placeholder="09xxxxxxxx" keyboardType="phone-pad" />
-            <Field label="الموعد المطلوب" value={contract.date} onChange={(v: string) => setContract(c => ({ ...c, date: v }))} placeholder="YYYY-MM-DD (اختياري)" />
-            <Field label="تفاصيل" value={contract.details} onChange={(v: string) => setContract(c => ({ ...c, details: v }))} placeholder="اكتب وصفاً موجزاً للقضية أو الخدمة المطلوبة" multiline />
+            <Field label="الموعد المناسب (اختياري)" value={contract.date} onChange={(v: string) => setContract(c => ({ ...c, date: v }))} placeholder="مثال: 2026-11-10" />
+            <Field label="وصف موجز للقضية" value={contract.details} onChange={(v: string) => setContract(c => ({ ...c, details: v }))} placeholder="ما الذي حدث، وما المطلوب من المحامي؟" multiline />
 
             <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
-              <TouchableOpacity onPress={() => setContractFor(null)} style={s.cancelBtn}>
-                <Text style={s.cancelBtnText}>إلغاء</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={submitContract} disabled={submitting} style={[s.submitBtn, submitting && { opacity: 0.6 }]}>
-                {submitting ? <ActivityIndicator color="#fff" /> : (
-                  <><Ionicons name="send" size={14} color="#fff" /><Text style={s.submitBtnText}>إرسال الطلب</Text></>
-                )}
-              </TouchableOpacity>
+              <Pressable onPress={() => setContractFor(null)} style={s.cancelBtn} accessibilityRole="button"><Text style={s.cancelBtnText}>إلغاء</Text></Pressable>
+              <Pressable onPress={submitContract} disabled={submitting} style={[s.submitBtn, submitting && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="إرسال الطلب">
+                {submitting ? <ActivityIndicator color="#fff" /> : (<><Ionicons name="send" size={14} color="#fff" style={{ transform: [{ scaleX: -1 }] }} /><Text style={s.submitBtnText}>إرسال الطلب</Text></>)}
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1377,27 +1493,29 @@ function LawyersScreen() {
       {/* ═══ Rights Guide ═══ */}
       <Modal visible={rightsOpen} animationType="slide" transparent onRequestClose={() => setRightsOpen(false)}>
         <View style={s.modalOverlay}>
-          <View style={[s.modalSheet, { backgroundColor: "#FFFDF8" }]}>
+          <View style={[s.modalSheet, RTL]}>
             <View style={s.modalHandle} />
-            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <View style={[s.svcTileIcon, { backgroundColor: "#14213D" }]}><MaterialCommunityIcons name="shield-check-outline" size={20} color="#B08D3C" /></View>
-              <Text style={[s.detailName, { flex: 1, textAlign: "right" }]}>اعرف حقوقك</Text>
-              <TouchableOpacity onPress={() => setRightsOpen(false)} style={s.closeBtn}><Ionicons name="close" size={20} color="#fff" /></TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <View style={s.svcTileIcon}><MaterialCommunityIcons name="shield-check-outline" size={20} color={P.ink} /></View>
+              <Text style={[s.detailName, { flex: 1 }]}>اعرف حقوقك</Text>
+              <Pressable onPress={() => setRightsOpen(false)} style={s.closeBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="إغلاق">
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30, gap: 10 }}>
               {RIGHTS_GUIDE.map(g => (
                 <View key={g.title} style={s.rightsCard}>
-                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <MaterialCommunityIcons name={g.icon as any} size={18} color="#B08D3C" />
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <MaterialCommunityIcons name={g.icon as any} size={18} color={P.gold} />
                     <Text style={s.rightsTitle}>{g.title}</Text>
                   </View>
                   {g.points.map((pt, i) => <Text key={i} style={s.rightsPoint}>• {pt}</Text>)}
                 </View>
               ))}
-              <Text style={s.rightsNote}>معلومات توعوية عامة وليست استشارة قانونية. لكل حالة تفاصيلها — تواصل مع محامٍ مرخّص من القائمة.</Text>
-              <TouchableOpacity onPress={() => setRightsOpen(false)} style={[s.submitBtn, { flex: 0 }]}>
+              <Text style={s.rightsNote}>معلومات توعوية عامة، وليست استشارة قانونية. لكل حالة تفاصيلها، فاستشر محامياً مرخّصاً.</Text>
+              <Pressable onPress={() => { setRightsOpen(false); setTab("directory"); }} style={[s.submitBtn, { flex: 0 }]} accessibilityRole="button">
                 <MaterialCommunityIcons name="account-tie" size={16} color="#fff" /><Text style={s.submitBtnText}>اختر محامياً للاستشارة</Text>
-              </TouchableOpacity>
+              </Pressable>
             </ScrollView>
           </View>
         </View>
@@ -1406,20 +1524,18 @@ function LawyersScreen() {
       {/* ═══ Rate Modal ═══ */}
       <Modal visible={rateOpen} animationType="fade" transparent onRequestClose={() => setRateOpen(false)}>
         <View style={s.modalOverlay2}>
-          <View style={s.rateModal}>
+          <View style={[s.rateModal, RTL]}>
             <Text style={s.rateTitle}>تقييم {selected?.full_name}</Text>
             <View style={{ marginVertical: 18 }}><StarPicker value={rateValue} onChange={setRateValue} /></View>
             <TextInput
               style={s.rateInput} placeholder="اكتب رأيك (اختياري)" placeholderTextColor={Colors.textMuted}
-              value={rateComment} onChangeText={setRateComment} multiline maxLength={500}
+              value={rateComment} onChangeText={setRateComment} multiline maxLength={500} accessibilityLabel="تعليق التقييم"
             />
             <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
-              <TouchableOpacity onPress={() => setRateOpen(false)} style={s.cancelBtn}>
-                <Text style={s.cancelBtnText}>إلغاء</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={submitRating} style={s.submitBtn}>
+              <Pressable onPress={() => setRateOpen(false)} style={s.cancelBtn} accessibilityRole="button"><Text style={s.cancelBtnText}>إلغاء</Text></Pressable>
+              <Pressable onPress={submitRating} style={s.submitBtn} accessibilityRole="button" accessibilityLabel="إرسال التقييم">
                 <Ionicons name="star" size={14} color="#fff" /><Text style={s.submitBtnText}>إرسال التقييم</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -1428,11 +1544,115 @@ function LawyersScreen() {
   );
 }
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── components ─────────────────────────────────────────────────────────────
+function Avatar({ lw, size = 56 }: { lw: Lawyer; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+      {lw.photo_url && !broken
+        ? <Image source={{ uri: lw.photo_url }} style={{ width: "100%", height: "100%" }} onError={() => setBroken(true)} accessibilityLabel={`صورة ${lw.full_name}`} />
+        : <Text style={[s.avatarText, { fontSize: size * 0.32 }]}>{initials(lw.full_name)}</Text>}
+    </View>
+  );
+}
+function VerifiedBadge() {
+  return (
+    <View style={s.verified} accessibilityLabel="محامٍ موثّق">
+      <MaterialCommunityIcons name="check-decagram" size={13} color={P.green} />
+      <Text style={s.verifiedText}>موثّق</Text>
+    </View>
+  );
+}
+function LawyerCard({ lw, showPricing, onOpen, onConsult, onCall, onWhatsApp }: {
+  lw: Lawyer; showPricing: boolean; onOpen: () => void; onConsult: () => void; onCall: () => void; onWhatsApp?: () => void;
+}) {
+  const specs = splitSpecs(lw.specialties);
+  const plan = showPricing && lw.plan_name && lw.plan_name !== "free" ? lw.plan_name_ar : null;
+  return (
+    <View style={s.lawyerCard}>
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`ملف ${lw.full_name}`} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
+        <View style={s.lawyerHead}>
+          <Avatar lw={lw} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <Text style={s.lawyerName} numberOfLines={1}>{lw.full_name}</Text>
+              {lw.is_verified && <VerifiedBadge />}
+            </View>
+            <Text style={s.lawyerTitle} numberOfLines={1}>{lw.title}</Text>
+            <View style={s.metaRow}>
+              {lw.experience_y > 0 && (
+                <View style={s.metaItem}><Ionicons name="ribbon-outline" size={13} color={Colors.textMuted} /><Text style={s.lawyerMeta}>{lw.experience_y} سنة خبرة</Text></View>
+              )}
+              <View style={s.metaItem}><Ionicons name="location-outline" size={13} color={Colors.textMuted} /><Text style={s.lawyerMeta} numberOfLines={1}>{lw.district || "الحصاحيصا"}</Text></View>
+              {lw.review_count > 0 && (
+                <View style={s.metaItem}><Ionicons name="star" size={13} color={P.star} /><Text style={s.lawyerMeta}>{lw.avg_rating.toFixed(1)} ({lw.review_count})</Text></View>
+              )}
+              <ViewCount kind="lawyer" id={String(lw.id)} size={12} />
+            </View>
+          </View>
+          {(lw.is_featured || plan) && (
+            <View style={s.featBadge}><Text style={s.featBadgeText}>{plan || "مميّز"}</Text></View>
+          )}
+        </View>
+        {specs.length > 0 && (
+          <View style={[s.specWrap, { marginTop: 10 }]}>
+            {specs.slice(0, 3).map(sp => <View key={sp} style={s.specChip}><Text style={s.specChipText}>{sp}</Text></View>)}
+            {specs.length > 3 && <View style={s.specChip}><Text style={s.specChipText}>+{specs.length - 3}</Text></View>}
+          </View>
+        )}
+        {showPricing && !!lw.consult_fee && <Text style={s.lawyerFee} numberOfLines={1}>{lw.consult_fee}</Text>}
+      </Pressable>
+      <View style={s.cardActions}>
+        <Pressable onPress={onConsult} style={[s.cardBtn, s.cardBtnPrimary]} accessibilityRole="button" accessibilityLabel={`طلب استشارة من ${lw.full_name}`}>
+          <MaterialCommunityIcons name="scale-balance" size={16} color="#fff" /><Text style={s.cardBtnPrimaryText}>استشارة</Text>
+        </Pressable>
+        {!!lw.phone && (
+          <Pressable onPress={onCall} style={s.cardBtn} accessibilityRole="button" accessibilityLabel={`اتصال بـ ${lw.full_name}`}>
+            <Ionicons name="call-outline" size={16} color={P.green} /><Text style={s.cardBtnText}>اتصال</Text>
+          </Pressable>
+        )}
+        {onWhatsApp && (
+          <Pressable onPress={onWhatsApp} style={s.cardBtn} accessibilityRole="button" accessibilityLabel={`واتساب ${lw.full_name}`}>
+            <Ionicons name="logo-whatsapp" size={16} color={P.wa} /><Text style={s.cardBtnText}>واتساب</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+function SkeletonCard({ compact }: { compact?: boolean }) {
+  return (
+    <View style={[s.lawyerCard, { gap: 10 }]} accessibilityLabel="جارٍ التحميل">
+      <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+        {!compact && <View style={[s.skel, { width: 56, height: 56, borderRadius: 28 }]} />}
+        <View style={{ flex: 1, gap: 8 }}>
+          <View style={[s.skel, { width: "60%", height: 14 }]} />
+          <View style={[s.skel, { width: "40%", height: 12 }]} />
+        </View>
+      </View>
+      <View style={[s.skel, { width: "85%", height: 12 }]} />
+      {!compact && <View style={[s.skel, { width: "100%", height: 40, borderRadius: 12 }]} />}
+    </View>
+  );
+}
+function EmptyState({ icon, title, body, action, onAction }: { icon: string; title: string; body?: string; action?: string; onAction?: () => void }) {
+  return (
+    <View style={s.centerBox}>
+      <View style={s.emptyIcon}><MaterialCommunityIcons name={icon as any} size={34} color={P.ink} /></View>
+      <Text style={s.emptyTitle}>{title}</Text>
+      {!!body && <Text style={s.emptyText}>{body}</Text>}
+      {!!action && onAction && (
+        <Pressable onPress={onAction} style={[s.primaryBtn, { paddingHorizontal: 22, alignSelf: "center" }]} accessibilityRole="button">
+          <Text style={s.primaryBtnText}>{action}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
 function InfoLine({ icon, label, value }: { icon: any; label: string; value: string }) {
   return (
     <View style={s.infoLine}>
-      <Ionicons name={icon} size={14} color={Colors.textMuted} />
+      <Ionicons name={icon} size={15} color={Colors.textMuted} />
       <Text style={s.infoLineLabel}>{label}</Text>
       <Text style={s.infoLineValue} numberOfLines={2}>{value}</Text>
     </View>
@@ -1443,8 +1663,8 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
     <View style={{ marginTop: 10 }}>
       <Text style={s.fieldLabel}>{label}</Text>
       <TextInput
-        style={[s.fieldInput, multiline && { height: 80, textAlignVertical: "top", paddingTop: 10 }]}
-        placeholder={placeholder} placeholderTextColor={Colors.textMuted}
+        style={[s.fieldInput, multiline && { height: 88, textAlignVertical: "top", paddingTop: 10 }]}
+        placeholder={placeholder} placeholderTextColor={Colors.textMuted} accessibilityLabel={label.replace(" *", "")}
         value={value} onChangeText={onChange} multiline={multiline} keyboardType={keyboardType}
       />
     </View>
@@ -1452,174 +1672,209 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType }:
 }
 
 // ─── styles ─────────────────────────────────────────────────────────────────
+const F = { r: "Cairo_400Regular", s: "Cairo_600SemiBold", b: "Cairo_700Bold" } as const;
 const s = StyleSheet.create({
-  uploadBox: { borderWidth: 1, borderColor: "rgba(31,92,138,0.25)", backgroundColor: "rgba(31,92,138,0.08)", borderRadius: 14, padding: 12, gap: 8 },
-  uploadHelp: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 18, textAlign: "right" },
-  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
-  uploadBtnOk: { backgroundColor: "#10B981" },
-  uploadBtnWarn: { backgroundColor: "#F59E0B" },
-  uploadBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  uploadFileName: { color: Colors.text, fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "right" },
-  uploadWarn: { color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "right", lineHeight: 17 },
-  container: { flex: 1, backgroundColor: "#F6F4EE" },
-  tabsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: Colors.radius.md, padding: 4, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: Colors.radius.sm },
-  tabBtnActive: { backgroundColor: "#14213D" },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#B08D3C" },
-  tabLabelActive: { color: "#fff" },
+  container: { flex: 1, backgroundColor: Colors.bg },
 
-  adCard: { width: 270, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1 },
-  adBadge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  adBadgeText: { color: "#fff", fontSize: 9, fontFamily: "Cairo_700Bold" },
-  adTitle: { fontFamily: "Cairo_700Bold", color: Colors.text, fontSize: 14, marginTop: 6 },
-  adBody: { fontFamily: "Cairo_400Regular", color: Colors.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 16 },
-  adCtaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
-  adCta: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
-  adCtaText: { color: "#fff", fontSize: 12, fontFamily: "Cairo_700Bold" },
-  adAuthor: { color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", flex: 1, textAlign: "left", marginLeft: 8 },
+  // تبويبات على الرأس الأخضر: مسار داكن شفاف + نص أبيض، والنشط أبيض صلب بنص كحلي
+  tabsRow: { flexDirection: "row", backgroundColor: "rgba(0,0,0,0.24)", borderRadius: Colors.radius.md, padding: 4, gap: 4 },
+  tabBtn: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: Colors.radius.sm },
+  tabBtnActive: { backgroundColor: "#FFFFFF" },
+  tabLabel: { fontFamily: F.b, fontSize: 13, color: "#FFFFFF" },
+  tabLabelActive: { color: NAVY },
 
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: Colors.border },
-  searchInput: { flex: 1, color: Colors.text, fontFamily: "Cairo_400Regular", fontSize: 13, paddingVertical: 0, textAlign: "right" },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border },
-  chipActive: { backgroundColor: "#14213D", borderColor: "#14213D" },
-  chipText: { color: Colors.textMuted, fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  chipTextActive: { color: "#fff" },
+  adCard: { width: 272, padding: 12, borderRadius: Colors.radius.md, borderWidth: 1, backgroundColor: Colors.cardBg },
+  adBadge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 1, borderRadius: 6, backgroundColor: P.iconBg },
+  adBadgeText: { color: P.gold, fontSize: 12, fontFamily: F.b },
+  adTitle: { fontFamily: F.b, color: Colors.text, fontSize: 14, marginTop: 6, textAlign: "right" },
+  adBody: { fontFamily: F.r, color: Colors.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 18, textAlign: "right" },
+  adCtaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, gap: 8 },
+  adCta: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, minHeight: 36, borderRadius: 10, backgroundColor: P.greenBtn },
+  adCtaText: { color: "#fff", fontSize: 12, fontFamily: F.b },
+  adAuthor: { color: Colors.textMuted, fontSize: 12, fontFamily: F.r, flex: 1, textAlign: "left" },
 
-  lawyerCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: Colors.border },
-  featBadge: { position: "absolute", top: 10, left: 10, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#FBBF2422", borderColor: "#FBBF24", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  featBadgeText: { color: "#FBBF24", fontFamily: "Cairo_700Bold", fontSize: 9 },
-  lawyerHead: { flexDirection: "row", gap: 12, alignItems: "center" },
-  avatar: { width: 54, height: 54, borderRadius: Colors.radius.md, backgroundColor: "#14213D22", borderWidth: 1, borderColor: "#14213D55", alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  lawyerName: { fontFamily: "Cairo_700Bold", color: Colors.text, fontSize: 14, flexShrink: 1 },
-  lawyerTitle: { fontFamily: "Cairo_400Regular", color: "#B08D3C", fontSize: 12, marginTop: 1 },
-  lawyerMeta: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11 },
-  lawyerSpec: { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 10, lineHeight: 17 },
-  lawyerFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.border },
-  lawyerLocPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.divider, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
-  lawyerLocText: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 11 },
-  lawyerFee: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 12, flex: 1, textAlign: "left", marginLeft: 8 },
-
-  centerBox: { paddingVertical: 60, alignItems: "center", gap: 10 },
-  emptyText: { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13 },
-
-  formsHeader: { flexDirection: "row", gap: 8, padding: 12, backgroundColor: "#14213D12", borderRadius: Colors.radius.md, borderWidth: 1, borderColor: "#14213D33", marginBottom: 12 },
-  formsHeaderText: { flex: 1, color: "#B08D3C", fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 18 },
   svcHub: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: Colors.border },
-  svcHubTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.text, textAlign: "right", marginBottom: 8 },
-  svcGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
-  svcTile: { width: "31%", flexGrow: 1, alignItems: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 12, backgroundColor: "#FBF8F1", borderWidth: 1, borderColor: "#EFE8D8" },
-  svcTileOn: { borderColor: "#B08D3C", backgroundColor: "#F7EFD9" },
-  svcTileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#EDE6D3", alignItems: "center", justifyContent: "center" },
-  svcTileText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.text, textAlign: "center", lineHeight: 16 },
-  rightsCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#EFE8D8", borderRightWidth: 3, borderRightColor: "#B08D3C" },
-  rightsTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.text, textAlign: "right", flex: 1 },
-  rightsPoint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 },
-  rightsNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#8A8270", textAlign: "center", lineHeight: 18, marginTop: 4 },
-  formsHero: { flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: "#14213D", borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: "#B08D3C" },
-  formsHeroIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(176,141,60,0.16)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#B08D3C" },
-  formsHeroTitle: { color: "#F6F1E4", fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" },
-  formsHeroSub: { color: "#D9CFB7", fontFamily: "Cairo_400Regular", fontSize: 11.5, lineHeight: 18, textAlign: "right", marginTop: 2 },
-  paperCard: { backgroundColor: "#FFFDF8", borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: "#E7DFCB", borderRightWidth: 4, borderRightColor: "#B08D3C", overflow: "hidden",
-    shadowColor: "#5C4A12", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  paperFold: { position: "absolute", top: 0, left: 0, width: 26, height: 26, backgroundColor: "#EFE6D0", borderBottomRightRadius: 10 },
-  paperActions: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EFE8D8", borderStyle: "dashed" },
-  paperHint: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: "#8A8270" },
-  formCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: Colors.border },
-  formIconBox: { width: 44, height: 44, borderRadius: Colors.radius.md, backgroundColor: "#14213D22", alignItems: "center", justifyContent: "center" },
-  formTitle: { color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" },
-  officialBadge: { backgroundColor: "#10B98122", borderColor: "#10B98155", borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
-  officialBadgeText: { color: "#10B981", fontFamily: "Cairo_700Bold", fontSize: 9 },
-  formCat: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  formDesc: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 4, lineHeight: 16 },
-  printBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
-  printBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12 },
+  svcHubTitle: { fontFamily: F.b, fontSize: 15, color: Colors.text, textAlign: "right" },
+  svcHubSub: { fontFamily: F.r, fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 10 },
+  svcGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  svcTile: { width: "31%", flexGrow: 1, minHeight: 96, alignItems: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 14, backgroundColor: P.soft, borderWidth: 1, borderColor: P.softBorder },
+  svcTileOn: { borderColor: P.gold, borderWidth: 1.5 },
+  svcTileIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: P.iconBg, alignItems: "center", justifyContent: "center" },
+  svcTileText: { fontFamily: F.s, fontSize: 12, color: Colors.text, textAlign: "center", lineHeight: 17 },
+  svcTileCount: { fontFamily: F.r, fontSize: 12, color: Colors.textMuted },
 
-  contractCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: Colors.border },
-  contractNo: { color: Colors.textMuted, fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 14, borderWidth: 1 },
-  statusPillText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
-  contractLawyer: { color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 14 },
-  contractSvc: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 13, marginTop: 2 },
-  contractMeta: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12 },
+  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: P.btn, padding: 14, borderRadius: Colors.radius.md, marginBottom: 14, minHeight: 64 },
+  joinIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
+  joinTitle: { color: "#fff", fontFamily: F.b, fontSize: 14, textAlign: "right" },
+  joinSub: { color: "#E8ECF5", fontFamily: F.r, fontSize: 12, marginTop: 2, textAlign: "right", lineHeight: 18 },
+
+  planCard: { minWidth: 120, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: Colors.border, alignItems: "center", gap: 2 },
+  planDot: { width: 10, height: 10, borderRadius: 5 },
+  planName: { fontFamily: F.b, fontSize: 13, color: Colors.text },
+  planPrice: { fontFamily: F.r, fontSize: 12, color: Colors.textSecondary, textAlign: "center" },
+
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: Colors.borderStrong },
+  searchInput: { flex: 1, color: Colors.text, fontFamily: F.r, fontSize: 14, paddingVertical: 0, textAlign: "right" },
+  chip: { paddingHorizontal: 14, minHeight: 38, justifyContent: "center", borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.borderStrong },
+  chipActive: { backgroundColor: P.activeBg, borderColor: P.activeBg },
+  chipText: { color: Colors.textSecondary, fontFamily: F.s, fontSize: 13 },
+  chipTextActive: { color: P.activeFg },
+
+  resultsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  resultsText: { fontFamily: F.b, fontSize: 13, color: Colors.textSecondary },
+  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32 },
+  clearText: { fontFamily: F.b, fontSize: 12, color: P.gold },
+
+  lawyerCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginHorizontal: 14, marginVertical: 6, borderWidth: 1, borderColor: Colors.border, ...Colors.shadow.card },
+  lawyerHead: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  avatar: { backgroundColor: DARK ? "#26352E" : "#E9EDF5", borderWidth: 1.5, borderColor: P.gold, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  avatarText: { fontFamily: F.b, color: P.ink },
+  lawyerName: { fontFamily: F.b, color: Colors.text, fontSize: 15, flexShrink: 1, textAlign: "right" },
+  lawyerTitle: { fontFamily: F.r, color: P.gold, fontSize: 13, marginTop: 1, textAlign: "right" },
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 10, rowGap: 2, marginTop: 4 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 3 },
+  lawyerMeta: { color: Colors.textMuted, fontFamily: F.r, fontSize: 12 },
+  featBadge: { alignSelf: "flex-start", backgroundColor: P.iconBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  featBadgeText: { color: P.gold, fontFamily: F.b, fontSize: 12 },
+  verified: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: DARK ? "rgba(110,231,183,0.12)" : "rgba(4,120,87,0.10)" },
+  verifiedText: { fontFamily: F.b, fontSize: 12, color: P.green },
+  specWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  specChip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.pill, backgroundColor: P.soft, borderWidth: 1, borderColor: P.softBorder },
+  specChipText: { fontFamily: F.s, fontSize: 12, color: Colors.textSecondary },
+  lawyerFee: { color: P.green, fontFamily: F.b, fontSize: 12, marginTop: 8, textAlign: "right" },
+  cardActions: { flexDirection: "row", gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.border },
+  cardBtn: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderStrong, backgroundColor: Colors.cardBg },
+  cardBtnText: { fontFamily: F.b, fontSize: 13, color: Colors.text },
+  cardBtnPrimary: { flex: 1.3, backgroundColor: P.btn, borderColor: P.btn },
+  cardBtnPrimaryText: { fontFamily: F.b, fontSize: 13, color: "#fff" },
+  skel: { backgroundColor: P.skeleton, borderRadius: 6 },
+
+  centerBox: { paddingVertical: 48, paddingHorizontal: 28, alignItems: "center", gap: 8 },
+  emptyIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: P.iconBg, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  emptyTitle: { color: Colors.text, fontFamily: F.b, fontSize: 15, textAlign: "center" },
+  emptyText: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 13, textAlign: "center", lineHeight: 20 },
+
+  rightsCard: { backgroundColor: Colors.cardBg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: Colors.border, borderRightWidth: 3, borderRightColor: P.gold },
+  rightsTitle: { fontFamily: F.b, fontSize: 14, color: Colors.text, textAlign: "right", flex: 1 },
+  rightsPoint: { fontFamily: F.r, fontSize: 13, color: Colors.textSecondary, textAlign: "right", lineHeight: 21 },
+  rightsNote: { fontFamily: F.r, fontSize: 12, color: Colors.textMuted, textAlign: "center", lineHeight: 18, marginTop: 4 },
+
+  formsHero: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: NAVY, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: "#B08D3C" },
+  formsHeroIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(176,141,60,0.16)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#B08D3C" },
+  formsHeroTitle: { color: "#F6F1E4", fontFamily: F.b, fontSize: 15, textAlign: "right" },
+  formsHeroSub: { color: "#E2D9C3", fontFamily: F.r, fontSize: 12, lineHeight: 18, textAlign: "right", marginTop: 2 },
+  paperCard: { backgroundColor: P.paper, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: P.paperBorder, borderRightWidth: 4, borderRightColor: "#B08D3C", ...Colors.shadow.card },
+  paperActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: P.paperBorder, borderStyle: "dashed" },
+  paperHint: { fontFamily: F.r, fontSize: 12, color: Colors.textMuted },
+  formIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: P.iconBg, alignItems: "center", justifyContent: "center" },
+  formTitle: { color: Colors.text, fontFamily: F.b, fontSize: 14, textAlign: "right" },
+  officialBadge: { borderColor: P.green, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 0, borderRadius: 6 },
+  officialBadgeText: { color: P.green, fontFamily: F.b, fontSize: 12 },
+  formCat: { color: P.gold, fontFamily: F.s, fontSize: 12 },
+  formDesc: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 12, marginTop: 4, lineHeight: 18, textAlign: "right" },
+  printBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: P.btn, paddingHorizontal: 14, minHeight: 40, borderRadius: Colors.radius.sm },
+  printBtnText: { color: "#fff", fontFamily: F.b, fontSize: 13 },
+
+  contractCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border },
+  contractTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  contractNo: { color: Colors.textMuted, fontFamily: F.s, fontSize: 12 },
+  statusPill: { paddingHorizontal: 10, paddingVertical: 1, borderRadius: 14, borderWidth: 1 },
+  statusPillText: { fontFamily: F.b, fontSize: 12 },
+  contractLawyer: { color: Colors.text, fontFamily: F.b, fontSize: 15, textAlign: "right" },
+  contractSvc: { color: P.gold, fontFamily: F.s, fontSize: 13, marginTop: 2, textAlign: "right" },
+  contractMeta: { color: Colors.textMuted, fontFamily: F.r, fontSize: 12 },
   contractActions: { flexDirection: "row", gap: 8, marginTop: 12 },
-  miniBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Colors.radius.sm, borderWidth: 1 },
-  miniBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  miniBtn: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderStrong },
+  miniBtnText: { fontFamily: F.b, fontSize: 13, color: Colors.text },
+  noteBox: { marginTop: 8, padding: 10, backgroundColor: P.soft, borderRadius: 10 },
+  noteTitle: { fontFamily: F.s, fontSize: 12, textAlign: "right" },
+  noteText: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 12, marginTop: 2, textAlign: "right" },
+  contractsSectionTitle: { color: Colors.text, fontFamily: F.b, fontSize: 14, marginBottom: 8, paddingRight: 8, borderRightWidth: 3, borderRightColor: P.gold, textAlign: "right" },
+  primaryBtn: { marginTop: 10, minHeight: 44, backgroundColor: P.btn, borderRadius: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  primaryBtnText: { color: "#fff", fontFamily: F.b, fontSize: 13 },
+  outlineBtn: { marginTop: 10, minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderStrong, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14 },
+  outlineBtnText: { color: Colors.text, fontFamily: F.b, fontSize: 13 },
 
   // detail modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#F6F4EE", borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: Colors.border },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#D8D0BE", alignSelf: "center", marginBottom: 12 },
-  detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  avatarLg: { width: 70, height: 70, borderRadius: Colors.radius.lg, backgroundColor: "#14213D22", borderWidth: 1, borderColor: "#14213D55", alignItems: "center", justifyContent: "center" },
-  detailName: { fontFamily: "Cairo_700Bold", color: Colors.text, fontSize: 16, flexShrink: 1 },
-  detailTitle: { fontFamily: "Cairo_400Regular", color: "#B08D3C", fontSize: 13, marginTop: 2 },
-  detailMeta: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center" },
+  modalSheet: { backgroundColor: Colors.bg, borderTopLeftRadius: Colors.radius.xl, borderTopRightRadius: Colors.radius.xl, paddingHorizontal: 16, paddingTop: 8, maxHeight: "92%", borderWidth: 1, borderColor: Colors.border },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.borderStrong, alignSelf: "center", marginBottom: 12 },
+  detailHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  detailName: { fontFamily: F.b, color: Colors.text, fontSize: 17, flexShrink: 1, textAlign: "right" },
+  detailTitle: { fontFamily: F.r, color: P.gold, fontSize: 13, marginTop: 2, textAlign: "right" },
+  detailMeta: { color: Colors.textMuted, fontFamily: F.r, fontSize: 12 },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center", alignSelf: "flex-start" },
   quickRow: { flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" },
-  quickBtn: { flex: 1, minWidth: "22%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: Colors.radius.sm },
-  quickBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  quickBtn: { flex: 1, minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12 },
+  quickBtnText: { color: "#fff", fontFamily: F.b, fontSize: 14 },
+  quickBtnOutline: { flex: 1, minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderStrong, backgroundColor: Colors.cardBg },
+  quickBtnOutlineText: { color: Colors.text, fontFamily: F.b, fontSize: 14 },
 
-  infoBox: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 12, marginTop: 14, borderWidth: 1, borderColor: Colors.border },
-  infoLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  infoLineLabel: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, width: 90 },
-  infoLineValue: { color: Colors.text, fontFamily: "Cairo_600SemiBold", fontSize: 13, flex: 1, textAlign: "left" },
+  licenseBox: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 12, marginTop: 14, borderWidth: 1, borderColor: Colors.border },
+  licenseLabel: { fontFamily: F.r, fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  licenseValue: { fontFamily: F.b, fontSize: 15, color: Colors.text, textAlign: "right", letterSpacing: 0.5 },
+  licenseNote: { fontFamily: F.s, fontSize: 12, textAlign: "right" },
 
-  bioBox: { backgroundColor: "#FBF7EE", borderRadius: Colors.radius.md, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#14213D33" },
-  bioTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 6 },
-  bioText: { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13, lineHeight: 20 },
+  infoBox: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, paddingHorizontal: 12, marginTop: 14, borderWidth: 1, borderColor: Colors.border },
+  infoLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  infoLineLabel: { color: Colors.textMuted, fontFamily: F.r, fontSize: 12, width: 64, textAlign: "right" },
+  infoLineValue: { color: Colors.text, fontFamily: F.s, fontSize: 13, flex: 1, textAlign: "right" },
+  bioText: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 14, lineHeight: 22, textAlign: "right" },
 
   section: { marginTop: 18 },
-  sectionTitle: { color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 14, marginBottom: 10 },
-  emptyInline: { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 13, fontStyle: "italic" },
+  sectionTitle: { color: Colors.text, fontFamily: F.b, fontSize: 15, marginBottom: 10, textAlign: "right" },
+  emptyInline: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 13, textAlign: "right" },
 
   svcCard: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.border },
-  svcTitle: { color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 13 },
-  svcDesc: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 3, lineHeight: 16 },
-  svcChip: { backgroundColor: Colors.divider, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
-  svcChipText: { color: Colors.textSecondary, fontFamily: "Cairo_600SemiBold", fontSize: 11 },
-  contractBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#14213D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: Colors.radius.sm },
-  contractBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 12 },
-  contactGenBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#14213D55", borderStyle: "dashed", marginTop: 4 },
-  contactGenText: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  svcTitle: { color: Colors.text, fontFamily: F.b, fontSize: 14, textAlign: "right" },
+  svcDesc: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 12, marginTop: 3, lineHeight: 18, textAlign: "right" },
+  svcChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: P.soft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  svcChipText: { color: Colors.textSecondary, fontFamily: F.s, fontSize: 12 },
+  contractBtn: { minHeight: 44, minWidth: 64, alignItems: "center", justifyContent: "center", backgroundColor: P.btn, paddingHorizontal: 14, borderRadius: 12 },
+  contractBtnText: { color: "#fff", fontFamily: F.b, fontSize: 13 },
+  linkBtn: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 36 },
+  linkBtnText: { color: P.gold, fontFamily: F.b, fontSize: 13 },
 
   reviewCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, padding: 11, marginBottom: 7, borderWidth: 1, borderColor: Colors.border },
-  reviewName: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 12 },
-  reviewText: { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 4, lineHeight: 17 },
+  reviewName: { color: Colors.text, fontFamily: F.b, fontSize: 13 },
+  reviewText: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 13, marginTop: 4, lineHeight: 19, textAlign: "right" },
 
-  // contract & rate modals
+  // request & rate modals
   modalOverlay2: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: 20 },
   contractModal: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 18, borderWidth: 1, borderColor: Colors.border },
   contractHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  contractTitle: { color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 14, flex: 1 },
-  contractSubt: { color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 6, lineHeight: 16 },
-  fieldLabel: { color: "#B08D3C", fontFamily: "Cairo_600SemiBold", fontSize: 12, marginBottom: 5 },
-  fieldInput: { backgroundColor: "#F6F4EE", borderRadius: Colors.radius.sm, paddingHorizontal: 12, height: 44, color: Colors.text, fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: Colors.border, textAlign: "right" },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: Colors.divider, alignItems: "center" },
-  cancelBtnText: { color: Colors.textMuted, fontFamily: "Cairo_700Bold", fontSize: 13 },
-  submitBtn: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
-  submitBtnText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
+  contractTitle: { color: Colors.text, fontFamily: F.b, fontSize: 15, flex: 1, textAlign: "right" },
+  contractSubt: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 12, marginTop: 6, lineHeight: 18, textAlign: "right" },
+  fieldLabel: { color: Colors.textSecondary, fontFamily: F.s, fontSize: 12, marginBottom: 5, textAlign: "right" },
+  fieldInput: { backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, paddingHorizontal: 12, height: 46, color: Colors.text, fontFamily: F.r, fontSize: 14, borderWidth: 1, borderColor: Colors.borderStrong, textAlign: "right" },
+  cancelBtn: { flex: 1, minHeight: 46, justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: Colors.borderStrong, alignItems: "center" },
+  cancelBtnText: { color: Colors.text, fontFamily: F.b, fontSize: 14 },
+  submitBtn: { flex: 1.4, minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, backgroundColor: P.btn },
+  submitBtnText: { color: "#fff", fontFamily: F.b, fontSize: 14 },
 
   rateModal: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 22, borderWidth: 1, borderColor: Colors.border },
-  rateTitle: { color: Colors.text, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "center" },
-  rateInput: { backgroundColor: "#F6F4EE", borderRadius: Colors.radius.sm, padding: 12, color: Colors.text, fontFamily: "Cairo_400Regular", fontSize: 13, borderWidth: 1, borderColor: Colors.border, height: 80, textAlignVertical: "top", textAlign: "right" },
+  rateTitle: { color: Colors.text, fontFamily: F.b, fontSize: 15, textAlign: "center" },
+  rateInput: { backgroundColor: Colors.bg, borderRadius: Colors.radius.sm, padding: 12, color: Colors.text, fontFamily: F.r, fontSize: 14, borderWidth: 1, borderColor: Colors.borderStrong, height: 88, textAlignVertical: "top", textAlign: "right" },
 
-  joinBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#14213D", padding: 14, borderRadius: Colors.radius.md, marginBottom: 14 },
-  joinIcon: { width: 40, height: 40, borderRadius: Colors.radius.md, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-  joinTitle: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13 },
-  joinSub: { color: "#E9E2CF", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 },
+  // join modal
   joinHead: { flexDirection: "row", gap: 12, alignItems: "center", paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  joinHeadIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#14213D", alignItems: "center", justifyContent: "center" },
-  joinSectionTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginTop: 18, marginBottom: 4, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#14213D" },
-  termsBox: { backgroundColor: "#FBF7EE", borderRadius: Colors.radius.md, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#14213D55" },
-  termsTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8 },
-  termsText: { color: Colors.textSecondary, fontFamily: "Cairo_400Regular", fontSize: 12, lineHeight: 22 },
-  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.border },
-  checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 2, borderColor: "#14213D", alignItems: "center", justifyContent: "center" },
-  checkboxOn: { backgroundColor: "#14213D" },
-  agreeText: { color: Colors.text, fontFamily: "Cairo_600SemiBold", fontSize: 13, flex: 1 },
-  contractsSectionTitle: { color: "#B08D3C", fontFamily: "Cairo_700Bold", fontSize: 13, marginBottom: 8, paddingRight: 4, borderRightWidth: 3, borderRightColor: "#14213D" },
-  contractDownloadBtn: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Colors.radius.sm, backgroundColor: "#14213D" },
-  contractDownloadText: { color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 13, flex: 1, textAlign: "center" },
+  joinHeadIcon: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: P.btn, alignItems: "center", justifyContent: "center" },
+  joinSectionTitle: { color: Colors.text, fontFamily: F.b, fontSize: 14, marginTop: 18, marginBottom: 4, paddingRight: 8, borderRightWidth: 3, borderRightColor: P.gold, textAlign: "right" },
+  uploadBox: { borderWidth: 1, borderColor: Colors.border, backgroundColor: P.soft, borderRadius: 14, padding: 12, gap: 8, marginTop: 10 },
+  uploadHelp: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 13, lineHeight: 18, textAlign: "right" },
+  uploadBtn: { minHeight: 44, borderRadius: 12, backgroundColor: P.btn, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
+  uploadBtnOk: { backgroundColor: P.greenBtn },
+  uploadBtnWarn: { backgroundColor: "#B45309" },
+  uploadBtnText: { color: "#fff", fontFamily: F.b, fontSize: 13 },
+  uploadFileName: { color: Colors.text, fontFamily: F.s, fontSize: 12, textAlign: "right" },
+  uploadWarn: { color: P.amber, fontFamily: F.s, fontSize: 12, textAlign: "right", lineHeight: 17 },
+  termsBox: { backgroundColor: P.soft, borderRadius: Colors.radius.md, padding: 14, marginTop: 16, borderWidth: 1, borderColor: P.softBorder },
+  termsTitle: { color: Colors.text, fontFamily: F.b, fontSize: 14, marginBottom: 8, textAlign: "right" },
+  termsText: { color: Colors.textSecondary, fontFamily: F.r, fontSize: 13, lineHeight: 22, textAlign: "right" },
+  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, padding: 10, minHeight: 48, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: Colors.border },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: P.ink, alignItems: "center", justifyContent: "center" },
+  checkboxOn: { backgroundColor: P.btn, borderColor: P.btn },
+  agreeText: { color: Colors.text, fontFamily: F.s, fontSize: 13, flex: 1, textAlign: "right" },
 });
 
 export default withRTLScreen(LawyersScreen);

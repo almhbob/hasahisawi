@@ -288,6 +288,16 @@ async function ensureLawyersDb(): Promise<void> {
   return ensured;
 }
 
+// معرّف المستخدم من رمز الجلسة (لربط طلب الانضمام بحسابه، فتعمل بوابة المحامي بعد الاعتماد)
+async function sessionUserId(req: Request): Promise<number | null> {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return null;
+  try {
+    const { rows } = await query(`SELECT user_id FROM user_sessions WHERE token=$1 AND expires_at > NOW() LIMIT 1`, [auth.slice(7)]);
+    return rows[0]?.user_id ?? null;
+  } catch { return null; }
+}
+
 function dbError(res: Response, err: unknown) {
   logger.error({ err }, "lawyers-admin route error");
   return res.status(500).json({ error: "Server error" });
@@ -318,7 +328,9 @@ router.get("/lawyers", async (req, res) => {
     if (specialty && specialty !== "الكل") { params.push(`%${specialty}%`); where += ` AND l.specialties ILIKE $${params.length}`; }
     if (search) { params.push(`%${search}%`); where += ` AND (l.full_name ILIKE $${params.length} OR l.specialties ILIKE $${params.length} OR l.district ILIKE $${params.length})`; }
     const { rows } = await query(
-      `SELECT l.*, 0::float AS avg_rating, 0::int AS review_count,
+      `SELECT l.*,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE l.entity_id IS NOT NULL AND r.entity_id=l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE l.entity_id IS NOT NULL AND r.entity_id=l.entity_id),0)::int AS review_count,
               p.name AS plan_name, p.name_ar AS plan_name_ar, p.color AS plan_color, p.icon AS plan_icon,
               p.has_priority, p.has_unlimited_contacts, p.monthly_contacts AS plan_monthly_contacts
        FROM lawyers l
@@ -334,9 +346,20 @@ router.get("/lawyers", async (req, res) => {
 
 router.get("/lawyers/:id", async (req, res) => {
   try {
-    const { rows } = await query(`SELECT l.*, 0::float AS avg_rating, 0::int AS review_count FROM lawyers l WHERE l.id=$1`, [Number(req.params.id)]);
+    // التقييمات والخدمات الحقيقية (كان المسار يُرجع قوائم فارغة دائماً فيُخفي خدمات المحامي ومراجعاته)
+    const { rows } = await query(
+      `SELECT l.*,
+              COALESCE((SELECT ROUND(AVG(r.rating)::numeric, 1) FROM ratings r WHERE l.entity_id IS NOT NULL AND r.entity_id=l.entity_id),0)::float AS avg_rating,
+              COALESCE((SELECT COUNT(*) FROM ratings r WHERE l.entity_id IS NOT NULL AND r.entity_id=l.entity_id),0)::int AS review_count
+       FROM lawyers l WHERE l.id=$1 AND l.is_active=TRUE`, [Number(req.params.id)]);
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
-    return res.json({ ...rows[0], services: [], reviews: [] });
+    const services = await query(`SELECT * FROM lawyer_services WHERE lawyer_id=$1 AND is_active=TRUE ORDER BY sort_order, id`, [rows[0].id])
+      .then(r => r.rows).catch(() => [] as unknown[]);
+    const reviews = rows[0].entity_id ? await query(
+      `SELECT r.id, r.rating, r.comment, r.created_at, COALESCE(u.name, 'مستخدم') AS user_name
+       FROM ratings r LEFT JOIN users u ON u.id=r.user_id WHERE r.entity_id=$1 ORDER BY r.created_at DESC LIMIT 30`, [rows[0].entity_id])
+      .then(r => r.rows).catch(() => [] as unknown[]) : [];
+    return res.json({ ...rows[0], services, reviews });
   } catch (e) { return dbError(res, e); }
 });
 
@@ -362,7 +385,7 @@ router.post("/lawyer-applications", async (req, res) => {
         String(b.bio || "").slice(0,2000), String(b.office_addr || "").slice(0,250), String(b.district || "").slice(0,100), String(b.languages || "العربية").slice(0,150),
         String(b.consult_fee || "").slice(0,80), barUrl.slice(0,1000), String(b.photo_url || "").slice(0,1000), uploadStatus,
         uploadStatus === "pending_manual_review" ? "لم يتم رفع صورة الهوية/كارنيه النقابة؛ الطلب مكتمل ويراجَع يدوياً من الإدارة." : "",
-        b.device_id || null, null,
+        b.device_id || null, await sessionUserId(req),
       ],
     );
     return res.json({ ok: true, application_id: rows[0].id, created_at: rows[0].created_at, identity_upload_status: uploadStatus });
@@ -372,8 +395,12 @@ router.post("/lawyer-applications", async (req, res) => {
 router.get("/lawyer-applications/mine", async (req, res) => {
   try {
     const deviceId = String(req.query.device_id || "").trim();
-    if (!deviceId) return res.json([]);
-    const { rows } = await query(`SELECT id, full_name, status, admin_note, lawyer_id, created_at, reviewed_at FROM lawyer_applications WHERE device_id=$1 ORDER BY created_at DESC LIMIT 10`, [deviceId]);
+    const userId = await sessionUserId(req);
+    if (!deviceId && !userId) return res.json([]);
+    const { rows } = await query(
+      `SELECT id, full_name, status, admin_note, lawyer_id, created_at, reviewed_at FROM lawyer_applications
+       WHERE ($1::text <> '' AND device_id=$1) OR ($2::int IS NOT NULL AND user_id=$2) ORDER BY created_at DESC LIMIT 10`,
+      [deviceId, userId]);
     return res.json(rows);
   } catch (e) { return dbError(res, e); }
 });
