@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 
 // يطابق TOKEN_KEY في lib/auth-context.tsx — الخادم يرفض الرفع بلا جلسة
@@ -88,6 +89,18 @@ async function uploadToBackend(
   try { token = await AsyncStorage.getItem(TOKEN_KEY); } catch {}
   if (!token) throw new Error("سجّل الدخول أولاً لرفع الملفات");
 
+  const meta = inferFileMeta(uri, filePath, options);
+  // على الويب يجب إرسال Blob حقيقي؛ كائن {uri,name,type} يصلح للهاتف فقط ويُرسَل في المتصفح نصاً "[object Object]".
+  let webFile: Blob | null = null;
+  if (Platform.OS === "web") {
+    try {
+      const blob = await (await fetch(uri)).blob();
+      webFile = new File([blob], meta.name, { type: options?.mimeType?.trim() || blob.type || meta.type });
+    } catch {
+      throw new Error("تعذّرت قراءة الملف المختار");
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
@@ -131,13 +144,9 @@ async function uploadToBackend(
     xhr.open("POST", `${getApiUrl()}/api/upload`);
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
-    const meta = inferFileMeta(uri, filePath, options);
     const formData = new FormData();
-    formData.append("file", {
-      uri,
-      name: meta.name,
-      type: meta.type,
-    } as any);
+    if (webFile) formData.append("file", webFile, meta.name);
+    else formData.append("file", { uri, name: meta.name, type: meta.type } as any);
 
     // معلومات إضافية مفيدة للخادم، ولا تكسر الخوادم التي تتجاهلها.
     formData.append("path", filePath);
