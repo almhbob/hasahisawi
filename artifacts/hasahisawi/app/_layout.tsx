@@ -223,6 +223,7 @@ function AuthGate() {
         }
         if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
+        if (screen === "organization" && data?.org_id) { router.push({ pathname: "/organization", params: { id: String(data.org_id) } } as any); return; }
         if (type === "volunteer") { router.push("/volunteer" as any); return; }
         if (type === "contest" && data?.contest_id) { router.push({ pathname: "/contest", params: { id: String(data.contest_id) } } as any); return; }
         // ── متابع جديد → ملفه الشخصي ──
@@ -502,6 +503,7 @@ function RootLayoutNav() {
         <Stack.Screen name="invitation"               options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="admin-invites"            options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="cv-templates-admin"       options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="legal-forms-admin"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="search"                   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-record-setup"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="admin-sections-config"    options={{ headerShown: false, animation: "slide_from_right" }} />

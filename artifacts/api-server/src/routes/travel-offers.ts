@@ -537,10 +537,36 @@ router.post("/admin/travel-agencies/:id/owner", writeLimiter, async (req: Reques
     if (!id || !uid) return res.status(400).json({ error: "حدّد الوكالة والمستخدم" });
     const a = await query(`SELECT name FROM travel_agencies WHERE id=$1`, [id]);
     if (!a.rows[0]) return res.status(404).json({ error: "الوكالة غير موجودة" });
+    const target = await query(`SELECT id, name FROM users WHERE id=$1 AND COALESCE(is_banned,false)=false`, [uid]);
+    if (!target.rows[0]) return res.status(404).json({ error: "المستخدم غير موجود أو محظور" });
+    const cur = (await query(`SELECT role FROM travel_agency_staff WHERE agency_id=$1 AND user_id=$2`, [id, uid])).rows[0];
+    if (cur?.role === "owner") return res.json({ ok: true, already: true });
+    // مالك واحد للوكالة: المالك السابق (إن وُجد) يصبح مديراً ولا يفقد وصوله
+    await query(`UPDATE travel_agency_staff SET role='manager' WHERE agency_id=$1 AND role='owner' AND user_id<>$2`, [id, uid]);
     await query(`INSERT INTO travel_agency_staff (agency_id, user_id, role) VALUES ($1,$2,'owner') ON CONFLICT (agency_id, user_id) DO UPDATE SET role='owner'`, [id, uid]);
     void notifyUsers([uid], "travel_agency_approved", `أصبحت مالك ${a.rows[0].name}`, "افتح لوحة الوكالة لنشر العروض", { screen: "travel-agency-portal", agency_id: id });
     return res.json({ ok: true });
   } catch (err) { return fail(res, err, "admin-owner"); }
+});
+
+// ═══ الإدارة: الوكالات المعتمدة مع فريق كل وكالة (لربط المالك) ═══
+router.get("/admin/travel-agencies/approved", async (req: Request, res: Response) => {
+  try {
+    await initTravelAgenciesDb();
+    const u = await sessionUser(req);
+    if (!u || u.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+    const q = clean(req.query.q, 60);
+    const { rows } = await query(
+      `SELECT a.id, a.name, a.city, a.phone, a.whatsapp, a.logo_url, a.active, a.created_at,
+              COALESCE((SELECT json_agg(json_build_object('user_id', s.user_id, 'role', s.role, 'name', su.name, 'phone', su.phone, 'avatar_url', su.avatar_url)
+                                 ORDER BY (s.role='owner') DESC, s.created_at)
+                          FROM travel_agency_staff s JOIN users su ON su.id=s.user_id WHERE s.agency_id=a.id), '[]'::json) AS staff
+         FROM travel_agencies a
+        WHERE ($1 = '' OR a.name ILIKE '%' || $1 || '%' OR COALESCE(a.phone,'') ILIKE '%' || $1 || '%')
+        ORDER BY NOT EXISTS (SELECT 1 FROM travel_agency_staff s WHERE s.agency_id=a.id AND s.role='owner') DESC, a.created_at DESC
+        LIMIT 200`, [q.replace(/[%_\\]/g, "")]);
+    return res.json({ agencies: rows.map((r: any) => ({ ...r, has_owner: (r.staff as any[]).some((s) => s.role === "owner") })), roles: ROLE_LABEL });
+  } catch (err) { return fail(res, err, "admin-approved"); }
 });
 
 export default router;

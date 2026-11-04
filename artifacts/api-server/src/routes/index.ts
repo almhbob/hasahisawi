@@ -4,6 +4,7 @@ import healthRouter from "./health";
 import adminUsersFirebaseRouter from "./admin-users-firebase";
 import travelAgenciesRouter, { initTravelAgenciesDb } from "./travel-agencies";
 import travelOffersRouter from "./travel-offers";
+import adminOpsRouter from "./admin-ops";
 import extraRouter, { initExtraDb } from "./extra";
 import lawyersAdminRouter, { ensureLawyersDb } from "./lawyers-admin";
 import transportLiveRouter, { initTransportLiveDb } from "./transport-live";
@@ -91,6 +92,7 @@ router.use(zawajilAdminRouter);
 router.use(adminUsersFirebaseRouter);
 router.use(travelAgenciesRouter);
 router.use(travelOffersRouter);
+router.use(adminOpsRouter);
 router.use(extraRouter);
 // المحامون أولاً حتى تعمل الإدارة والاشتراكات حتى لو كانت المسارات القديمة ناقصة.
 router.use(lawyersAdminRouter);
