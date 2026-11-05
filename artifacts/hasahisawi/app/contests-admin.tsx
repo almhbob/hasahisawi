@@ -12,6 +12,7 @@ import { contestsApi, OCCASION_THEME, CATEGORIES, RANK_LABEL, type Contest, type
 import { pickAndUploadContestImage } from "@/lib/contest-image";
 import { fetchViewCounts, formatViews } from "@/lib/views";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import DateTimeField, { formatDuration } from "@/components/ui/DateTimeField";
 import { confirmAction, notify } from "@/lib/xplatform";
 
 type QDraft = { question: string; options: string[]; correct_index: number };
@@ -23,13 +24,18 @@ type Draft = {
 };
 type Entry = Awaited<ReturnType<typeof contestsApi.entries>>[number];
 
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+// التواريخ تُحفظ في المسودة بصيغة ISO كاملة (تاريخ + وقت)
+const iso = (d: Date) => d.toISOString();
+const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0);
+const dayEnd = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59);
+const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400_000);
+const nextHour = () => { const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1); return d; };
 const newQ = (): QDraft => ({ question: "", options: ["", ""], correct_index: 0 });
 const blank = (): Draft => {
   const now = new Date();
   return {
     kind: "sponsored", occasion: null, type: "quiz", title: "", description: "", sponsor_name: "", prize: "", terms: "",
-    entry_prompt: "", winners_count: "1", starts_at: ymd(now), ends_at: ymd(new Date(now.getTime() + 7 * 86400_000)), questions: [newQ()],
+    entry_prompt: "", winners_count: "1", starts_at: iso(nextHour()), ends_at: iso(dayEnd(addDays(now, 7))), questions: [newQ()],
     cover_image: "", sponsor_logo: "", category: null, prizes: [""], featured: false,
   };
 };
@@ -85,7 +91,7 @@ export default function ContestsAdmin() {
     setDraft({
       ...blank(), kind: c.kind, occasion: c.occasion, type: c.type, title: c.title, description: c.description ?? "",
       sponsor_name: c.sponsor_name ?? "", prize: c.prize ?? "", terms: c.terms ?? "", entry_prompt: c.entry_prompt ?? "",
-      winners_count: String(c.winners_count), starts_at: ymd(new Date(c.starts_at)), ends_at: ymd(new Date(c.ends_at)), questions: [],
+      winners_count: String(c.winners_count), starts_at: c.starts_at, ends_at: c.ends_at, questions: [],
       cover_image: c.cover_image ?? "", sponsor_logo: c.sponsor_logo ?? "", category: c.category ?? null,
       prizes: c.prizes?.length ? c.prizes : [c.prize ?? ""], featured: !!c.featured,
     });
@@ -106,7 +112,7 @@ export default function ContestsAdmin() {
     const begin = new Date(start.getTime() - 3 * 86400_000);
     const end = new Date(start.getTime() + (o.key === "ramadan" ? 30 : 7) * 86400_000);
     setEditingId(null);
-    setDraft({ ...blank(), kind: "seasonal", occasion: o.key, title: o.title, description: o.description, starts_at: ymd(begin < new Date() ? new Date() : begin), ends_at: ymd(end) });
+    setDraft({ ...blank(), kind: "seasonal", occasion: o.key, title: o.title, description: o.description, starts_at: iso(begin < new Date() ? nextHour() : dayStart(begin)), ends_at: iso(dayEnd(end)) });
   };
 
   const save = async () => {
@@ -118,9 +124,10 @@ export default function ContestsAdmin() {
     if (!editingId && draft.type === "quiz" && !qs.length) { notify("الأسئلة", "أضف سؤالاً واحداً على الأقل بخيارين."); return; }
     setSaving(true);
     try {
-      const start = new Date(draft.starts_at + "T00:00:00");
-      const end = new Date(draft.ends_at + "T23:59:00");
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) { notify("التاريخ", "اكتب التاريخ بصيغة 2026-12-31."); setSaving(false); return; }
+      const start = new Date(draft.starts_at);
+      const end = new Date(draft.ends_at);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) { notify("التاريخ", "اختر تاريخ البداية والنهاية."); setSaving(false); return; }
+      if (end <= start) { notify("التاريخ", "موعد النهاية يجب أن يكون بعد موعد البداية."); setSaving(false); return; }
       const prizes = draft.prizes.map((p) => p.trim());
       const common = {
         title: draft.title, description: draft.description, sponsor_name: draft.sponsor_name, terms: draft.terms, entry_prompt: draft.entry_prompt,
@@ -276,11 +283,33 @@ export default function ContestsAdmin() {
                 </View>
                 <Switch value={draft.featured} onValueChange={(v) => setDraft({ ...draft, featured: v })} trackColor={{ true: Colors.primary, false: Colors.border }} accessibilityLabel="مسابقة مميّزة" />
               </View>
-              <View style={s.row}>
-                <View style={{ flex: 1 }}><Field label="يبدأ (YYYY-MM-DD)" value={draft.starts_at} onChange={(v) => setDraft({ ...draft, starts_at: v })} /></View>
-                <View style={{ flex: 1 }}><Field label="ينتهي" value={draft.ends_at} onChange={(v) => setDraft({ ...draft, ends_at: v })} /></View>
-                <View style={{ width: 80 }}><Field label="الفائزون" value={draft.winners_count} onChange={(v) => setDraft({ ...draft, winners_count: v.replace(/\D/g, "") })} numeric /></View>
-              </View>
+              <DateTimeField
+                label="تبدأ المسابقة"
+                value={new Date(draft.starts_at)}
+                onChange={(d) => {
+                  const end = new Date(draft.ends_at);
+                  // إن تجاوزت البداية النهاية نمدّ النهاية أسبوعاً تلقائياً
+                  setDraft({ ...draft, starts_at: iso(d), ends_at: end <= d ? iso(dayEnd(addDays(d, 7))) : draft.ends_at });
+                }}
+                minDate={editingId ? undefined : new Date()}
+                presets={[
+                  { label: "الآن", get: () => { const d = new Date(); d.setSeconds(0, 0); return d; } },
+                  { label: "بعد ساعة", get: nextHour },
+                  { label: "غداً صباحاً", get: () => { const d = addDays(new Date(), 1); d.setHours(9, 0, 0, 0); return d; } },
+                ]}
+              />
+              <DateTimeField
+                label="تنتهي المسابقة"
+                value={new Date(draft.ends_at)}
+                onChange={(d) => setDraft({ ...draft, ends_at: iso(d) })}
+                minDate={new Date(draft.starts_at)}
+                presets={[1, 3, 7, 14, 30].map((n) => ({
+                  label: n === 1 ? "بعد يوم" : n === 7 ? "بعد أسبوع" : n === 14 ? "بعد أسبوعين" : n === 30 ? "بعد شهر" : `بعد ${n} أيام`,
+                  get: () => dayEnd(addDays(new Date(draft.starts_at), n)),
+                }))}
+                hint={(() => { const d = formatDuration(new Date(draft.starts_at), new Date(draft.ends_at)); return d ? `مدة المسابقة: ${d}` : "موعد النهاية قبل البداية — عدّله."; })()}
+              />
+              <View><Field label="عدد الفائزين" value={draft.winners_count} onChange={(v) => setDraft({ ...draft, winners_count: v.replace(/\D/g, "") })} numeric /></View>
               {draft.type === "entry" && <Field label="المطلوب من المشارك" value={draft.entry_prompt} onChange={(v) => setDraft({ ...draft, entry_prompt: v })} />}
               <Field label="الشروط (اختياري)" value={draft.terms} onChange={(v) => setDraft({ ...draft, terms: v })} multiline />
 
