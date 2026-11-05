@@ -194,6 +194,7 @@ function AuthGate() {
         if (screen === "student-union-news" || type === "student_union_post") { router.push("/student-union-news" as any); return; }
         if (screen === "union-manager-portal" || type === "union_meeting") { router.push("/union-manager-portal" as any); return; }
         if (type === "student_union_member") { router.push("/student-union-status" as any); return; }
+        if (screen === "student-union-elections" || type === "union_election") { router.push({ pathname: "/student-union-elections", params: data?.id ? { id: String(data.id) } : {} } as any); return; }
 
         // ── الإتحاد ──
         if (
@@ -453,6 +454,8 @@ function RootLayoutNav() {
         <Stack.Screen name="student-union-admin"    options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-status"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-news"     options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-elections" options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="student-union-archive"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-manager-apply"      options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-manager-portal"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="union-partnership-apply"  options={{ headerShown: false, animation: "slide_from_right" }} />

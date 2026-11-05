@@ -22,6 +22,12 @@ pool?.on("error", (err) => logger.error({ err }, "shared-db pool error"));
 
 export const dbEnabled = !!pool;
 
+/** اتصال مخصّص لمعاملة (BEGIN/COMMIT) — يجب استدعاء release() بعدها */
+export async function dbClient() {
+  if (!pool) throw Object.assign(new Error("db_not_configured"), { code: "DB_NOT_CONFIGURED" });
+  return pool.connect();
+}
+
 export async function query(sql: string, params: unknown[] = []) {
   if (!pool) throw Object.assign(new Error("db_not_configured"), { code: "DB_NOT_CONFIGURED" });
   const c = await pool.connect();
