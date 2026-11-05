@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
-import { confirmAction, notify } from "@/lib/xplatform";
+import { confirmAction, notify, openExternal } from "@/lib/xplatform";
 import { DateInput, TimeInput } from "@/components/ui/DateTimeField";
 import { useAuth } from "@/lib/auth-context";
 
@@ -26,7 +26,7 @@ const MGINFO_KEY  = "union_manager_info";
 // بعد تسجيل الخروج يدوياً لا نعيد دخول مدير التطبيق تلقائياً في الجلسة نفسها
 let ssoAutoSkipped = false;
 
-type Manager      = { id: number; full_name: string; title: string; username: string };
+type Manager      = { id: number; full_name: string; title: string; username: string; staff_id?: number | null; permissions?: Partial<Permissions> | null };
 type Permissions  = { can_manage_requests: boolean; can_manage_staff: boolean; can_manage_meetings: boolean; can_post_announcements: boolean; can_view_reports: boolean };
 type Staff        = { id: number; full_name: string; role: string; committee?: string; phone?: string; email?: string; notes?: string; is_active: boolean; permissions?: Permissions; created_at: string };
 type Meeting      = { id: number; title: string; description?: string; meeting_date?: string; meeting_time?: string; location?: string; type: string; status: string; created_at: string };
@@ -258,13 +258,6 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
           </View>
         </Modal>
 
-        <Animated.View entering={FadeInDown.delay(200).springify()} style={ls.infoBox}>
-          <Ionicons name="information-circle-outline" size={18} color={Colors.textMuted} />
-          <Text style={ls.infoText}>
-            {"للحصول على بيانات دخول إدارة الاتحاد، يجب تقديم استمارة الانضمام والحصول على الموافقة من مشرف التطبيق."}
-          </Text>
-        </Animated.View>
-
         <TouchableOpacity style={ls.applyBtn} onPress={() => router.push("/union-manager-apply" as any)}>
           <Ionicons name="document-text-outline" size={20} color={UC} />
           <Text style={ls.applyBtnText}>تقديم استمارة الانضمام</Text>
@@ -274,6 +267,181 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
     </KeyboardAvoidingView>
   );
 }
+
+// ── سجل الأعضاء: البحث والتجديد والإيقاف والتصدير ─────────────────
+type Member = {
+  id: number; full_name: string; phone: string; email?: string | null; institution: string; major: string; year: string;
+  status: "approved" | "suspended"; member_no: string | null; card_issued_at: string | null; card_expires_at: string | null; admin_note?: string | null;
+};
+type MemberFilter = "all" | "valid" | "expiring" | "expired" | "suspended";
+
+function memberState(m: Member): { label: string; color: string } {
+  if (m.status === "suspended") return { label: "موقوفة", color: "#EF4444" };
+  const exp = m.card_expires_at ? new Date(m.card_expires_at).getTime() : 0;
+  if (!exp || exp <= Date.now()) return { label: "منتهية", color: "#D97706" };
+  if (exp - Date.now() < 30 * 86400_000) return { label: "تنتهي قريباً", color: "#F59E0B" };
+  return { label: "سارية", color: GREEN };
+}
+const fmtD = (s?: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" }) : "—");
+
+function MembersTab({ token, can }: { token: string; can: (p?: keyof Permissions) => boolean }) {
+  const [list, setList]       = useState<Member[]>([]);
+  const [counts, setCounts]   = useState({ active: 0, expiring: 0, expired: 0, suspended: 0 });
+  const [q, setQ]             = useState("");
+  const [filter, setFilter]   = useState<MemberFilter>("all");
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen]       = useState<number | null>(null);
+  const [reason, setReason]   = useState("");
+  const [busy, setBusy]       = useState<number | null>(null);
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/members?filter=${filter}&q=${encodeURIComponent(q.trim())}`, { headers });
+      const d = await r.json();
+      if (r.ok) { setList(d.members || []); setCounts(d.counts || counts); }
+      else notify("تنبيه", d.error || "تعذّر تحميل الأعضاء");
+    } catch { notify("خطأ", "تعذر الاتصال بالخادم"); }
+    finally { setLoading(false); }
+  }, [token, filter, q]);
+  useEffect(() => { const t = setTimeout(load, q ? 350 : 0); return () => clearTimeout(t); }, [load]);
+
+  const act = async (m: Member, action: "renew" | "suspend" | "reactivate") => {
+    const msg = action === "renew" ? `تجديد بطاقة «${m.full_name}» سنة كاملة؟` : action === "suspend" ? `إيقاف عضوية «${m.full_name}»؟ تظهر بطاقته «موقوفة» عند التحقق.` : `إعادة تفعيل عضوية «${m.full_name}»؟`;
+    if (!(await confirmAction(action === "renew" ? "تجديد البطاقة" : action === "suspend" ? "إيقاف العضوية" : "إعادة التفعيل", msg, "تأكيد", action === "suspend"))) return;
+    setBusy(m.id);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/union-manager/members/${m.id}`, { method: "PATCH", headers, body: JSON.stringify({ action, note: reason.trim() || undefined }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { setReason(""); notify("تم", action === "renew" ? "جُدّدت البطاقة ووصل إشعار للعضو." : action === "suspend" ? "أُوقفت العضوية ووصل إشعار للعضو." : "أُعيد تفعيل العضوية."); load(); }
+      else notify("تنبيه", d.error || "تعذّر التنفيذ");
+    } catch { notify("خطأ", "تعذر الاتصال بالخادم"); }
+    finally { setBusy(null); }
+  };
+
+  const exportCsv = async () => {
+    const url = `${getApiUrl()}/api/union-manager/members/export`;
+    try {
+      if (Platform.OS === "web") {
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) { notify("تنبيه", (await r.json().catch(() => ({}))).error || "تعذّر التصدير"); return; }
+        const blob = await r.blob();
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `union-members-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+        return;
+      }
+      const FS = require("expo-file-system/legacy");
+      const Sharing = require("expo-sharing");
+      const dest = `${FS.cacheDirectory}union-members-${Date.now()}.csv`;
+      const r = await FS.downloadAsync(url, dest, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.status !== 200) { notify("تنبيه", "ليست لديك صلاحية التقارير أو تعذّر التصدير"); return; }
+      await Sharing.shareAsync(r.uri, { mimeType: "text/csv", dialogTitle: "سجل أعضاء الاتحاد", UTI: "public.comma-separated-values-text" });
+    } catch { notify("خطأ", "تعذّر تصدير الملف"); }
+  };
+
+  const FILTERS: { k: MemberFilter; l: string; n?: number; c: string }[] = [
+    { k: "all", l: "الكل", n: counts.active + counts.suspended, c: UC },
+    { k: "valid", l: "سارية", c: GREEN },
+    { k: "expiring", l: "تنتهي خلال 30 يوماً", n: counts.expiring, c: "#F59E0B" },
+    { k: "expired", l: "منتهية", n: counts.expired, c: "#D97706" },
+    { k: "suspended", l: "موقوفة", n: counts.suspended, c: "#EF4444" },
+  ];
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={UC} />}>
+      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+        <View style={[ls.input, { flex: 1, flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 0 }]}>
+          <Ionicons name="search" size={17} color={Colors.textMuted} />
+          <TextInput value={q} onChangeText={setQ} placeholder="الاسم أو رقم العضوية أو المؤسسة أو الهاتف" placeholderTextColor={Colors.textMuted}
+            style={{ flex: 1, paddingVertical: 11, fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.text, textAlign: "right" }} />
+        </View>
+        {can("can_view_reports") && (
+          <TouchableOpacity onPress={exportCsv} style={mb.exportBtn} accessibilityLabel="تصدير سجل الأعضاء">
+            <Ionicons name="download-outline" size={18} color="#fff" />
+            <Text style={mb.exportT}>Excel</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <RtlScrollRow contentContainerStyle={{ gap: 8 }}>
+        {FILTERS.map(f => {
+          const on = filter === f.k;
+          return (
+            <TouchableOpacity key={f.k} onPress={() => setFilter(f.k)} style={[mb.chip, on && { backgroundColor: f.c + "25", borderColor: f.c }]}>
+              <Text style={[mb.chipT, on && { color: f.c }]}>{f.l}{f.n != null ? ` · ${f.n}` : ""}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </RtlScrollRow>
+
+      {loading ? <ActivityIndicator color={UC} style={{ marginTop: 30 }} /> : list.length === 0 ? (
+        <View style={{ alignItems: "center", paddingVertical: 40, gap: 8 }}>
+          <Ionicons name="people-outline" size={44} color={Colors.textMuted} />
+          <Text style={mb.empty}>{q ? "لا نتائج مطابقة للبحث" : "لا أعضاء في هذا التصنيف"}</Text>
+        </View>
+      ) : list.map(m => {
+        const st = memberState(m);
+        const expanded = open === m.id;
+        return (
+          <View key={m.id} style={[t.card, { gap: 8 }]}>
+            <TouchableOpacity onPress={() => { setOpen(expanded ? null : m.id); setReason(""); }} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+              <View style={[mb.avatar, { backgroundColor: st.color + "22" }]}><Text style={[mb.avatarT, { color: st.color }]}>{m.full_name.trim()[0]}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={mb.name} numberOfLines={1}>{m.full_name}</Text>
+                <Text style={mb.sub} numberOfLines={1}>{m.member_no || "بلا رقم"} · {m.institution}</Text>
+              </View>
+              <View style={{ alignItems: "flex-start", gap: 2 }}>
+                <View style={[mb.pill, { backgroundColor: st.color + "22" }]}><Text style={[mb.pillT, { color: st.color }]}>{st.label}</Text></View>
+                <Text style={mb.exp}>حتى {fmtD(m.card_expires_at)}</Text>
+              </View>
+            </TouchableOpacity>
+            {expanded && (
+              <View style={{ gap: 8, borderTopWidth: 1, borderTopColor: Colors.borderSubtle, paddingTop: 8 }}>
+                <Text style={mb.detail}>{m.major}{m.year ? ` · ${m.year}` : ""} · الهاتف: {m.phone}{m.email ? ` · ${m.email}` : ""}</Text>
+                {m.status === "suspended" && m.admin_note ? <Text style={[mb.detail, { color: "#EF4444" }]}>سبب الإيقاف: {m.admin_note}</Text> : null}
+                <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
+                  <TouchableOpacity style={mb.act} onPress={() => openExternal(`tel:${m.phone}`)}><Ionicons name="call-outline" size={15} color={UC2} /><Text style={mb.actT}>اتصال</Text></TouchableOpacity>
+                  <TouchableOpacity style={mb.act} onPress={() => openExternal(`https://wa.me/${m.phone.replace(/\D/g, "").replace(/^0/, "249")}`)}><Ionicons name="logo-whatsapp" size={15} color="#22C55E" /><Text style={mb.actT}>واتساب</Text></TouchableOpacity>
+                  {can("can_manage_requests") && m.status === "approved" && (
+                    <TouchableOpacity style={[mb.act, { borderColor: GREEN + "60" }]} disabled={busy === m.id} onPress={() => act(m, "renew")}><Ionicons name="refresh" size={15} color={GREEN} /><Text style={[mb.actT, { color: GREEN }]}>تجديد سنة</Text></TouchableOpacity>
+                  )}
+                  {can("can_manage_requests") && m.status === "suspended" && (
+                    <TouchableOpacity style={[mb.act, { borderColor: GREEN + "60" }]} disabled={busy === m.id} onPress={() => act(m, "reactivate")}><Ionicons name="play-circle-outline" size={15} color={GREEN} /><Text style={[mb.actT, { color: GREEN }]}>إعادة التفعيل</Text></TouchableOpacity>
+                  )}
+                </View>
+                {can("can_manage_requests") && m.status === "approved" && (
+                  <View style={{ flexDirection: "row-reverse", gap: 8, alignItems: "center" }}>
+                    <TextInput value={reason} onChangeText={setReason} placeholder="سبب الإيقاف (يصل للعضو)" placeholderTextColor={Colors.textMuted}
+                      style={[ls.input, { flex: 1, paddingVertical: 8, fontSize: 13 }]} textAlign="right" />
+                    <TouchableOpacity style={[mb.act, { borderColor: "#EF444460" }]} disabled={busy === m.id} onPress={() => act(m, "suspend")}><Ionicons name="pause-circle-outline" size={15} color="#EF4444" /><Text style={[mb.actT, { color: "#EF4444" }]}>إيقاف</Text></TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+const mb = StyleSheet.create({
+  exportBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: GREEN, borderRadius: 12, paddingHorizontal: 12 },
+  exportT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: Colors.borderSubtle, backgroundColor: Colors.cardBg },
+  chipT: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textMuted },
+  empty: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textMuted },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  avatarT: { fontFamily: "Cairo_700Bold", fontSize: 17 },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.text, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  pillT: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  exp: { fontFamily: "Cairo_400Regular", fontSize: 10.5, color: Colors.textMuted },
+  detail: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right", lineHeight: 20 },
+  act: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderSubtle },
+  actT: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.text },
+});
 
 // ── تغيير كلمة المرور من داخل البوابة ─────────────────────────────
 function ChangePasswordCard({ token, ssoOnly }: { token: string; ssoOnly: boolean }) {
@@ -317,7 +485,7 @@ function ChangePasswordCard({ token, ssoOnly }: { token: string; ssoOnly: boolea
 }
 
 // ── تبويب الموظفين ────────────────────────────────────────────────
-function StaffTab({ token }: { token: string }) {
+function StaffTab({ token, canEdit = true }: { token: string; canEdit?: boolean }) {
   const [staff, setStaff]           = useState<Staff[]>([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -374,6 +542,14 @@ function StaffTab({ token }: { token: string }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={UC} />} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+        {canEdit && (
+          <View style={{ flexDirection: "row-reverse", gap: 8, padding: 12, borderRadius: 12, backgroundColor: UC + "18", borderWidth: 1, borderColor: UC + "35" }}>
+            <Ionicons name="key-outline" size={17} color={UC2} />
+            <Text style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.text, textAlign: "right", lineHeight: 20 }}>
+              يدخل الموظف البوابة بحسابه في التطبيق دون كلمة مرور، إذا طابق هاتفه أو بريده المسجّل هنا حسابه. حدّد ما يُسمح له به من زر الدرع 🛡.
+            </Text>
+          </View>
+        )}
         {staff.length === 0 ? (
           <View style={t.empty}>
             <Ionicons name="people-outline" size={48} color={Colors.textMuted} />
@@ -390,7 +566,7 @@ function StaffTab({ token }: { token: string }) {
                 <Text style={t.cardRole}>{s.role}</Text>
                 {s.committee && <Text style={t.cardSub}>{s.committee}</Text>}
               </View>
-              <View style={t.cardActions}>
+              {canEdit && <View style={t.cardActions}>
                 <TouchableOpacity onPress={() => setPermStaff(s)} style={[t.actionBtn, { borderColor: "#5B8DB820", backgroundColor: "#5B8DB810" }]}>
                   <Ionicons name="shield-outline" size={16} color="#5B8DB8" />
                 </TouchableOpacity>
@@ -400,7 +576,7 @@ function StaffTab({ token }: { token: string }) {
                 <TouchableOpacity onPress={() => remove(s.id, s.full_name)} style={[t.actionBtn, { borderColor: "#EF444420" }]}>
                   <Ionicons name="trash-outline" size={16} color="#EF4444" />
                 </TouchableOpacity>
-              </View>
+              </View>}
             </View>
             {(s.phone || s.email) && (
               <View style={t.cardFooter}>
@@ -422,12 +598,12 @@ function StaffTab({ token }: { token: string }) {
       </ScrollView>
 
       {/* زر إضافة */}
-      <TouchableOpacity style={t.fab} onPress={openAdd}>
+      {canEdit && <TouchableOpacity style={t.fab} onPress={openAdd}>
         <LinearGradient colors={[UC, "#173F5F"]} style={t.fabInner}>
           <Ionicons name="person-add-outline" size={22} color="#fff" />
           <Text style={t.fabText}>إضافة موظف</Text>
         </LinearGradient>
-      </TouchableOpacity>
+      </TouchableOpacity>}
 
       {/* مودال الصلاحيات */}
       {permStaff && (
@@ -496,7 +672,7 @@ function StaffTab({ token }: { token: string }) {
 }
 
 // ── تبويب الاجتماعات ──────────────────────────────────────────────
-function MeetingsTab({ token }: { token: string }) {
+function MeetingsTab({ token, canEdit = true }: { token: string; canEdit?: boolean }) {
   const [meetings, setMeetings]   = useState<Meeting[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -566,22 +742,22 @@ function MeetingsTab({ token }: { token: string }) {
                 {mtg.meeting_date && <Text style={t.cardSub}>{mtg.meeting_date} {mtg.meeting_time || ""}</Text>}
                 {mtg.location && <Text style={t.cardInfo}><Ionicons name="location-outline" size={12} /> {mtg.location}</Text>}
               </View>
-              <View style={t.cardActions}>
+              {canEdit && <View style={t.cardActions}>
                 <TouchableOpacity onPress={() => openEdit(mtg)} style={t.actionBtn}><Ionicons name="pencil-outline" size={16} color={UC} /></TouchableOpacity>
                 <TouchableOpacity onPress={() => remove(mtg.id)} style={[t.actionBtn, { borderColor: "#EF444420" }]}><Ionicons name="trash-outline" size={16} color="#EF4444" /></TouchableOpacity>
-              </View>
+              </View>}
             </View>
             {mtg.description && <Text style={[t.cardSub, { marginTop: 6 }]}>{mtg.description}</Text>}
           </Animated.View>
         ))}
       </ScrollView>
 
-      <TouchableOpacity style={t.fab} onPress={openAdd}>
+      {canEdit && <TouchableOpacity style={t.fab} onPress={openAdd}>
         <LinearGradient colors={[UC, "#173F5F"]} style={t.fabInner}>
           <Ionicons name="calendar-outline" size={22} color="#fff" />
           <Text style={t.fabText}>نداء اجتماع</Text>
         </LinearGradient>
-      </TouchableOpacity>
+      </TouchableOpacity>}
 
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={m.overlay}>
@@ -1263,9 +1439,9 @@ export default function UnionManagerPortalScreen() {
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "account">("requests");
+  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "account">("requests");
   const [inboxBadge, setInboxBadge] = useState(0);
-  const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0, pending_requests: 0 });
+  const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0, pending_requests: 0, members: 0, expiring_cards: 0 });
   const [reqBadge, setReqBadge] = useState(0);
 
   useEffect(() => {
@@ -1290,6 +1466,18 @@ export default function UnionManagerPortalScreen() {
 
   useEffect(() => { if (token) loadStats(token); }, [token]);
 
+  // تحديث الصلاحيات من الخادم (قد تكون الرئاسة عدّلتها)
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${getApiUrl()}/api/union-manager/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.manager) { setManager(d.manager); AsyncStorage.setItem(MGINFO_KEY, JSON.stringify(d.manager)).catch(() => {}); } })
+      .catch(() => {});
+  }, [token]);
+
+  /** رئاسة الاتحاد تملك كل الصلاحيات؛ الموظف مقيّد بما منحته له */
+  const can = (p?: keyof Permissions) => !p || !manager?.staff_id || manager?.permissions?.[p] === true;
+
   const handleLogin = (tok: string, mgr: Manager) => { setToken(tok); setManager(mgr); };
 
   const logout = async () => {
@@ -1302,15 +1490,17 @@ export default function UnionManagerPortalScreen() {
   if (checking) return <View style={{ flex: 1, backgroundColor: Colors.bg, justifyContent: "center", alignItems: "center" }}><ActivityIndicator color={UC} /></View>;
   if (!token || !manager) return <LoginScreen onLogin={handleLogin} />;
 
-  const TABS = [
-    { key: "requests", icon: "mail-unread-outline",  label: "الطلبات",     badge: reqBadge },
-    { key: "inbox",    icon: "file-tray-full-outline", label: "رسائل الطلاب", badge: inboxBadge },
-    { key: "news",     icon: "megaphone-outline",     label: "الأخبار",     badge: 0 },
-    { key: "staff",    icon: "people-outline",        label: "الموظفون",    badge: 0 },
-    { key: "meetings", icon: "calendar-outline",      label: "الاجتماعات",  badge: 0 },
-    { key: "messages", icon: "chatbubbles-outline",   label: "التواصل",     badge: 0 },
-    { key: "account",  icon: "settings-outline",      label: "الحساب",      badge: 0 },
-  ] as const;
+  const TABS = ([
+    { key: "requests", icon: "mail-unread-outline",  label: "الطلبات",    badge: reqBadge,   show: can("can_manage_requests") },
+    { key: "members",  icon: "id-card-outline",      label: "الأعضاء",    badge: stats.expiring_cards || 0, show: true },
+    { key: "inbox",    icon: "file-tray-full-outline", label: "الرسائل",  badge: inboxBadge, show: can("can_manage_requests") },
+    { key: "news",     icon: "megaphone-outline",     label: "الأخبار",    badge: 0, show: can("can_post_announcements") },
+    { key: "staff",    icon: "people-outline",        label: "الموظفون",   badge: 0, show: true },
+    { key: "meetings", icon: "calendar-outline",      label: "الاجتماعات", badge: 0, show: true },
+    { key: "messages", icon: "chatbubbles-outline",   label: "الفريق",     badge: 0, show: true },
+    { key: "account",  icon: "settings-outline",      label: "الحساب",     badge: 0, show: true },
+  ]).filter(x => x.show);
+  const activeTab = TABS.some(x => x.key === tab) ? tab : (TABS[0].key as typeof tab);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
@@ -1332,9 +1522,9 @@ export default function UnionManagerPortalScreen() {
       <View style={ps.statsRow}>
         {[
           { val: stats.pending_requests, label: "طلب معلَّق", color: stats.pending_requests > 0 ? "#EF4444" : Colors.textMuted },
+          { val: stats.members ?? 0,     label: "عضو",        color: GREEN },
           { val: stats.staff,            label: "موظف",       color: UC },
           { val: stats.upcoming_meetings,label: "اجتماع",     color: "#F59E0B" },
-          { val: stats.messages,         label: "رسالة",      color: GREEN },
         ].map((s, i) => (
           <View key={i} style={ps.statItem}>
             <Text style={[ps.statVal, { color: s.color }]}>{s.val}</Text>
@@ -1345,13 +1535,14 @@ export default function UnionManagerPortalScreen() {
 
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
-        {tab === "requests" && <RequestsTab token={token} onBadgeChange={n => { setReqBadge(n); setStats(p => ({ ...p, pending_requests: n })); }} />}
-        {tab === "inbox"    && <InboxTab token={token} onBadgeChange={setInboxBadge} />}
-        {tab === "news"     && <NewsTab token={token} />}
-        {tab === "staff"    && <StaffTab token={token} />}
-        {tab === "meetings" && <MeetingsTab token={token} />}
-        {tab === "messages" && <MessagesTab token={token} manager={manager} />}
-        {tab === "account"  && (
+        {activeTab === "members"  && <MembersTab token={token} can={can} />}
+        {activeTab === "requests" && <RequestsTab token={token} onBadgeChange={n => { setReqBadge(n); setStats(p => ({ ...p, pending_requests: n })); }} />}
+        {activeTab === "inbox"    && <InboxTab token={token} onBadgeChange={setInboxBadge} />}
+        {activeTab === "news"     && <NewsTab token={token} />}
+        {activeTab === "staff"    && <StaffTab token={token} canEdit={can("can_manage_staff")} />}
+        {activeTab === "meetings" && <MeetingsTab token={token} canEdit={can("can_manage_meetings")} />}
+        {activeTab === "messages" && <MessagesTab token={token} manager={manager} />}
+        {activeTab === "account"  && (
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
             <Animated.View entering={FadeInDown.delay(80).springify()} style={t.card}>
               <Text style={ps.accountTitle}>معلومات الحساب</Text>
@@ -1380,14 +1571,14 @@ export default function UnionManagerPortalScreen() {
         {TABS.map(tb => (
           <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key as any)} style={ps.tabItem}>
             <View style={{ position: "relative" }}>
-              <Ionicons name={tb.icon as any} size={22} color={tab === tb.key ? UC : Colors.textMuted} />
+              <Ionicons name={tb.icon as any} size={22} color={activeTab === tb.key ? UC : Colors.textMuted} />
               {tb.badge > 0 && (
                 <View style={ps.badge}>
                   <Text style={ps.badgeText}>{tb.badge > 9 ? "9+" : String(tb.badge)}</Text>
                 </View>
               )}
             </View>
-            <Text style={[ps.tabLabel, { color: tab === tb.key ? UC : Colors.textMuted }]}>{tb.label}</Text>
+            <Text style={[ps.tabLabel, { color: activeTab === tb.key ? UC : Colors.textMuted }]} numberOfLines={1}>{tb.label}</Text>
           </TouchableOpacity>
         ))}
       </View>

@@ -192,6 +192,8 @@ function AuthGate() {
         if (screen === "student-union-status" || type === "student_union_decision") { router.push("/student-union-status" as any); return; }
         if (screen === "student-union-contact" || type === "student_union_reply") { router.push("/student-union-contact" as any); return; }
         if (screen === "student-union-news" || type === "student_union_post") { router.push("/student-union-news" as any); return; }
+        if (screen === "union-manager-portal" || type === "union_meeting") { router.push("/union-manager-portal" as any); return; }
+        if (type === "student_union_member") { router.push("/student-union-status" as any); return; }
 
         // ── الإتحاد ──
         if (
