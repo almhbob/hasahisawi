@@ -15,6 +15,7 @@ import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
 
 
 const API = () => getApiUrl();
@@ -735,8 +736,11 @@ export default function RentalScreen() {
               <TextInput style={styles.input} placeholder="رقم الهاتف *" placeholderTextColor={Colors.textMuted} value={contractForm.renter_phone} onChangeText={v => setContractForm(f=>({...f,renter_phone:v}))} keyboardType="phone-pad" />
 
               <Text style={styles.sectionTitle}>مدة الإيجار</Text>
-              <TextInput style={styles.input} placeholder="تاريخ البداية (مثال: 2026-06-01) *" placeholderTextColor={Colors.textMuted} value={contractForm.start_date} onChangeText={v => setContractForm(f=>({...f,start_date:v}))} />
-              <TextInput style={styles.input} placeholder="تاريخ النهاية (مثال: 2026-12-01) *" placeholderTextColor={Colors.textMuted} value={contractForm.end_date} onChangeText={v => setContractForm(f=>({...f,end_date:v}))} />
+              <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 10 }}>
+                <View style={{ flex: 1 }}><DateInput label="تاريخ البداية *" value={contractForm.start_date} onChange={v => setContractForm(f=>({...f,start_date:v}))} clearable={false} /></View>
+                <View style={{ flex: 1 }}><DateInput label="تاريخ النهاية *" value={contractForm.end_date} onChange={v => setContractForm(f=>({...f,end_date:v}))} minDate={ymdToDate(contractForm.start_date) ?? undefined} clearable={false}
+                  presets={[3, 6, 12].map(n => ({ label: n === 12 ? "سنة" : `${n} أشهر`, get: () => { const b = ymdToDate(contractForm.start_date) ?? new Date(); return new Date(b.getFullYear(), b.getMonth() + n, b.getDate(), 12); } }))} /></View>
+              </View>
 
               <Text style={styles.sectionTitle}>المبلغ الإجمالي</Text>
               <TextInput style={styles.input} placeholder="المبلغ الكلي المتفق عليه (ج.س) *" placeholderTextColor={Colors.textMuted} value={contractForm.total_amount} onChangeText={v => setContractForm(f=>({...f,total_amount:v}))} keyboardType="numeric" />

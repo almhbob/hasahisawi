@@ -14,6 +14,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import type { ContractStatus } from "@/lib/feature-flags-context";
+import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
 
 type Section = {
   section_key: string;
@@ -269,15 +270,9 @@ export default function AdminSectionsConfigScreen() {
                     placeholder="الاسم ورقم الهاتف للمسؤول"
                     placeholderTextColor={Colors.textMuted} textAlign="right" />
 
-                  <Text style={s.fieldLabel}>تاريخ توقيع العقد</Text>
-                  <TextInput style={s.fieldInput} value={editSignedAt} onChangeText={setEditSignedAt}
-                    placeholder="مثال: 2025-01-15"
-                    placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                  <View style={{ marginBottom: 10 }}><DateInput label="تاريخ توقيع العقد" value={editSignedAt} onChange={setEditSignedAt} maxDate={new Date()} /></View>
 
-                  <Text style={s.fieldLabel}>تاريخ انتهاء العقد</Text>
-                  <TextInput style={s.fieldInput} value={editExpiryAt} onChangeText={setEditExpiryAt}
-                    placeholder="مثال: 2026-01-15"
-                    placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                  <View style={{ marginBottom: 10 }}><DateInput label="تاريخ انتهاء العقد" value={editExpiryAt} onChange={setEditExpiryAt} minDate={ymdToDate(editSignedAt) ?? undefined} /></View>
                 </>
               )}
 

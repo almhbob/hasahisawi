@@ -27,6 +27,7 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import TicketShareModal, { type TicketData } from "@/components/travel/TicketShare";
 import { OffersFeed, AgenciesDirectory, MyAgencyRequests } from "@/components/travel/HubTabs";
 import { TRV_GRADIENT } from "@/lib/travel";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -438,7 +439,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
 
   const submitBooking = useCallback(async () => {
     if (!passengerName.trim()) { Alert.alert("تنبيه","أدخل اسم الراكب"); return; }
-    if (!travelDate)           { Alert.alert("تنبيه","أدخل تاريخ السفر (YYYY-MM-DD)"); return; }
+    if (!travelDate)           { Alert.alert("تنبيه","اختر تاريخ السفر"); return; }
     setSubmitting(true);
     try {
       const token = (user as any)?._token || "";
@@ -578,7 +579,7 @@ function BookingForm({ user, onBooked }: { user: any; onBooked: (b: TravelBookin
             </TouchableOpacity>
           ))}
         </View>
-        <TextInput style={styles.input} value={travelDate} onChangeText={setTravelDate} placeholder="أو أدخل التاريخ: 2026-05-20" placeholderTextColor="#5E8F9B" keyboardType="numbers-and-punctuation" maxLength={10} />
+        <DateInput label="أو اختر تاريخاً آخر" value={travelDate} onChange={setTravelDate} minDate={new Date()} placeholder="اختر تاريخ السفر" clearable={false} />
 
         <AnimatedPress onPress={submitBooking} style={[styles.bookBtn, submitting && { opacity:0.6 }]}>
           {submitting ? <ActivityIndicator color="#fff" />
@@ -872,8 +873,7 @@ function MyTickets({ user }: { user: any }) {
           <View style={styles.smallModal}>
             <Text style={styles.smallModalTitle}>تأجيل موعد السفر</Text>
             <Text style={styles.smallModalSub}>التذكرة: {rescheduleModal?.ticket_number}</Text>
-            <TextInput style={styles.input} value={newDate} onChangeText={setNewDate}
-              placeholder="التاريخ الجديد (YYYY-MM-DD)" keyboardType="numeric" maxLength={10} />
+            <DateInput label="التاريخ الجديد" value={newDate} onChange={setNewDate} minDate={new Date()} clearable={false} />
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={()=>setRescheduleModal(null)} style={styles.modalCancelBtn}>
                 <Text style={styles.modalCancelTxt}>إلغاء</Text>

@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { DateInput, TimeInput } from "@/components/ui/DateTimeField";
 
 
 // ─────────────────────────────────────────────
@@ -372,8 +373,10 @@ export default function EventsScreen() {
             {/* الحقول */}
             <FormField label="عنوان الفعالية *" placeholder="مثال: حفل تخرج دفعة 2026" value={form.title} onChangeText={(v: string) => setForm(f => ({ ...f, title: v }))} />
             <FormField label="الموقع *" placeholder="مثال: قاعة المدينة الرياضية" value={form.location} onChangeText={(v: string) => setForm(f => ({ ...f, location: v }))} icon="location-outline" />
-            <FormField label="تاريخ الفعالية *" placeholder="مثال: 2026-06-15" value={form.event_date} onChangeText={(v: string) => setForm(f => ({ ...f, event_date: v }))} icon="calendar-outline" />
-            <FormField label="الوقت" placeholder="مثال: 17:00" value={form.event_time} onChangeText={(v: string) => setForm(f => ({ ...f, event_time: v }))} icon="time-outline" />
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 12, paddingHorizontal: 16 }}>
+              <View style={{ flex: 1.4 }}><DateInput label="تاريخ الفعالية *" value={form.event_date} onChange={(v) => setForm(f => ({ ...f, event_date: v }))} minDate={new Date()} clearable={false} onDark /></View>
+              <View style={{ flex: 1 }}><TimeInput label="الوقت" value={form.event_time} onChange={(v) => setForm(f => ({ ...f, event_time: v }))} onDark /></View>
+            </View>
             <FormField label="اسم المنظِّم *" placeholder="اسمك أو اسم جهتك" value={form.organizer_name} onChangeText={(v: string) => setForm(f => ({ ...f, organizer_name: v }))} icon="person-outline" />
             <FormField label="رقم التواصل" placeholder="للاستفسار والتسجيل" value={form.contact_phone} onChangeText={(v: string) => setForm(f => ({ ...f, contact_phone: v }))} icon="call-outline" keyboard="phone-pad" />
             <FormField label="وصف الفعالية" placeholder="تفاصيل الفعالية والبرنامج..." value={form.description} onChangeText={(v: string) => setForm(f => ({ ...f, description: v }))} multiline />

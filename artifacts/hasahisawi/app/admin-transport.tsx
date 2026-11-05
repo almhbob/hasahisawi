@@ -11,6 +11,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TransportStatus = "available" | "coming_soon" | "maintenance";
@@ -1505,7 +1506,16 @@ export default function AdminTransportScreen() {
                   { label: "البريد الإلكتروني", key: "email" as const,       placeholder: "example@company.com" },
                   { label: "بداية العقد",     key: "contract_start" as const, placeholder: "YYYY-MM-DD" },
                   { label: "نهاية العقد",     key: "contract_end" as const,   placeholder: "YYYY-MM-DD" },
-                ].map(field => (
+                ].map(field => field.key === "contract_start" || field.key === "contract_end" ? (
+                  <View key={field.key} style={{ marginBottom: 8 }}>
+                    <DateInput
+                      label={field.label}
+                      value={opForm[field.key]}
+                      onChange={v => setOpForm(prev => ({ ...prev, [field.key]: v }))}
+                      minDate={field.key === "contract_end" ? ymdToDate(opForm.contract_start) ?? undefined : undefined}
+                    />
+                  </View>
+                ) : (
                   <View key={field.key}>
                     <Text style={s.fieldLabel}>{field.label}</Text>
                     <TextInput style={s.fieldInput}

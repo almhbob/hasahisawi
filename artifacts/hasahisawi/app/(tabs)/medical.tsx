@@ -23,6 +23,7 @@ import { uploadPaymentProof } from "@/lib/firebase/storage";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import { LoadError } from "@/components/ui/LoadState";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 async function safeCall(number: string) {
   const url = `tel:${number.replace(/\s+/g, "")}`;
@@ -500,10 +501,8 @@ function AppointmentsTab({ auth }: { auth: any }) {
             </View>
             {/* التاريخ */}
             <View style={aptSty.field}>
-              <Text style={aptSty.fieldLabel}>التاريخ <Text style={{ color: Colors.danger }}>*</Text></Text>
-              <TextInput style={aptSty.fieldInput} value={aptDate} onChangeText={setAptDate}
-                placeholder="YYYY-MM-DD مثال: 2026-04-15" placeholderTextColor={Colors.textMuted} textAlign="right"
-                keyboardType="numeric" />
+              <DateInput label="التاريخ *" value={aptDate} onChange={setAptDate} minDate={new Date()}
+                clearable={false} presets={[0, 1, 2, 7].map(n => ({ label: n === 0 ? "اليوم" : n === 1 ? "غداً" : n === 2 ? "بعد غد" : "بعد أسبوع", get: () => { const d = new Date(); d.setDate(d.getDate() + n); d.setHours(12, 0, 0, 0); return d; } }))} />
             </View>
             {/* الوقت */}
             <View style={aptSty.field}>
