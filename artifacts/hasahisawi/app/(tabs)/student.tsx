@@ -20,6 +20,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import { ModernCard } from "@/components/ui/ModernCard";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 
 // ─── Keys ────────────────────────────────────────────────────────────────────
@@ -1226,7 +1227,7 @@ function RegStep2({ data, setData }: { data: RegistrationData; setData: (d: Part
         <ChipSelect options={["سودانية","أخرى"]} value={data.student_nationality} onSelect={v => setData({ student_nationality: v })} />
       </FormField>
       <FormField label="تاريخ الميلاد (اختياري)">
-        <FInput value={data.student_dob} onChangeText={v => setData({ student_dob: v })} placeholder="مثال: 2015-03-15" />
+        <DateInput label="" value={data.student_dob} onChange={v => setData({ student_dob: v })} maxDate={new Date()} initialView={new Date(new Date().getFullYear() - 10, 0, 1, 12)} placeholder="اختر تاريخ الميلاد" />
       </FormField>
       <FormField label="المدرسة السابقة (إن وجدت)">
         <FInput value={data.previous_school} onChangeText={v => setData({ previous_school: v })} placeholder="اسم المدرسة السابقة" />
@@ -1566,7 +1567,7 @@ function TransferModal({ visible, onClose, institutions }: {
                       <ChipSelect options={["ذكر","أنثى"]} value={data.student_gender} onSelect={v=>setData({student_gender:v})} color={Colors.accent} />
                     </FormField>
                     <FormField label="تاريخ الميلاد (اختياري)">
-                      <FInput value={data.student_dob} onChangeText={v=>setData({student_dob:v})} placeholder="2015-03-15" />
+                      <DateInput label="" value={data.student_dob} onChange={v => setData({ student_dob: v })} maxDate={new Date()} initialView={new Date(new Date().getFullYear() - 10, 0, 1, 12)} placeholder="اختر تاريخ الميلاد" />
                     </FormField>
                   </ScrollView>
                 )}

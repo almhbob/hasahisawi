@@ -14,6 +14,7 @@ import {
   type Company, type Project, type Quote, type Contract, type Job, type Application, type StaffMember, type Meta, type PortalMe, type Perm, type PayStep,
 } from "@/lib/contractors";
 import { Badge, Pill, BeforeAfter, ImagesField, conStyles as u } from "@/components/contractors/ui";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 type Tab = "overview" | "settings" | "projects" | "quotes" | "contracts" | "jobs" | "staff";
 const TABS: { key: Tab; label: string; icon: string; perm?: Perm }[] = [
@@ -319,7 +320,7 @@ function Projects({ meta }: { meta: Meta }) {
           <Field label="الموقع" value={edit.f.location} onChange={(v) => setE({ location: v })} />
           <Field label="وصف الأعمال المنجزة" value={edit.f.description} onChange={(v) => setE({ description: v })} multiline />
           <View style={[u.rowR, { gap: 10 }]}>
-            <View style={{ flex: 1 }}><Field label="تاريخ الإنجاز (YYYY-MM-DD)" value={edit.f.completed_on} onChange={(v) => setE({ completed_on: v })} /></View>
+            <View style={{ flex: 1 }}><DateInput label="تاريخ الإنجاز" value={edit.f.completed_on} onChange={(v) => setE({ completed_on: v })} maxDate={new Date()} /></View>
             <View style={{ flex: 1 }}><Field label="المدة (أيام)" value={edit.f.duration_days} onChange={(v) => setE({ duration_days: v })} keyboard="numeric" /></View>
           </View>
           <Field label="العميل (اختياري)" value={edit.f.client_label} onChange={(v) => setE({ client_label: v })} placeholder="مثال: مدرسة الحصاحيصا الثانوية" />
@@ -439,7 +440,7 @@ function QuoteSheet({ q, meta, onClose, onSaved, onContract }: { q: Quote | null
           <Text style={u.h}>{q.status === "quoted" ? "تعديل عرض السعر" : "إرسال عرض سعر"}</Text>
           <Field label="القيمة الإجمالية (ج.س)" value={amount} onChange={setAmount} keyboard="numeric" />
           <Field label="تفاصيل العرض وما يشمله" value={note} onChange={setNote} multiline placeholder="المواد، العمالة، مدة التنفيذ، الاستثناءات…" />
-          <Field label="صالح حتى (YYYY-MM-DD)" value={valid} onChange={setValid} />
+          <View style={{ marginTop: 8 }}><DateInput label="العرض صالح حتى" value={valid} onChange={setValid} minDate={new Date()} placeholder="بدون تاريخ انتهاء" /></View>
           <Pressable style={[u.primary, { marginTop: 12, backgroundColor: "#7C3AED" }, busy && { opacity: 0.6 }]} disabled={busy} onPress={sendQuote}>
             <Ionicons name="send" size={16} color="#fff" /><Text style={u.primaryT}>إرسال العرض للعميل</Text>
           </Pressable>
@@ -582,7 +583,7 @@ function ContractForm({ quote, onDone }: { quote: Quote | null; onDone: (r: { co
       <Field label="نطاق الأعمال والمواصفات" value={f.scope} onChange={set("scope")} multiline placeholder="صف الأعمال بالتفصيل: البنود، المواد، المواصفات…" />
       <Field label="موقع التنفيذ" value={f.location} onChange={set("location")} />
       <View style={[u.rowR, { gap: 10 }]}>
-        <View style={{ flex: 1 }}><Field label="تاريخ البدء" value={f.start_date} onChange={set("start_date")} placeholder="YYYY-MM-DD" /></View>
+        <View style={{ flex: 1 }}><DateInput label="تاريخ البدء" value={f.start_date} onChange={set("start_date")} /></View>
         <View style={{ flex: 1 }}><Field label="المدة (أيام)" value={f.duration_days} onChange={set("duration_days")} keyboard="numeric" /></View>
       </View>
       <Field label="فترة الضمان (أشهر)" value={f.warranty_months} onChange={set("warranty_months")} keyboard="numeric" />
@@ -679,7 +680,7 @@ function Jobs({ meta }: { meta: Meta }) {
           <View style={[u.wrap, { marginTop: 8 }]}>{Object.entries(meta.wage_units).map(([k, v]) => <Pill key={k} label={v} on={form.wage_unit === k} onPress={() => setJ({ wage_unit: k })} />)}</View>
           <View style={[u.rowR, { gap: 10 }]}>
             <View style={{ flex: 1 }}><Field label="المدة" value={form.duration} onChange={(v) => setJ({ duration: v })} placeholder="3 أسابيع" /></View>
-            <View style={{ flex: 1 }}><Field label="تاريخ البدء" value={form.start_date} onChange={(v) => setJ({ start_date: v })} placeholder="YYYY-MM-DD" /></View>
+            <View style={{ flex: 1 }}><DateInput label="تاريخ البدء" value={form.start_date} onChange={(v) => setJ({ start_date: v })} minDate={new Date()} /></View>
           </View>
           <Field label="الموقع" value={form.location} onChange={(v) => setJ({ location: v })} />
           <Field label="تفاصيل العمل" value={form.description} onChange={(v) => setJ({ description: v })} multiline />

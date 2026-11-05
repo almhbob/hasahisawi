@@ -15,6 +15,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { confirmAction, notify } from "@/lib/xplatform";
+import { DateInput, TimeInput } from "@/components/ui/DateTimeField";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -474,7 +475,11 @@ function MeetingsTab({ token }: { token: string }) {
                   { key: "meeting_time", label: "الوقت", placeholder: "HH:MM" },
                   { key: "location", label: "المكان", placeholder: "قاعة الاجتماعات / أونلاين..." },
                   { key: "description", label: "تفاصيل إضافية", placeholder: "جدول الأعمال والتفاصيل...", multiline: true },
-                ] as any[]).map(f => (
+                ] as any[]).map(f => f.key === "meeting_date" ? (
+                  <DateInput key={f.key} label={f.label} value={form.meeting_date} onChange={v => setForm(p => ({ ...p, meeting_date: v }))} minDate={new Date()} />
+                ) : f.key === "meeting_time" ? (
+                  <TimeInput key={f.key} label={f.label} value={form.meeting_time} onChange={v => setForm(p => ({ ...p, meeting_time: v }))} />
+                ) : (
                   <View key={f.key}>
                     <Text style={m.label}>{f.label}</Text>
                     <TextInput

@@ -12,6 +12,7 @@ import Colors from "@/constants/colors";
 import { uploadFile } from "@/lib/firebase/storage";
 import { notify } from "@/lib/xplatform";
 import { CERT_KINDS, Cert, CertKind, FullProfile, SOCIALS, profileApi } from "@/lib/profile-api";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 // ── عناصر مشتركة ───────────────────────────────────────────────────
 function Sheet({ visible, title, onClose, children, footer }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode }) {
@@ -279,7 +280,7 @@ export function CertFormModal({ visible, token, cert, onClose, onSaved }: {
       <Field label={isExp ? "المسمى الوظيفي" : "اسم الشهادة"} value={f.title} max={200} onChange={(v) => setF({ ...f, title: v })} placeholder={isExp ? "مثال: محاسب أول" : "مثال: بكالوريوس هندسة مدنية"} />
       <Field label={isExp ? "جهة العمل" : "الجهة المانحة"} value={f.issuer} max={200} onChange={(v) => setF({ ...f, issuer: v })} placeholder={isExp ? "مثال: مصنع سكر الجنيد" : "مثال: جامعة الجزيرة"} />
       <Field label={isExp ? "الفترة" : "تاريخ الحصول"} value={f.issued_on} max={20} onChange={(v) => setF({ ...f, issued_on: v })} placeholder={isExp ? "2019 – 2024" : "2023"} />
-      {!isExp && <Field label="تاريخ الانتهاء (اختياري)" value={f.expires_on} max={20} onChange={(v) => setF({ ...f, expires_on: v })} placeholder="2028-03-24" />}
+      {!isExp && <View style={{ marginBottom: 10 }}><DateInput label="تاريخ الانتهاء (اختياري)" value={f.expires_on} onChange={(v) => setF({ ...f, expires_on: v })} placeholder="لا تنتهي" /></View>}
       {!isExp && <Field label="رقم الشهادة (اختياري)" value={f.credential_id} max={120} onChange={(v) => setF({ ...f, credential_id: v })} placeholder="للتحقق من قبل جهة العمل" />}
       {!isExp && <Field label="رابط التحقق (اختياري)" value={f.credential_url} max={500} keyboard="url" onChange={(v) => setF({ ...f, credential_url: v })} placeholder="https://" />}
 
