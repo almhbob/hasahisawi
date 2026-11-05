@@ -18320,7 +18320,7 @@ type UnionMgr = { id: number; full_name: string; title: string; username: string
 function umCan(m: UnionMgr, perm?: UnionPerm) { return !perm || !m.staff_id || m.permissions?.[perm] === true; }
 
 /** جلسة البوابة + التحقق من الصلاحية. يُرسل 401/403 ويُرجع null عند الرفض */
-async function umAuth(req: Request, res: Response, perm?: UnionPerm): Promise<UnionMgr | null> {
+export async function umAuth(req: Request, res: Response, perm?: UnionPerm): Promise<UnionMgr | null> {
   const m = await getUnionMgr(req);
   if (!m) { res.status(401).json({ error: "غير مصرح" }); return null; }
   if (!umCan(m, perm)) { res.status(403).json({ error: "ليست لديك صلاحية لهذا الإجراء. راجع رئاسة الاتحاد." }); return null; }
@@ -19171,7 +19171,7 @@ const SU_STATUS_LABEL: Record<string, string> = { pending: "قيد المراج�
 const suDigits = (p: unknown) => String(p ?? "").replace(/\D/g, "").slice(-9);
 
 /** إشعار داخل التطبيق + Push لمستخدم واحد */
-async function notifyUnionUser(userId: number, type: string, title: string, body: string, data: Record<string, unknown>): Promise<void> {
+export async function notifyUnionUser(userId: number, type: string, title: string, body: string, data: Record<string, unknown>): Promise<void> {
   try {
     await query(`INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,$2,$3,$4,$5)`,
       [userId, type, title, body, JSON.stringify(data)]);

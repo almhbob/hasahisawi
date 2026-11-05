@@ -2802,6 +2802,8 @@ export default function StudentScreen() {
           {[
             { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#1F5C8A", route:"/student-union-join" },
             { title:"عضويتي وبطاقتي",      sub:"تابع حالة طلبك واعرض بطاقة العضوية الرقمية",     icon:"id-card-outline",         color:"#0E7490", route:"/student-union-status" },
+            { title:"الانتخابات",          sub:"ترشّح وصوّت بسرية، وتابع النتائج المعلنة",       icon:"checkbox-outline",       color:"#15803D", route:"/student-union-elections" },
+            { title:"أرشيف الأنشطة",       sub:"ندوات ودورات ورحلات الاتحاد بالصور",            icon:"images-outline",         color:"#B45309", route:"/student-union-archive" },
             { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد وتابع ردوده على رسائلك",            icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
             { title:"إدارة الإتحاد",       sub:"بوابة مدير الإتحاد: الطلبات والرسائل والأخبار", icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/union-manager-portal" },
           ].map((item, i) => (

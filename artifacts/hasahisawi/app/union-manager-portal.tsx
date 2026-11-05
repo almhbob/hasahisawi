@@ -17,6 +17,8 @@ import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { confirmAction, notify, openExternal } from "@/lib/xplatform";
 import { DateInput, TimeInput } from "@/components/ui/DateTimeField";
 import { useAuth } from "@/lib/auth-context";
+import { ImageUploadField, ImagesUploadField } from "@/components/union/ImageUploadField";
+import { ArchiveTab, ElectionsTab } from "@/components/union/PortalArchiveElections";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -1343,8 +1345,7 @@ function NewsTab({ token }: { token: string }) {
             <TextInput style={m.input} value={title} onChangeText={setTitle} placeholder="عنوان الخبر" placeholderTextColor={Colors.textMuted} textAlign="right" maxLength={200} />
             <Text style={m.label}>المحتوى *</Text>
             <TextInput style={[m.input, { minHeight: 120, textAlignVertical: "top" }]} value={body} onChangeText={setBody} placeholder="نص الخبر أو الإعلان..." placeholderTextColor={Colors.textMuted} textAlign="right" multiline />
-            <Text style={m.label}>رابط صورة (اختياري)</Text>
-            <TextInput style={m.input} value={imageUrl} onChangeText={setImageUrl} placeholder="https://..." placeholderTextColor={Colors.textMuted} autoCapitalize="none" keyboardType="url" />
+            <ImageUploadField label="صورة الخبر (اختياري)" value={imageUrl} onChange={setImageUrl} folder="union/news" />
             <TouchableOpacity onPress={() => setPinned(v => !v)} style={[pm.row, pinned && pm.rowActive]}>
               <Ionicons name={pinned ? "checkbox" : "square-outline"} size={20} color={pinned ? UC : Colors.textMuted} />
               <Text style={[pm.label, pinned && pm.labelActive]}>تثبيت في أعلى القائمة</Text>
@@ -1439,7 +1440,7 @@ export default function UnionManagerPortalScreen() {
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "account">("requests");
+  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "archive" | "elections" | "account">("requests");
   const [inboxBadge, setInboxBadge] = useState(0);
   const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0, pending_requests: 0, members: 0, expiring_cards: 0 });
   const [reqBadge, setReqBadge] = useState(0);
@@ -1495,6 +1496,8 @@ export default function UnionManagerPortalScreen() {
     { key: "members",  icon: "id-card-outline",      label: "الأعضاء",    badge: stats.expiring_cards || 0, show: true },
     { key: "inbox",    icon: "file-tray-full-outline", label: "الرسائل",  badge: inboxBadge, show: can("can_manage_requests") },
     { key: "news",     icon: "megaphone-outline",     label: "الأخبار",    badge: 0, show: can("can_post_announcements") },
+    { key: "elections", icon: "checkbox-outline",     label: "الانتخابات", badge: 0, show: true },
+    { key: "archive",  icon: "images-outline",        label: "الأرشيف",    badge: 0, show: true },
     { key: "staff",    icon: "people-outline",        label: "الموظفون",   badge: 0, show: true },
     { key: "meetings", icon: "calendar-outline",      label: "الاجتماعات", badge: 0, show: true },
     { key: "messages", icon: "chatbubbles-outline",   label: "الفريق",     badge: 0, show: true },
@@ -1536,6 +1539,8 @@ export default function UnionManagerPortalScreen() {
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
         {activeTab === "members"  && <MembersTab token={token} can={can} />}
+        {activeTab === "archive"  && <ArchiveTab token={token} canEdit={can("can_post_announcements")} />}
+        {activeTab === "elections" && <ElectionsTab token={token} canManage={!manager.staff_id} />}
         {activeTab === "requests" && <RequestsTab token={token} onBadgeChange={n => { setReqBadge(n); setStats(p => ({ ...p, pending_requests: n })); }} />}
         {activeTab === "inbox"    && <InboxTab token={token} onBadgeChange={setInboxBadge} />}
         {activeTab === "news"     && <NewsTab token={token} />}
@@ -1568,8 +1573,9 @@ export default function UnionManagerPortalScreen() {
 
       {/* شريط التبويبات */}
       <View style={[ps.tabBar, { paddingBottom: insets.bottom + 4 }]}>
+        <RtlScrollRow contentContainerStyle={{ paddingHorizontal: 4 }}>
         {TABS.map(tb => (
-          <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key as any)} style={ps.tabItem}>
+          <TouchableOpacity key={tb.key} onPress={() => setTab(tb.key as any)} style={[ps.tabItem, { minWidth: 70, flex: 0, paddingHorizontal: 6 }]}>
             <View style={{ position: "relative" }}>
               <Ionicons name={tb.icon as any} size={22} color={activeTab === tb.key ? UC : Colors.textMuted} />
               {tb.badge > 0 && (
@@ -1581,6 +1587,7 @@ export default function UnionManagerPortalScreen() {
             <Text style={[ps.tabLabel, { color: activeTab === tb.key ? UC : Colors.textMuted }]} numberOfLines={1}>{tb.label}</Text>
           </TouchableOpacity>
         ))}
+        </RtlScrollRow>
       </View>
     </View>
   );
