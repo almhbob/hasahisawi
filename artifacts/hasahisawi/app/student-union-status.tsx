@@ -18,7 +18,7 @@ const UC2 = "#9DBBD6";
 
 type SuApplication = {
   id: number; full_name: string; institution: string; major: string; year: string; study_stage?: string | null;
-  status: "pending" | "approved" | "rejected"; status_label: string;
+  status: "pending" | "approved" | "rejected" | "suspended"; status_label: string;
   submitted_at: string; reviewed_at?: string | null; note?: string | null;
 };
 type SuCard = {
@@ -161,7 +161,7 @@ export default function StudentUnionStatusScreen() {
     if (r === "copied") notify("تم النسخ", "نُسخ رقم العضوية ورابط التحقق");
   };
 
-  const decided = app?.status === "approved" || app?.status === "rejected";
+  const decided = app?.status === "approved" || app?.status === "rejected" || app?.status === "suspended";
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
@@ -234,8 +234,8 @@ export default function StudentUnionStatusScreen() {
             <Animated.View entering={FadeInDown.delay(80).springify()} style={s.box}>
               <View style={s.boxHead}>
                 <Text style={s.boxTitle}>مسار الطلب</Text>
-                <View style={[s.badge, { backgroundColor: app.status === "approved" ? "#22C55E20" : app.status === "rejected" ? "#EF444420" : "#F59E0B20" }]}>
-                  <Text style={[s.badgeText, { color: app.status === "approved" ? "#16A34A" : app.status === "rejected" ? "#DC2626" : "#B45309" }]}>{app.status_label}</Text>
+                <View style={[s.badge, { backgroundColor: app.status === "approved" ? "#22C55E20" : app.status === "rejected" || app.status === "suspended" ? "#EF444420" : "#F59E0B20" }]}>
+                  <Text style={[s.badgeText, { color: app.status === "approved" ? "#16A34A" : app.status === "rejected" || app.status === "suspended" ? "#DC2626" : "#B45309" }]}>{app.status_label}</Text>
                 </View>
               </View>
               <Text style={s.meta}>{app.full_name} · {app.institution} · {app.major}</Text>
@@ -244,7 +244,11 @@ export default function StudentUnionStatusScreen() {
                 <Step icon="paper-plane" color={UC} title="تم تقديم الطلب" sub={fmtDate(app.submitted_at)} done />
                 <Step icon="time" color="#F59E0B" title="قيد المراجعة لدى إدارة الاتحاد"
                   sub={decided ? "اكتملت المراجعة" : "تُراجع الطلبات عادةً خلال 48 ساعة"} done />
-                {app.status === "rejected" ? (
+                {app.status === "suspended" ? (
+                  <Step icon="pause" color="#EF4444" title="العضوية موقوفة" sub="تواصل مع الاتحاد لإعادة التفعيل" done last>
+                    {app.note ? <View style={s.note}><Text style={s.noteLabel}>سبب الإيقاف</Text><Text style={s.noteText}>{app.note}</Text></View> : null}
+                  </Step>
+                ) : app.status === "rejected" ? (
                   <Step icon="close" color="#EF4444" title="لم يُقبل الطلب" sub={fmtDate(app.reviewed_at)} done last>
                     {app.note ? <View style={s.note}><Text style={s.noteLabel}>ملاحظة الإدارة</Text><Text style={s.noteText}>{app.note}</Text></View> : null}
                   </Step>
