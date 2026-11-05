@@ -16,6 +16,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 
 
 const API = () => getApiUrl();
@@ -115,7 +116,7 @@ function formatDate(d: string) {
 }
 
 // ─── Contract Text (Sudanese Law) ─────────────────────────────────
-function buildContractText(c: Contract, settings: RentalSettings): string {
+function buildContractText(c: Contract, settings: RentalSettings, commissionOn = true): string {
   const pct = settings.rental_commission_pct || "5";
   const account = settings.rental_account_number || "1471388";
   const today = new Date().toLocaleDateString("ar-SD", { year:"numeric", month:"long", day:"numeric" });
@@ -170,13 +171,13 @@ ${c.deposit_amount ? `التأمين: ${c.deposit_amount} ج.س (مستردّ)` 
 6. يُطبَّق على هذا العقد قانون المعاملات المدنية السوداني لسنة 1984 وقانون الإيجارات المعمول به في ولاية الجزيرة.
 7. أي تعديل على هذا العقد يجب أن يتم كتابةً وبموافقة الطرفين وتسجيله على المنصة.
 ${c.conditions ? `\nشروط إضافية متفق عليها:\n${c.conditions}` : ""}
-
+${commissionOn && c.commission_amount > 0 ? `
 سابعاً: عمولة المنصة
 ───────────────────────
 وفقاً لاتفاقية استخدام منصة حصاحيصاوي، يتعهد مقدّم الخدمة (المؤجر) بسداد نسبة ${pct}% من إجمالي بدل الإيجار (${c.commission_amount.toLocaleString()} ج.س) لصالح المنصة، وذلك حصراً في حال جاء المستأجر عن طريق التطبيق. تُحوَّل العمولة على الحساب: ${account}، مع إرفاق إشعار التحويل.
 ${!c.from_app ? "* ملاحظة: تم الإعفاء من العمولة — المستأجر جاء من خارج التطبيق." : ""}
-
-ثامناً: التوقيع الرقمي
+` : ""}
+${commissionOn && c.commission_amount > 0 ? "ثامناً" : "سابعاً"}: التوقيع الرقمي
 ───────────────────────
 الطرف الأول (المؤجر): ${c.owner_signed ? "✅ وقّع رقمياً بتاريخ " + formatDate(c.start_date) : "⏳ في انتظار التوقيع"}
 الطرف الثاني (المستأجر): ${c.renter_signed ? "✅ وقّع رقمياً" : "⏳ في انتظار التوقيع"}
@@ -190,6 +191,8 @@ ${!c.from_app ? "* ملاحظة: تم الإعفاء من العمولة — ا�
 
 // ═══════════════════════════════════════════════════════════════════
 export default function RentalScreen() {
+  // عمولة المنصة تظهر فقط إذا فعّلت الإدارة «إظهار الأسعار والباقات»
+  const commissionOn = usePricingVisible();
   const { user, token } = useAuth();
   const [tab, setTab] = useState<"browse" | "post" | "contracts">("browse");
 
@@ -427,7 +430,7 @@ export default function RentalScreen() {
           <Text style={styles.contractMeta}>المستأجر: {c.renter_name}</Text>
           <Text style={styles.contractMeta}>من {formatDate(c.start_date)} إلى {formatDate(c.end_date)}</Text>
           <Text style={styles.contractMeta}>المبلغ: {c.total_amount.toLocaleString()} ج.س</Text>
-          {c.from_app && <Text style={styles.contractMeta}>العمولة: {c.commission_amount.toLocaleString()} ج.س</Text>}
+          {commissionOn && c.from_app && c.commission_amount > 0 && <Text style={styles.contractMeta}>العمولة: {c.commission_amount.toLocaleString()} ج.س</Text>}
         </View>
         <View style={styles.sigRow}>
           <View style={styles.sigItem}>
@@ -450,7 +453,7 @@ export default function RentalScreen() {
               <Text style={[styles.actionBtnText, { color: Colors.text }]}>وقّع العقد</Text>
             </TouchableOpacity>
           )}
-          {c.from_app && !c.commission_paid && c.status === "active" && isOwner && (
+          {commissionOn && c.from_app && c.commission_amount > 0 && !c.commission_paid && c.status === "active" && isOwner && (
             <TouchableOpacity style={[styles.actionBtn, styles.payBtn]} onPress={() => handlePayCommission(c)}>
               <Ionicons name="logo-whatsapp" size={15} color="#fff" />
               <Text style={[styles.actionBtnText, { color: "#fff" }]}>دفع العمولة</Text>
@@ -547,7 +550,7 @@ export default function RentalScreen() {
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={14} color={Colors.accent} />
             <Text style={styles.noticeText}>
-              عند إبرام عقد عبر التطبيق، تُستحق عمولة {settings.rental_commission_pct}% على مقدّم الخدمة.
+              {commissionOn ? `عند إبرام عقد عبر التطبيق، تُستحق عمولة ${settings.rental_commission_pct}% على مقدّم الخدمة.\n` : ""}
               يعمل التطبيق شاهداً رقمياً معتمداً في حالات النزاع.
             </Text>
           </View>
@@ -619,13 +622,13 @@ export default function RentalScreen() {
             </View>
             <TextInput style={styles.input} placeholder="التأمين / الضمان (ج.س)" placeholderTextColor={Colors.textMuted} value={form.deposit_amount} onChangeText={v => setForm(f=>({...f,deposit_amount:v}))} keyboardType="numeric" />
 
-            <View style={styles.commissionNote}>
+            {commissionOn && <View style={styles.commissionNote}>
               <Ionicons name="shield-checkmark-outline" size={16} color={Colors.accent} />
               <Text style={styles.commissionNoteText}>
                 عند إبرام عقد عبر التطبيق، يستحق التطبيق عمولة {settings.rental_commission_pct}% من المبلغ الإجمالي
                 تُحوَّل على الحساب: <Text style={{ color: Colors.accent, fontWeight: "bold" }}>{settings.rental_account_number}</Text>
               </Text>
-            </View>
+            </View>}
 
             <TouchableOpacity style={[styles.submitBtn, postLoading && { opacity: 0.7 }]} onPress={handlePost} disabled={postLoading}>
               {postLoading ? <ActivityIndicator color={Colors.text} /> : <Text style={styles.submitBtnText}>نشر الإعلان</Text>}
@@ -705,7 +708,7 @@ export default function RentalScreen() {
               <View style={styles.witnessNote}>
                 <Ionicons name="shield-checkmark" size={16} color={Colors.accent} />
                 <Text style={styles.witnessText}>
-                  التطبيق يعمل شاهداً رقمياً معتمداً — عمولة {settings.rental_commission_pct}% تُستحق على مقدّم الخدمة عند إبرام العقد
+                  {commissionOn ? `التطبيق يعمل شاهداً رقمياً معتمداً — عمولة ${settings.rental_commission_pct}% تُستحق على مقدّم الخدمة عند إبرام العقد` : "التطبيق يعمل شاهداً رقمياً معتمداً يحفظ العقد وتوقيعات الطرفين"}
                 </Text>
               </View>
             </ScrollView>
@@ -745,7 +748,7 @@ export default function RentalScreen() {
               <Text style={styles.sectionTitle}>المبلغ الإجمالي</Text>
               <TextInput style={styles.input} placeholder="المبلغ الكلي المتفق عليه (ج.س) *" placeholderTextColor={Colors.textMuted} value={contractForm.total_amount} onChangeText={v => setContractForm(f=>({...f,total_amount:v}))} keyboardType="numeric" />
 
-              {contractForm.total_amount ? (
+              {commissionOn && contractForm.total_amount ? (
                 <View style={styles.commissionCalc}>
                   <Text style={styles.commissionCalcText}>
                     العمولة المستحقة ({settings.rental_commission_pct}%):
@@ -756,6 +759,7 @@ export default function RentalScreen() {
                 </View>
               ) : null}
 
+              {commissionOn && <>
               <Text style={styles.sectionTitle}>هل جاء المستأجر عبر التطبيق؟</Text>
               <View style={styles.boolRow}>
                 <TouchableOpacity style={[styles.boolBtn, contractForm.from_app && styles.boolBtnActive]} onPress={() => setContractForm(f=>({...f,from_app:true}))}>
@@ -771,6 +775,7 @@ export default function RentalScreen() {
                   <Text style={styles.exemptText}>معفى من العمولة</Text>
                 </View>
               )}
+              </>}
 
               <Text style={styles.sectionTitle}>شروط إضافية (اختياري)</Text>
               <TextInput style={[styles.input, styles.textArea]} placeholder="أي شروط خاصة متفق عليها بين الطرفين..." placeholderTextColor={Colors.textMuted} value={contractForm.conditions} onChangeText={v => setContractForm(f=>({...f,conditions:v}))} multiline numberOfLines={3} textAlignVertical="top" />
@@ -810,9 +815,9 @@ export default function RentalScreen() {
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
               <View style={styles.contractDoc}>
-                <Text style={styles.contractDocText}>{buildContractText(selectedContract, settings)}</Text>
+                <Text style={styles.contractDocText}>{buildContractText(selectedContract, settings, commissionOn)}</Text>
               </View>
-              {selectedContract.from_app && !selectedContract.commission_paid && selectedContract.status === "active" && (
+              {commissionOn && selectedContract.from_app && selectedContract.commission_amount > 0 && !selectedContract.commission_paid && selectedContract.status === "active" && (
                 <View style={styles.payReminder}>
                   <Ionicons name="alert-circle-outline" size={18} color="#FBBF24" />
                   <Text style={styles.payReminderText}>

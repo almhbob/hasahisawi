@@ -37,6 +37,7 @@ import { isFirebaseAvailable } from "@/lib/firebase/index";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { confirmAction } from "@/lib/xplatform";
 
 
 const ADMIN_PIN_KEY = "admin_pin";
@@ -3119,16 +3120,21 @@ export default function SettingsScreen() {
               <View style={sub_s.rideCard}>
                 <View style={sub_s.rideCardHeader}>
                   <MaterialCommunityIcons name="tag-multiple-outline" size={20} color="#C99A2E" />
-                  <Text style={sub_s.rideCardTitle}>الباقات والاشتراكات للعامة</Text>
+                  <Text style={sub_s.rideCardTitle}>الأسعار والخدمات المدفوعة</Text>
                 </View>
-                <Text style={sub_s.rideCardSub}>مخفية افتراضياً حتى لا تُنفّر مقدّمي الخدمات من الانضمام (المنشآت الطبية، المصانع، الوكالات، المصممون، النقابات). أظهرها متى شئت.</Text>
+                <Text style={sub_s.rideCardSub}>مفتاح واحد لكل ما يُحصّل فيه التطبيق مالاً: باقات مقدّمي الخدمات واشتراكاتهم، قوالب السيرة المدفوعة، أسعار الإعلانات وحجز المساحات، عمولة عقود الإيجار، رسوم بطاقة المتطوع، شارات الباقات في الاتصالات، ومتجر زواجل.{"\n"}وهي مخفية الآن، فيعمل التطبيق مجانياً بالكامل.</Text>
+                <Text style={[sub_s.rideCardSub, { color: "#C99A2E" }]}>تنبيه: قبل إظهارها عدّل إقرار «حالة الجهة التجارية» في Google Play Console إلى «جهة تجارية».</Text>
                 <View style={sub_s.rideToggleRow}>
                   {[false, true].map((v) => {
                     const active = pricingVisible === v;
                     const color = v ? "#2EAD6B" : "#7A8794";
                     return (
                       <TouchableOpacity key={String(v)} style={[sub_s.rideToggleBtn, active && { backgroundColor: color + "25", borderColor: color }]}
-                        onPress={() => { if (!active) togglePricing(); }} activeOpacity={0.8}>
+                        onPress={async () => {
+                          if (active) return;
+                          if (v && !(await confirmAction("إظهار الخدمات المدفوعة", "سيبدأ التطبيق بتحصيل رسوم وعمولات. هل عدّلت إقرار «حالة الجهة التجارية» في Google Play Console إلى «جهة تجارية»؟", "نعم، أظهرها"))) return;
+                          togglePricing();
+                        }} activeOpacity={0.8}>
                         <MaterialCommunityIcons name={v ? "eye-outline" : "eye-off-outline"} size={16} color={active ? color : Colors.textMuted} />
                         <Text style={[sub_s.rideToggleText, active && { color }]}>{v ? "ظاهرة" : "مخفية"}</Text>
                       </TouchableOpacity>

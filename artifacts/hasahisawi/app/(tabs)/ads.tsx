@@ -22,6 +22,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { useAuth } from "@/lib/auth-context";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -109,8 +110,8 @@ const PACKAGES: PackageDef[] = [
 ];
 
 function PackageCard({
-  pkg, pricePerDay, selected, onSelect,
-}: { pkg: PackageDef; pricePerDay: number; selected: boolean; onSelect: () => void }) {
+  pkg, pricePerDay, selected, onSelect, free,
+}: { pkg: PackageDef; pricePerDay: number; selected: boolean; onSelect: () => void; free?: boolean }) {
   const cost = pkg.days * pricePerDay;
   const color = selected ? pkg.badgeColor ?? EMERALD : CARD_BG;
   return (
@@ -131,7 +132,7 @@ function PackageCard({
       <Text style={s.pkgDaysLabel}>يوم</Text>
       <Text style={s.pkgName}>{pkg.label}</Text>
       <Text style={[s.pkgPrice, selected && { color: pkg.badgeColor ?? EMERALD }]}>
-        {cost.toLocaleString()} ج
+        {free ? "مجاناً" : `${cost.toLocaleString()} ج`}
       </Text>
       <View style={s.pkgDivider} />
       {pkg.features.map((f, i) => (
@@ -441,10 +442,12 @@ function MyRequestsTab() {
 // ─── 3-Step Ad Request Modal ──────────────────────────────────────
 
 function AdRequestModal({
-  visible, onClose, onSuccess, pricePerDay, settings,
+  visible, onClose, onSuccess, pricePerDay, settings, free,
 }: {
   visible: boolean; onClose: () => void; onSuccess: (bankInfo?: string) => void;
   pricePerDay: number; settings: AdsSettings;
+  /** الأسعار مخفية من الإدارة: طلب الإعلان مجاني بلا باقات مدفوعة ولا بيانات دفع */
+  free?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -519,14 +522,14 @@ function AdRequestModal({
           description:      description.trim() || undefined,
           type:             adType,
           duration_days:    durationDays,
-          budget:           `${estimatedCost.toLocaleString()} جنيه`,
+          budget:           free ? undefined : `${estimatedCost.toLocaleString()} جنيه`,
           image_url:        uploadedImageUrl,
           website_url:      websiteUrl.trim() || undefined,
         }),
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        reset(); onClose(); onSuccess(settings.ad_bank_info);
+        reset(); onClose(); onSuccess(free ? undefined : settings.ad_bank_info);
       } else {
         const err = await res.json();
         Alert.alert("خطأ", err.error || "حدث خطأ، حاول مرة أخرى");
@@ -727,7 +730,7 @@ function AdRequestModal({
                   </View>
 
                   {/* الباقات */}
-                  <Text style={s.formLabel}>اختر الباقة</Text>
+                  <Text style={s.formLabel}>{free ? "مدة الإعلان" : "اختر الباقة"}</Text>
                   <RtlScrollRow style={{ marginBottom: 14 }}>
                     <View style={s.pkgsSelectRow}>
                       {PACKAGES.map(pkg => (
@@ -737,13 +740,14 @@ function AdRequestModal({
                           pricePerDay={pricePerDay}
                           selected={durationDays === pkg.days}
                           onSelect={() => setDurationDays(pkg.days)}
+                          free={free}
                         />
                       ))}
                     </View>
                   </RtlScrollRow>
 
                   {/* Cost summary */}
-                  <View style={s.costCard}>
+                  {!free && <View style={s.costCard}>
                     <View style={s.costRow}>
                       <Text style={s.costLabel}>التكلفة التقديرية</Text>
                       <Text style={s.costAmount}>{estimatedCost.toLocaleString()} جنيه</Text>
@@ -754,7 +758,7 @@ function AdRequestModal({
                     <Text style={s.costNote}>
                       السعر قابل للتفاوض — ستتواصل معك الإدارة لإتمام الدفع
                     </Text>
-                  </View>
+                  </View>}
 
                   {/* Upload progress */}
                   {uploadProgress !== null && (
@@ -795,7 +799,7 @@ function AdRequestModal({
 
 // ─── Success Sheet ────────────────────────────────────────────────
 
-function SuccessSheet({ visible, bankInfo, onClose }: { visible: boolean; bankInfo?: string; onClose: () => void }) {
+function SuccessSheet({ visible, bankInfo, onClose, free }: { visible: boolean; bankInfo?: string; onClose: () => void; free?: boolean }) {
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -809,7 +813,7 @@ function SuccessSheet({ visible, bankInfo, onClose }: { visible: boolean; bankIn
           </View>
           <Text style={s.successTitle}>تم استلام طلبك بنجاح!</Text>
           <Text style={s.successSub}>
-            ستتواصل معك الإدارة خلال 24 ساعة لتأكيد الحجز وإتمام الدفع
+            {free ? "ستراجع الإدارة إعلانك خلال 24 ساعة وتتواصل معك عند الحاجة" : "ستتواصل معك الإدارة خلال 24 ساعة لتأكيد الحجز وإتمام الدفع"}
           </Text>
 
           {bankInfo ? (
@@ -824,12 +828,16 @@ function SuccessSheet({ visible, bankInfo, onClose }: { visible: boolean; bankIn
 
           <View style={s.nextStepsBox}>
             <Text style={s.nextStepsTitle}>الخطوات التالية</Text>
-            {[
+            {(free ? [
+              "انتظر مراجعة الإدارة (24 ساعة)",
+              "قد يتصل بك المسؤول لتأكيد التفاصيل",
+              "يُنشر إعلانك بعد الموافقة",
+            ] : [
               "انتظر مراجعة الإدارة (24 ساعة)",
               "سيتصل بك المسؤول لتأكيد التفاصيل",
               "أتمِّ الدفع وفق المعلومات المُرسلة",
               "ينشر إعلانك فوراً بعد التأكيد",
-            ].map((step, i) => (
+            ]).map((step, i) => (
               <View key={i} style={s.nextStepRow}>
                 <View style={s.nextStepNum}>
                   <Text style={s.nextStepNumText}>{i + 1}</Text>
@@ -863,6 +871,9 @@ export default function AdsScreen() {
   const [lastBankInfo, setLastBankInfo] = useState<string | undefined>();
 
   const pricePerDay = parseInt(settings.ad_price_per_day ?? "500") || 500;
+  const showPricing = usePricingVisible();
+  // تبويب «احجز مساحة» يعرض أسعار الإعلان؛ يُخفى مع مفتاح الأسعار
+  useEffect(() => { if (!showPricing && activeTab === "spaces") setActiveTab("active"); }, [showPricing, activeTab]);
 
   const loadData = useCallback(async () => {
     try {
@@ -883,7 +894,7 @@ export default function AdsScreen() {
     { id: "active", label: "الإعلانات",   icon: "megaphone-outline" },
     { id: "spaces", label: "احجز مساحة", icon: "grid-outline"      },
     { id: "mine",   label: "طلباتي",      icon: "time-outline"      },
-  ];
+  ].filter(t => showPricing || t.id !== "spaces") as typeof TABS;
 
   return (
     <View style={s.container}>
@@ -919,7 +930,7 @@ export default function AdsScreen() {
       </ModernHeader>
 
       {/* Tab Content */}
-      {activeTab === "spaces" && (
+      {activeTab === "spaces" && showPricing && (
         <SpacesTab pricePerDay={pricePerDay} settings={settings} onBook={() => setShowModal(true)} />
       )}
 
@@ -965,6 +976,7 @@ export default function AdsScreen() {
         onClose={() => setShowModal(false)}
         pricePerDay={pricePerDay}
         settings={settings}
+        free={!showPricing}
         onSuccess={(bankInfo) => {
           setLastBankInfo(bankInfo);
           setShowSuccess(true);
@@ -975,6 +987,7 @@ export default function AdsScreen() {
       <SuccessSheet
         visible={showSuccess}
         bankInfo={lastBankInfo}
+        free={!showPricing}
         onClose={() => setShowSuccess(false)}
       />
     </View>
