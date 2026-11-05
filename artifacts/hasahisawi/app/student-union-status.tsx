@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Image, useWindowDimensions,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Image, useWindowDimensions, Modal, Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -39,67 +39,94 @@ const APP_LOGO = require("@/assets/images/logo.png");
 const FLAME = ["#7F1D1D", "#B91C1C", "#EA580C"] as const;
 const GOLD = "#F5C451";
 
+// بطاقة طولية (عمودية) بنسبة بطاقة الهوية ID-1 مقلوبة (1 : 1.586) — تُحمل كبطاقة معلّقة وتُفتح بملء الشاشة
 function StudentUnionCard({ card, avatar, width }: { card: SuCard; avatar?: string | null; width: number }) {
-  const h = Math.round(width / 1.586);
-  const k = width / 360;
+  const h = Math.round(width * 1.586);
+  const k = width / 300;
   const initials = card.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join(" ");
+  const headH = h * 0.3;
   return (
-    <View style={[cd.card, { width, height: h }]}>
-      <LinearGradient colors={FLAME} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
-      {/* علامة مائية: شعار الاتحاد */}
-      <Image source={UNION_LOGO} style={[cd.watermark, { width: h * 1.05, height: h * 1.05, left: -h * 0.28, top: h * 0.05 }]} />
-      <View style={[cd.goldStripe, { top: h * 0.27 }]} />
+    <View style={[cd.card, { width, height: h, borderRadius: 20 * k }]}>
+      {/* خلفية بيضاء مع ترويسة بلون اللهب */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFBF5" }]} />
+      <LinearGradient colors={FLAME} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, height: headH }} />
+      <Image source={UNION_LOGO} style={{ position: "absolute", width: h * 0.62, height: h * 0.62, left: (width - h * 0.62) / 2, top: h * 0.33, opacity: 0.06 }} />
+      <View style={{ position: "absolute", top: headH, left: 0, right: 0, height: 3 * k, backgroundColor: GOLD }} />
 
-      {/* الترويسة: شعار الاتحاد يميناً، الاسم الرسمي في الوسط، شعار حصاحيصاوي يساراً */}
-      <View style={[cd.head, { paddingHorizontal: 12 * k, paddingTop: 9 * k }]}>
-        <Image source={UNION_LOGO} style={{ width: 44 * k, height: 44 * k }} accessibilityLabel="شعار الاتحاد العام للطلاب السودانيين" />
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={[cd.org, { fontSize: 11.5 * k }]} numberOfLines={1}>الاتحاد العام للطلاب السودانيين</Text>
-          <Text style={[cd.orgSub, { fontSize: 10 * k }]} numberOfLines={1}>ولاية الجزيرة · محلية الحصاحيصا</Text>
-          <Text style={[cd.orgEn, { fontSize: 7.5 * k }]} numberOfLines={1}>GENERAL STUDENTS' UNION · GAZIRA STATE</Text>
+      {/* فتحة الحزام */}
+      <View style={[cd.slot, { top: 10 * k, width: 46 * k, height: 8 * k, borderRadius: 4 * k, left: (width - 46 * k) / 2 }]} />
+
+      {/* الترويسة */}
+      <View style={{ height: headH, paddingTop: 24 * k, paddingHorizontal: 12 * k, alignItems: "center" }}>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 * k }}>
+          <Image source={UNION_LOGO} style={{ width: 46 * k, height: 46 * k }} accessibilityLabel="شعار الاتحاد العام للطلاب السودانيين" />
+          <View style={{ alignItems: "center" }}>
+            <Text style={[cd.org, { fontSize: 12.5 * k }]} numberOfLines={1}>الاتحاد العام للطلاب السودانيين</Text>
+            <Text style={[cd.orgSub, { fontSize: 10.5 * k }]} numberOfLines={1}>ولاية الجزيرة · محلية الحصاحيصا</Text>
+          </View>
+          <View style={[cd.appLogo, { width: 34 * k, height: 34 * k, borderRadius: 9 * k }]}>
+            <Image source={APP_LOGO} style={{ width: 28 * k, height: 28 * k }} resizeMode="contain" accessibilityLabel="شعار حصاحيصاوي" />
+          </View>
         </View>
-        <View style={[cd.appLogo, { width: 40 * k, height: 40 * k, borderRadius: 10 * k }]}>
-          <Image source={APP_LOGO} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" accessibilityLabel="شعار حصاحيصاوي" />
+        <Text style={[cd.orgEn, { fontSize: 7.5 * k, marginTop: 3 * k }]} numberOfLines={1}>GENERAL STUDENTS' UNION · GAZIRA STATE</Text>
+      </View>
+
+      {/* الصورة تتوسط حدّ الترويسة */}
+      <View style={{ alignItems: "center", marginTop: -46 * k }}>
+        <View style={[cd.photo, { width: 92 * k, height: 108 * k, borderRadius: 14 * k, borderWidth: 3 * k }]}>
+          {avatar ? <Image source={{ uri: avatar }} style={{ width: "100%", height: "100%" }} /> : <Text style={[cd.initials, { fontSize: 28 * k }]}>{initials}</Text>}
         </View>
       </View>
 
       {/* الهوية */}
-      <View style={[cd.body, { paddingHorizontal: 12 * k, gap: 10 * k }]}>
-        <View style={[cd.photo, { width: 62 * k, height: 76 * k, borderRadius: 10 * k }]}>
-          {avatar ? <Image source={{ uri: avatar }} style={{ width: "100%", height: "100%" }} /> : <Text style={[cd.initials, { fontSize: 20 * k }]}>{initials}</Text>}
-        </View>
-        <View style={{ flex: 1, gap: 1 }}>
-          <Text style={[cd.kind, { fontSize: 9.5 * k }]}>بطاقة عضوية رسمية · MEMBERSHIP CARD</Text>
-          <Text style={[cd.name, { fontSize: 15.5 * k, lineHeight: 24 * k }]} numberOfLines={1}>{card.full_name}</Text>
-          <Text style={[cd.line, { fontSize: 11 * k }]} numberOfLines={1}>{card.institution}</Text>
-          <Text style={[cd.line, { fontSize: 11 * k }]} numberOfLines={1}>{card.major}{card.year ? ` · ${card.year}` : ""}</Text>
-        </View>
-        <View style={{ alignItems: "center", gap: 4 * k }}>
-          <View style={[cd.qrBox, { padding: 4 * k, borderRadius: 8 * k }]}>
-            <QRCode value={card.verify_url} size={Math.round(58 * k)} color="#450A0A" backgroundColor="#FFFFFF" ecl="M" />
-          </View>
-          <View style={[cd.state, { backgroundColor: card.valid ? "#16A34A" : "#D97706" }]}>
-            <Text style={[cd.stateText, { fontSize: 9 * k }]}>{card.valid ? "سارية · VALID" : "منتهية · EXPIRED"}</Text>
-          </View>
+      <View style={{ alignItems: "center", paddingHorizontal: 14 * k, marginTop: 8 * k }}>
+        <Text style={[cd.kind, { fontSize: 9.5 * k }]}>بطاقة عضوية رسمية · MEMBERSHIP CARD</Text>
+        <Text style={[cd.name, { fontSize: 18 * k, lineHeight: 28 * k }]} numberOfLines={2}>{card.full_name}</Text>
+        <Text style={[cd.line, { fontSize: 12 * k }]} numberOfLines={1}>{card.institution}</Text>
+        <Text style={[cd.line, { fontSize: 11.5 * k }]} numberOfLines={1}>{card.major}{card.year ? ` · ${card.year}` : ""}</Text>
+      </View>
+
+      {/* رمز التحقق */}
+      <View style={{ alignItems: "center", gap: 5 * k, marginTop: 10 * k }}>
+        <View style={[cd.qrBox, { padding: 6 * k, borderRadius: 10 * k }]}>
+          <QRCode value={card.verify_url} size={Math.round(86 * k)} color="#450A0A" backgroundColor="#FFFFFF" ecl="M" />
         </View>
       </View>
 
       {/* الأرقام */}
-      <View style={[cd.foot, { paddingHorizontal: 12 * k, paddingBottom: 8 * k }]}>
+      <View style={[cd.foot, { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 14 * k, paddingVertical: 10 * k }]}>
+        <LinearGradient colors={FLAME} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={[cd.k, { fontSize: 8.5 * k }]}>رقم العضوية · Member No.</Text>
-          <Text style={[cd.v, { fontSize: 13 * k }]}>{card.member_no}</Text>
+          <Text style={[cd.k, { fontSize: 8 * k }]}>رقم العضوية · No.</Text>
+          <Text style={[cd.v, { fontSize: 12 * k }]}>{card.member_no}</Text>
         </View>
-        <View style={{ alignItems: "center" }}>
-          <Text style={[cd.k, { fontSize: 8.5 * k }]}>الإصدار · Issued</Text>
-          <Text style={[cd.vSmall, { fontSize: 11 * k }]}>{fmtDate(card.issued_at)}</Text>
+        <View style={[cd.state, { backgroundColor: card.valid ? "#16A34A" : "#D97706", paddingHorizontal: 8 * k, paddingVertical: 2 * k, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)" }]}>
+          <Text style={[cd.stateText, { fontSize: 9 * k }]}>{card.valid ? "سارية · VALID" : "منتهية · EXPIRED"}</Text>
         </View>
         <View style={{ alignItems: "flex-start" }}>
-          <Text style={[cd.k, { fontSize: 8.5 * k }]}>صالحة حتى · Valid until</Text>
+          <Text style={[cd.k, { fontSize: 8 * k }]}>صالحة حتى · Valid until</Text>
           <Text style={[cd.vSmall, { fontSize: 11 * k }]}>{fmtDate(card.expires_at)}</Text>
         </View>
       </View>
     </View>
+  );
+}
+
+/** عرض البطاقة بملء الشاشة (للإبراز عند البوابة أو للمسح) */
+function CardFullscreen({ card, avatar, visible, onClose }: { card: SuCard; avatar?: string | null; visible: boolean; onClose: () => void }) {
+  const { width: W, height: H } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const w = Math.min(W - 32, (H - insets.top - insets.bottom - 110) / 1.586, 520);
+  return (
+    <Modal visible={visible} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={[cd.full, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]} onPress={onClose} accessibilityLabel="إغلاق العرض بملء الشاشة">
+        <StudentUnionCard card={card} avatar={avatar} width={Math.max(220, w)} />
+        <View style={cd.fullHint}>
+          <Ionicons name="close-circle-outline" size={18} color="rgba(255,255,255,0.8)" />
+          <Text style={cd.fullHintT}>اضغط في أي مكان للإغلاق</Text>
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -127,7 +154,8 @@ export default function StudentUnionStatusScreen() {
   const insets = useSafeAreaInsets();
   const { token, isGuest, user } = useAuth();
   const { width: winW } = useWindowDimensions();
-  const cardW = Math.min(winW - 32, 420);
+  const cardW = Math.min(winW - 64, 330);
+  const [fullOpen, setFullOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [app, setApp] = useState<SuApplication | null>(null);
@@ -213,19 +241,26 @@ export default function StudentUnionStatusScreen() {
           <>
             {card && (
               <Animated.View entering={FadeInDown.springify()} style={{ gap: 10 }}>
-                <StudentUnionCard card={card} avatar={(user as any)?.avatar_url ?? (user as any)?.avatarUrl ?? null} width={cardW} />
+                <Pressable onPress={() => setFullOpen(true)} accessibilityRole="button" accessibilityLabel="عرض البطاقة بملء الشاشة">
+                  <StudentUnionCard card={card} avatar={(user as any)?.avatar_url ?? (user as any)?.avatarUrl ?? null} width={cardW} />
+                </Pressable>
+                <CardFullscreen card={card} avatar={(user as any)?.avatar_url ?? (user as any)?.avatarUrl ?? null} visible={fullOpen} onClose={() => setFullOpen(false)} />
                 <View style={s.actions}>
+                  <TouchableOpacity style={s.actBtn} onPress={() => setFullOpen(true)}>
+                    <Ionicons name="expand-outline" size={18} color={UC} />
+                    <Text style={s.actText}>تكبير</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={s.actBtn} onPress={share}>
                     <Ionicons name="share-social-outline" size={18} color={UC} />
                     <Text style={s.actText}>مشاركة</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.actBtn} onPress={copyNo}>
                     <Ionicons name="copy-outline" size={18} color={UC} />
-                    <Text style={s.actText}>نسخ الرقم</Text>
+                    <Text style={s.actText}>نسخ</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.actBtn} onPress={() => openExternal(card.verify_url)}>
                     <Ionicons name="shield-checkmark-outline" size={18} color={UC} />
-                    <Text style={s.actText}>صفحة التحقق</Text>
+                    <Text style={s.actText}>التحقق</Text>
                   </TouchableOpacity>
                 </View>
               </Animated.View>
@@ -277,7 +312,11 @@ export default function StudentUnionStatusScreen() {
 }
 
 const cd = StyleSheet.create({
-  card: { borderRadius: 18, overflow: "hidden", alignSelf: "center", justifyContent: "space-between",
+  slot: { position: "absolute", backgroundColor: "rgba(0,0,0,0.28)", zIndex: 2 },
+  full: { flex: 1, backgroundColor: "#0B0505", alignItems: "center", justifyContent: "center", gap: 14 },
+  fullHint: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+  fullHintT: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "rgba(255,255,255,0.8)" },
+  card: { overflow: "hidden", alignSelf: "center",
     shadowColor: "#7F1D1D", shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
   watermark: { position: "absolute", opacity: 0.1 },
   goldStripe: { position: "absolute", left: 0, right: 0, height: 2, backgroundColor: GOLD, opacity: 0.85 },
@@ -287,12 +326,12 @@ const cd = StyleSheet.create({
   orgEn: { fontFamily: "Cairo_600SemiBold", color: "rgba(255,255,255,0.8)", letterSpacing: 0.6, textAlign: "center" },
   appLogo: { backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   body: { flexDirection: "row-reverse", alignItems: "center" },
-  photo: { borderWidth: 2, borderColor: GOLD, backgroundColor: "rgba(255,255,255,0.15)", overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  photo: { borderColor: "#fff", backgroundColor: "#B91C1C", overflow: "hidden", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   initials: { fontFamily: "Cairo_700Bold", color: "#fff" },
-  kind: { fontFamily: "Cairo_700Bold", color: GOLD, textAlign: "right" },
-  name: { fontFamily: "Cairo_700Bold", color: "#fff", textAlign: "right" },
-  line: { fontFamily: "Cairo_400Regular", color: "rgba(255,255,255,0.9)", textAlign: "right" },
-  qrBox: { backgroundColor: "#fff" },
+  kind: { fontFamily: "Cairo_700Bold", color: "#B45309", textAlign: "center" },
+  name: { fontFamily: "Cairo_700Bold", color: "#3B0A0A", textAlign: "center" },
+  line: { fontFamily: "Cairo_600SemiBold", color: "#5B3A2E", textAlign: "center" },
+  qrBox: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#F1D9B5" },
   state: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
   stateText: { fontFamily: "Cairo_700Bold", color: "#fff" },
   foot: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-end" },
