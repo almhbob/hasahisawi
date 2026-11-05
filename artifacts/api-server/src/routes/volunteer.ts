@@ -120,15 +120,18 @@ export async function canManageSection(u: SessionUser | null, section: string): 
 
 async function settings() {
   await ensureVolunteerDb();
-  const r = await query(`SELECT key, value FROM admin_settings WHERE key LIKE 'volunteer_card_%'`);
+  const r = await query(`SELECT key, value FROM admin_settings WHERE key LIKE 'volunteer_card_%' OR key = 'pricing_visible'`);
   const m: Record<string, string> = Object.fromEntries(r.rows.map((x: any) => [x.key, x.value]));
   const price = Math.max(0, Number(m.volunteer_card_price) || 0);
+  // المفتاح العام «إظهار الأسعار والباقات» يتقدّم: إن كان مطفأً تصبح البطاقة مجانية ولا يظهر أي سعر
   const visible = m.volunteer_card_price_visible === "true";
+  const globalPricing = m.pricing_visible === "true";
   return {
     price,
     priceVisible: visible,
-    /** الرسوم مطلوبة فقط إذا أظهرتها الإدارة وكانت أكبر من صفر */
-    feeRequired: visible && price > 0,
+    globalPricing,
+    /** الرسوم مطلوبة فقط إذا أظهرتها الإدارة (هنا وفي المفتاح العام) وكانت أكبر من صفر */
+    feeRequired: visible && globalPricing && price > 0,
     months: Math.min(60, Math.max(1, Number(m.volunteer_card_months) || 12)),
     paymentInfo: m.volunteer_card_payment_info || "",
     currency: m.volunteer_card_currency || "جنيه",
@@ -358,7 +361,7 @@ router.get("/volunteer/me", async (req: Request, res: Response) => {
     const cfg = await settings();
     return res.json({
       ...sum, level: levelFor(sum.points), history, myTasks, card,
-      cardConfig: { feeRequired: cfg.feeRequired, price: cfg.priceVisible ? cfg.price : null, currency: cfg.currency, months: cfg.months, paymentInfo: cfg.feeRequired ? cfg.paymentInfo : "" },
+      cardConfig: { feeRequired: cfg.feeRequired, price: cfg.feeRequired ? cfg.price : null, currency: cfg.currency, months: cfg.months, paymentInfo: cfg.feeRequired ? cfg.paymentInfo : "" },
       canManage: await canManageSection(me, "volunteer"),
     });
   } catch (err) { return fail(res, err, "me", "تعذّر التحميل"); }

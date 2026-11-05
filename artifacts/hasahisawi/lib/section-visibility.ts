@@ -12,6 +12,9 @@ const ROUTE_SECTIONS = new Set([
   "events", "ads", "contests", "volunteer", "red-crescent", "ithraa", "press", "contractors",
 ]);
 
+/** أقسام يبيع فيها التطبيق نفسه سلعاً أو خدمات مدفوعة: تُخفى ما دام مفتاح «إظهار الأسعار والباقات» مطفأً. */
+export const PAID_SECTIONS = new Set(["zawajil"]);
+
 /** "/(tabs)/market" أو "/market" → "market" إن كان قسماً تديره الإدارة. */
 export function sectionKeyForRoute(route?: string | null): string | null {
   if (!route) return null;
@@ -21,12 +24,14 @@ export function sectionKeyForRoute(route?: string | null): string | null {
 
 /** يُرجع دالة: هل هذا المسار مخفي عن المستخدم الحالي؟ (الطاقم لا يُخفى عنه شيء) */
 export function useIsRouteHidden(): (route?: string | null) => boolean {
-  const { sections } = useFeatureFlags();
+  const { sections, pricing_visible } = useFeatureFlags();
   const { user } = useAuth();
   const staff = user?.role === "admin" || user?.role === "moderator";
   return useCallback((route?: string | null) => {
     if (staff) return false;
     const key = sectionKeyForRoute(route);
-    return !!key && sections[key]?.visible === false;
-  }, [sections, staff]);
+    if (!key) return false;
+    if (!pricing_visible && PAID_SECTIONS.has(key)) return true;
+    return sections[key]?.visible === false;
+  }, [sections, staff, pricing_visible]);
 }

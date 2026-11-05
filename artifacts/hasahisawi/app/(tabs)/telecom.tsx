@@ -16,6 +16,7 @@ import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import { usePricingVisible } from "@/lib/feature-flags-context";
 
 
 const { width: W } = Dimensions.get("window");
@@ -178,8 +179,10 @@ function EventCard({ event, index }: { event: TcEvent; index: number }) {
 
 // ── CompanyCard ───────────────────────────────────────────────────────────────
 function CompanyCard({ company, onPress, index }: { company: Company; onPress: () => void; index: number }) {
-  const isPremium  = company.package_type === "premium";
-  const isStandard = company.package_type === "standard";
+  // شارات الباقات المدفوعة تظهر فقط إذا أظهرت الإدارة الأسعار والباقات
+  const showPkg    = usePricingVisible();
+  const isPremium  = showPkg && company.package_type === "premium";
+  const isStandard = showPkg && company.package_type === "standard";
   return (
     <Animated.View entering={FadeInDown.delay(80 + index * 80).springify().damping(16)}>
       <TouchableOpacity style={[styles.companyCard, isPremium && styles.companyCardPremium]} onPress={onPress} activeOpacity={0.85}>

@@ -15680,9 +15680,11 @@ router.post("/rentals/:id/contract", async (req: Request, res: Response) => {
     const { renter_name, renter_phone, start_date, end_date, total_amount, from_app, conditions } = req.body;
     if (!renter_name || !renter_phone || !start_date || !end_date || !total_amount)
       return res.status(400).json({ error: "الحقول الإلزامية ناقصة" });
-    const settingsR = await query(`SELECT key,value FROM admin_settings WHERE key IN ('rental_commission_pct')`);
+    const settingsR = await query(`SELECT key,value FROM admin_settings WHERE key IN ('rental_commission_pct','pricing_visible')`);
     const pct = parseFloat(settingsR.rows.find((r:any)=>r.key==='rental_commission_pct')?.value || "5");
-    const commission = from_app !== false ? Math.round(Number(total_amount) * pct / 100 * 100) / 100 : 0;
+    // لا عمولة للمنصة ما دامت الإدارة قد أخفت الأسعار والرسوم (مفتاح «إظهار الأسعار والباقات»)
+    const commissionOn = settingsR.rows.find((r:any)=>r.key==='pricing_visible')?.value === "true";
+    const commission = commissionOn && from_app !== false ? Math.round(Number(total_amount) * pct / 100 * 100) / 100 : 0;
     const r = await query(
       `INSERT INTO rental_contracts (listing_id,owner_user_id,renter_user_id,owner_name,owner_phone,renter_name,renter_phone,listing_title,rental_type,neighborhood,address,start_date,end_date,total_amount,commission_amount,from_app,conditions)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
