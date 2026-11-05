@@ -9,6 +9,10 @@ on:
         description: "Track (production / beta / alpha / internal)"
         required: false
         default: "production"
+      rollout:
+        description: "Rollout percent of users (1-100). Below 100 = staged rollout you can raise later in Play Console"
+        required: false
+        default: "20"
   push:
     branches: [master, main]
     paths:
@@ -59,6 +63,7 @@ jobs:
         run: |
           set -u
           TRACK="${{ github.event.inputs.track }}"; TRACK="${TRACK:-production}"
+          PCT="${{ github.event.inputs.rollout }}"; PCT="${PCT:-100}"; PCT=$(echo "$PCT" | tr -dc '0-9'); PCT="${PCT:-100}"
           die() { echo "::error::$1 — $(echo "${2:-}" | jq -r '.error.message // .error // .' 2>/dev/null | head -c 500)"; exit 1; }
           OIDC=$(curl -sS --retry 3 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-play" | jq -r .value)
           echo "::add-mask::$OIDC"
@@ -86,8 +91,9 @@ jobs:
           echo "Bundle versionCode $VC"
 
           VERSION=$(echo "$TAG" | grep -o 'v[0-9.]*' | head -1 | tr -d v)
-          BODY=$(jq -n --arg t "$TRACK" --arg n "${VERSION:-release} ($VC)" --arg vc "$VC" \
-                 '{track:$t, releases:[{name:$n, versionCodes:[$vc], status:"completed", releaseNotes:[{language:"ar", text:"تحسينات وإصلاحات: المراسلة والاتصال داخل التطبيق، إرسال الصور، الدخول عبر Google والبصمة، وروابط الانضمام للجهات."}]}]}')
+          BODY=$(jq -n --arg t "$TRACK" --arg n "${VERSION:-release} ($VC)" --arg vc "$VC" --arg pct "$PCT" \
+                 '{track:$t, releases:[({name:$n, versionCodes:[$vc], releaseNotes:[{language:"ar", text:"المكالمات الواردة تظهر بملء الشاشة حتى والتطبيق مغلق، قوالب سيرة ذاتية جديدة بألوان قابلة للتعديل، وتطوير المسابقات والسفريات والمحامين."}]}
+                   + (if ($pct|tonumber) < 100 then {status:"inProgress", userFraction:(($pct|tonumber)/100)} else {status:"completed"} end))]}')
           R=$(curl -sS --retry 3 -X PUT -H "$AUTH" -H "Content-Type: application/json" -d "$BODY" "$BASE/edits/$EDIT/tracks/$TRACK")
           if ! echo "$R" | jq -e '.releases' >/dev/null 2>&1; then
             BODY=$(echo "$BODY" | jq 'del(.releases[0].releaseNotes)')
@@ -96,4 +102,4 @@ jobs:
           fi
           R=$(curl -sS --retry 3 -X POST -H "$AUTH" "$BASE/edits/$EDIT:commit")
           echo "$R" | jq -e '.id' >/dev/null 2>&1 || die "Commit failed" "$R"
-          echo "::notice::Published ${VERSION} ($VC) on $TRACK — rolled out (subject to Google review)"
+          echo "::notice::Published ${VERSION} ($VC) on $TRACK — rolled out to ${PCT}% (subject to Google review)"
