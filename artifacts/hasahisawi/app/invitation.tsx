@@ -80,6 +80,19 @@ export default function InvitationScreen() {
               messageLines={12}
             />
 
+            {/* ما ينتظر المدعو في القسم — يُخفى إن كانت الرسالة تتضمّنه */}
+            {inv.section.benefits?.length && !(inv.message || "").includes(inv.section.benefits[0]) ? (
+              <View style={s.steps}>
+                <Text style={s.benT}>ما ينتظرك في {inv.section.title}</Text>
+                {inv.section.benefits.map((b, i) => (
+                  <View key={i} style={s.step}>
+                    <Ionicons name="checkmark-circle" size={17} color={inv.section!.color} />
+                    <Text style={s.stepT}>{b}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
             {inv.valid ? (
               <>
                 <View style={s.steps}>
@@ -140,6 +153,7 @@ const s = StyleSheet.create({
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   steps: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 12, gap: 10, borderWidth: 1, borderColor: Colors.divider },
   step: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  benT: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right" },
   stepN: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   stepNT: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#fff" },
   stepT: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },

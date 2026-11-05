@@ -38,6 +38,7 @@ export default function AdminInvitesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
+  const [group, setGroup] = useState<string>("all");
 
   // ── لوحة القسم ──
   const [sheet, setSheet] = useState<SectionCatalogItem | null>(null);
@@ -134,10 +135,22 @@ export default function AdminInvitesScreen() {
     } catch (e: any) { notify("تعذّر التنفيذ", e?.message || ""); }
   };
 
+  // التصنيفات بترتيب ظهورها في الكتالوج
+  const groups = useMemo(() => {
+    const seen = new Map<string, { key: string; title: string; n: number }>();
+    for (const x of sections) {
+      const k = x.group || "other";
+      const g = seen.get(k) || { key: k, title: x.group_title || "أخرى", n: 0 };
+      g.n++; seen.set(k, g);
+    }
+    return [...seen.values()];
+  }, [sections]);
   const filtered = useMemo(() => {
     const t = q.trim();
-    return t ? sections.filter((x) => x.title.includes(t) || x.tagline.includes(t)) : sections;
-  }, [sections, q]);
+    return sections.filter((x) =>
+      (group === "all" || (x.group || "other") === group) &&
+      (!t || x.title.includes(t) || x.tagline.includes(t) || (x.benefits || []).some((b) => b.includes(t))));
+  }, [sections, q, group]);
   const cols = width >= 900 ? 4 : width >= 600 ? 3 : 2;
   const tileW = `${100 / cols}%` as const;
   const rate = totals.sent ? Math.round((totals.accepts / Math.max(1, totals.sent)) * 100) : 0;
@@ -188,6 +201,20 @@ export default function AdminInvitesScreen() {
           <Ionicons name="search" size={18} color={Colors.textMuted} />
           <TextInput value={q} onChangeText={setQ} placeholder="ابحث عن قسم…" placeholderTextColor={Colors.textMuted} style={s.searchIn} textAlign="right" />
         </View>
+
+        {groups.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, paddingVertical: 2 }}>
+            {[{ key: "all", title: "الكل", n: sections.length }, ...groups].map((g) => {
+              const on = group === g.key;
+              return (
+                <Pressable key={g.key} onPress={() => setGroup(g.key)} style={[s.gChip, on && s.gChipOn]} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                  <Text style={[s.gChipT, on && s.gChipTOn]}>{g.title}</Text>
+                  <Text style={[s.gChipN, on && s.gChipTOn]}>{g.n}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         <Text style={s.h2}>الأقسام ({filtered.length})</Text>
         {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 20 }} /> : (
@@ -429,6 +456,11 @@ const s = StyleSheet.create({
   search: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 14, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.divider },
   searchIn: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, paddingVertical: 10 },
   h2: { fontFamily: "Cairo_700Bold", fontSize: 15.5, color: Colors.textPrimary, textAlign: "right", marginTop: 4 },
+  gChip: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 999, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
+  gChipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  gChipT: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary },
+  gChipN: { fontFamily: "Cairo_500Medium", fontSize: 11.5, color: Colors.textMuted },
+  gChipTOn: { color: "#fff" },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", marginHorizontal: -5 },
   tile: { backgroundColor: Colors.cardBg, borderRadius: 18, padding: 12, paddingTop: 14, borderWidth: 1, borderColor: Colors.divider, overflow: "hidden", minHeight: 186 },
   tileBar: { position: "absolute", top: 0, right: 0, left: 0, height: 4 },
