@@ -5,6 +5,10 @@ import { getApiUrl } from "@/lib/query-client";
 export type SectionInfo = {
   key: string; title: string; tagline: string; icon: string; emoji: string; color: string;
   route: string; params: Record<string, string>;
+  /** تصنيف القسم لتجميعه في لوحة الدعوات */
+  group?: string; group_title?: string;
+  /** فوائد ملموسة يجدها المنضم في القسم */
+  benefits?: string[];
 };
 export type SectionCounts = { sent: number; opens: number; accepts: number; active: number };
 export type SectionCatalogItem = SectionInfo & { template_person: string; template_org: string; counts: SectionCounts };

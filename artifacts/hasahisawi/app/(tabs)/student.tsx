@@ -2764,7 +2764,8 @@ export default function StudentScreen() {
       {activeTab === "union" && (
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInDown.springify()}>
-            <LinearGradient colors={["#1F5C8A18", Colors.cardBg]} style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:Colors.radius.lg, marginBottom:20, borderWidth:1, borderColor:"#1F5C8A30", ...Colors.shadow.card }}>
+            {/* خلفية مصمتة: الخلفية الشفافة مع الظل تُظهر مستطيلاً رمادياً على أندرويد */}
+            <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:12, padding:16, borderRadius:Colors.radius.lg, marginBottom:20, borderWidth:1, borderColor:"#1F5C8A30", backgroundColor:Colors.cardBg, ...Colors.shadow.card }}>
               <View style={{ width:52, height:52, borderRadius:Colors.radius.md, backgroundColor:"#1F5C8A20", alignItems:"center", justifyContent:"center" }}>
                 <Image source={UNION_LOGO} style={{ width: 46, height: 46 }} accessibilityLabel="شعار الاتحاد العام للطلاب السودانيين" />
               </View>
@@ -2772,7 +2773,7 @@ export default function StudentScreen() {
                 <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary, textAlign:"right" }}>إتحاد الطلاب</Text>
                 <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textSecondary, textAlign:"right", lineHeight:18 }}>صوت الطالب في الحصاحيصا — انضم وتفاعل وشارك</Text>
               </View>
-            </LinearGradient>
+            </View>
           </Animated.View>
 
           {/* أخبار وإعلانات الاتحاد */}
@@ -2803,11 +2804,11 @@ export default function StudentScreen() {
             { title:"انضم للإتحاد",        sub:"قدّم طلب عضوية وكن جزءاً من الحركة الطلابية",  icon:"person-add-outline",     color:"#1F5C8A", route:"/student-union-join" },
             { title:"عضويتي وبطاقتي",      sub:"تابع حالة طلبك واعرض بطاقة العضوية الرقمية",     icon:"id-card-outline",         color:"#0E7490", route:"/student-union-status" },
             { title:"تواصل مع الإتحاد",   sub:"راسل الإتحاد وتابع ردوده على رسائلك",            icon:"chatbubble-ellipses-outline", color:"#3B82F6", route:"/student-union-contact" },
-            { title:"إدارة الإتحاد",       sub:"بوابة مدير الإتحاد: الطلبات والرسائل والأخبار", icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/union-manager-portal" },
+            { title:"إدارة الإتحاد",       sub:"الطلبات والرسائل والأخبار — ادخل بحسابك في التطبيق", icon:"shield-checkmark-outline", color:"#1F5C8A", route:"/union-manager-portal" },
           ].map((item, i) => (
             <Animated.View key={item.route} entering={FadeInDown.delay(i*80).springify()}>
               <AnimatedPress onPress={() => { if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); nav.push(item.route as any); }}>
-                <LinearGradient colors={[item.color+"18", item.color+"06"]} style={{ borderRadius:Colors.radius.xl, borderWidth:1, borderColor:item.color+"40", padding:18, flexDirection:"row-reverse", alignItems:"center", gap:14, marginBottom:14, ...Colors.shadow.card }}>
+                <View style={{ borderRadius:Colors.radius.xl, borderWidth:1, borderColor:item.color+"33", backgroundColor:Colors.cardBg, padding:16, flexDirection:"row-reverse", alignItems:"center", gap:14, marginBottom:12, ...Colors.shadow.card }}>
                   <View style={{ width:54, height:54, borderRadius:Colors.radius.md, backgroundColor:item.color+"25", alignItems:"center", justifyContent:"center" }}>
                     <Ionicons name={item.icon as any} size={28} color={item.color} />
                   </View>
@@ -2816,7 +2817,7 @@ export default function StudentScreen() {
                     <Text style={{ fontFamily:"Cairo_400Regular", fontSize: 13, color:Colors.textMuted, textAlign:"right", marginTop:3 }}>{item.sub}</Text>
                   </View>
                   <Ionicons name="chevron-back" size={20} color={item.color} />
-                </LinearGradient>
+                </View>
               </AnimatedPress>
             </Animated.View>
           ))}

@@ -19,48 +19,193 @@ const PLAY_URL = "https://play.google.com/store/apps/details?id=com.almhbob.hasa
 const INVITER = "إدارة حصاحيصاوي";
 const TOKEN_ALPHABET = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+export type SectionGroup = "general" | "health" | "commerce" | "education" | "community" | "professional";
+export const GROUP_TITLES: Record<SectionGroup, string> = {
+  general: "عام", health: "الصحة والإسعاف", commerce: "التجارة والخدمات",
+  education: "التعليم والثقافة", community: "المجتمع والمنظمات", professional: "المهن والإعلانات",
+};
+
 export type SectionDef = {
   title: string; tagline: string; icon: string; emoji: string; color: string;
   route: string; params?: Record<string, string>;
-  /** سطر الدعوة الافتراضي (يُبنى منه نص الرسالة المقترح) */
+  group: SectionGroup;
+  /** ما يُقدَّم للمدعو بعبارة واحدة مباشرة (دعوة الأفراد) */
   pitch: string;
-  /** نص دعوة مخصّص للجهة نفسها (حين يختلف عن دعوة الأفراد) */
-  orgMessage?: string;
+  /** ما تُدعى إليه الجهة رسمياً (دعوة الجهات) */
+  orgPitch: string;
+  /** فوائد ملموسة يجدها المنضم فعلاً في القسم (2–3 بنود قصيرة) */
+  benefits: string[];
 };
 
 // مسارات الانضمام الفعلية داخل التطبيق (تم التحقق من وجود كل شاشة ونموذج التسجيل فيها)
 export const SECTIONS: Record<string, SectionDef> = {
-  app:           { title: "الانضمام إلى حصاحيصاوي", tagline: "خدمات مدينة الحصاحيصا في مكان واحد", icon: "sparkles", emoji: "💚", color: "#00966A", route: "/(tabs)", pitch: "ندعوكم للانضمام إلى تطبيق حصاحيصاوي، المنصة التي تجمع خدمات المدينة وأهلها في مكان واحد" },
-  medical:       { title: "المنشآت الطبية", tagline: "مستشفيات، عيادات، صيدليات، مختبرات", icon: "medkit", emoji: "🏥", color: "#E05567", route: "/org-join", pitch: "يسعدنا دعوة منشأتكم الطبية للانضمام إلى قسم الطب والصحة وتقديم خدماتها لأهل المدينة بتوثيق رسمي" },
-  institutions:  { title: "المؤسسات والجهات", tagline: "انضمام رسمي موثّق للمؤسسات", icon: "business", emoji: "🏛️", color: "#1F5C8A", route: "/org-join", pitch: "يسعدنا دعوة مؤسستكم للانضمام رسمياً إلى حصاحيصاوي والتواصل المباشر مع المجتمع" },
-  orgs:          { title: "المنظمات والمبادرات", tagline: "منظمات المجتمع المدني والتطوع", icon: "people", emoji: "🤝", color: "#0F766E", route: "/(tabs)/orgs", pitch: "يسعدنا دعوة منظمتكم للانضمام إلى قسم المنظمات وعرض مبادراتها وأنشطتها" },
-  lawyers:       { title: "المحامون والمستشارون", tagline: "استقبال القضايا والاستشارات القانونية", icon: "briefcase", emoji: "⚖️", color: "#1F3A5F", route: "/lawyer-portal", pitch: "يسعدنا دعوتكم للانضمام إلى قسم المحامين وتقديم خدماتكم القانونية لأهل المدينة" },
-  stores:        { title: "متاجر المجتمع", tagline: "متجر إلكتروني وطلبات مباشرة", icon: "bag-handle", emoji: "🛍️", color: "#E8A900", route: "/store-portal", pitch: "يسعدنا دعوة متجركم للانضمام إلى متاجر حصاحيصاوي واستقبال الطلبات مباشرة" },
-  restaurants:   { title: "المطاعم والكافيهات", tagline: "قائمة طعام وطلبات توصيل", icon: "restaurant", emoji: "🍽️", color: "#F97316", route: "/(tabs)/restaurants", pitch: "يسعدنا دعوة مطعمكم للانضمام إلى قسم المطاعم والكافيهات واستقبال الطلبات" },
-  designers:     { title: "المصممون", tagline: "معرض أعمال وطلبات تصميم", icon: "color-palette", emoji: "🎨", color: "#3B78A6", route: "/designer-portal", pitch: "يسعدنا دعوتكم للانضمام إلى معرض التصاميم وعرض أعمالكم واستقبال طلبات العملاء" },
-  drivers:       { title: "سائقو «مشوارك علينا»", tagline: "مشاوير وخدمات توصيل داخل المدينة", icon: "car", emoji: "🚗", color: "#F97316", route: "/(tabs)/transport", pitch: "يسعدنا دعوتكم للانضمام إلى فريق سائقي «مشوارك علينا» واستقبال طلبات المشاوير" },
-  travel:        { title: "وكالات السفر", tagline: "تذاكر السفر بين المدن", icon: "airplane", emoji: "✈️", color: "#0EA5E9", route: "/travel-agencies", pitch: "يسعدنا دعوة وكالتكم للانضمام إلى قسم تذاكر السفر وبيع التذاكر عبر التطبيق" },
-  women:         { title: "ركن المرأة", tagline: "خدمات ومشاريع نسائية", icon: "flower", emoji: "🌸", color: "#5B8DB8", route: "/(tabs)/women", pitch: "يسعدنا دعوتكِ للانضمام إلى ركن المرأة وعرض خدماتكِ ومشروعكِ" },
-  men:           { title: "قسم الرجال", tagline: "خدمات الحلاقة والأزياء والحِرف", icon: "man", emoji: "🧔", color: "#38BDF8", route: "/(tabs)/men", pitch: "يسعدنا دعوتكم لتسجيل خدمتكم في قسم الرجال والوصول إلى عملاء جدد" },
-  occasions:     { title: "المناسبات", tagline: "صالات، كوشات، تصوير، سيارات أفراح", icon: "gift", emoji: "🎉", color: "#D97706", route: "/(tabs)/occasions", pitch: "يسعدنا دعوتكم للانضمام إلى قسم المناسبات وعرض خدماتكم لأصحاب الأفراح" },
-  contractors:   { title: "شركات المقاولات", tagline: "معرض مشاريع وطلبات عروض أسعار", icon: "construct", emoji: "🏗️", color: "#B45309", route: "/contractors", params: { tab: "register" }, pitch: "يسعدنا دعوة شركتكم للانضمام إلى دليل شركات المقاولات واستقبال طلبات عروض الأسعار" },
-  universities:  { title: "الجامعات والكليات", tagline: "إدارة أكاديمية رقمية للطلاب والأساتذة", icon: "library", emoji: "🏛️", color: "#1E3A8A", route: "/edu-institution", params: { join: "1" },
-    pitch: "يسعدنا دعوة جامعتكم للانضمام إلى بوابة المؤسسات التعليمية في حصاحيصاوي",
-    orgMessage: "السادة إدارة الجامعة / الكلية المحترمون،\nتحية طيبة وبعد،\nيسعد إدارة منصة حصاحيصاوي دعوتكم لتفعيل بوابتكم الأكاديمية على المنصة: إدارة الأقسام والأساتذة والطلاب، جداول محاضرات ترفض التضارب تلقائياً، النتائج والحضور، الإعلانات وإشعار الطلاب، وطلبات الطلاب الإلكترونية، مع المكتبة المنهجية ومساحة اتحاد الطلاب.\nنتشرف بشراكتكم في خدمة طلاب الحصاحيصا ومجتمعها." },
-  education:     { title: "المؤسسات التعليمية", tagline: "مدارس، معاهد، رياض أطفال", icon: "school", emoji: "🎓", color: "#0F766E", route: "/edu-institution", params: { join: "1" }, pitch: "يسعدنا دعوة مؤسستكم التعليمية للانضمام وإدارة الطلاب والجداول والتواصل مع أولياء الأمور" },
-  writers:       { title: "ديوان الكُتّاب", tagline: "عضوية الكُتّاب والبطاقة الموثّقة", icon: "create", emoji: "✍️", color: "#7A2E3A", route: "/writers-apply", pitch: "يسعدنا دعوتكم للانضمام إلى ديوان الكُتّاب والحصول على العضوية والبطاقة الموثّقة" },
-  press:         { title: "نافذة الصحافة", tagline: "دليل الصحفيين والمراسلين المعتمدين", icon: "newspaper", emoji: "📰", color: "#C8102E", route: "/press", params: { tab: "directory" }, pitch: "يسعدنا دعوتكم للانضمام إلى نافذة الصحافة والإدراج في دليل الصحفيين المعتمدين" },
-  volunteer:     { title: "التطوع", tagline: "فرص تطوعية ونقاط إنجاز", icon: "heart-circle", emoji: "🙌", color: "#00966A", route: "/volunteer", pitch: "يسعدنا دعوتكم للانضمام إلى مجتمع المتطوعين والمشاركة في خدمة المدينة" },
-  red_crescent:  { title: "الهلال الأحمر السوداني", tagline: "متطوعون ومسعفون", icon: "medkit", emoji: "⛑️", color: "#B91C1C", route: "/red-crescent", pitch: "يسعدنا دعوتكم للانضمام إلى فريق الهلال الأحمر السوداني متطوعاً أو مسعفاً",
-    orgMessage: "السادة إدارة جمعية الهلال الأحمر السوداني — فرعية الحصاحيصا المحترمون،\nتحية طيبة وبعد،\nيسعد إدارة منصة حصاحيصاوي دعوتكم لتفعيل مساحتكم الرسمية على المنصة: إدارة وحداتكم وتعيين مدير لكل وحدة، استقبال طلبات المتطوعين والمسعفين واعتمادها، بطاقات المسعف الرقمية القابلة للتحقق، الدورات والشهادات، والاجتماعات والأنشطة وإشعار الأعضاء.\nنتشرف بشراكتكم في خدمة مجتمع الحصاحيصا." },
-  unions:        { title: "النقابات المهنية", tagline: "عضوية النقابات والاتحادات", icon: "people-circle", emoji: "🪪", color: "#1F5C8A", route: "/(tabs)/unions", pitch: "يسعدنا دعوتكم للانضمام إلى قسم النقابات المهنية" },
-  union_partner: { title: "شراكة الاتحاد", tagline: "شراكات الجهات مع الاتحاد", icon: "git-merge", emoji: "🤝", color: "#1F5C8A", route: "/union-partnership-apply", pitch: "يسعدنا دعوة جهتكم لتقديم طلب شراكة رسمية مع الاتحاد" },
-  student_union: { title: "اتحاد الطلاب", tagline: "عضوية اتحاد الطلاب", icon: "school", emoji: "🎒", color: "#1F5C8A", route: "/student-union-join", pitch: "يسعدنا دعوتكم للانضمام إلى اتحاد الطلاب والاستفادة من خدماته" },
-  partnership:   { title: "الشراكات الخارجية", tagline: "شراكات الشركات والجهات", icon: "globe", emoji: "🌍", color: "#E8A900", route: "/external-partnership", pitch: "يسعدنا دعوة جهتكم لبناء شراكة رسمية مع تطبيق حصاحيصاوي" },
-  communities:   { title: "الجاليات", tagline: "تسجيل الجاليات ومؤسساتها", icon: "earth", emoji: "🌐", color: "#0EA5E9", route: "/(tabs)/communities", pitch: "يسعدنا دعوة جاليتكم للتسجيل في قسم الجاليات والتواصل مع أبنائها" },
-  factories:     { title: "المصانع والإنتاج المحلي", tagline: "عرض المنتجات المحلية", icon: "hardware-chip", emoji: "🏭", color: "#F97316", route: "/(tabs)/factories", pitch: "يسعدنا دعوة مصنعكم للانضمام إلى قسم المصانع والإنتاج المحلي وعرض منتجاته" },
-  ads:           { title: "الإعلانات", tagline: "إعلانات مميّزة للجهات والأنشطة", icon: "megaphone", emoji: "📣", color: "#F0A500", route: "/(tabs)/ads", pitch: "يسعدنا دعوتكم لنشر إعلانكم في قسم الإعلانات والوصول إلى آلاف المستخدمين" },
-  jobs:          { title: "الوظائف", tagline: "نشر الوظائف واستقبال المتقدمين", icon: "briefcase", emoji: "💼", color: "#00966A", route: "/(tabs)/jobs", pitch: "يسعدنا دعوتكم لنشر وظائفكم في قسم الوظائف واستقبال طلبات المتقدمين" },
+  // ── عام ──
+  app: { group: "general", title: "الانضمام إلى حصاحيصاوي", tagline: "خدمات مدينة الحصاحيصا في مكان واحد", icon: "sparkles", emoji: "💚", color: "#00966A", route: "/(tabs)",
+    pitch: "حمّل تطبيق حصاحيصاوي لتصل إلى خدمات المدينة وأخبارها من هاتفك",
+    orgPitch: "الانضمام إلى منصة حصاحيصاوي والتواصل المباشر مع أهل المدينة",
+    benefits: ["مواقيت الصلاة والأخبار والتنبيهات العاجلة", "الطبيب والمحامي والسوق والوظائف في تطبيق واحد", "مراسلة ومكالمات مجانية داخل التطبيق"] },
+  partnership: { group: "general", title: "الشراكات الخارجية", tagline: "شراكات الشركات والجهات", icon: "globe", emoji: "🌍", color: "#E8A900", route: "/external-partnership",
+    pitch: "قدّم طلب شراكة مع حصاحيصاوي باسم جهتك",
+    orgPitch: "بناء شراكة رسمية بين جهتكم ومنصة حصاحيصاوي",
+    benefits: ["الوصول إلى مستخدمي المنصة في الحصاحيصا", "صفحة تعريفية بالجهة وخدماتها", "تنسيق مباشر مع إدارة المنصة"] },
+
+  // ── الصحة والإسعاف ──
+  medical: { group: "health", title: "المنشآت الطبية", tagline: "مستشفيات، عيادات، صيدليات، مختبرات", icon: "medkit", emoji: "🏥", color: "#E05567", route: "/org-join",
+    pitch: "سجّل منشأتك الطبية ليجدها المرضى ويحجزوا مواعيدهم معك",
+    orgPitch: "تسجيل منشأتكم الطبية في قسم الطب والصحة بتوثيق رسمي",
+    benefits: ["صفحة موثّقة بالأقسام والأطباء ومواعيد العمل", "حجز المواعيد إلكترونياً وإلغاؤها بأسباب", "ظهور في دليل المنشآت والطوارئ"] },
+  medical_staff: { group: "health", title: "الأطباء والكوادر الطبية", tagline: "أطباء، ممرضون، صيادلة، فنيون", icon: "pulse", emoji: "🩺", color: "#DB2777", route: "/staff-portal",
+    pitch: "سجّل نفسك ضمن الكوادر الطبية ليصل إليك المرضى ويحجزوا معك",
+    orgPitch: "تسجيل كوادركم الطبية في دليل الأطباء والكوادر",
+    benefits: ["ملف مهني بالتخصص ومكان العمل", "استقبال طلبات الحجز وإدارة المواعيد", "إصدار الإجازات المرضية إلكترونياً"] },
+  red_crescent: { group: "health", title: "الهلال الأحمر السوداني", tagline: "متطوعون ومسعفون", icon: "medkit", emoji: "⛑️", color: "#B91C1C", route: "/red-crescent",
+    pitch: "انضم إلى فريق الهلال الأحمر السوداني بالحصاحيصا متطوعاً أو مسعفاً",
+    orgPitch: "تفعيل مساحتكم الرسمية لإدارة وحدات الجمعية ومتطوعيها",
+    benefits: ["مدير لكل وحدة يدير بياناتها وحدها", "بطاقة مسعف رقمية يُتحقق منها برمز QR", "الدورات والشهادات والاجتماعات وإشعار الأعضاء"] },
+
+  // ── التجارة والخدمات ──
+  stores: { group: "commerce", title: "متاجر المجتمع", tagline: "متجر إلكتروني وطلبات مباشرة", icon: "bag-handle", emoji: "🛍️", color: "#E8A900", route: "/store-portal",
+    pitch: "افتح متجرك على حصاحيصاوي واستقبل الطلبات من زبائن المدينة",
+    orgPitch: "فتح متجركم الإلكتروني على منصة حصاحيصاوي",
+    benefits: ["عرض المنتجات بالصور والأسعار", "طلبات مباشرة مع التوصيل أو الاستلام", "لوحة إعدادات للمتجر وطرق الدفع"] },
+  boutiques: { group: "commerce", title: "المتاجر والبوتيكات", tagline: "واجهة عرض للأزياء والإكسسوارات", icon: "shirt", emoji: "👗", color: "#C026D3", route: "/(tabs)/product-showcase",
+    pitch: "اعرض منتجات بوتيكك في سوق المتاجر والبوتيكات",
+    orgPitch: "عرض منتجات متجركم في سوق المتاجر والبوتيكات",
+    benefits: ["واجهة عرض بصور المنتجات", "تواصل مباشر مع الزبائن", "ظهور ضمن متاجر المدينة"] },
+  market: { group: "commerce", title: "السوق والمحلات التجارية", tagline: "بيع وشراء ومحلات الهواتف", icon: "cart", emoji: "🛒", color: "#16A34A", route: "/(tabs)/market",
+    pitch: "سجّل محلك التجاري في سوق حصاحيصاوي وانشر بضاعتك",
+    orgPitch: "تسجيل محلكم التجاري في سوق حصاحيصاوي",
+    benefits: ["نشر المنتجات بالصور والأسعار", "صفحة للمحل بالعنوان ووسائل التواصل", "وصول إلى مشترين من داخل المدينة"] },
+  restaurants: { group: "commerce", title: "المطاعم والكافيهات", tagline: "قائمة طعام وطلبات توصيل", icon: "restaurant", emoji: "🍽️", color: "#F97316", route: "/(tabs)/restaurants",
+    pitch: "أضف مطعمك ليطّلع الزبائن على قائمتك ويطلبوا منك",
+    orgPitch: "إضافة مطعمكم إلى قسم المطاعم والكافيهات",
+    benefits: ["قائمة طعام بالصور والأسعار", "استقبال الطلبات وإصدار الفواتير", "تقييمات الزبائن وظهور في دليل المطاعم"] },
+  designers: { group: "commerce", title: "المصممون", tagline: "معرض أعمال وطلبات تصميم", icon: "color-palette", emoji: "🎨", color: "#3B78A6", route: "/designer-portal",
+    pitch: "اعرض أعمالك في معرض التصاميم واستقبل طلبات العملاء",
+    orgPitch: "عرض أعمال مكتبكم في معرض التصاميم",
+    benefits: ["معرض أعمال بصفحة خاصة", "استقبال طلبات التصميم مباشرة", "بوابة لإدارة الأعمال والمنتجات"] },
+  drivers: { group: "commerce", title: "سائقو «مشوارك علينا»", tagline: "مشاوير وخدمات توصيل داخل المدينة", icon: "car", emoji: "🚗", color: "#F97316", route: "/(tabs)/transport",
+    pitch: "انضم إلى سائقي «مشوارك علينا» واستقبل طلبات المشاوير في المدينة",
+    orgPitch: "تسجيل أسطولكم في خدمة «مشوارك علينا»",
+    benefits: ["طلبات مشاوير من داخل الحصاحيصا", "أوقات عمل يحددها السائق بنفسه", "تقييمات الركاب تبني السمعة"] },
+  travel: { group: "commerce", title: "وكالات السفر", tagline: "رحلات وتذاكر بين المدن", icon: "airplane", emoji: "✈️", color: "#0EA5E9", route: "/travel-agencies",
+    pitch: "سجّل وكالتك لعرض رحلاتها وبيع تذاكرها عبر التطبيق",
+    orgPitch: "تسجيل وكالتكم في قسم السفر وعرض رحلاتها",
+    benefits: ["عرض الرحلات والمواعيد والعروض", "حجوزات مباشرة بتذاكر رقمية", "بوابة لإدارة الرحلات والركاب"] },
+  occasions: { group: "commerce", title: "المناسبات", tagline: "صالات، كوشات، تصوير، سيارات أفراح", icon: "gift", emoji: "🎉", color: "#D97706", route: "/(tabs)/occasions",
+    pitch: "اعرض خدماتك في قسم المناسبات ليصل إليك أصحاب الأفراح",
+    orgPitch: "عرض خدماتكم في قسم المناسبات",
+    benefits: ["صفحة بصور الأعمال والأسعار", "طلبات حجز مباشرة", "ظهور عند البحث عن خدمات الأفراح"] },
+  women: { group: "commerce", title: "قسم المرأة", tagline: "خدمات ومشاريع نسائية", icon: "flower", emoji: "🌸", color: "#5B8DB8", route: "/(tabs)/women",
+    pitch: "اعرضي خدمتكِ أو مشروعكِ في قسم المرأة",
+    orgPitch: "عرض خدمات جهتكم في قسم المرأة",
+    benefits: ["صفحة للمشروع بالصور والتفاصيل", "تواصل مباشر مع العميلات", "مساحة آمنة تراجعها الإدارة"] },
+  men: { group: "commerce", title: "قسم الرجال", tagline: "الحلاقة والأزياء والحِرف", icon: "man", emoji: "🧔", color: "#38BDF8", route: "/(tabs)/men",
+    pitch: "سجّل خدمتك في قسم الرجال وصِل إلى زبائن جدد",
+    orgPitch: "تسجيل خدمات جهتكم في قسم الرجال",
+    benefits: ["صفحة بالخدمات وأوقات العمل", "حجوزات وطلبات مباشرة", "ظهور ضمن دليل الخدمات"] },
+  rental: { group: "commerce", title: "التأجير والعقارات", tagline: "منازل، محلات، معدات، سيارات", icon: "key", emoji: "🔑", color: "#0891B2", route: "/(tabs)/rental",
+    pitch: "اعرض عقارك أو معداتك للإيجار ووثّق العقد مع المستأجر في التطبيق",
+    orgPitch: "عرض عقاراتكم ومعداتكم في قسم التأجير",
+    benefits: ["إعلان بالصور والسعر والموقع", "عقد إيجار رقمي يوقّعه الطرفان", "التطبيق شاهد موثّق عند النزاع"] },
+  telecom: { group: "commerce", title: "شركات الاتصالات", tagline: "باقات وعروض وخدمات المشتركين", icon: "cellular", emoji: "📶", color: "#7C3AED", route: "/(tabs)/telecom",
+    pitch: "اعرض باقات شركتك وعروضها لمشتركي الحصاحيصا",
+    orgPitch: "عرض باقات شركتكم وخدماتها في قسم الاتصالات",
+    benefits: ["صفحة للشركة بالباقات والعروض", "إعلان الفعاليات والعروض الموسمية", "وصول إلى مستخدمي المدينة"] },
+  factories: { group: "commerce", title: "المصانع والإنتاج المحلي", tagline: "عرض المنتجات المحلية", icon: "hardware-chip", emoji: "🏭", color: "#F97316", route: "/(tabs)/factories",
+    pitch: "اعرض منتجات مصنعك في قسم الإنتاج المحلي",
+    orgPitch: "عرض منتجات مصنعكم في قسم المصانع والإنتاج المحلي",
+    benefits: ["صفحة للمصنع ومنتجاته", "طلبات التجار والجمهور مباشرة", "تعريف أهل المدينة بالمنتج المحلي"] },
+  farmers: { group: "commerce", title: "المزارعون والمنتجون", tagline: "محاصيل ومنتجات زراعية", icon: "leaf", emoji: "🌾", color: "#65A30D", route: "/(tabs)/farmers",
+    pitch: "أضف محاصيلك ومنتجاتك ليشتري منك التجار والأسر مباشرة",
+    orgPitch: "عرض منتجات جمعيتكم الزراعية في قسم المزارعين",
+    benefits: ["عرض المحصول بالكمية والسعر", "بيع مباشر دون وسيط", "تواصل مع تجار المدينة"] },
+  contractors: { group: "commerce", title: "شركات المقاولات", tagline: "معرض مشاريع وطلبات عروض أسعار", icon: "construct", emoji: "🏗️", color: "#B45309", route: "/contractors", params: { tab: "register" },
+    pitch: "سجّل شركتك في دليل المقاولين واستقبل طلبات عروض الأسعار",
+    orgPitch: "تسجيل شركتكم في دليل شركات المقاولات",
+    benefits: ["معرض مشاريع بصور قبل وبعد", "طلبات عروض أسعار وعقود رقمية", "توظيف العمال من داخل التطبيق"] },
+
+  // ── التعليم والثقافة ──
+  universities: { group: "education", title: "الجامعات والكليات", tagline: "إدارة أكاديمية رقمية للطلاب والأساتذة", icon: "library", emoji: "🏛️", color: "#1E3A8A", route: "/edu-institution", params: { join: "1" },
+    pitch: "فعّل بوابة جامعتك الأكاديمية على حصاحيصاوي",
+    orgPitch: "تفعيل بوابتكم الأكاديمية لإدارة الأقسام والأساتذة والطلاب",
+    benefits: ["جداول محاضرات ترفض التضارب تلقائياً", "النتائج والحضور وطلبات الطلاب إلكترونياً", "إعلانات تصل إلى الطلاب بإشعار فوري"] },
+  education: { group: "education", title: "المدارس والمعاهد", tagline: "مدارس، معاهد، رياض أطفال", icon: "school", emoji: "🎓", color: "#0F766E", route: "/edu-institution", params: { join: "1" },
+    pitch: "سجّل مدرستك لإدارة الطلاب والجداول والتواصل مع أولياء الأمور",
+    orgPitch: "تسجيل مؤسستكم التعليمية لإدارة طلابها وجداولها رقمياً",
+    benefits: ["جداول المعلمين بلا تضارب", "التسجيل ونقل الطلاب إلكترونياً", "إعلانات لأولياء الأمور"] },
+  student_union: { group: "education", title: "اتحاد الطلاب", tagline: "عضوية وبطاقة رقمية", icon: "school", emoji: "🎒", color: "#1F5C8A", route: "/student-union-join",
+    pitch: "انضم إلى اتحاد طلاب محلية الحصاحيصا واحصل على بطاقة عضوية رقمية",
+    orgPitch: "تسجيل طلاب مؤسستكم في اتحاد طلاب المحلية",
+    benefits: ["بطاقة عضوية يُتحقق منها برمز QR", "متابعة الطلب ومراسلة الاتحاد", "أخبار الاتحاد وأنشطته"] },
+  union_manager: { group: "education", title: "إدارة اتحاد الطلاب", tagline: "عضوية المكتب التنفيذي", icon: "shield-checkmark", emoji: "🛡️", color: "#1F5C8A", route: "/union-manager-apply",
+    pitch: "قدّم استمارة الانضمام إلى إدارة اتحاد الطلاب",
+    orgPitch: "ترشيح ممثل عنكم لإدارة اتحاد الطلاب",
+    benefits: ["بوابة لإدارة طلبات العضوية", "الاجتماعات والأخبار ورسائل الطلاب", "صلاحيات تحددها رئاسة الاتحاد"] },
+  writers: { group: "education", title: "ديوان الكُتّاب", tagline: "عضوية الكُتّاب والبطاقة الموثّقة", icon: "create", emoji: "✍️", color: "#7A2E3A", route: "/writers-apply",
+    pitch: "انضم إلى ديوان الكُتّاب وانشر نصوصك برقم توثيق",
+    orgPitch: "انضمام أعضاء جهتكم الأدبية إلى ديوان الكُتّاب",
+    benefits: ["بطاقة عضوية دولية بعلم دولة الإقامة", "نصوص موثّقة برقم وتاريخ", "المشاركة في مسابقة حصاحيصاوي الأدبية"] },
+  ithraa: { group: "education", title: "مكتبة «إثراء»", tagline: "كتب ومقالات بمراجعة مشرفين", icon: "book", emoji: "📚", color: "#92400E", route: "/ithraa",
+    pitch: "شارك كتبك ومقالاتك في مكتبة «إثراء» ليقرأها أهل المدينة",
+    orgPitch: "إتاحة إصدارات جهتكم في مكتبة «إثراء»",
+    benefits: ["نشر الكتب والمقالات بعد مراجعة المشرفين", "صفحة باسم الكاتب وإصداراته", "قرّاء من داخل المدينة وخارجها"] },
+  press: { group: "education", title: "نافذة الصحافة", tagline: "دليل الصحفيين والمراسلين المعتمدين", icon: "newspaper", emoji: "📰", color: "#C8102E", route: "/press", params: { tab: "directory" },
+    pitch: "سجّل في دليل الصحفيين المعتمدين بنافذة الصحافة",
+    orgPitch: "إدراج صحفيي مؤسستكم في دليل الصحفيين المعتمدين",
+    benefits: ["إدراج في الدليل المعتمد", "نشر الأخبار والبيانات الرسمية", "تنبيهات عاجلة تصل إلى المتابعين"] },
+
+  // ── المجتمع والمنظمات ──
+  institutions: { group: "community", title: "المؤسسات والجهات", tagline: "انضمام رسمي موثّق للمؤسسات", icon: "business", emoji: "🏛️", color: "#1F5C8A", route: "/org-join",
+    pitch: "سجّل جهتك رسمياً على حصاحيصاوي",
+    orgPitch: "الانضمام الرسمي الموثّق إلى منصة حصاحيصاوي",
+    benefits: ["صفحة رسمية موثّقة للجهة", "إعلانات تصل إلى المتابعين", "حساب لمدير الجهة يديره بنفسه"] },
+  orgs: { group: "community", title: "المنظمات والمبادرات", tagline: "منظمات المجتمع المدني والتطوع", icon: "people", emoji: "🤝", color: "#0F766E", route: "/(tabs)/orgs",
+    pitch: "اعرض منظمتك ومبادراتها في قسم المنظمات",
+    orgPitch: "عرض منظمتكم ومبادراتها في قسم المنظمات",
+    benefits: ["صفحة للمنظمة بالأنشطة والأخبار", "استقبال المتطوعين والمتبرعين", "تواصل مباشر مع المجتمع"] },
+  volunteer: { group: "community", title: "التطوع", tagline: "فرص تطوعية ونقاط إنجاز", icon: "heart-circle", emoji: "🙌", color: "#00966A", route: "/volunteer",
+    pitch: "انضم إلى متطوعي الحصاحيصا واجمع نقاط إنجازك",
+    orgPitch: "نشر فرص التطوع لدى جهتكم واستقبال المتطوعين",
+    benefits: ["مهام تطوعية داخل المدينة", "نقاط ومستويات تقديراً للجهد", "بطاقة متطوع رقمية"] },
+  communities: { group: "community", title: "الجاليات", tagline: "تسجيل الجاليات ومؤسساتها", icon: "earth", emoji: "🌐", color: "#0EA5E9", route: "/(tabs)/communities",
+    pitch: "سجّل جاليتك ليتواصل معها أبناؤها",
+    orgPitch: "تسجيل جاليتكم ومؤسساتها في قسم الجاليات",
+    benefits: ["صفحة للجالية ومؤسساتها", "أخبار وإعلانات لأبنائها", "تواصل مع أهل المدينة في الخارج"] },
+  unions: { group: "community", title: "النقابات المهنية", tagline: "عضوية النقابات والاتحادات", icon: "people-circle", emoji: "🪪", color: "#1F5C8A", route: "/(tabs)/unions",
+    pitch: "قدّم طلب عضويتك في نقابتك المهنية من التطبيق",
+    orgPitch: "إدارة عضوية نقابتكم واستقبال طلبات الانضمام إلكترونياً",
+    benefits: ["طلب العضوية إلكترونياً", "قوانين النقابة وبرامجها", "أخبار النقابة وإعلاناتها"] },
+  union_partner: { group: "community", title: "شراكة الاتحاد", tagline: "شراكات الجهات مع الاتحاد", icon: "git-merge", emoji: "🤝", color: "#1F5C8A", route: "/union-partnership-apply",
+    pitch: "قدّم طلب شراكة رسمية مع الاتحاد",
+    orgPitch: "إبرام شراكة رسمية بين جهتكم والاتحاد",
+    benefits: ["شراكة موثّقة مع الاتحاد", "تعريف أعضاء الاتحاد بخدمات الجهة", "متابعة الطلب من الإدارة مباشرة"] },
+  sports: { group: "community", title: "الأندية الرياضية", tagline: "الأندية واللاعبون والمباريات", icon: "football", emoji: "⚽", color: "#2563EB", route: "/(tabs)/sports",
+    pitch: "سجّل ناديك ولاعبيه في القسم الرياضي",
+    orgPitch: "تسجيل ناديكم ولاعبيه في القسم الرياضي",
+    benefits: ["صفحة للنادي ولاعبيه", "أخبار المباريات والنتائج", "عضوية الجمهور في النادي"] },
+  events: { group: "community", title: "منظمو الفعاليات", tagline: "مهرجانات، تخاريج، مؤتمرات، معارض", icon: "calendar", emoji: "🎪", color: "#9333EA", route: "/(tabs)/events", params: { tab: "organize" },
+    pitch: "انشر فعاليتك القادمة ليعرف بها أهل المدينة ويسجّلوا فيها",
+    orgPitch: "نشر فعاليات جهتكم في قسم الفعاليات",
+    benefits: ["صفحة للفعالية بالموعد والمكان", "تسجيل الحضور والاستفسارات", "تأجير معدات الفعاليات"] },
+  contests_sponsor: { group: "community", title: "رعاية المسابقات", tagline: "مسابقات برعاية جهات المدينة", icon: "trophy", emoji: "🏆", color: "#CA8A04", route: "/contests",
+    pitch: "ارعَ مسابقة في حصاحيصاوي وقدّم جوائزها باسم جهتك",
+    orgPitch: "رعاية مسابقة على منصة حصاحيصاوي باسم جهتكم",
+    benefits: ["شعار الراعي على المسابقة وصفحتها", "جوائز تُعلن باسم الجهة الراعية", "مشاركة واسعة من أهل المدينة"] },
+
+  // ── المهن والإعلانات ──
+  lawyers: { group: "professional", title: "المحامون والمستشارون", tagline: "استقبال القضايا والاستشارات القانونية", icon: "briefcase", emoji: "⚖️", color: "#1F3A5F", route: "/lawyer-portal",
+    pitch: "انضم إلى قسم المحامين واستقبل طلبات الاستشارة والتعاقد",
+    orgPitch: "تسجيل مكتبكم القانوني في قسم المحامين",
+    benefits: ["ملف مهني بالتخصص والخبرة", "طلبات استشارة وتعاقد مباشرة", "الاستمارات القانونية الجاهزة"] },
+  jobs: { group: "professional", title: "الوظائف", tagline: "نشر الوظائف واستقبال المتقدمين", icon: "briefcase", emoji: "💼", color: "#00966A", route: "/(tabs)/jobs",
+    pitch: "انشر وظائفك الشاغرة واستقبل طلبات المتقدمين",
+    orgPitch: "نشر الوظائف الشاغرة لدى جهتكم",
+    benefits: ["إعلان وظيفة بالشروط والراتب", "سير ذاتية جاهزة من المتقدمين", "متقدمون من أبناء المدينة"] },
+  ads: { group: "professional", title: "الإعلانات", tagline: "إعلانات الجهات والأنشطة", icon: "megaphone", emoji: "📣", color: "#F0A500", route: "/(tabs)/ads",
+    pitch: "انشر إعلان نشاطك ليصل إلى مستخدمي حصاحيصاوي",
+    orgPitch: "نشر إعلانات جهتكم على منصة حصاحيصاوي",
+    benefits: ["إعلان بصورة ورابط", "مراجعة الإدارة قبل النشر", "ظهور لمستخدمي المدينة"] },
 };
 
 let ready: Promise<void> | null = null;
@@ -148,15 +293,32 @@ const appUrl = (t: string) => `${WEB_APP}/invitation?t=${t}`;
 
 function sectionOut(key: string) {
   const s = SECTIONS[key];
-  return s ? { key, title: s.title, tagline: s.tagline, icon: s.icon, emoji: s.emoji, color: s.color, route: s.route, params: s.params ?? {} } : null;
+  return s ? { key, title: s.title, tagline: s.tagline, icon: s.icon, emoji: s.emoji, color: s.color, route: s.route, params: s.params ?? {},
+    group: s.group, group_title: GROUP_TITLES[s.group], benefits: s.benefits } : null;
 }
 
 function defaultMessage(key: string, kind: string) {
   const s = SECTIONS[key];
   if (!s) return "";
-  if (kind === "org" && s.orgMessage) return s.orgMessage;
-  const greet = kind === "org" ? "السادة الكرام،" : "الأستاذ/ة الكريم/ة،";
-  return `${greet}\n${s.pitch}.\nنتطلع إلى انضمامكم وإسهامكم في خدمة مجتمع الحصاحيصا.`;
+  const bullets = s.benefits.map((x) => `• ${x}`).join("\n");
+  if (kind === "org") {
+    return [
+      "السادة المحترمون،",
+      "تحية طيبة وبعد،",
+      `تدعوكم إدارة منصة حصاحيصاوي إلى ${s.orgPitch}.`,
+      "تتيح لكم المنصة:",
+      bullets,
+      "يُفتح نموذج الانضمام مباشرة بعد قبول الدعوة، وتراجع الإدارة الطلب وتفعّله.",
+      "نتطلع إلى شراكتكم في خدمة مجتمع الحصاحيصا.",
+    ].join("\n");
+  }
+  return [
+    "السلام عليكم،",
+    `${s.pitch}.`,
+    "ما يقدّمه القسم:",
+    bullets,
+    "بعد قبول الدعوة من الرابط يُفتح نموذج التسجيل مباشرة.",
+  ].join("\n");
 }
 
 function fmtDate(d: string | Date) {
@@ -166,10 +328,9 @@ function fmtDate(d: string | Date) {
 function shareText(r: InviteRow) {
   const s = SECTIONS[r.section_key];
   const lines = [
-    "✉️ دعوة رسمية للانضمام — حصاحيصاوي",
+    `✉️ دعوة رسمية من ${INVITER}`,
     `إلى: ${r.invitee_name}`,
-    "",
-    `يسعد ${INVITER} دعوتكم للانضمام إلى «${s?.title ?? "حصاحيصاوي"}» ${s?.emoji ?? ""}`.trim(),
+    `القسم: ${s?.emoji ?? ""} ${s?.title ?? "حصاحيصاوي"}${s?.tagline ? ` — ${s.tagline}` : ""}`.replace(/^القسم:\s+/, "القسم: "),
   ];
   if (r.message) lines.push("", r.message.trim());
   lines.push("", r.expires_at ? `⏳ الدعوة صالحة حتى ${fmtDate(r.expires_at)}` : "⏳ الدعوة مفتوحة الصلاحية", "", `افتح الدعوة واقبلها من هنا:\n${pageUrl(r.token)}`);

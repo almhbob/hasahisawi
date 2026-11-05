@@ -10,7 +10,7 @@ import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
@@ -116,7 +116,10 @@ export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const [tab, setTab] = useState<"browse" | "rental" | "organize">("browse");
+  const tabParam = useLocalSearchParams<{ tab?: string }>().tab;
+  const [tab, setTab] = useState<"browse" | "rental" | "organize">(tabParam === "organize" || tabParam === "rental" ? tabParam : "browse");
+  // دعوة «منظمو الفعاليات» تفتح تبويب «نظّم» مباشرة
+  useEffect(() => { if (tabParam === "organize" || tabParam === "rental") setTab(tabParam); }, [tabParam]);
 
   // browse
   const [events,      setEvents]      = useState<Event[]>([]);
