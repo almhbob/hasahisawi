@@ -19043,6 +19043,21 @@ async function suResolveApplicant(app: Record<string, any>): Promise<number | nu
   return uid;
 }
 
+/** يُصدر رقم العضوية ورمز البطاقة لطلب مقبول لا يملكهما (من قُبلوا قبل إضافة البطاقة الرقمية) */
+async function suEnsureCard(app: Record<string, any>): Promise<Record<string, any>> {
+  if (app.status !== "approved" || (app.member_no && app.card_token)) return app;
+  const memberNo = app.member_no || `HSW-SU-${new Date(app.reviewed_at || Date.now()).getFullYear()}-${String((await query(`SELECT nextval('student_union_member_seq') AS n`)).rows[0].n).padStart(4, "0")}`;
+  const r = await query(
+    `UPDATE student_union_applications
+        SET member_no=COALESCE(member_no,$1), card_token=COALESCE(card_token,$2),
+            card_issued_at=COALESCE(card_issued_at, NOW()),
+            card_expires_at=COALESCE(card_expires_at, NOW() + INTERVAL '1 year')
+      WHERE id=$3 RETURNING *`,
+    [memberNo, randomBytes(12).toString("hex"), app.id]);
+  logger.info({ app_id: app.id }, "[student-union] card backfilled");
+  return r.rows[0] ?? app;
+}
+
 /** يُستدعى بعد قبول/رفض طلب طالب (من مدير الاتحاد أو مدير التطبيق) */
 async function onStudentUnionDecision(appId: number, status: string, note: string | null, managerId: number | null): Promise<Record<string, any> | null> {
   await ensureStudentUnionPlus();
@@ -19102,8 +19117,9 @@ router.get("/student-union/me", async (req: Request, res: Response) => {
            AND right(regexp_replace(phone,'\\D','','g'),9)=$1 ORDER BY created_at DESC LIMIT 1`, [suDigits(user.phone)]);
       if (r.rows[0]) await query(`UPDATE student_union_applications SET user_id=$1 WHERE id=$2 AND user_id IS NULL`, [user.id, r.rows[0].id]).catch(() => {});
     }
-    const a = r.rows[0];
+    let a = r.rows[0];
     if (!a) return res.json({ application: null, card: null, can_apply: true });
+    a = await suEnsureCard(a);
     return res.json({
       application: {
         id: a.id, full_name: a.full_name, institution: a.institution, major: a.major, year: a.year,
