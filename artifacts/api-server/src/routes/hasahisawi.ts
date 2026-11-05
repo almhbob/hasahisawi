@@ -18374,6 +18374,102 @@ router.post("/union-manager/login", authLimiter, async (req: Request, res: Respo
   } catch (e: any) { logger.error({ err: e }, "union-manager/login"); return res.status(500).json({ error: "Server error" }); }
 });
 
+// POST /api/union-manager/sso — الدخول إلى البوابة بحساب التطبيق نفسه (بلا كلمة مرور منفصلة)
+// مدير التطبيق يدخل دائماً؛ وأي مدير اتحاد يدخل إن طابق بريدُ حسابه أو هاتفُه بيانات حسابه في البوابة.
+router.post("/union-manager/sso", authLimiter, async (req: Request, res: Response): Promise<any> => {
+  try {
+    await ensureUnionMgrTables();
+    const u = await getSessionUser(req);
+    if (!u) return res.status(401).json({ error: "سجّل الدخول إلى التطبيق أولاً" });
+    const uid = Number(u.id);
+    const email = String(u.email || "").trim().toLowerCase();
+    const phone = String(u.phone || "").replace(/\D/g, "");
+    let mgr: any = null;
+    if (u.role === "admin") {
+      const uname = `app_admin_${uid}`;
+      mgr = (await query(`SELECT * FROM union_managers WHERE username=$1`, [uname])).rows[0];
+      if (!mgr) {
+        // كلمة مرور عشوائية غير معروفة لأحد: هذا الحساب لا يُستخدم إلا عبر الدخول بحساب التطبيق
+        const hash = await bcrypt.hash(randomBytes(24).toString("hex"), 10);
+        mgr = (await query(
+          `INSERT INTO union_managers (full_name, title, username, password_hash, phone, email)
+           VALUES ($1,'مدير التطبيق',$2,$3,$4,$5) RETURNING *`,
+          [String(u.name || "مدير التطبيق"), uname, hash, u.phone || null, u.email || null],
+        )).rows[0];
+      } else if (!mgr.is_active) {
+        await query(`UPDATE union_managers SET is_active=TRUE WHERE id=$1`, [mgr.id]);
+      }
+    } else if (email || phone.length >= 9) {
+      const r = await query(
+        `SELECT * FROM union_managers
+          WHERE is_active=TRUE AND (
+            ($1 <> '' AND LOWER(email)=$1) OR
+            ($2 <> '' AND RIGHT(REGEXP_REPLACE(COALESCE(phone,''),'[^0-9]','','g'),9)=RIGHT($2,9))
+          )
+          ORDER BY id LIMIT 1`,
+        [email, phone.length >= 9 ? phone : ""],
+      );
+      mgr = r.rows[0];
+    }
+    if (!mgr) return res.status(403).json({ error: "حسابك في التطبيق غير مرتبط بحساب في إدارة الاتحاد. استخدم اسم المستخدم وكلمة المرور، أو قدّم استمارة الانضمام." });
+    const token = "umt_" + randomBytes(24).toString("hex");
+    await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
+    logger.info({ mgr_id: mgr.id, user_id: uid }, "[union-manager] sso login");
+    return res.json({ token, manager: { id: mgr.id, full_name: mgr.full_name, title: mgr.title, username: mgr.username } });
+  } catch (e: any) { logger.error({ err: e }, "union-manager/sso"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/union-manager/forgot-password — طلب إعادة تعيين: يصل تنبيه لمدير التطبيق ليعيّن كلمة جديدة
+router.post("/union-manager/forgot-password", authLimiter, async (req: Request, res: Response): Promise<any> => {
+  try {
+    await ensureUnionMgrTables();
+    const ident = String(req.body?.identifier || "").trim().slice(0, 100);
+    const contact = String(req.body?.contact || "").trim().slice(0, 60);
+    if (!ident) return res.status(400).json({ error: "اكتب اسم المستخدم أو رقم الهاتف" });
+    const digits = ident.replace(/\D/g, "");
+    const r = await query(
+      `SELECT id, full_name, username FROM union_managers
+        WHERE username=$1 OR LOWER(COALESCE(email,''))=LOWER($1)
+           OR ($2 <> '' AND RIGHT(REGEXP_REPLACE(COALESCE(phone,''),'[^0-9]','','g'),9)=RIGHT($2,9))
+        LIMIT 1`,
+      [ident, digits.length >= 9 ? digits : ""],
+    );
+    const m = r.rows[0];
+    if (m) {
+      sendPushToAdmins(
+        "🔑 طلب استعادة كلمة مرور — بوابة الاتحاد",
+        `${m.full_name} (${m.username}) نسي كلمة المرور${contact ? ` — للتواصل: ${contact}` : ""}. أعد تعيينها من لوحة الإدارة.`,
+        { type: "union_manager_reset", manager_id: m.id },
+      ).catch(() => {});
+      logger.info({ mgr_id: m.id }, "[union-manager] password reset requested");
+    }
+    // ردّ موحّد لا يكشف هل الحساب موجود
+    return res.json({ ok: true, message: "وصل طلبك إلى إدارة التطبيق، وسيُتواصل معك بكلمة مرور جديدة." });
+  } catch (e: any) { logger.error({ err: e }, "union-manager/forgot"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/union-manager/change-password — تغيير كلمة المرور من داخل البوابة
+router.post("/union-manager/change-password", authLimiter, async (req: Request, res: Response): Promise<any> => {
+  const mgr = await getUnionMgr(req);
+  if (!mgr) return res.status(401).json({ error: "غير مصرح" });
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (!new_password || String(new_password).length < 8) return res.status(400).json({ error: "كلمة المرور الجديدة 8 أحرف على الأقل" });
+    if (String(new_password).length > 128) return res.status(400).json({ error: "كلمة المرور طويلة جداً" });
+    const row = (await query(`SELECT password_hash, username FROM union_managers WHERE id=$1`, [mgr.id])).rows[0];
+    // حساب مدير التطبيق (دخول بحساب التطبيق) لا يملك كلمة مرور معروفة، فلا يُطلب منه الحالية
+    const ssoOnly = String(row?.username || "").startsWith("app_admin_");
+    if (!ssoOnly && !(current_password && await bcrypt.compare(String(current_password), row.password_hash)))
+      return res.status(400).json({ error: "كلمة المرور الحالية غير صحيحة" });
+    const hash = await bcrypt.hash(String(new_password), 10);
+    await query(`UPDATE union_managers SET password_hash=$1 WHERE id=$2`, [hash, mgr.id]);
+    // إنهاء الجلسات الأخرى والإبقاء على الحالية
+    const cur = (req.headers.authorization || "").slice(7);
+    await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1 AND token<>$2`, [mgr.id, cur]);
+    return res.json({ ok: true, message: "تم تغيير كلمة المرور" });
+  } catch (e: any) { logger.error({ err: e }, "union-manager/change-password"); return res.status(500).json({ error: "Server error" }); }
+});
+
 // POST /api/union-manager/push-token — تسجيل رمز الإشعارات لمدير الإتحاد
 router.post("/union-manager/push-token", writeLimiter, async (req: Request, res: Response) => {
   const mgr = await getUnionMgr(req);
@@ -18714,6 +18810,22 @@ router.patch("/admin/union-managers/:id/status", async (req: Request, res: Respo
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ── POST /api/admin/union-managers/:id/reset-password — كلمة مرور مؤقتة جديدة لمدير نسي كلمته
+router.post("/admin/union-managers/:id/reset-password", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const id = parseInt(req.params.id as string, 10);
+    const temp = `SU-${randomBytes(4).toString("hex").toUpperCase()}`;
+    const hash = await bcrypt.hash(temp, 10);
+    const r = await query(`UPDATE union_managers SET password_hash=$1 WHERE id=$2 RETURNING id, full_name, username, phone`, [hash, id]);
+    if (!r.rows.length) return res.status(404).json({ error: "المدير غير موجود" });
+    await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1`, [id]);
+    logger.info({ id }, "[admin] union manager password reset");
+    return res.json({ ...r.rows[0], temp_password: temp });
+  } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
 // ── DELETE /api/admin/union-managers/:id — حذف مدير
 router.delete("/admin/union-managers/:id", async (req: Request, res: Response): Promise<any> => {
   if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
@@ -18931,6 +19043,21 @@ async function suResolveApplicant(app: Record<string, any>): Promise<number | nu
   return uid;
 }
 
+/** يُصدر رقم العضوية ورمز البطاقة لطلب مقبول لا يملكهما (من قُبلوا قبل إضافة البطاقة الرقمية) */
+async function suEnsureCard(app: Record<string, any>): Promise<Record<string, any>> {
+  if (app.status !== "approved" || (app.member_no && app.card_token)) return app;
+  const memberNo = app.member_no || `HSW-SU-${new Date(app.reviewed_at || Date.now()).getFullYear()}-${String((await query(`SELECT nextval('student_union_member_seq') AS n`)).rows[0].n).padStart(4, "0")}`;
+  const r = await query(
+    `UPDATE student_union_applications
+        SET member_no=COALESCE(member_no,$1), card_token=COALESCE(card_token,$2),
+            card_issued_at=COALESCE(card_issued_at, NOW()),
+            card_expires_at=COALESCE(card_expires_at, NOW() + INTERVAL '1 year')
+      WHERE id=$3 RETURNING *`,
+    [memberNo, randomBytes(12).toString("hex"), app.id]);
+  logger.info({ app_id: app.id }, "[student-union] card backfilled");
+  return r.rows[0] ?? app;
+}
+
 /** يُستدعى بعد قبول/رفض طلب طالب (من مدير الاتحاد أو مدير التطبيق) */
 async function onStudentUnionDecision(appId: number, status: string, note: string | null, managerId: number | null): Promise<Record<string, any> | null> {
   await ensureStudentUnionPlus();
@@ -18990,8 +19117,9 @@ router.get("/student-union/me", async (req: Request, res: Response) => {
            AND right(regexp_replace(phone,'\\D','','g'),9)=$1 ORDER BY created_at DESC LIMIT 1`, [suDigits(user.phone)]);
       if (r.rows[0]) await query(`UPDATE student_union_applications SET user_id=$1 WHERE id=$2 AND user_id IS NULL`, [user.id, r.rows[0].id]).catch(() => {});
     }
-    const a = r.rows[0];
+    let a = r.rows[0];
     if (!a) return res.json({ application: null, card: null, can_apply: true });
+    a = await suEnsureCard(a);
     return res.json({
       application: {
         id: a.id, full_name: a.full_name, institution: a.institution, major: a.major, year: a.year,

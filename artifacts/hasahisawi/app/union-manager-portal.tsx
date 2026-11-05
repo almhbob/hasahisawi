@@ -16,12 +16,15 @@ import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import { confirmAction, notify } from "@/lib/xplatform";
 import { DateInput, TimeInput } from "@/components/ui/DateTimeField";
+import { useAuth } from "@/lib/auth-context";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
 const GREEN = "#22C55E";
 const MGTOKEN_KEY = "union_manager_token";
 const MGINFO_KEY  = "union_manager_info";
+// بعد تسجيل الخروج يدوياً لا نعيد دخول مدير التطبيق تلقائياً في الجلسة نفسها
+let ssoAutoSkipped = false;
 
 type Manager      = { id: number; full_name: string; title: string; username: string };
 type Permissions  = { can_manage_requests: boolean; can_manage_staff: boolean; can_manage_meetings: boolean; can_post_announcements: boolean; can_view_reports: boolean };
@@ -90,6 +93,51 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
+  const { token: appToken, user: appUser } = useAuth();
+  const [ssoLoading, setSsoLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [fIdent, setFIdent]     = useState("");
+  const [fContact, setFContact] = useState("");
+  const [fSending, setFSending] = useState(false);
+
+  const finishLogin = async (data: { token: string; manager: Manager }) => {
+    await AsyncStorage.setItem(MGTOKEN_KEY, data.token);
+    await AsyncStorage.setItem(MGINFO_KEY, JSON.stringify(data.manager));
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    registerUnionManagerPushToken(data.token).catch(() => {});
+    onLogin(data.token, data.manager);
+  };
+
+  // الدخول بحساب التطبيق: مدير التطبيق دائماً، ومدير الاتحاد إن طابق بريده أو هاتفه
+  const ssoLogin = async (silent = false) => {
+    if (!appToken) { if (!silent) notify("سجّل الدخول أولاً", "سجّل الدخول إلى التطبيق بحسابك ثم عُد إلى هنا."); return; }
+    setSsoLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/union-manager/sso`, { method: "POST", headers: { Authorization: `Bearer ${appToken}` } });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) await finishLogin(data);
+      else if (!silent) notify("تعذّر الدخول", data.error || "حسابك غير مرتبط بإدارة الاتحاد");
+    } catch { if (!silent) notify("خطأ", "تعذر الاتصال بالخادم"); }
+    finally { setSsoLoading(false); }
+  };
+
+  // مدير التطبيق يدخل تلقائياً بلا كلمة مرور
+  useEffect(() => { if (!ssoAutoSkipped && appToken && appUser?.role === "admin") ssoLogin(true); }, [appToken, appUser?.role]);
+
+  const sendForgot = async () => {
+    if (!fIdent.trim()) { notify("تنبيه", "اكتب اسم المستخدم أو رقم الهاتف"); return; }
+    setFSending(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/union-manager/forgot-password`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: fIdent.trim(), contact: fContact.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { setForgotOpen(false); setFIdent(""); setFContact(""); notify("وصل طلبك", data.message || "ستتواصل معك الإدارة بكلمة مرور جديدة."); }
+      else notify("تنبيه", data.error || "تعذّر إرسال الطلب");
+    } catch { notify("خطأ", "تعذر الاتصال بالخادم"); }
+    finally { setFSending(false); }
+  };
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -104,12 +152,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
       });
       const data = await res.json();
       if (res.ok) {
-        await AsyncStorage.setItem(MGTOKEN_KEY, data.token);
-        await AsyncStorage.setItem(MGINFO_KEY, JSON.stringify(data.manager));
-        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // تسجيل رمز الإشعارات لهذا المدير
-        registerUnionManagerPushToken(data.token).catch(() => {});
-        onLogin(data.token, data.manager);
+        await finishLogin(data);
       } else {
         notify("خطأ في الدخول", data.error || "بيانات غير صحيحة");
       }
@@ -135,6 +178,23 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
         <Animated.View entering={FadeInDown.delay(100).springify()} style={ls.card}>
           <Text style={ls.cardTitle}>تسجيل الدخول</Text>
           <Text style={ls.cardSub}>لأعضاء إدارة اتحاد طلاب محلية الحصاحيصا</Text>
+
+          {/* الدخول بحساب التطبيق — بلا كلمة مرور منفصلة */}
+          <TouchableOpacity style={[ls.ssoBtn, ssoLoading && { opacity: 0.7 }]} onPress={() => ssoLogin(false)} disabled={ssoLoading}>
+            {ssoLoading ? <ActivityIndicator color={UC2} /> : (
+              <>
+                <Ionicons name="person-circle-outline" size={22} color={UC2} />
+                <View style={{ flex: 1 }}>
+                  <Text style={ls.ssoBtnText}>الدخول بحسابي في التطبيق</Text>
+                  <Text style={ls.ssoBtnSub} numberOfLines={1}>
+                    {appUser ? `${appUser.name || ""}${appUser.email ? ` · ${appUser.email}` : appUser.phone ? ` · ${appUser.phone}` : ""}` : "سجّل الدخول إلى التطبيق أولاً"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-back" size={16} color={UC2} />
+              </>
+            )}
+          </TouchableOpacity>
+          <View style={ls.orRow}><View style={ls.orLine} /><Text style={ls.orText}>أو باسم المستخدم</Text><View style={ls.orLine} /></View>
 
           <Text style={ls.label}>اسم المستخدم</Text>
           <TextInput
@@ -167,7 +227,36 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
               </>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setForgotOpen(true)} style={{ alignSelf: "center", paddingVertical: 12 }}>
+            <Text style={ls.forgotText}>نسيت كلمة المرور؟</Text>
+          </TouchableOpacity>
         </Animated.View>
+
+        <Modal visible={forgotOpen} transparent animationType="fade" onRequestClose={() => setForgotOpen(false)}>
+          <View style={ls.fOverlay}>
+            <View style={ls.fSheet}>
+              <Text style={ls.cardTitle}>استعادة الدخول</Text>
+              <View style={ls.fTip}>
+                <Ionicons name="flash-outline" size={16} color={UC2} />
+                <Text style={ls.fTipText}>الأسرع: إن كان بريدك أو هاتفك في التطبيق هو نفسه المسجّل لدى إدارة الاتحاد، اضغط «الدخول بحسابي في التطبيق». حساب التطبيق تستعيد كلمته برمز تحقق من شاشة الدخول.</Text>
+              </View>
+              <Text style={ls.label}>اسم المستخدم أو رقم الهاتف</Text>
+              <TextInput style={ls.input} value={fIdent} onChangeText={setFIdent} placeholder="مثال: 0912345678" placeholderTextColor={Colors.textMuted} textAlign="right" autoCapitalize="none" />
+              <Text style={ls.label}>رقم للتواصل معك (اختياري)</Text>
+              <TextInput style={ls.input} value={fContact} onChangeText={setFContact} placeholder="واتساب أو هاتف" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="phone-pad" />
+              <Text style={[ls.infoText, { marginTop: 8 }]}>يصل طلبك إلى مدير التطبيق، فيعيّن لك كلمة مرور مؤقتة ويرسلها لك. غيّرها بعد الدخول.</Text>
+              <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 14 }}>
+                <TouchableOpacity style={[ls.loginBtn, { flex: 1, marginTop: 0 }, fSending && { opacity: 0.7 }]} onPress={sendForgot} disabled={fSending}>
+                  {fSending ? <ActivityIndicator color="#fff" /> : <Text style={ls.loginBtnText}>أرسل الطلب</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity style={[ls.fCancel, { flex: 1 }]} onPress={() => setForgotOpen(false)}>
+                  <Text style={ls.fCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <Animated.View entering={FadeInDown.delay(200).springify()} style={ls.infoBox}>
           <Ionicons name="information-circle-outline" size={18} color={Colors.textMuted} />
@@ -183,6 +272,47 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+// ── تغيير كلمة المرور من داخل البوابة ─────────────────────────────
+function ChangePasswordCard({ token, ssoOnly }: { token: string; ssoOnly: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [cur, setCur]   = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (next.length < 8) { notify("كلمة المرور", "8 أحرف على الأقل"); return; }
+    setBusy(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/union-manager/change-password`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ current_password: cur, new_password: next }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { notify("تم", "تغيّرت كلمة المرور. سُجّل خروج أجهزتك الأخرى."); setOpen(false); setCur(""); setNext(""); }
+      else notify("تنبيه", d.error || "تعذّر التغيير");
+    } catch { notify("خطأ", "تعذر الاتصال بالخادم"); }
+    finally { setBusy(false); }
+  };
+  return (
+    <View style={t.card}>
+      <TouchableOpacity style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }} onPress={() => setOpen(o => !o)}>
+        <Ionicons name="key-outline" size={18} color={UC2} />
+        <Text style={[ps.accountTitle, { flex: 1, marginBottom: 0 }]}>{ssoOnly ? "تعيين كلمة مرور للبوابة" : "تغيير كلمة المرور"}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={Colors.textMuted} />
+      </TouchableOpacity>
+      {ssoOnly && !open && <Text style={[ls.infoText, { marginTop: 6 }]}>تدخل بحسابك في التطبيق، فلا تحتاج كلمة مرور. عيّن واحدة إن أردت الدخول باسم المستخدم أيضاً.</Text>}
+      {open && (
+        <View style={{ gap: 8, marginTop: 10 }}>
+          {!ssoOnly && <TextInput style={ls.input} value={cur} onChangeText={setCur} placeholder="كلمة المرور الحالية" placeholderTextColor={Colors.textMuted} secureTextEntry textAlign="right" />}
+          <TextInput style={ls.input} value={next} onChangeText={setNext} placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" placeholderTextColor={Colors.textMuted} secureTextEntry textAlign="right" />
+          <TouchableOpacity style={[ls.loginBtn, busy && { opacity: 0.7 }]} onPress={save} disabled={busy}>
+            {busy ? <ActivityIndicator color="#fff" /> : <Text style={ls.loginBtnText}>حفظ</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -1164,6 +1294,7 @@ export default function UnionManagerPortalScreen() {
 
   const logout = async () => {
     if (!(await confirmAction("تسجيل الخروج", "هل تريد تسجيل الخروج؟", "خروج", true))) return;
+    ssoAutoSkipped = true;
     await AsyncStorage.multiRemove([MGTOKEN_KEY, MGINFO_KEY]);
     setToken(null); setManager(null);
   };
@@ -1235,6 +1366,7 @@ export default function UnionManagerPortalScreen() {
                 </View>
               ))}
             </Animated.View>
+            <ChangePasswordCard token={token} ssoOnly={manager.username.startsWith("app_admin_")} />
             <TouchableOpacity style={ps.logoutBtn} onPress={logout}>
               <Ionicons name="log-out-outline" size={20} color="#EF4444" />
               <Text style={ps.logoutText}>تسجيل الخروج</Text>
@@ -1279,6 +1411,19 @@ const ls = StyleSheet.create({
   eyeBtn: { padding: 10 },
   loginBtn: { backgroundColor: UC, borderRadius: 14, padding: 15, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 8 },
   loginBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+  ssoBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: UC2 + "60", backgroundColor: UC + "22", marginTop: 6 },
+  ssoBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text, textAlign: "right" },
+  ssoBtnSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  orRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginVertical: 14 },
+  orLine: { flex: 1, height: 1, backgroundColor: Colors.borderSubtle },
+  orText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  forgotText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: UC2, textDecorationLine: "underline" },
+  fOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", padding: 18 },
+  fSheet: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 18, width: "100%", maxWidth: 440, alignSelf: "center" },
+  fTip: { flexDirection: "row-reverse", gap: 8, padding: 12, borderRadius: 12, backgroundColor: UC + "22", marginVertical: 10 },
+  fTipText: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.text, textAlign: "right", lineHeight: 21 },
+  fCancel: { borderRadius: 14, padding: 15, borderWidth: 1, borderColor: Colors.borderSubtle, alignItems: "center", justifyContent: "center" },
+  fCancelText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text },
   infoBox: { flexDirection: "row-reverse", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 12, padding: 14, marginHorizontal: 20, alignItems: "flex-start" },
   infoText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, flex: 1, textAlign: "right", lineHeight: 22 },
   applyBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: UC + "10", borderRadius: 14, padding: 16, marginHorizontal: 20, marginTop: 12, borderWidth: 1, borderColor: UC + "30" },

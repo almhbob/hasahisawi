@@ -1867,6 +1867,18 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
     } catch { Alert.alert("خطأ", "تعذّر الاتصال"); } finally { setMgrActing(null); }
   }
 
+  // كلمة مرور مؤقتة لمدير اتحاد نسي كلمته (يصل تنبيه «طلب استعادة» من البوابة)
+  async function resetManagerPassword(id: number, name: string, phone?: string | null) {
+    if (!(await confirmAction("كلمة مرور مؤقتة", `إصدار كلمة مرور مؤقتة لـ«${name}»؟ تتوقف كلمته الحالية ويُسجَّل خروجه.`, "إصدار"))) return;
+    setMgrActing(id);
+    try {
+      const r = await fetch(`${apiBase}/api/admin/union-managers/${id}/reset-password`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) notify("كلمة المرور المؤقتة", `اسم المستخدم: ${d.username}\nكلمة المرور: ${d.temp_password}\n\nأرسلها له${phone ? ` (${phone})` : ""} واطلب تغييرها من «الحساب» داخل البوابة.`);
+      else notify("خطأ", d.error || "تعذّر الإصدار");
+    } catch { notify("خطأ", "تعذّر الاتصال"); } finally { setMgrActing(null); }
+  }
+
   async function deleteManager(id: number, name: string) {
     Alert.alert("تأكيد الحذف", `هل تريد حذف حساب "${name}" نهائياً؟ لا يمكن التراجع.`, [
       { text: "إلغاء", style: "cancel" },
@@ -2448,6 +2460,15 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                           </Text>
                         </>
                       )}
+                    </TouchableOpacity>
+                    {/* كلمة مرور مؤقتة */}
+                    <TouchableOpacity
+                      onPress={() => resetManagerPassword(m.id, m.full_name, m.phone)}
+                      disabled={mgrActing === m.id}
+                      style={{ flex: 1.4, paddingVertical: 9, borderRadius: 10, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
+                        backgroundColor: "#3B82F620", borderWidth: 1, borderColor: "#3B82F650" }}>
+                      <Ionicons name="key-outline" size={14} color="#3B82F6" />
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#3B82F6" }}>كلمة مؤقتة</Text>
                     </TouchableOpacity>
                     {/* حذف */}
                     <TouchableOpacity
