@@ -21,6 +21,7 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 
 const { width: W } = Dimensions.get("window");
@@ -489,7 +490,7 @@ function UnionsScreen() {
             <Animated.View entering={FadeInDown.springify()}>
               <FInput label="الاسم الكامل" value={form.full_name} onChangeText={v => setForm(p => ({ ...p, full_name: v }))} required />
               <FInput label="رقم الهوية الوطنية" value={form.national_id} onChangeText={v => setForm(p => ({ ...p, national_id: v }))} keyboardType="numeric" />
-              <FInput label="تاريخ الميلاد" placeholder="YYYY-MM-DD" value={form.birth_date} onChangeText={v => setForm(p => ({ ...p, birth_date: v }))} />
+              <View style={styles.fGroup}><DateInput label="تاريخ الميلاد" value={form.birth_date} onChange={v => setForm(p => ({ ...p, birth_date: v }))} maxDate={new Date()} initialView={new Date(new Date().getFullYear() - 30, 0, 1, 12)} /></View>
               <FInput label="مكان الميلاد" value={form.birth_place} onChangeText={v => setForm(p => ({ ...p, birth_place: v }))} />
               {/* الجنس */}
               <View style={styles.fGroup}>
@@ -521,7 +522,7 @@ function UnionsScreen() {
               <FInput label="عنوان العمل" value={form.work_address} onChangeText={v => setForm(p => ({ ...p, work_address: v }))} multiline />
               <FInput label="هاتف العمل" value={form.work_phone} onChangeText={v => setForm(p => ({ ...p, work_phone: v }))} keyboardType="phone-pad" />
               <FInput label="التخصص المهني" value={form.specialty} onChangeText={v => setForm(p => ({ ...p, specialty: v }))} />
-              <FInput label="تاريخ بدء العمل" placeholder="YYYY-MM-DD" value={form.work_start_date} onChangeText={v => setForm(p => ({ ...p, work_start_date: v }))} />
+              <View style={styles.fGroup}><DateInput label="تاريخ بدء العمل" value={form.work_start_date} onChange={v => setForm(p => ({ ...p, work_start_date: v }))} maxDate={new Date()} /></View>
               <FInput label="سنوات الخبرة" value={form.work_years} onChangeText={v => setForm(p => ({ ...p, work_years: v }))} keyboardType="numeric" />
             </Animated.View>
           )}

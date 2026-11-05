@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { volunteerApi, TASK_CATEGORIES, fmtDate, type VolunteerTask } from "@/lib/volunteer";
 import { confirmAction, notify } from "@/lib/xplatform";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import DateTimeField from "@/components/ui/DateTimeField";
 
 type Tab = "tasks" | "cards" | "settings";
 type Signup = Awaited<ReturnType<typeof volunteerApi.signups>>[number];
@@ -157,7 +158,7 @@ export default function VolunteerAdmin() {
                     </RtlScrollRow>
                     <Field label="المكان" value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
                     <Field label="الجهة المنظِّمة" value={form.organizer} onChange={(v) => setForm({ ...form, organizer: v })} />
-                    <Field label="التاريخ (مثال 2026-11-15)" value={form.starts_at} onChange={(v) => setForm({ ...form, starts_at: v })} />
+                    <DateTimeField label="موعد المهمة" value={form.starts_at ? new Date(form.starts_at) : null} onChange={(d) => setForm({ ...form, starts_at: d.toISOString() })} onClear={() => setForm({ ...form, starts_at: "" })} minDate={new Date()} placeholder="بدون موعد محدد" />
                     <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                       <View style={{ flex: 1 }}><Field label="النقاط" value={form.points} onChange={(v) => setForm({ ...form, points: v.replace(/\D/g, "") })} numeric /></View>
                       <View style={{ flex: 1 }}><Field label="عدد المقاعد (اختياري)" value={form.slots} onChange={(v) => setForm({ ...form, slots: v.replace(/\D/g, "") })} numeric /></View>

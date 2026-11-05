@@ -23,6 +23,7 @@ import OrgInviteCard from "@/components/OrgInviteCard";
 import ModernHeader from "@/components/ui/ModernHeader";
 import { paperDocument, printPaper, esc, blank } from "@/lib/paper";
 import { notify, openExternal } from "@/lib/xplatform";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1492,7 +1493,7 @@ function LawyersScreen() {
 
             <Field label="الاسم *" value={contract.name} onChange={(v: string) => setContract(c => ({ ...c, name: v }))} placeholder="اسمك الكامل" />
             <Field label="رقم الهاتف *" value={contract.phone} onChange={(v: string) => setContract(c => ({ ...c, phone: v }))} placeholder="09xxxxxxxx" keyboardType="phone-pad" />
-            <Field label="الموعد المناسب (اختياري)" value={contract.date} onChange={(v: string) => setContract(c => ({ ...c, date: v }))} placeholder="مثال: 2026-11-10" />
+            <View style={{ marginBottom: 10 }}><DateInput label="الموعد المناسب (اختياري)" value={contract.date} onChange={(v) => setContract(c => ({ ...c, date: v }))} minDate={new Date()} placeholder="أي موعد يناسب المحامي" /></View>
             <Field label="وصف موجز للقضية" value={contract.details} onChange={(v: string) => setContract(c => ({ ...c, details: v }))} placeholder="ما الذي حدث، وما المطلوب من المحامي؟" multiline />
 
             <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>

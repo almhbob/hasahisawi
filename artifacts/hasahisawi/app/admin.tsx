@@ -22,6 +22,7 @@ import { IMPORTANT_APP_SERVICE_LINKS } from "@/constants/service-links";
 import { alertForNewPendingAdminItems, countPendingAdminItems } from "@/lib/attention-alerts";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import TravelAgencyOwners from "@/components/admin/TravelAgencyOwners";
+import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type AdminUser = {
@@ -5143,12 +5144,10 @@ export default function AdminDashboard() {
 
                     <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.fieldLabel}>تاريخ البدء *</Text>
-                        <TextInput style={s.fieldInput} value={honorForm.start_date} onChangeText={v => setHonorForm(f => ({ ...f, start_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                        <DateInput label="تاريخ البدء *" value={honorForm.start_date} onChange={v => setHonorForm(f => ({ ...f, start_date: v }))} clearable={false} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.fieldLabel}>تاريخ الانتهاء *</Text>
-                        <TextInput style={s.fieldInput} value={honorForm.end_date} onChangeText={v => setHonorForm(f => ({ ...f, end_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                        <DateInput label="تاريخ الانتهاء *" value={honorForm.end_date} onChange={v => setHonorForm(f => ({ ...f, end_date: v }))} minDate={ymdToDate(honorForm.start_date) ?? undefined} clearable={false} />
                       </View>
                     </View>
                     <Text style={s.fieldHint}>يتم إخفاء الشخصية تلقائياً بعد تاريخ الانتهاء</Text>
@@ -5212,12 +5211,10 @@ export default function AdminDashboard() {
 
                     <View style={{ flexDirection: "row-reverse", gap: 10 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.fieldLabel}>تاريخ البدء *</Text>
-                        <TextInput style={s.fieldInput} value={editHonorForm.start_date} onChangeText={v => setEditHonorForm(f => ({ ...f, start_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                        <DateInput label="تاريخ البدء *" value={editHonorForm.start_date} onChange={v => setEditHonorForm(f => ({ ...f, start_date: v }))} clearable={false} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.fieldLabel}>تاريخ الانتهاء *</Text>
-                        <TextInput style={s.fieldInput} value={editHonorForm.end_date} onChangeText={v => setEditHonorForm(f => ({ ...f, end_date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} textAlign="right" keyboardType="numbers-and-punctuation" />
+                        <DateInput label="تاريخ الانتهاء *" value={editHonorForm.end_date} onChange={v => setEditHonorForm(f => ({ ...f, end_date: v }))} minDate={ymdToDate(editHonorForm.start_date) ?? undefined} clearable={false} />
                       </View>
                     </View>
 

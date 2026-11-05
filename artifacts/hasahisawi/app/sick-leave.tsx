@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
 
 const MED = "#10B981";
 const LEAVE_TYPES = [
@@ -243,14 +244,10 @@ export default function SickLeaveScreen() {
               style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", textAlign: "right", marginBottom: 10, minHeight: 60 }} />
             <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 14 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>من</Text>
-                <TextInput value={startDate} onChangeText={setStartDate} placeholder="2025-01-01" placeholderTextColor={Colors.textMuted}
-                  style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", textAlign: "center" }} />
+                <DateInput label="من" value={startDate} onChange={setStartDate} clearable={false} onDark />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", marginBottom: 4 }}>إلى</Text>
-                <TextInput value={endDate} onChangeText={setEndDate} placeholder="2025-01-07" placeholderTextColor={Colors.textMuted}
-                  style={{ backgroundColor: "#FFFFFF0D", borderRadius: 12, borderWidth: 1, borderColor: "#FFFFFF18", padding: 12, color: "#fff", fontFamily: "Cairo_400Regular", textAlign: "center" }} />
+                <DateInput label="إلى" value={endDate} onChange={setEndDate} minDate={ymdToDate(startDate) ?? undefined} clearable={false} onDark />
               </View>
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 10 }}>

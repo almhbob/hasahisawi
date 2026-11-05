@@ -7,6 +7,7 @@ import { confirmAction, notify } from "@/lib/xplatform";
 import { paperDocument, printPaper, esc } from "@/lib/paper";
 import { ToolHeader, Field, Btn, Card, Empty, EDU } from "@/components/edu/ui";
 import { useTeacherData, uid, today, type LessonPlan } from "@/lib/edu-store";
+import { DateInput } from "@/components/ui/DateTimeField";
 
 const EMPTY = (): LessonPlan => ({ id: uid(), title: "", subject: "", grade: "", date: today(), duration: "45 دقيقة", objectives: "", materials: "", warmup: "", steps: "", activities: "", assessment: "", homework: "", notes: "", updated_at: Date.now() });
 
@@ -55,7 +56,7 @@ export default function LessonPlanner({ onBack }: { onBack: () => void }) {
             <View style={{ flex: 1 }}><Field label="الصف" value={edit.grade} onChangeText={(v) => setEdit({ ...edit, grade: v })} placeholder="الثاني ثانوي" /></View>
           </View>
           <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-            <View style={{ flex: 1 }}><Field label="التاريخ" value={edit.date} onChangeText={(v) => setEdit({ ...edit, date: v })} placeholder="2026-11-01" /></View>
+            <View style={{ flex: 1 }}><DateInput label="التاريخ" value={edit.date} onChange={(v) => setEdit({ ...edit, date: v })} /></View>
             <View style={{ flex: 1 }}><Field label="زمن الحصة" value={edit.duration} onChangeText={(v) => setEdit({ ...edit, duration: v })} /></View>
           </View>
           {SECTIONS.map((x) => (
