@@ -11,8 +11,10 @@ const MIN_ZOOM = 1, MAX_ZOOM = 5;
 
 export type ZoomPage = { label: string; ratio: number; render: (width: number) => React.ReactNode };
 
-export default function ZoomViewer({ visible, onClose, pages, initial = 0, title }: {
+export default function ZoomViewer({ visible, onClose, pages, initial = 0, title, actions }: {
   visible: boolean; onClose: () => void; pages: ZoomPage[]; initial?: number; title?: string;
+  /** أزرار إضافية في الشريط السفلي (مثل مشاركة/حفظ) */
+  actions?: React.ReactNode;
 }) {
   const { width: sw, height: sh } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -91,6 +93,7 @@ export default function ZoomViewer({ visible, onClose, pages, initial = 0, title
           <TouchableOpacity onPress={() => setZoom(saved.value - 0.5)} style={st.icon} accessibilityRole="button" accessibilityLabel="تصغير"><Ionicons name="remove" size={22} color="#F1EEE6" /></TouchableOpacity>
           <TouchableOpacity onPress={() => setZoom(1)} style={st.zoom} accessibilityRole="button" accessibilityLabel="الحجم الأصلي"><Text style={st.zoomTxt}>{zoomLabel}%</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setZoom(saved.value + 0.5)} style={st.icon} accessibilityRole="button" accessibilityLabel="تكبير"><Ionicons name="add" size={22} color="#F1EEE6" /></TouchableOpacity>
+          {actions}
         </View>
       </GestureHandlerRootView>
     </Modal>
