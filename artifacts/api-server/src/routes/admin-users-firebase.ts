@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { permissionForPath } from "../lib/mod-permissions";
 import { Pool } from "pg";
 import { timingSafeEqual } from "node:crypto";
 import { listAllFirebaseUsers, verifyIdToken, type FirebaseUserRecord } from "../lib/firebase-admin";
@@ -181,6 +182,10 @@ async function getSessionUser(req: Request): Promise<Record<string, unknown> | n
 async function isAdminRequest(req: Request): Promise<boolean> {
   const user = await getSessionUser(req).catch(() => null);
   if (user?.role === "admin") return true;
+  if (user?.role === "moderator" && permissionForPath(String(req.originalUrl || req.path)) === "members") {
+    const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section='members' LIMIT 1`, [user.id]).catch(() => ({ rows: [] as any[] }));
+    if (r.rows.length) return true;
+  }
 
   const pinHeader = req.headers["x-admin-pin"] as string | undefined;
   const pinBody = (req.body as { admin_pin?: string } | undefined)?.admin_pin;

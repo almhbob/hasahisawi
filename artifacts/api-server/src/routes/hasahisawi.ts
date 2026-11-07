@@ -1,5 +1,6 @@
 import { ensureProfilePlus } from "./profile-plus";
 import { lockKey, rejectIfLocked, failResponse, clearFailures } from "../lib/login-lockout";
+import { MOD_PERMISSIONS, VALID_PERMISSION_KEYS, permissionForPath } from "../lib/mod-permissions";
 import { ensureSocialSafety, hiddenAuthorIds } from "./social-safety";
 import { ensureSocialPlus, followeeIds } from "./social-plus";
 import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
@@ -2373,10 +2374,23 @@ async function canZawajilRequest(req: Request): Promise<boolean> {
   try { return await canManageZawajil((await getSessionUser(req)) as any); } catch { return false; }
 }
 
+
+// المشرف يُقبل كمدير في مسارات الأقسام الممنوحة له فقط — والإجراءات الحساسة تبقى للمدير
+const ADMIN_ONLY_PATH = /\/admin\/users\/[^/]+\/(role|permissions|password)\b|\/admin\/(users\/[^/]+$|change-pin|validate-pin|seed|purge|sync-firebase|migrate|set-firebase|ai-settings|feature-flags|section-configs|union-managers|push)/i;
+async function moderatorAllowed(req: Request, userId: number): Promise<boolean> {
+  const path = String(req.originalUrl || req.path || "").split("?")[0];
+  if (ADMIN_ONLY_PATH.test(path)) return false;
+  const key = permissionForPath(path);
+  if (!key) return false;
+  const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section=$2 LIMIT 1`, [userId, key]).catch(() => ({ rows: [] as any[] }));
+  return r.rows.length > 0;
+}
+
 async function isAdminRequest(req: Request): Promise<boolean> {
   try {
     const user = await getSessionUser(req);
     if (user?.role === "admin") return true;
+    if (user?.role === "moderator" && await moderatorAllowed(req, Number(user.id))) return true;
     const pinHeader = req.headers["x-admin-pin"] as string | undefined;
     const pinBody = req.body?.admin_pin as string | undefined;
     const submittedPin = pinHeader || pinBody;
@@ -4375,6 +4389,20 @@ router.patch("/admin/users/:id/password", async (req: Request, res: Response) =>
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// GET /api/admin/moderator-permissions — كتالوج الصلاحيات والمشرفون وأقسامهم (لمدير التطبيق)
+router.get("/admin/moderator-permissions", async (req: Request, res: Response) => {
+  const me = await getSessionUser(req);
+  if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const mods = await query(
+      `SELECT u.id, u.name, u.phone, u.email, u.avatar_url,
+              COALESCE(ARRAY_AGG(p.section) FILTER (WHERE p.section IS NOT NULL), '{}') AS sections
+         FROM users u LEFT JOIN moderator_permissions p ON p.user_id=u.id
+        WHERE u.role='moderator' GROUP BY u.id ORDER BY u.name`);
+    return res.json({ catalog: MOD_PERMISSIONS.map(({ key, label, group }) => ({ key, label, group })), moderators: mods.rows });
+  } catch (err) { logger.error({ err }, "moderator-permissions"); return res.status(500).json({ error: "Server error" }); }
+});
+
 router.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
   try {
     const currentUser = await getSessionUser(req);
@@ -4395,9 +4423,9 @@ router.put("/admin/users/:id/permissions", async (req: Request, res: Response) =
     if (!currentUser || currentUser.role !== "admin") {
       return res.status(403).json({ error: "غير مصرح" });
     }
-    const { sections } = req.body;
+    const sections = (Array.isArray(req.body?.sections) ? req.body.sections : []).filter((k: string) => VALID_PERMISSION_KEYS.has(k));
     await query(`DELETE FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
-    for (const section of sections || []) {
+    for (const section of sections) {
       await query(`INSERT INTO moderator_permissions (user_id, section) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, section]);
     }
     return res.json({ success: true });
