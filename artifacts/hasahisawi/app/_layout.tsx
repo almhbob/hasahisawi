@@ -46,6 +46,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resumePendingSectionInvite } from "@/lib/section-invites";
 import { ONBOARDING_KEY } from "./onboarding";
 import DesktopShell from "@/components/web/DesktopShell";
+import { A11yProvider } from "@/lib/a11y";
+import VoiceAssistant from "@/components/a11y/VoiceAssistant";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
 import * as SystemUI from "expo-system-ui";
@@ -588,6 +590,7 @@ export default function RootLayout() {
           <FirebaseProvider>
             <AuthProvider>
               <FeatureFlagsProvider>
+              <A11yProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   {/* الاتجاه LTR على كل المنصات (التصميم يتكفّل باليمين). كان الويب وحده RTL فتنعكس الواجهة */}
@@ -599,11 +602,13 @@ export default function RootLayout() {
                     </DesktopShell>
                     <NetworkBanner />
                     <AdminAlertsWatcher />
+                    <VoiceAssistant />
                     <LaunchSplash />
                     <UpdateBanner />
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>
+              </A11yProvider>
               </FeatureFlagsProvider>
             </AuthProvider>
           </FirebaseProvider>

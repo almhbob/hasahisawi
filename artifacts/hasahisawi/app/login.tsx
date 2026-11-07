@@ -22,6 +22,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { onlyDigits, toLatinDigits } from "@/lib/digits";
 import OtpCodeInput, { OtpCodeInputHandle } from "@/components/auth/OtpCodeInput";
 import LockoutCard, { AttemptsDots, useLockout, fmtWait } from "@/components/auth/LockoutCard";
+import { useA11y } from "@/lib/a11y";
 import { neu, NeuRaised, NeuInset, NeuBadge, NeuButton, NeuRoundButton, NeuField } from "@/components/auth/neu";
 
 const LOGO = require("@/assets/images/logo.png");
@@ -88,6 +89,7 @@ export default function LoginScreen() {
   const [bioLoading, setBioLoading]   = useState(false);
   // الإيقاف المؤقت بعد 3 محاولات خاطئة (يفرضه الخادم، وهنا نعرض العدّاد)
   const lockout = useLockout();
+  const a11y = useA11y();
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
   // ── OTP ──────────────────────────────────────────────────
@@ -425,6 +427,13 @@ export default function LoginScreen() {
             <Text style={styles.appName}>حصاحيصاوي</Text>
             <Text style={styles.tagline}>بوابتك الذكية لمدينة الحصاحيصا</Text>
           </View>
+          <NeuRoundButton
+            icon="accessibility"
+            size={44}
+            color={a11y.enabled ? "#B45309" : Colors.textSecondary}
+            accessibilityLabel={a11y.enabled ? "إيقاف وضع المكفوفين" : "تفعيل وضع المكفوفين والمساعد الصوتي"}
+            onPress={() => { const v = !a11y.enabled; a11y.update({ enabled: v }); a11y.speak(v ? "فُعّل وضع المكفوفين. حقل البريد أو الهاتف ثم كلمة المرور ثم زر تسجيل الدخول. زر المساعد الصوتي أسفل يسار الشاشة." : "أُوقف وضع المكفوفين"); }}
+          />
         </Animated.View>
 
         {/* ─── البطاقة البارزة ─────────────────────── */}

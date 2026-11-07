@@ -4,6 +4,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
   KeyboardAvoidingView, ActivityIndicator,
+  Switch,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
@@ -31,6 +32,7 @@ import { CULTURAL_CENTERS_KEY, CULTURAL_EVENTS_KEY, loadCulturalCenters, loadCul
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
+import { useA11y } from "@/lib/a11y";
 import { ControlCenterGrid, SectionBar as NavBar, type AdminTabItem, type TabGroup } from "@/components/admin/ControlCenter";
 import { neu, NeuRaised } from "@/components/auth/neu";
 import UserAvatar from "@/components/UserAvatar";
@@ -1833,6 +1835,7 @@ export default function SettingsScreen() {
 
           {/* ─── المظهر (فاتح / داكن / تلقائي) — في الأعلى ليسهل الوصول إليه ─── */}
           <ThemeModeCard />
+          <A11yCard />
 
           {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}
           {auth.user && !auth.isGuest && (
@@ -4479,6 +4482,69 @@ const THEME_OPTIONS: { key: ThemeMode; label: string; icon: keyof typeof Ionicon
   { key: "dark", label: "داكن", icon: "moon-outline" },
   { key: "system", label: "تلقائي", icon: "phone-portrait-outline" },
 ];
+
+function A11yCard() {
+  const a = useA11y();
+  const router = useRouter();
+  return (
+    <View style={a11ySt.card}>
+      <View style={a11ySt.head}>
+        <View style={a11ySt.icon}><Ionicons name="accessibility" size={22} color="#0B6B49" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={a11ySt.title}>وضع المكفوفين وضعاف البصر</Text>
+          <Text style={a11ySt.sub}>مساعد صوتي يقرأ الشاشات، تكبير الخط، ورئيسية ميسّرة بأزرار كبيرة</Text>
+        </View>
+        <Switch
+          value={a.enabled}
+          onValueChange={v => { a.update({ enabled: v }); a.speak(v ? "فُعّل وضع المكفوفين. زر المساعد الصوتي أسفل الشاشة يقرأ لك الصفحة." : "أُوقف وضع المكفوفين"); }}
+          accessibilityLabel="تفعيل وضع المكفوفين"
+          trackColor={{ true: Colors.primary + "88", false: Colors.divider }}
+          thumbColor={a.enabled ? Colors.primary : "#f4f4f4"}
+        />
+      </View>
+      {a.enabled && (
+        <View style={{ gap: 8 }}>
+          <View style={a11ySt.rateRow}>
+            <Text style={a11ySt.label}>سرعة النطق</Text>
+            {[0.7, 0.95, 1.2].map((r, i) => (
+              <TouchableOpacity key={r} onPress={() => { a.update({ rate: r }); a.speak(["بطيء", "عادي", "سريع"][i]); }} style={[a11ySt.chip, Math.abs(a.rate - r) < 0.08 && a11ySt.chipOn]}>
+                <Text style={[a11ySt.chipText, Math.abs(a.rate - r) < 0.08 && { color: "#fff" }]}>{["بطيء", "عادي", "سريع"][i]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={a11ySt.btnRow}>
+            <TouchableOpacity onPress={() => router.push("/accessible-home" as any)} style={a11ySt.btn}>
+              <Ionicons name="grid" size={16} color="#fff" />
+              <Text style={a11ySt.btnText}>الرئيسية الميسّرة</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => a.speak("مرحباً، هذا صوت المساعد في تطبيق حصاحيصاوي.")} style={[a11ySt.btn, { backgroundColor: Colors.accent }]}>
+              <Ionicons name="volume-high" size={16} color="#fff" />
+              <Text style={a11ySt.btnText}>تجربة الصوت</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={a11ySt.note}>لأفضل تجربة فعّل أيضاً قارئ الشاشة في هاتفك (TalkBack على أندرويد، VoiceOver على آيفون)؛ التطبيق يعمل معه.</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const a11ySt = StyleSheet.create({
+  card: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 16, marginBottom: 14, gap: 12, ...Colors.shadow.card },
+  head: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
+  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
+  rateRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  label: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
+  chipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textSecondary },
+  btnRow: { flexDirection: "row-reverse", gap: 8 },
+  btn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 10 },
+  btnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  note: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
+});
 
 function ThemeModeCard() {
   const [mode, setMode] = React.useState<ThemeMode>(initialThemeMode);
