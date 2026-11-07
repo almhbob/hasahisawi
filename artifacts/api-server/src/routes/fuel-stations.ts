@@ -69,6 +69,8 @@ export function ensureFuelDb(): Promise<void> {
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+    // نوع النشاط: محطة وقود، أو محل غاز (أسطوانات الطبخ فقط) — محلات الغاز ليست بالضرورة محطات
+    await query(`ALTER TABLE fuel_stations ADD COLUMN IF NOT EXISTS kind VARCHAR(12) NOT NULL DEFAULT 'station'`);
     await query(`CREATE INDEX IF NOT EXISTS fuel_reports_recent_idx ON fuel_station_reports(station_id, created_at DESC)`);
   })().catch((e) => { ready = null; throw e; }));
 }
@@ -125,6 +127,7 @@ router.get("/fuel-stations/mine", async (req: Request, res: Response) => {
 function profileFields(b: any) {
   const services = Array.isArray(b?.services) ? b.services.filter((k: string) => k in SERVICES).slice(0, 20) : undefined;
   return {
+    kind: b?.kind !== undefined ? (b.kind === "gas_shop" ? "gas_shop" : "station") : undefined,
     name: b?.name !== undefined ? clip(b.name, 150) : undefined,
     brand: b?.brand !== undefined ? clip(b.brand, 100) || null : undefined,
     logo_url: b?.logo_url !== undefined ? httpsUrl(b.logo_url) : undefined,
@@ -153,12 +156,14 @@ router.post("/fuel-stations", writeLimiter, async (req: Request, res: Response) 
     if (!f.phone) return res.status(400).json({ error: "رقم هاتف المحطة مطلوب للتواصل" });
     const status = u.role === "admin" ? "approved" : "pending";
     const r = await query(
-      `INSERT INTO fuel_stations (name, brand, logo_url, cover_url, phone, whatsapp, area, address, hours, is_24h, notes, lat, lng, services, status, owner_user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,FALSE),$11,$12,$13,COALESCE($14::jsonb,'[]'::jsonb),$15,$16) RETURNING id`,
+      `INSERT INTO fuel_stations (name, brand, logo_url, cover_url, phone, whatsapp, area, address, hours, is_24h, notes, lat, lng, services, status, owner_user_id, kind)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,FALSE),$11,$12,$13,COALESCE($14::jsonb,'[]'::jsonb),$15,$16,$17) RETURNING id`,
       [f.name, f.brand ?? null, f.logo_url ?? null, f.cover_url ?? null, f.phone, f.whatsapp ?? null, f.area ?? null, f.address ?? null,
-       f.hours ?? null, f.is_24h ?? null, f.notes ?? null, f.lat ?? null, f.lng ?? null, f.services ?? null, status, u.id]);
+       f.hours ?? null, f.is_24h ?? null, f.notes ?? null, f.lat ?? null, f.lng ?? null, f.services ?? null, status, u.id, f.kind ?? "station"]);
     const id = r.rows[0].id;
-    for (const k of Object.keys(FUELS)) await query(`INSERT INTO fuel_station_fuels (station_id, fuel) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [id, k]);
+    // محل الغاز يبيع أسطوانات الطبخ فقط
+    const fuelKeys = f.kind === "gas_shop" ? ["gas"] : Object.keys(FUELS);
+    for (const k of fuelKeys) await query(`INSERT INTO fuel_station_fuels (station_id, fuel) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [id, k]);
     logger.info({ id, user: u.id, status }, "[fuel] station registered");
     return res.status(201).json({ ok: true, id, status, message: status === "approved" ? "أُضيفت المحطة" : "وصل طلبك — ستظهر المحطة بعد اعتماد الإدارة، ويمكنك تجهيز بياناتها من لوحتها الآن." });
   } catch (e: any) { logger.error({ err: e?.message }, "fuel-stations create"); return res.status(500).json({ error: "Server error" }); }

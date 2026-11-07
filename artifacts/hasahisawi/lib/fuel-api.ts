@@ -3,8 +3,16 @@ import { getApiUrl } from "@/lib/query-client";
 export type FuelKey = "gasoline" | "diesel" | "gas";
 export type FuelState = { fuel: FuelKey; available: boolean; price: string | number | null; queue: "none" | "short" | "long"; updated_at: string };
 export type FuelReport = { fuel: FuelKey; last_available: boolean | null; yes: number; no: number; last_at: string };
+export type StationKind = "station" | "gas_shop";
+export const KIND_META: Record<StationKind, { label: string; short: string; icon: string }> = {
+  station: { label: "محطة وقود", short: "محطة", icon: "speedometer" },
+  gas_shop: { label: "محل غاز", short: "محل غاز", icon: "flame" },
+};
+/** أنواع الوقود التي يبيعها النشاط */
+export const fuelsFor = (kind?: StationKind): FuelKey[] => (kind === "gas_shop" ? ["gas"] : ["gasoline", "diesel", "gas"]);
+
 export type FuelStation = {
-  id: number; name: string; brand?: string | null; logo_url?: string | null; cover_url?: string | null;
+  id: number; name: string; kind?: StationKind; brand?: string | null; logo_url?: string | null; cover_url?: string | null;
   phone?: string | null; whatsapp?: string | null; area?: string | null; address?: string | null;
   lat?: number | null; lng?: number | null; hours?: string | null; is_24h: boolean;
   services: string[]; notes?: string | null; status: "pending" | "approved" | "suspended";

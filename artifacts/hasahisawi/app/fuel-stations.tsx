@@ -16,8 +16,8 @@ import { useAuth } from "@/lib/auth-context";
 import { notify, openExternal } from "@/lib/xplatform";
 import { neu, NeuInset, NeuRaised } from "@/components/auth/neu";
 import {
-  ago, effectiveFuel, FUEL_META, fuelApi, QUEUE_LABEL, SERVICE_ICONS,
-  type FuelKey, type FuelStation,
+  ago, effectiveFuel, FUEL_META, fuelApi, fuelsFor, KIND_META, QUEUE_LABEL, SERVICE_ICONS,
+  type FuelKey, type FuelStation, type StationKind,
 } from "@/lib/fuel-api";
 
 const FUEL_KEYS: FuelKey[] = ["gasoline", "diesel", "gas"];
@@ -32,6 +32,7 @@ export default function FuelStationsScreen() {
   const [error, setError] = useState("");
   const [fuel, setFuel] = useState<FuelKey | "all">("all");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [kind, setKind] = useState<StationKind | "all">("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<FuelStation | null>(null);
 
@@ -49,6 +50,8 @@ export default function FuelStationsScreen() {
   const shown = useMemo(() => {
     const t = q.trim();
     const list = stations.filter(s => {
+      if (kind !== "all" && (s.kind || "station") !== kind) return false;
+      if (fuel !== "all" && !fuelsFor(s.kind).includes(fuel)) return false;
       if (t && ![s.name, s.area, s.address, s.brand].some(v => String(v || "").includes(t))) return false;
       if (onlyAvailable) {
         const keys = fuel === "all" ? FUEL_KEYS : [fuel];
@@ -59,7 +62,7 @@ export default function FuelStationsScreen() {
     // المتوفر أولاً، ثم الأحدث تحديثاً
     const score = (s: FuelStation) => (fuel === "all" ? FUEL_KEYS : [fuel]).some(k => effectiveFuel(s, k).available) ? 1 : 0;
     return list.sort((a, b) => score(b) - score(a) || +new Date(b.updated_at) - +new Date(a.updated_at));
-  }, [stations, q, fuel, onlyAvailable]);
+  }, [stations, q, fuel, onlyAvailable, kind]);
 
   const availableCount = (k: FuelKey) => stations.filter(s => effectiveFuel(s, k).available).length;
 
@@ -81,8 +84,8 @@ export default function FuelStationsScreen() {
               <Text style={st.heroPillText}>لأصحاب المحطات</Text>
             </TouchableOpacity>
           </View>
-          <Text style={st.heroTitle}>محطات الوقود</Text>
-          <Text style={st.heroSub}>أين يتوفر الوقود الآن؟ الأسعار والزحام وخدمات السائقين</Text>
+          <Text style={st.heroTitle}>محطات الوقود ومحلات الغاز</Text>
+          <Text style={st.heroSub}>أين يتوفر الوقود والغاز الآن؟ الأسعار والزحام وخدمات السائقين</Text>
           <View style={st.heroStats}>
             {FUEL_KEYS.map(k => (
               <View key={k} style={st.heroStat}>
@@ -102,6 +105,21 @@ export default function FuelStationsScreen() {
               {!!q && <Ionicons name="close-circle" size={18} color={Colors.textMuted} onPress={() => setQ("")} />}
             </View>
           </NeuRaised>
+
+          {/* نوع النشاط */}
+          <View style={st.kindRow}>
+            {(["all", "station", "gas_shop"] as const).map(k => {
+              const on = kind === k;
+              const label = k === "all" ? "الكل" : k === "station" ? "المحطات" : "محلات الغاز";
+              const count = k === "all" ? stations.length : stations.filter(s => (s.kind || "station") === k).length;
+              return (
+                <TouchableOpacity key={k} onPress={() => { setKind(k); if (k === "gas_shop") setFuel("all"); }} style={[st.kindChip, on && { backgroundColor: ACCENT, borderColor: ACCENT }]} accessibilityRole="tab" accessibilityState={{ selected: on }}>
+                  <Ionicons name={(k === "all" ? "apps" : KIND_META[k].icon) as any} size={14} color={on ? "#fff" : ACCENT} />
+                  <Text style={[st.kindText, on && { color: "#fff" }]}>{label} · {count}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           {/* فلاتر الوقود */}
           <View style={st.fuelRow}>
@@ -163,7 +181,7 @@ function Logo({ s, size = 54 }: { s: FuelStation; size?: number }) {
     <Image source={{ uri: s.logo_url }} style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: "#fff" }} />
   ) : (
     <View style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: ACCENT + "18", alignItems: "center", justifyContent: "center" }}>
-      <Ionicons name="speedometer" size={size * 0.5} color={ACCENT} />
+      <Ionicons name={(s.kind === "gas_shop" ? "flame" : "speedometer") as any} size={size * 0.5} color={ACCENT} />
     </View>
   );
 }
@@ -198,7 +216,10 @@ function StationCard({ s, services, onPress }: { s: FuelStation; services: Recor
           </View>
           <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
         </View>
-        <View style={st.pillsRow}>{FUEL_KEYS.map(k => <FuelPill key={k} s={s} k={k} />)}</View>
+        <View style={st.pillsRow}>
+          {s.kind === "gas_shop" ? <View style={st.kindTag}><Ionicons name="flame" size={11} color="#C2410C" /><Text style={st.kindTagText}>محل غاز</Text></View> : null}
+          {fuelsFor(s.kind).map(k => <FuelPill key={k} s={s} k={k} />)}
+        </View>
         <View style={st.cardFoot}>
           <View style={st.svcRow}>
             {s.services.slice(0, 6).map(k => (
@@ -265,7 +286,7 @@ function StationSheet({ station: s, services, onClose, token, loggedIn, onReport
             </View>
 
             <Text style={st.section}>حالة الوقود</Text>
-            {FUEL_KEYS.map(k => {
+            {fuelsFor(s.kind).map(k => {
               const e = effectiveFuel(s, k);
               const meta = FUEL_META[k];
               const color = e.available === true ? "#10B981" : e.available === false ? "#EF4444" : Colors.textMuted;
@@ -295,7 +316,7 @@ function StationSheet({ station: s, services, onClose, token, loggedIn, onReport
 
             <Text style={st.section}>ساعد السائقين: هل الوقود متوفر الآن؟</Text>
             <View style={{ gap: 8 }}>
-              {FUEL_KEYS.map(k => (
+              {fuelsFor(s.kind).map(k => (
                 <View key={k} style={st.reportRow}>
                   <Text style={st.reportLabel}>{FUEL_META[k].label}</Text>
                   <TouchableOpacity disabled={!!busy} onPress={() => report(k, true)} style={[st.reportBtn, { borderColor: "#10B98155" }]}>
@@ -363,6 +384,11 @@ const st = StyleSheet.create({
   searchRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingHorizontal: 10 },
   searchInput: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, textAlign: "right", paddingVertical: 10, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null) },
   fuelRow: { flexDirection: "row-reverse", gap: 8 },
+  kindRow: { flexDirection: "row-reverse", gap: 8 },
+  kindChip: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 14, borderWidth: 1.2, borderColor: ACCENT + "50", backgroundColor: Colors.cardBg },
+  kindText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: ACCENT },
+  kindTag: { flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: "#F9731618", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
+  kindTagText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#C2410C" },
   fuelChip: { alignItems: "center", justifyContent: "center", gap: 2, paddingVertical: 9 },
   fuelChipText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary },
   toggleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },

@@ -20,7 +20,7 @@ import { onlyDigits, toLatinDigits } from "@/lib/digits";
 import { neu, NeuButton, NeuInset, NeuRaised } from "@/components/auth/neu";
 import { ImageUploadField } from "@/components/union/ImageUploadField";
 import {
-  ago, FUEL_META, fuelApi, QUEUE_LABEL, SERVICE_ICONS, type FuelKey, type FuelState, type FuelStation,
+  ago, FUEL_META, fuelApi, fuelsFor, KIND_META, QUEUE_LABEL, SERVICE_ICONS, type FuelKey, type FuelState, type FuelStation, type StationKind,
 } from "@/lib/fuel-api";
 
 const FUEL_KEYS: FuelKey[] = ["gasoline", "diesel", "gas"];
@@ -197,7 +197,8 @@ function SmallBtn({ label, icon, color, onPress }: { label: string; icon: any; c
 }
 
 function FuelPanel({ s, token, onSaved }: { s: FuelStation; token: string; onSaved: (s: FuelStation) => void }) {
-  const init = useMemo(() => Object.fromEntries(FUEL_KEYS.map(k => {
+  const KEYS = fuelsFor(s.kind);
+  const init = useMemo(() => Object.fromEntries(KEYS.map(k => {
     const f = s.fuels.find(x => x.fuel === k);
     return [k, { available: !!f?.available, price: f?.price != null ? String(Number(f.price)) : "", queue: (f?.queue as any) || "none" }];
   })) as Record<FuelKey, Draft>, [s]);
@@ -210,7 +211,7 @@ function FuelPanel({ s, token, onSaved }: { s: FuelStation; token: string; onSav
   const save = async () => {
     setSaving(true);
     try {
-      const fuels: Partial<FuelState>[] = FUEL_KEYS.map(k => ({ fuel: k, available: d[k].available, price: d[k].price || null, queue: d[k].queue }));
+      const fuels: Partial<FuelState>[] = KEYS.map(k => ({ fuel: k, available: d[k].available, price: d[k].price || null, queue: d[k].queue }));
       const r = await fuelApi.setFuels(token, s.id, fuels);
       onSaved(r.station);
       notify("تم النشر", "ظهرت الحالة الجديدة للمواطنين فوراً.");
@@ -221,7 +222,7 @@ function FuelPanel({ s, token, onSaved }: { s: FuelStation; token: string; onSav
   return (
     <Animated.View entering={FadeIn} style={{ gap: 12 }}>
       <Text style={st.hint}>حدّث الحالة كلما تغيّرت — المواطنون يرون وقت آخر تحديث، والتحديث المتكرر يرفع ثقتهم في محطتك.</Text>
-      {FUEL_KEYS.map(k => {
+      {KEYS.map(k => {
         const meta = FUEL_META[k];
         const x = d[k];
         return (
@@ -351,7 +352,7 @@ function TeamPanel({ s, token }: { s: FuelStation; token: string }) {
 }
 
 function RegisterForm({ token, services, onDone, onCancel }: { token: string; services: Record<string, string>; onDone: () => void; onCancel?: () => void }) {
-  const [f, setF] = useState({ name: "", brand: "", phone: "", area: "", address: "", logo_url: "", is_24h: false, hours: "", services: [] as string[] });
+  const [f, setF] = useState({ kind: "station" as StationKind, name: "", brand: "", phone: "", area: "", address: "", logo_url: "", is_24h: false, hours: "", services: [] as string[] });
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (f.name.trim().length < 3) { notify("بيانات ناقصة", "اكتب اسم المحطة"); return; }
@@ -370,11 +371,26 @@ function RegisterForm({ token, services, onDone, onCancel }: { token: string; se
         <View style={[st.logo, { backgroundColor: ACCENT + "18", alignItems: "center", justifyContent: "center" }]}>
           <Ionicons name="speedometer" size={28} color={ACCENT} />
         </View>
-        <Text style={st.headName}>سجّل محطتك مجاناً</Text>
+        <Text style={st.headName}>سجّل نشاطك مجاناً</Text>
         <Text style={[st.hint, { textAlign: "center" }]}>تظهر محطتك للمواطنين بعد اعتماد الإدارة، وتحدّث حالة الوقود والأسعار من هنا.</Text>
       </View>
-      <ImageUploadField label="شعار المحطة (اختياري)" value={f.logo_url} onChange={url => setF({ ...f, logo_url: url })} folder="fuel" aspect={1} />
-      <Field label="اسم المحطة" value={f.name} onChange={v => setF({ ...f, name: v })} placeholder="مثال: محطة النيل — السوق الكبير" />
+      <Text style={st.section}>نوع النشاط</Text>
+      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+        {(Object.keys(KIND_META) as StationKind[]).map(k => {
+          const on = f.kind === k;
+          return (
+            <TouchableOpacity key={k} onPress={() => setF({ ...f, kind: k })} style={[st.svc, { flex: 1, justifyContent: "center", paddingVertical: 12 }, on && { borderColor: ACCENT, backgroundColor: ACCENT + "14" }]} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+              <Ionicons name={KIND_META[k].icon as any} size={18} color={on ? ACCENT : Colors.textMuted} />
+              <View>
+                <Text style={[st.svcText, on && { color: ACCENT, fontFamily: "Cairo_700Bold" }]}>{KIND_META[k].label}</Text>
+                <Text style={st.hint}>{k === "gas_shop" ? "أسطوانات غاز الطبخ فقط" : "بنزين · جازولين · غاز"}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <ImageUploadField label="الشعار (اختياري)" value={f.logo_url} onChange={url => setF({ ...f, logo_url: url })} folder="fuel" aspect={1} />
+      <Field label={f.kind === "gas_shop" ? "اسم المحل" : "اسم المحطة"} value={f.name} onChange={v => setF({ ...f, name: v })} placeholder="مثال: محطة النيل — السوق الكبير" />
       <Field label="الشركة / العلامة (اختياري)" value={f.brand} onChange={v => setF({ ...f, brand: v })} />
       <Field label="هاتف المحطة" value={f.phone} onChange={v => setF({ ...f, phone: onlyDigits(v, 14) })} keyboard="phone-pad" placeholder="0912345678" />
       <Field label="الحي / المنطقة" value={f.area} onChange={v => setF({ ...f, area: v })} />
