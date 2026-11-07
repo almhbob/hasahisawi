@@ -359,7 +359,7 @@ function UnionsScreen() {
     return (
       <Modal visible animationType="slide" onRequestClose={() => setSelectedUnion(null)}>
         <View style={[styles.modalContainer, { paddingTop: insets.top }]}>
-          <LinearGradient colors={[UC2 + "40", "#F7F9F8"]} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={[UC2 + "40", Colors.bg]} style={StyleSheet.absoluteFill} />
           <View style={styles.modalHeader}>
             <Pressable onPress={() => setSelectedUnion(null)} style={styles.closeBtn}>
               <Ionicons name="close" size={22} color="#fff" />
@@ -430,7 +430,7 @@ function UnionsScreen() {
       return (
         <View style={styles.successBox}>
           <Animated.View entering={ZoomIn.springify()}>
-            <LinearGradient colors={[UC + "22", "#F7F9F8"]} style={styles.successCard}>
+            <LinearGradient colors={[UC + "22", Colors.bg]} style={styles.successCard}>
               <View style={styles.successIcon}>
                 <Ionicons name="checkmark-circle" size={64} color={UC} />
               </View>

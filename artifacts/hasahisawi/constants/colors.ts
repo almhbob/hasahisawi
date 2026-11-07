@@ -36,8 +36,8 @@ const dangerSoftC  = isDarkTheme ? "rgba(239,83,80,0.16)" : "rgba(217,54,54,0.10
 // ── الخلفيات — محايدة لتريح العين ────────────────────────────
 const white        = "#FFFFFF";
 const ink          = isDarkTheme ? "#E9F2EE" : "#1A2C25"; // نص داكن دافئ
-const bg           = isDarkTheme ? "#0D1613" : "#F7F9F8"; // رمادي-أخضر محايد جداً — أقل إجهاداً من الأخضر
-const bgDeep       = isDarkTheme ? "#0A110E" : "#EEF3F0";
+const bg           = isDarkTheme ? "#0D1613" : "#E8EFEB"; // رمادي-أخضر ناعم يطابق شاشة الدخول (النقش البارز) فتبرز البطاقات البيضاء
+const bgDeep       = isDarkTheme ? "#0A110E" : "#DFE8E3";
 const bgAlt        = isDarkTheme ? "#15211C" : "#FFFFFF";
 
 // بطاقات صلبة (solid) لوضوح أفضل — لا شفافية مُزعجة
@@ -181,19 +181,20 @@ const radius = {
 } as const;
 
 const shadow = {
+  // ظل ناعم مائل لأسفل-يسار كما في عناصر شاشة الدخول البارزة
   card: {
-    shadowColor: "#0A2218",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowColor: isDarkTheme ? "#000000" : "#4F6B5D",
+    shadowOffset: { width: -3, height: 5 },
+    shadowOpacity: isDarkTheme ? 0.45 : 0.16,
+    shadowRadius: 12,
+    elevation: 4,
   },
   raised: {
-    shadowColor: "#0A2218",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowColor: isDarkTheme ? "#000000" : "#4F6B5D",
+    shadowOffset: { width: -5, height: 9 },
+    shadowOpacity: isDarkTheme ? 0.55 : 0.22,
+    shadowRadius: 18,
+    elevation: 8,
   },
   none: {
     shadowColor: "transparent",

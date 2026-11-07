@@ -20,7 +20,7 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 export const neu = isDarkTheme
   ? { base: "#17221E", raisedTop: "#1E2C27", raisedBottom: "#131C19", light: "#24342E", dark: "#070B0A", insetTop: "#0F1714", insetBottom: "#1B2823", text: Colors.textPrimary }
-  : { base: "#E7EEEA", raisedTop: "#F1F6F3", raisedBottom: "#DDE6E1", light: "#FFFFFF", dark: "#B7C6BE", insetTop: "#D6E0DA", insetBottom: "#EEF3F0", text: Colors.textPrimary };
+  : { base: "#E8EFEB", raisedTop: "#F2F7F4", raisedBottom: "#DEE7E2", light: "#FFFFFF", dark: "#B7C6BE", insetTop: "#D6E0DA", insetBottom: "#EEF3F0", text: Colors.textPrimary };
 
 const webShadow = (raised: boolean, d = 8) =>
   Platform.OS === "web"

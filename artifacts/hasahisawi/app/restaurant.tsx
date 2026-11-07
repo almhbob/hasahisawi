@@ -451,7 +451,7 @@ const st = StyleSheet.create({
   stepper: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   stepBtn: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   stepNum: { fontFamily: "Cairo_700Bold", fontSize: 15, minWidth: 18, textAlign: "center", color: Colors.textPrimary },
-  cartBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 10, backgroundColor: "rgba(247,249,248,0.96)" },
+  cartBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 10, backgroundColor: Colors.bg + "F5" },
   cartBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 12, height: 56, borderRadius: 18, paddingHorizontal: 16 },
   cartCount: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
   cartCountTxt: { fontFamily: "Cairo_700Bold", fontSize: 14 },
