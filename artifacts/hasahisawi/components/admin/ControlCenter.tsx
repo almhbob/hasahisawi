@@ -16,7 +16,8 @@ export type AdminTabItem = {
 };
 
 /** تصنيف الأقسام — أي قسم غير مذكور يذهب إلى «أخرى» */
-const GROUPS: { title: string; icon: keyof typeof Ionicons.glyphMap; keys: string[] }[] = [
+export type TabGroup = { title: string; icon: keyof typeof Ionicons.glyphMap; keys: string[] };
+const GROUPS: TabGroup[] = [
   { title: "الحسابات والصلاحيات", icon: "people-circle", keys: ["members", "portal_accounts", "admins", "moderators", "security"] },
   { title: "الطلبات والبلاغات", icon: "file-tray-full", keys: ["join_requests", "social_reports", "reports_admin", "feedback_admin", "missing_admin", "ratings_admin"] },
   { title: "الاتحادات والمؤسسات", icon: "business", keys: ["student_union", "communities", "partners", "section_invites", "libraries"] },
@@ -27,11 +28,11 @@ const GROUPS: { title: string; icon: keyof typeof Ionicons.glyphMap; keys: strin
   { title: "النظام والإعدادات", icon: "settings", keys: ["sections_config", "ai_settings", "updates", "calls_diag"] },
 ];
 
-function groupTabs(tabs: AdminTabItem[], q: string) {
+function groupTabs(tabs: AdminTabItem[], q: string, groups: TabGroup[] = GROUPS) {
   const t = q.trim();
   const pool = tabs.filter(x => x.key !== "overview" && (!t || x.label.includes(t)));
   const used = new Set<string>();
-  const out = GROUPS.map(g => {
+  const out = groups.map(g => {
     const items = g.keys.map(k => pool.find(p => p.key === k)).filter(Boolean) as AdminTabItem[];
     items.forEach(i => used.add(i.key));
     return { ...g, items };
@@ -66,9 +67,9 @@ export function AdminHero({ name, isAdmin, pending, onBack }: { name?: string; i
   );
 }
 
-export function ControlCenterGrid({ tabs, onOpen }: { tabs: AdminTabItem[]; onOpen: (key: string) => void }) {
+export function ControlCenterGrid({ tabs, onOpen, groups: customGroups }: { tabs: AdminTabItem[]; onOpen: (key: string) => void; groups?: TabGroup[] }) {
   const [q, setQ] = useState("");
-  const groups = useMemo(() => groupTabs(tabs, q), [tabs, q]);
+  const groups = useMemo(() => groupTabs(tabs, q, customGroups), [tabs, q, customGroups]);
   return (
     <View style={{ gap: 16 }}>
       <NeuInset radius={16} style={cc.search}>
@@ -113,7 +114,7 @@ export function ControlCenterGrid({ tabs, onOpen }: { tabs: AdminTabItem[]; onOp
 }
 
 /** شريط مختصر يظهر داخل أي قسم: رجوع لمركز التحكم + اسم القسم + كل الأقسام */
-export function SectionBar({ current, tabs, onHome, onOpen }: { current?: AdminTabItem; tabs: AdminTabItem[]; onHome: () => void; onOpen: (key: string) => void }) {
+export function SectionBar({ current, tabs, onHome, onOpen, groups, homeLabel = "مركز التحكم" }: { current?: AdminTabItem; tabs: AdminTabItem[]; onHome: () => void; onOpen: (key: string) => void; groups?: TabGroup[]; homeLabel?: string }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
   return (
@@ -121,7 +122,7 @@ export function SectionBar({ current, tabs, onHome, onOpen }: { current?: AdminT
       <View style={cc.bar}>
         <TouchableOpacity onPress={onHome} style={cc.barHome} accessibilityLabel="مركز التحكم">
           <Ionicons name="grid" size={16} color={Colors.primary} />
-          <Text style={cc.barHomeText}>مركز التحكم</Text>
+          <Text style={cc.barHomeText}>{homeLabel}</Text>
         </TouchableOpacity>
         <Ionicons name="chevron-back" size={14} color={Colors.textMuted} />
         {current && (
@@ -141,7 +142,7 @@ export function SectionBar({ current, tabs, onHome, onOpen }: { current?: AdminT
             <View style={cc.grabber} />
             <Text style={cc.sheetTitle}>كل الأقسام</Text>
             <ScrollView contentContainerStyle={{ paddingBottom: 12 }} keyboardShouldPersistTaps="handled">
-              <ControlCenterGrid tabs={tabs} onOpen={k => { setOpen(false); onOpen(k); }} />
+              <ControlCenterGrid tabs={tabs} groups={groups} onOpen={k => { setOpen(false); onOpen(k); }} />
             </ScrollView>
           </View>
         </View>

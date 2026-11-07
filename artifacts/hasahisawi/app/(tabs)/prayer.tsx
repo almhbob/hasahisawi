@@ -549,24 +549,33 @@ function PrayerScreen() {
         <Text style={s.verseSurah}>— {dailyVerse.surah}</Text>
       </Animated.View>
 
-      {/* Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollRow} contentContainerStyle={s.tabRowContent}>
+      {/* Tabs — صف ثابت بأربع خانات متساوية: الشريط الأفقي القابل للتمرير كان يُضغط على أندرويد
+          تحت قائمة المحتوى فتختفي العناوين وتُقص الأيقونات */}
+      <View style={s.tabRow}>
         {([
-          { key: "prayer",  label: "مواقيت الآذان", icon: "time-outline",            color: "#5B8DB8" },
-          { key: "adhkar",  label: "الأذكار",        icon: "leaf-outline",            color: "#22C55E" },
-          { key: "tasbih",  label: "المسبحة",        icon: "radio-button-on-outline", color: "#F59E0B" },
-          { key: "hijri",   label: "التقويم الهجري", icon: "moon-outline",            color: Colors.accent },
-        ] as const).map(t => (
-          <Pressable
-            key={t.key}
-            style={[s.tabBtn, tab === t.key && { ...s.tabBtnActive, borderColor: t.color + "55", backgroundColor: t.color + "14" }]}
-            onPress={() => setTab(t.key as any)}
-          >
-            <Ionicons name={t.icon as any} size={15} color={tab === t.key ? t.color : Colors.textMuted} />
-            <Text style={[s.tabBtnText, tab === t.key && { color: t.color }]}>{t.label}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+          { key: "prayer",  label: "المواقيت",  icon: "time-outline",            color: "#5B8DB8" },
+          { key: "adhkar",  label: "الأذكار",   icon: "leaf-outline",            color: "#22C55E" },
+          { key: "tasbih",  label: "المسبحة",   icon: "radio-button-on-outline", color: "#F59E0B" },
+          { key: "hijri",   label: "الهجري",    icon: "moon-outline",            color: Colors.accent },
+        ] as const).map(t => {
+          const on = tab === t.key;
+          return (
+            <Pressable
+              key={t.key}
+              style={[s.tabBtn, on && { borderColor: t.color + "70", backgroundColor: t.color + "18" }]}
+              onPress={() => setTab(t.key as any)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={t.label}
+            >
+              <View style={[s.tabIcon, { backgroundColor: on ? t.color + "26" : "transparent" }]}>
+                <Ionicons name={(on ? t.icon.replace("-outline", "") : t.icon) as any} size={18} color={on ? t.color : Colors.textMuted} />
+              </View>
+              <Text style={[s.tabBtnText, on && { color: t.color, fontFamily: "Cairo_700Bold" }]} numberOfLines={1}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       {loading ? (
         <View style={s.loadingWrap}>
@@ -1076,16 +1085,15 @@ const s = StyleSheet.create({
   },
 
   // ── شريط التبويبات القابل للتمرير ──
-  tabScrollRow: { flexGrow: 0 },
-  tabRowContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  tabRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  tabRow: { flexDirection: "row-reverse", paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexShrink: 0 },
   tabBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: Colors.radius.md,
+    flex: 1, minHeight: 64, alignItems: "center", justifyContent: "center", gap: 2,
+    paddingVertical: 8, paddingHorizontal: 4, borderRadius: 16,
     backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  tabBtnActive: { backgroundColor: Colors.primary + "18", borderColor: Colors.primary + "40" },
-  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  tabIcon: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  tabBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textMuted, includeFontPadding: false },
 
   // ── الأذكار ──
   adhkarCatRow: {
