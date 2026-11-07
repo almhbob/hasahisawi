@@ -32,11 +32,15 @@ export default function AdminMemorials() {
     const d = await r.json().catch(() => ({}));
     setBusy(null);
     if (!r.ok) return notify("خطأ", d.error);
-    if (d.removed) notify("تم تأكيد الوفاة", `حُذف: ${d.removed.posts} منشور، ${d.removed.comments} تعليق، ${d.removed.chats} محادثة. بدأ النشر اليومي صدقةً جارية.`);
+    if (d.purge_at) notify("تم تأكيد الوفاة", `بدأت مهلة 72 ساعة: أُبلغ صاحب الحساب ليعترض إن كان البلاغ خاطئاً، ويمكنك التراجع خلالها. يكتمل التحويل ${when(d.purge_at)}.`);
     load();
   };
+  const undo = async (m: any) => {
+    if (!(await confirmAction("التراجع عن التأكيد", `إلغاء تحويل حساب «${m.name}» وإعادته كما كان؟`, "تراجع", true))) return;
+    act(m, { status: "rejected", reason: "تراجعت الإدارة عن التأكيد خلال المهلة" });
+  };
   const confirm = async (m: any) => {
-    if (!(await confirmAction("تأكيد الوفاة", `هذا الإجراء نهائي: تُحذف منشورات «${m.name}» (${m.user_posts}) وتعليقاته ومحادثاته، ويُغلق حسابه ويتحول لصفحة صدقة جارية. تأكد من صحة الشهادة.`, "تأكيد نهائي", true))) return;
+    if (!(await confirmAction("تأكيد الوفاة", `بعد مهلة 72 ساعة تُحذف منشورات «${m.name}» (${m.user_posts}) وتعليقاته ومحادثاته نهائياً، ويُغلق حسابه ويتحول لصفحة صدقة جارية. خلال المهلة يُبلَّغ صاحب الحساب ويمكنه الاعتراض، ويمكنك التراجع. تأكد من صحة الشهادة.`, "تأكيد وبدء المهلة", true))) return;
     act(m, { status: "confirmed" });
   };
 
@@ -56,7 +60,7 @@ export default function AdminMemorials() {
                 <Text style={s.muted}>{m.phone} · {m.user_posts} منشور</Text>
               </View>
               <View style={[s.badge, { backgroundColor: m.status === "pending" ? "#FFF7E0" : m.status === "confirmed" ? "#D3F1E5" : "#FDECEC" }]}>
-                <Text style={[s.badgeText, { color: m.status === "pending" ? "#6B4D00" : m.status === "confirmed" ? "#004D36" : "#A32020" }]}>{m.status === "pending" ? "قيد المراجعة" : m.status === "confirmed" ? "مؤكد" : "مرفوض"}</Text>
+                <Text style={[s.badgeText, { color: m.status === "pending" ? "#6B4D00" : m.status === "confirmed" ? "#004D36" : "#A32020" }]}>{m.status === "pending" ? "قيد المراجعة" : m.status === "confirmed" ? (m.purged_at ? "مؤكد" : "في المهلة") : m.objected_at ? "اعترض صاحبه" : "مرفوض"}</Text>
               </View>
             </View>
             <Text style={s.info}>المبلِّغ: {m.reporter_name} ({m.relation}) · {m.reporter_phone || ""}</Text>
@@ -75,6 +79,14 @@ export default function AdminMemorials() {
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => act(m, { status: "rejected", reason: "تعذّر التحقق من البيانات" })} style={[s.btn, { borderWidth: 1, borderColor: "#EF444466" }]}><Text style={[s.btnText, { color: "#D93636" }]}>رفض</Text></TouchableOpacity>
               </View>
+            ) : m.status === "confirmed" && !m.purged_at ? (
+              <View style={s.row}>
+                <Ionicons name="hourglass-outline" size={18} color="#946B00" />
+                <Text style={[s.info, { flex: 1 }]}>يكتمل التحويل {when(m.purge_at)} — لم يُحذف شيء بعد</Text>
+                <TouchableOpacity onPress={() => undo(m)} disabled={busy === m.id} style={[s.btn, { borderWidth: 1, borderColor: "#D9363666" }]}><Text style={[s.btnText, { color: "#D93636" }]}>تراجع</Text></TouchableOpacity>
+              </View>
+            ) : m.status === "rejected" && m.reject_reason ? (
+              <Text style={[s.info, { color: "#A32020" }]}>{m.reject_reason}</Text>
             ) : m.status === "confirmed" ? (
               <View style={s.row}>
                 <Text style={[s.info, { flex: 1 }]}>نُشر {m.posts_count} منشور صدقة · {m.duas_count} دعوة</Text>
@@ -90,6 +102,8 @@ export default function AdminMemorials() {
     </View>
   );
 }
+
+const when = (d?: string) => (d ? new Date(d).toLocaleString("ar-SD", { weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: neu.base },

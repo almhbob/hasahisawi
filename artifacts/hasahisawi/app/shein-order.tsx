@@ -2,7 +2,7 @@
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
@@ -106,11 +106,13 @@ export default function SheinOrderScreen() {
         <NeuRaised radius={22} style={u.card}>
           <Text style={u.section}>التكلفة</Text>
           <CostBreakdown f={order.financials} />
+          <TouchableOpacity onPress={() => router.push("/shein-policy" as any)}><Text style={[u.meta, { color: ACCENT }]}>سياسة الخدمة: الإلغاء والاسترداد ↗</Text></TouchableOpacity>
         </NeuRaised>
 
         {order.payment_receipt_url ? (
           <NeuRaised radius={22} style={u.card}>
             <Text style={u.section}>إيصال التحويل</Text>
+            {order.payment_ref ? <Text style={u.meta} selectable>رقم العملية: <Text style={{ fontFamily: "Cairo_700Bold", color: Colors.textPrimary }}>{order.payment_ref}</Text></Text> : null}
             <TouchableOpacity onPress={() => setZoom(order.payment_receipt_url!)}>
               <Image source={{ uri: order.payment_receipt_url }} style={st.receipt} resizeMode="contain" />
             </TouchableOpacity>

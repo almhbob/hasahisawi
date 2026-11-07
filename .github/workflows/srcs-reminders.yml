@@ -1,4 +1,4 @@
-name: Red Crescent reminders + writers membership sweep (hourly)
+name: Red Crescent reminders + writers membership sweep + memorial jobs (hourly)
 # تذكيرات تلقائية: الاجتماعات والدورات قبل يوم وقبل ساعة، والبطاقات قبل انتهائها بـ 30 و7 أيام.
 # الخادم يمنع تكرار أي تذكير. المصادقة برمز OIDC من هذا المستودع (audience hasahisawi-srcs).
 on:
@@ -26,3 +26,6 @@ jobs:
           # ديوان الكُتّاب: انتهاء العضويات والتعليق التلقائي بعد 30 يوماً بلا نشر
           M=$(curl -sS -X POST -H "Authorization: Bearer $T" "$API/api/lit/cron/members")
           echo "$M" | jq . || true
+          # صدقة جارية: تحويل الحسابات بعد مهلة الـ72 ساعة + المنشور اليومي
+          D=$(curl -sS -X POST -H "Authorization: Bearer $T" "$API/api/memorials/cron/run")
+          echo "$D" | jq . || true
