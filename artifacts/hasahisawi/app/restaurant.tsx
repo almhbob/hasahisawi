@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { EntityNotice, useEntityStatus } from "@/components/EntityNotice";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Linking, Modal, Pressable, TextInput, KeyboardAvoidingView, Platform, Alert, Share, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -29,6 +30,7 @@ export default function RestaurantScreen() {
   const [type, setType] = useState<OrderType>("takeaway");
   const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "" });
   const [sending, setSending] = useState(false);
+  const ent = useEntityStatus("food", id);
   const [layout, setLayout] = useState<"gallery" | "list">("gallery");
   const [menuQ, setMenuQ] = useState("");
   const [zoomUri, setZoomUri] = useState<string | null>(null);
@@ -74,6 +76,8 @@ export default function RestaurantScreen() {
   if (!biz) return <View style={st.center}><ActivityIndicator color={Colors.primary} /></View>;
 
   const c = bizColor(biz);
+  // الإيقاف (إداري أو مؤقت) يمنع الطلب ويُظهر شاشة التنبيه
+  const canOrder = biz.accepting_orders && !ent.unavailable;
   const wa = waLink(biz.whatsapp || biz.phone, `السلام عليكم، تواصلت معكم عبر حصاحيصاوي`);
   const modes = (["delivery", "takeaway", "dine_in"] as OrderType[]).filter((t) => (t === "delivery" ? biz.delivery_enabled : t === "takeaway" ? biz.takeaway_enabled : biz.dine_in_enabled));
   const belowMin = biz.min_order > 0 && subtotal < biz.min_order;
@@ -116,10 +120,11 @@ export default function RestaurantScreen() {
           <View style={st.logoRing}><BizLogo b={biz} size={76} /></View>
           <Text style={st.name}>{biz.name}</Text>
           <Text style={st.sub}>{TYPE_META[biz.business_type]?.label}{biz.district ? ` · ${biz.district}` : ""}{biz.opening_hours ? ` · ${biz.opening_hours}` : ""}</Text>
-          <View style={[st.openPill, { backgroundColor: biz.accepting_orders ? Colors.primarySoft : "#EEEEEE" }]}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: biz.accepting_orders ? "#0E9C64" : "#8A8A8A" }} />
-            <Text style={[st.openTxt, { color: biz.accepting_orders ? "#0B7A4E" : "#555" }]}>{biz.accepting_orders ? "يستقبل الطلبات الآن" : "لا يستقبل طلبات حالياً"}</Text>
+          <View style={[st.openPill, { backgroundColor: canOrder ? Colors.primarySoft : "#EEEEEE" }]}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: canOrder ? "#0E9C64" : "#8A8A8A" }} />
+            <Text style={[st.openTxt, { color: canOrder ? "#0B7A4E" : "#555" }]}>{canOrder ? "يستقبل الطلبات الآن" : "لا يستقبل طلبات حالياً"}</Text>
           </View>
+          {ent.status && ent.unavailable ? <View style={{ alignSelf: "stretch", marginTop: 8 }}><EntityNotice status={ent.status} isOwner={ent.isOwner} /></View> : null}
           {biz.status !== "approved" ? <Text style={st.pending}>قيد مراجعة الإدارة — غير ظاهر للعامة بعد</Text> : null}
           {biz.description ? <Text style={st.desc}>{biz.description}</Text> : null}
           <View style={st.facts}>
@@ -139,7 +144,7 @@ export default function RestaurantScreen() {
         <View style={st.menuHead}>
           <View style={{ flex: 1 }}>
             <Text style={st.menuTitle}>المنيو</Text>
-            <Text style={st.menuSub}>{available.length} صنف متاح{biz.accepting_orders ? " · اطلب الآن" : ""}</Text>
+            <Text style={st.menuSub}>{available.length} صنف متاح{canOrder ? " · اطلب الآن" : ""}</Text>
           </View>
           <View style={st.layoutSwitch}>
             {(["gallery", "list"] as const).map((k) => (
@@ -197,7 +202,7 @@ export default function RestaurantScreen() {
                       <LinearGradient colors={["transparent", "rgba(0,0,0,0.55)"]} style={st.gShade} />
                       <View style={st.gPrice}><Text style={st.gPriceTxt}>{fmtMoney(p.price)}</Text></View>
                       {p.images?.length > 1 ? <View style={st.gMore}><Ionicons name="images" size={11} color="#fff" /><Text style={st.gMoreTxt}>{p.images.length}</Text></View> : null}
-                      {biz.accepting_orders ? (q ? (
+                      {canOrder ? (q ? (
                         <Animated.View entering={ZoomIn} style={[st.gQty, { backgroundColor: c }]}>
                           <TouchableOpacity onPress={() => add(p, -1)} hitSlop={6} accessibilityLabel="إنقاص"><Ionicons name={q === 1 ? "trash-outline" : "remove"} size={15} color="#fff" /></TouchableOpacity>
                           <Text style={st.gQtyTxt}>{q}</Text>
@@ -231,7 +236,7 @@ export default function RestaurantScreen() {
                     {p.description ? <Text style={st.itemDesc} numberOfLines={2}>{p.description}</Text> : null}
                     <View style={st.itemFoot}>
                       <Text style={[st.price, { color: c }]}>{fmtMoney(p.price)}</Text>
-                      {biz.accepting_orders ? (q ? (
+                      {canOrder ? (q ? (
                         <View style={st.stepper}>
                           <TouchableOpacity onPress={() => add(p, 1)} style={[st.stepBtn, { backgroundColor: c }]} accessibilityLabel="زيادة"><Ionicons name="add" size={16} color="#fff" /></TouchableOpacity>
                           <Text style={st.stepNum}>{q}</Text>
@@ -301,7 +306,7 @@ export default function RestaurantScreen() {
                       {detail.prep_minutes ? <View style={[st.fact, { flexDirection: "row-reverse", alignItems: "center", gap: 4 }]}><Ionicons name="time-outline" size={12} color={Colors.textMuted} /><Text style={st.factTxt}>التحضير {detail.prep_minutes} دقيقة</Text></View> : null}
                     </View>
                     {detail.description ? <Text style={[st.desc, { textAlign: "right" }]}>{detail.description}</Text> : null}
-                    {biz.accepting_orders ? (
+                    {canOrder ? (
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 12 }}>
                         <View style={st.qtyBox}>
                           <TouchableOpacity onPress={() => setDetailQty((n) => Math.min(n + 1, detail.stock ?? 99))} style={[st.stepBtn, { backgroundColor: c }]} accessibilityLabel="زيادة"><Ionicons name="add" size={16} color="#fff" /></TouchableOpacity>

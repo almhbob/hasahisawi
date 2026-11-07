@@ -19,7 +19,7 @@ export type AdminTabItem = {
 export type TabGroup = { title: string; icon: keyof typeof Ionicons.glyphMap; keys: string[] };
 const GROUPS: TabGroup[] = [
   { title: "الحسابات والصلاحيات", icon: "people-circle", keys: ["members", "portal_accounts", "admins", "moderators", "security"] },
-  { title: "الطلبات والبلاغات", icon: "file-tray-full", keys: ["join_requests", "social_reports", "reports_admin", "feedback_admin", "missing_admin", "ratings_admin"] },
+  { title: "الطلبات والبلاغات", icon: "file-tray-full", keys: ["entities_moderation", "join_requests", "social_reports", "reports_admin", "feedback_admin", "missing_admin", "ratings_admin"] },
   { title: "الاتحادات والمؤسسات", icon: "business", keys: ["student_union", "communities", "partners", "section_invites", "libraries"] },
   { title: "الخدمات المهنية", icon: "briefcase", keys: ["lawyers_admin", "designers_admin", "legal_forms", "legal_suggestions", "cv_templates", "jobs_admin"] },
   { title: "الصحة", icon: "medkit", keys: ["sick_leaves", "admissions"] },

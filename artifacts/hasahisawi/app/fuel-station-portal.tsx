@@ -5,6 +5,7 @@
  *  • إضافة مديرين برقم هواتفهم، واعتماد/تعليق المحطات للإدارة.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { PauseControl } from "@/components/EntityNotice";
 import {
   ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch,
   Text, TextInput, TouchableOpacity, View,
@@ -221,6 +222,7 @@ function FuelPanel({ s, token, onSaved }: { s: FuelStation; token: string; onSav
 
   return (
     <Animated.View entering={FadeIn} style={{ gap: 12 }}>
+      <PauseControl type="fuel" id={s.id} />
       <Text style={st.hint}>حدّث الحالة كلما تغيّرت — المواطنون يرون وقت آخر تحديث، والتحديث المتكرر يرفع ثقتهم في محطتك.</Text>
       {KEYS.map(k => {
         const meta = FUEL_META[k];

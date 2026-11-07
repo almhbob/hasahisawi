@@ -2496,6 +2496,7 @@ export default function SettingsScreen() {
               <View style={{ gap: 10, marginBottom: 18 }}>
                 {([
                   { icon: "key", color: "#1F5C8A", title: "حسابات بوابة الاتحاد", sub: "تعيين اسم المستخدم وكلمة المرور لمديري الاتحاد وإصلاح تعذّر الدخول", route: "/admin-portal-accounts" },
+                  { icon: "ban", color: "#B91C1C", title: "الإشراف على المنشآت", sub: "إيقاف أو حذف المطاعم والمتاجر والمؤسسات المخالفة", route: "/admin-entities" },
                   { icon: "shield-half", color: "#F0A500", title: "صلاحيات المشرفين", sub: "امنح مشرفيك إدارة أقسام وخدمات محددة لتخفيف العبء عنك", route: "/admin-permissions" },
                   { icon: "grid", color: Colors.primary, title: "مركز التحكم الكامل", sub: "كل أقسام الإدارة: الطلبات، البلاغات، التجار، الإعدادات المتقدمة", route: "/admin" },
                 ] as const).map(q => (

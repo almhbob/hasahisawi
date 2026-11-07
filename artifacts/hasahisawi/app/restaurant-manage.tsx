@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { PauseControl } from "@/components/EntityNotice";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Linking, Modal, Pressable, TextInput, Platform, Alert, Share, Switch, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -153,6 +154,7 @@ export default function RestaurantManage() {
         refreshControl={tab === "orders" ? <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadOrders(); }} tintColor={Colors.primary} /> : undefined}>
 
         {tab === "orders" ? (<>
+          <PauseControl type="food" id={Number(biz.id)} />
           <View style={st.seg}>
             {(["active", "done"] as const).map((k) => (
               <TouchableOpacity key={k} onPress={() => setScope(k)} style={[st.segBtn, scope === k && st.segOn]}><Text style={[st.segTxt, scope === k && { color: Colors.primaryDeep }]}>{k === "active" ? "الجارية" : "المنتهية"}</Text></TouchableOpacity>

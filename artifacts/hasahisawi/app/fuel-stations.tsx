@@ -2,6 +2,7 @@
  * ⛽ محطات الوقود — للمواطن: أي محطة يتوفر بها الوقود الآن، السعر، الزحام، والخدمات.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { EntityNotice, useEntityStatus } from "@/components/EntityNotice";
 import {
   ActivityIndicator, Image, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
@@ -241,6 +242,7 @@ function StationSheet({ station: s, services, onClose, token, loggedIn, onReport
 }) {
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<string | null>(null);
+  const ent = useEntityStatus("fuel", s?.id);
   if (!s) return null;
   const tel = (p?: string | null) => p && openExternal(`tel:${p}`).catch(() => {});
   const wa = (p?: string | null) => {
@@ -279,6 +281,7 @@ function StationSheet({ station: s, services, onClose, token, loggedIn, onReport
               </View>
             </View>
 
+            {ent.unavailable && ent.status ? <EntityNotice status={ent.status} isOwner={ent.isOwner} /> : null}
             <View style={st.actions}>
               {!!s.phone && <Action icon="call" label="اتصال" color="#10B981" onPress={() => tel(s.phone)} />}
               {!!(s.whatsapp || s.phone) && <Action icon="logo-whatsapp" label="واتساب" color="#16A34A" onPress={() => wa(s.whatsapp || s.phone)} />}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { EntityNotice, useEntityStatus } from "@/components/EntityNotice";
 import {
   View,
   Text,
@@ -623,9 +624,13 @@ function StoreDetailModal({
   const cartQtyFor = (id: number) => cart.find((ci) => ci.product.id === id)?.qty ?? 0;
 
   const store = storeData?.store;
+  const ent = useEntityStatus("store", store?.id);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      {ent.unavailable && ent.status ? (
+        <View style={{ position: "absolute", left: 12, right: 12, bottom: insets.bottom + 90, zIndex: 50 }}><EntityNotice status={ent.status} isOwner={ent.isOwner} /></View>
+      ) : null}
       <View style={[styles.detailModalRoot, { paddingTop: 0 }]}>
         {/* Cover / Header */}
         <View style={styles.detailCoverWrap}>

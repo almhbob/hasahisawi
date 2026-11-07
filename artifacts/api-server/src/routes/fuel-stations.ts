@@ -107,7 +107,7 @@ async function loadStations(where: string, params: unknown[]) {
 router.get("/fuel-stations", async (_req: Request, res: Response) => {
   try {
     await ensureFuelDb();
-    return res.json({ stations: await loadStations(`WHERE s.status='approved'`, []), fuels: FUELS, services: SERVICES });
+    return res.json({ stations: await loadStations(`WHERE s.status='approved' AND NOT EXISTS (SELECT 1 FROM entity_status es WHERE es.entity_type='fuel' AND es.entity_id=s.id AND es.suspended)`, []).catch(() => loadStations(`WHERE s.status='approved'`, [])), fuels: FUELS, services: SERVICES });
   } catch (e: any) { logger.error({ err: e?.message }, "fuel-stations list"); return res.status(500).json({ error: "تعذّر تحميل المحطات" }); }
 });
 

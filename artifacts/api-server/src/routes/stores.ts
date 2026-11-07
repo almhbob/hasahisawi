@@ -1,6 +1,7 @@
 // متاجر المجتمع وبوابة التاجر: تسجيل متجر ← مراجعة الإدارة ← تفعيل،
 // ثم إدارة الأصناف والمنتجات والطلبات، وواجهة عامة للتسوّق.
 import { Router, type Request, type Response } from "express";
+import { notSuspended } from "./entity-status";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { randomBytes } from "node:crypto";
@@ -391,7 +392,7 @@ router.get("/stores", wrap(async (req, res) => {
   const womenOnly = String(req.query.women_only || "") === "true";
   // women_only=true is already gated by the women-corner guard.
   const params: unknown[] = [womenOnly];
-  let where = `s.status='active' AND s.women_only=$1`;
+  let where = `s.status='active' AND s.women_only=$1 AND ${notSuspended("store", "s.id")}`;
   if ((STORE_TYPES as readonly string[]).includes(type)) { params.push(type); where += ` AND s.type=$${params.length}`; }
   const q = String(req.query.q || "").trim();
   if (q) { params.push(`%${q.slice(0, 60)}%`); where += ` AND (s.name ILIKE $${params.length} OR s.description ILIKE $${params.length})`; }
