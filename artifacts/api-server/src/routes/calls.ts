@@ -73,6 +73,34 @@ async function pushTo(userId: number, title: string, body: string, data: Record<
   } catch (e: any) { logger.warn({ err: e?.message }, "[calls] push failed"); }
 }
 
+// ── احتياط الرنين والتطبيق مغلق ─────────────────────────────────
+// الأجهزة الحديثة تتلقى رسالة صامتة تعرض منها مهمةُ الخلفية شاشةَ المكالمة. إن منعها النظام
+// (توفير الطاقة، إغلاق قسري، أذونات) فلن يرن الهاتف أبداً. لذلك يؤكد التطبيق العرض (ring-ack)،
+// وإن لم يصل التأكيد خلال 6 ثوانٍ والمكالمة ما زالت ترن نرسل إشعار رنين عادياً بصوت النغمة.
+const ringAcks = new Map<number, number>(); // callId → وقت التأكيد
+export function ackRing(callId: number) { ringAcks.set(callId, Date.now()); setTimeout(() => ringAcks.delete(callId), 120_000); }
+function scheduleRingFallback(userId: number, callId: number, callerName: string, payload: Record<string, unknown>) {
+  setTimeout(async () => {
+    try {
+      if (ringAcks.has(callId)) return;
+      const st = (await query(`SELECT status FROM voice_calls WHERE id=$1`, [callId])).rows[0]?.status;
+      if (st !== "ringing") return;
+      await ensurePushCols();
+      const { rows } = await query(`SELECT DISTINCT token FROM push_tokens WHERE user_id=$1 AND channel_ver >= $2 AND token LIKE 'ExponentPushToken[%'`, [userId, CALL_FS_VER]);
+      if (!rows.length) return;
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rows.map((x: any) => ({
+          to: x.token, title: "📞 مكالمة صوتية واردة", body: `${callerName} يتصل بك… اضغط للرد`,
+          sound: "hasahisawi_ring", channelId: "hasahisawi-call-s3", priority: "high", ttl: RING_SEC,
+          data: { ...payload, fallback: 1, channelId: "hasahisawi-call-s3" },
+        }))),
+      });
+      logger.info({ callId }, "[calls] ring fallback sent");
+    } catch (e: any) { logger.warn({ err: e?.message }, "[calls] ring fallback failed"); }
+  }, 6000);
+}
+
 /** إخفاء شاشة/إشعار المكالمة الواردة على أجهزة المستلم الحديثة (انتهت، رُفضت، أو رُدّ عليها من جهاز آخر) */
 async function pushCallCancel(userId: number, callId: number, reason: string) {
   try {
@@ -185,9 +213,21 @@ router.post("/calls", async (req: Request, res: Response) => {
     const r = await query(`INSERT INTO voice_calls (chat_id, caller_id, callee_id) VALUES ($1,$2,$3) RETURNING *`, [chatId, Number(me.id), otherId]);
     const callee = (await query(`SELECT name, avatar_url FROM users WHERE id=$1`, [otherId])).rows[0] || {};
     // ts وcallerAvatar للنسخ الحديثة (شاشة المكالمة بملء الشاشة)، والنسخ القديمة تتجاهلهما
-    await pushTo(otherId, "📞 مكالمة صوتية واردة", `${me.name} يتصل بك…`, { type: "call", callId: r.rows[0].id, callerName: me.name, callerAvatar: await avatarFor(Number(me.id)), ts: Date.now(), screen: "call" });
+    const callPayload = { type: "call", callId: r.rows[0].id, callerName: me.name, callerAvatar: await avatarFor(Number(me.id)), ts: Date.now(), screen: "call" };
+    await pushTo(otherId, "📞 مكالمة صوتية واردة", `${me.name} يتصل بك…`, callPayload);
+    scheduleRingFallback(otherId, r.rows[0].id, me.name, callPayload);
     return res.json({ call: { ...r.rows[0], caller_name: me.name, callee_name: callee.name, callee_avatar: callee.avatar_url }, ice: await iceServers() });
   } catch (err) { logger.error({ err }, "[calls] start"); return res.status(500).json({ error: "تعذّر بدء المكالمة" }); }
+});
+
+// POST /api/calls/:id/ring-ack — الجهاز عرض شاشة المكالمة الواردة (لا حاجة لإشعار الاحتياط)
+router.post("/calls/:id/ring-ack", async (req: Request, res: Response) => {
+  const me = await sessionUser(req);
+  if (!me) return res.status(401).json({ ok: false });
+  const id = Number(req.params.id);
+  const ok = (await query(`SELECT 1 FROM voice_calls WHERE id=$1 AND callee_id=$2`, [id, Number(me.id)]).catch(() => ({ rows: [] as any[] }))).rows.length > 0;
+  if (ok) ackRing(id);
+  return res.json({ ok });
 });
 
 // ── مكالمة واردة الآن؟ ────────────────────────────────────────────

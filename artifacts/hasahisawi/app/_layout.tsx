@@ -48,6 +48,7 @@ import { ONBOARDING_KEY } from "./onboarding";
 import DesktopShell from "@/components/web/DesktopShell";
 import { A11yProvider } from "@/lib/a11y";
 import VoiceAssistant from "@/components/a11y/VoiceAssistant";
+import ActiveCallPill from "@/components/ActiveCallPill";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
 import * as SystemUI from "expo-system-ui";
@@ -603,6 +604,7 @@ export default function RootLayout() {
                     <NetworkBanner />
                     <AdminAlertsWatcher />
                     <VoiceAssistant />
+                    <ActiveCallPill />
                     <LaunchSplash />
                     <UpdateBanner />
                   </View>

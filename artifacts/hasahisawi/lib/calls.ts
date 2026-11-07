@@ -31,7 +31,15 @@ export const callPageUrl = () => `${getApiUrl().replace(/\/$/, "")}/api/calls/pa
 
 /** يمنع فتح شاشة المكالمة نفسها مرتين */
 let activeCallId: number | null = null;
-export const setActiveCall = (id: number | null) => { activeCallId = id; };
+export const setActiveCall = (id: number | null) => { activeCallId = id; if (id === null) setLiveCall(null); };
+
+/** المكالمة الجارية المعروضة في الشريط العائم عند تصغير شاشتها */
+export type LiveCall = { id: number; role: "caller" | "callee"; name: string; avatar?: string | null; chatId: number; since: number };
+let liveCall: LiveCall | null = null;
+const liveSubs = new Set<(c: LiveCall | null) => void>();
+export function setLiveCall(c: LiveCall | null) { liveCall = c; liveSubs.forEach(f => f(c)); }
+export const getLiveCall = () => liveCall;
+export function onLiveCall(f: (c: LiveCall | null) => void): () => void { liveSubs.add(f); return () => { liveSubs.delete(f); }; }
 export const getActiveCall = () => activeCallId;
 
 // ── الرد التلقائي: ضغط «رد» على إشعار المكالمة يفتح الشاشة ويقبلها مباشرة ──
