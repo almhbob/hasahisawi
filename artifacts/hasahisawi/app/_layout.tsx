@@ -45,6 +45,7 @@ import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resumePendingSectionInvite } from "@/lib/section-invites";
 import { ONBOARDING_KEY } from "./onboarding";
+import DesktopShell from "@/components/web/DesktopShell";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
 import * as SystemUI from "expo-system-ui";
@@ -593,7 +594,9 @@ export default function RootLayout() {
                   <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? "ltr" : undefined }}>
                     <OfflineQueueSync />
                     <InviteClaimer />
-                    <RootLayoutNav />
+                    <DesktopShell>
+                      <RootLayoutNav />
+                    </DesktopShell>
                     <NetworkBanner />
                     <AdminAlertsWatcher />
                     <LaunchSplash />

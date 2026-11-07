@@ -42,7 +42,9 @@ type Section = {
 
 type Group = { label: string; items: Section[] };
 
-const GROUPS: Group[] = [
+export type DrawerSection = Section;
+export type DrawerGroup = Group;
+export const GROUPS: Group[] = [
   {
     label: "الرئيسية",
     items: [
