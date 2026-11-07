@@ -21,6 +21,7 @@ import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 import { getApiUrl } from "@/lib/query-client";
 import { onlyDigits, toLatinDigits } from "@/lib/digits";
 import OtpCodeInput, { OtpCodeInputHandle } from "@/components/auth/OtpCodeInput";
+import LockoutCard, { AttemptsDots, useLockout, fmtWait } from "@/components/auth/LockoutCard";
 import { neu, NeuRaised, NeuInset, NeuBadge, NeuButton, NeuRoundButton, NeuField } from "@/components/auth/neu";
 
 const LOGO = require("@/assets/images/logo.png");
@@ -85,6 +86,9 @@ export default function LoginScreen() {
   const [bioLabel, setBioLabel]       = useState("البصمة");
   const [bioIcon, setBioIcon]         = useState<IconName>("finger-print-outline");
   const [bioLoading, setBioLoading]   = useState(false);
+  // الإيقاف المؤقت بعد 3 محاولات خاطئة (يفرضه الخادم، وهنا نعرض العدّاد)
+  const lockout = useLockout();
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
   // ── OTP ──────────────────────────────────────────────────
   const [otpStep,      setOtpStep]      = useState(false);
@@ -209,14 +213,25 @@ export default function LoginScreen() {
 
     if (mode === "register") { await handleSendOtp(); return; }
 
+    if (lockout.locked) { haptic("err"); return; }
     setLoading(true);
     try {
       const id = cleanIdentifier();
       await login(id, password);
+      setAttemptsLeft(null);
       promptEnableBiometrics(id);
       haptic("ok");
     } catch (e: any) {
-      setError(e.message || "حدث خطأ، يرجى المحاولة مرة أخرى");
+      if (e?.locked && e?.retryAfter) {
+        lockout.lock(Number(e.retryAfter));
+        setAttemptsLeft(null);
+        setError("");
+        setPassword("");
+      } else {
+        // نعرض الرسالة دون جملة «تبقّت…» لأن النقاط تعرضها بصرياً
+        setError(String(e?.message || "حدث خطأ، يرجى المحاولة مرة أخرى").replace(/\s*تبقّت.*$/, ""));
+        setAttemptsLeft(typeof e?.attemptsLeft === "number" ? e.attemptsLeft : null);
+      }
       haptic("err");
     } finally {
       setLoading(false);
@@ -570,7 +585,11 @@ export default function LoginScreen() {
                 </Animated.View>
               )}
 
-              {!!error && (
+              {!isRegister && lockout.locked && (
+                <LockoutCard left={lockout.left} total={lockout.total} onForgot={() => router.push("/forgot-password" as any)} />
+              )}
+
+              {!!error && !lockout.locked && (
                 <Animated.View entering={FadeInDown.duration(200)} style={styles.errorBox}>
                   <Ionicons name="alert-circle" size={18} color={Colors.danger} />
                   <View style={{ flex: 1 }}>
@@ -584,10 +603,13 @@ export default function LoginScreen() {
                 </Animated.View>
               )}
 
+              {!isRegister && !lockout.locked && attemptsLeft !== null && attemptsLeft < 3 && <AttemptsDots left={attemptsLeft} />}
+
               <NeuButton
-                label={isRegister ? "متابعة والتحقق" : "تسجيل الدخول"}
-                icon={isRegister ? "shield-checkmark-outline" : "arrow-back"}
+                label={isRegister ? "متابعة والتحقق" : lockout.locked ? `أعد المحاولة بعد ${fmtWait(lockout.left)}` : "تسجيل الدخول"}
+                icon={isRegister ? "shield-checkmark-outline" : lockout.locked ? "time-outline" : "arrow-back"}
                 loading={busy}
+                disabled={!isRegister && lockout.locked}
                 onPress={handleSubmit}
               />
 

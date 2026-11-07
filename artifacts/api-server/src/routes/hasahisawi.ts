@@ -1,4 +1,5 @@
 import { ensureProfilePlus } from "./profile-plus";
+import { lockKey, rejectIfLocked, failResponse, clearFailures } from "../lib/login-lockout";
 import { ensureSocialSafety, hiddenAuthorIds } from "./social-safety";
 import { ensureSocialPlus, followeeIds } from "./social-plus";
 import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
@@ -2781,12 +2782,14 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const captchaOk = await verifyRecaptcha(recaptcha_token);
     if (!captchaOk) return res.status(400).json({ error: "فشل التحقق من reCAPTCHA. أعد المحاولة." });
+    const lk = lockKey("user", phone_or_email);
+    if (await rejectIfLocked(res, lk)) return;
     const result = await query(
       `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
       [phone_or_email]
     );
     const user = result.rows[0];
-    if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
+    if (!user) return failResponse(res, lk, "بيانات الدخول غير صحيحة.");
     // مستخدم تم إنشاؤه/استيراده من Firebase أو Google بلا hash صالح لـ bcrypt.
     // لا نمرر قيماً مثل firebase_only_account إلى bcrypt.compare حتى لا يرمي Server error.
     const hasHash = isValidBcryptHashForLogin(user.password_hash);
@@ -2809,8 +2812,9 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
             : "هذا الحساب يحتاج إعادة تعيين كلمة المرور قبل الدخول."
         });
       }
-      return res.status(401).json({ error: "بيانات غير صحيحة" });
+      return failResponse(res, lk, "كلمة المرور غير صحيحة.");
     }
+    await clearFailures(lk);
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
@@ -18441,6 +18445,9 @@ router.post("/union-manager/login", authLimiter, async (req: Request, res: Respo
     const rawPass = String(req.body?.password ?? "").slice(0, 128);
     if (!rawUser.trim() || !rawPass) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
 
+    const lk = lockKey("union", normalizeLoginName(rawUser));
+    if (await rejectIfLocked(res, lk)) return;
+
     // 1) تطابق حرفي  2) تطابق بعد توحيد الحروف العربية والأرقام  3) رقم الهاتف أو البريد
     const norm = normalizeLoginName(rawUser);
     const lower = rawUser.trim().toLowerCase();
@@ -18455,7 +18462,7 @@ router.post("/union-manager/login", authLimiter, async (req: Request, res: Respo
         (digits.length >= 9 && toLatinDigits(m.phone || "").replace(/\D/g, "").slice(-9) === digits.slice(-9)),
       );
     }
-    if (!candidates.length) return res.status(401).json({ error: "اسم المستخدم غير موجود. يمكنك الدخول برقم هاتفك المسجّل أيضاً." });
+    if (!candidates.length) return failResponse(res, lk, "اسم المستخدم غير موجود. يمكنك الدخول برقم هاتفك المسجّل أيضاً.");
 
     // كلمة المرور كما كُتبت، ثم بعد تحويل الأرقام العربية، ثم بعد حذف المسافات الطرفية
     const passVariants = Array.from(new Set([rawPass, toLatinDigits(rawPass), rawPass.trim(), toLatinDigits(rawPass).trim()]));
@@ -18466,7 +18473,8 @@ router.post("/union-manager/login", authLimiter, async (req: Request, res: Respo
       }
       if (mgr) break;
     }
-    if (!mgr) return res.status(401).json({ error: "كلمة المرور غير صحيحة. إن نسيتها اضغط «نسيت كلمة المرور»." });
+    if (!mgr) return failResponse(res, lk, "كلمة المرور غير صحيحة.");
+    await clearFailures(lk);
     const token = "umt_" + randomBytes(24).toString("hex");
     await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
     const perms = mgr.staff_id ? ((await query(`SELECT permissions FROM union_staff WHERE id=$1`, [mgr.staff_id])).rows[0]?.permissions ?? {}) : null;

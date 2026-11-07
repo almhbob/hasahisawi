@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import LockoutCard, { AttemptsDots, useLockout, fmtWait } from "@/components/auth/LockoutCard";
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform,
@@ -141,7 +142,10 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
     finally { setFSending(false); }
   };
 
+  const lockout = useLockout();
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const handleLogin = async () => {
+    if (lockout.locked) return;
     if (!username.trim() || !password.trim()) {
       notify("تنبيه", "يرجى إدخال اسم المستخدم وكلمة المرور"); return;
     }
@@ -154,8 +158,14 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
       });
       const data = await res.json();
       if (res.ok) {
+        setAttemptsLeft(null);
         await finishLogin(data);
+      } else if (data.locked && data.retry_after) {
+        lockout.lock(Number(data.retry_after));
+        setAttemptsLeft(null);
+        setPassword("");
       } else {
+        setAttemptsLeft(typeof data.attempts_left === "number" ? data.attempts_left : null);
         notify("خطأ في الدخول", data.error || "بيانات غير صحيحة");
       }
     } catch {
@@ -223,11 +233,15 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={[ls.loginBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+          {lockout.locked ? (
+            <View style={{ marginTop: 12 }}><LockoutCard left={lockout.left} total={lockout.total} onForgot={() => setForgotOpen(true)} /></View>
+          ) : attemptsLeft !== null && attemptsLeft < 3 ? <View style={{ marginTop: 10 }}><AttemptsDots left={attemptsLeft} /></View> : null}
+
+          <TouchableOpacity style={[ls.loginBtn, (loading || lockout.locked) && { opacity: 0.6 }]} onPress={handleLogin} disabled={loading || lockout.locked}>
             {loading ? <ActivityIndicator color="#fff" /> : (
               <>
-                <Ionicons name="log-in-outline" size={20} color="#fff" />
-                <Text style={ls.loginBtnText}>دخول</Text>
+                <Ionicons name={lockout.locked ? "time-outline" : "log-in-outline"} size={20} color="#fff" />
+                <Text style={ls.loginBtnText}>{lockout.locked ? `أعد المحاولة بعد ${fmtWait(lockout.left)}` : "دخول"}</Text>
               </>
             )}
           </TouchableOpacity>
