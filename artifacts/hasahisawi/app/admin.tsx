@@ -50,7 +50,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "portal_accounts" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
+type Tab = "overview" | "portal_accounts" | "fuel_stations" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -4367,6 +4367,7 @@ export default function AdminDashboard() {
     { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
+    { key: "fuel_stations",    label: "محطات الوقود",      icon: "speedometer",        color: "#F97316",      adminOnly: true },
     { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      adminOnly: true },
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#0EA5E9",      adminOnly: true               },
@@ -4407,6 +4408,7 @@ export default function AdminDashboard() {
   // الأقسام التي لها شاشات مستقلة تُفتح كصفحة، والبقية تُعرض هنا
   const ROUTED_TABS: Partial<Record<Tab, string>> = {
     portal_accounts: "/admin-portal-accounts",
+    fuel_stations: "/fuel-station-portal",
     transport: "/admin-transport",
     social_reports: "/admin-social-reports",
     sections_config: "/admin-sections-config",

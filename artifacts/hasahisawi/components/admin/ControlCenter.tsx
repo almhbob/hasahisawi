@@ -24,7 +24,7 @@ const GROUPS: TabGroup[] = [
   { title: "الخدمات المهنية", icon: "briefcase", keys: ["lawyers_admin", "designers_admin", "legal_forms", "legal_suggestions", "cv_templates", "jobs_admin"] },
   { title: "الصحة", icon: "medkit", keys: ["sick_leaves", "admissions"] },
   { title: "التجارة والأسواق", icon: "storefront", keys: ["merchants_admin", "phone_shops", "women_stores_admin", "farmers_admin", "factories_admin", "rentals_admin", "zawajil", "ads"] },
-  { title: "المدينة والمحتوى", icon: "map", keys: ["landmarks", "neighborhoods", "numbers_admin", "honored", "transport"] },
+  { title: "المدينة والمحتوى", icon: "map", keys: ["landmarks", "neighborhoods", "numbers_admin", "honored", "transport", "fuel_stations"] },
   { title: "النظام والإعدادات", icon: "settings", keys: ["sections_config", "ai_settings", "updates", "calls_diag"] },
 ];
 
