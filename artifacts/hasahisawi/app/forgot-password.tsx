@@ -10,6 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import OtpCodeInput from "@/components/auth/OtpCodeInput";
+import { onlyDigits, toLatinDigits } from "@/lib/digits";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
 // ── المسارات ──────────────────────────────────────────────────────────────────
@@ -22,15 +24,11 @@ export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const confirmRef = useRef<TextInput>(null);
-  const otpRefs = [
-    useRef<TextInput>(null), useRef<TextInput>(null), useRef<TextInput>(null),
-    useRef<TextInput>(null), useRef<TextInput>(null), useRef<TextInput>(null),
-  ];
 
   const [step,            setStep]            = useState<Step>("input");
   const [identifier,     setIdentifier]      = useState("");
   const [userName,       setUserName]        = useState("");
-  const [otpDigits,      setOtpDigits]       = useState(["","","","","",""]);
+  const [otpCode,        setOtpCode]         = useState("");
   const [otpTimer,       setOtpTimer]        = useState(0);
   const [resetToken,     setResetToken]      = useState("");
   const [newPassword,    setNewPassword]     = useState("");
@@ -122,22 +120,23 @@ export default function ForgotPasswordScreen() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "تعذّر إعادة الإرسال"); return; }
       if (data.sent_to) setSentTo(data.sent_to);
-      setOtpDigits(["","","","","",""]);
+      setOtpCode("");
       setOtpTimer(120);
     } catch { setError("تعذّر إرسال الرمز"); }
     finally { setLoading(false); }
   };
 
   // ── Step 2a: التحقق من OTP ────────────────────────────────────────────────
-  const handleVerifyOtp = async () => {
-    const code = otpDigits.join("");
+  const handleVerifyOtp = async (codeArg?: string) => {
+    if (loading) return;
+    const code = onlyDigits(codeArg ?? otpCode, 6);
     if (code.length < 6) { setError("أدخل الرمز المكوّن من 6 أرقام"); return; }
     setError(""); setLoading(true);
     try {
       const res  = await fetchWithTimeout(`${base}/api/auth/verify-reset-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim(), code }),
+        body: JSON.stringify({ phone_or_email: toLatinDigits(identifier).trim(), code }),
       }, 20000);
       const data = await res.json();
       if (!res.ok) { setError(data.error || "رمز غير صحيح"); return; }
@@ -166,21 +165,6 @@ export default function ForgotPasswordScreen() {
     } catch (e: any) {
       setError(e?.name === "AbortError" ? "انتهت مهلة الاتصال." : "تعذّر الاتصال. تحقق من اتصالك.");
     } finally { setLoading(false); }
-  };
-
-  const handleOtpChange = (value: string, index: number) => {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    const next  = [...otpDigits];
-    next[index] = digit;
-    setOtpDigits(next);
-    if (digit && index < 5)     otpRefs[index + 1].current?.focus();
-    if (!digit && index > 0 && !value) otpRefs[index - 1].current?.focus();
-    setError("");
-  };
-
-  const handleOtpKeyPress = (key: string, index: number) => {
-    if (key === "Backspace" && !otpDigits[index] && index > 0)
-      otpRefs[index - 1].current?.focus();
   };
 
   const pwdStrength = newPassword.length === 0 ? "" : newPassword.length < 4 ? "ضعيفة" : newPassword.length < 8 ? "متوسطة" : "قوية";
@@ -368,27 +352,18 @@ export default function ForgotPasswordScreen() {
               <Text style={styles.cardSub}>
                 {sentChannel === "email" ? "أرسلنا رمزاً مكوّناً من 6 أرقام إلى بريدك الإلكتروني" : "أرسلنا رمزاً مكوّناً من 6 أرقام عبر SMS إلى"}{"\n"}
                 <Text style={{ color: Colors.primary, fontWeight: "700" }}>{sentTo || identifier}</Text>
-                {"\n"}صالح لمدة 5 دقائق
+                {"\n"}صالح لمدة 10 دقائق
               </Text>
 
               {/* حقول OTP */}
-              <View style={styles.otpRow}>
-                {otpDigits.map((d, i) => (
-                  <TextInput
-                    key={i}
-                    ref={otpRefs[i]}
-                    style={[styles.otpCell, d && styles.otpCellFilled, error && !d && styles.otpCellError]}
-                    value={d}
-                    onChangeText={v => handleOtpChange(v, i)}
-                    onKeyPress={({ nativeEvent }) => handleOtpKeyPress(nativeEvent.key, i)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    textAlign="center"
-                    selectTextOnFocus
-                    returnKeyType={i === 5 ? "done" : "next"}
-                    onSubmitEditing={() => i === 5 ? handleVerifyOtp() : otpRefs[i + 1].current?.focus()}
-                  />
-                ))}
+              <View style={{ marginVertical: 10 }}>
+                <OtpCodeInput
+                  value={otpCode}
+                  onChange={v => { setOtpCode(v); if (error) setError(""); }}
+                  onComplete={c => handleVerifyOtp(c)}
+                  error={!!error}
+                  disabled={loading}
+                />
               </View>
 
               {error ? (
@@ -399,10 +374,10 @@ export default function ForgotPasswordScreen() {
               ) : null}
 
               <TouchableOpacity
-                onPress={handleVerifyOtp}
-                disabled={loading || otpDigits.join("").length < 6}
+                onPress={() => handleVerifyOtp()}
+                disabled={loading || otpCode.length < 6}
                 activeOpacity={0.85}
-                style={[styles.btnWrap, (loading || otpDigits.join("").length < 6) && { opacity: 0.5 }]}
+                style={[styles.btnWrap, (loading || otpCode.length < 6) && { opacity: 0.5 }]}
               >
                 <LinearGradient colors={[Colors.primary, Colors.primaryDim]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
@@ -424,7 +399,7 @@ export default function ForgotPasswordScreen() {
               </View>
 
               <TouchableOpacity
-                onPress={() => { setStep("input"); setError(""); setOtpDigits(["","","","","",""]); }}
+                onPress={() => { setStep("input"); setError(""); setOtpCode(""); }}
                 style={styles.linkRow}
               >
                 <Ionicons name="arrow-back-outline" size={14} color={Colors.textMuted} />

@@ -2,39 +2,67 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, ActivityIndicator, Image,
-  KeyboardAvoidingView, Pressable, Dimensions, Alert,
-  Modal,
+  KeyboardAvoidingView, Pressable, Alert, Modal,
 } from "react-native";
-import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
+import { statusCodes } from "@react-native-google-signin/google-signin";
 import { GOOGLE_LOGIN_ENABLED } from "@/lib/features";
 import Animated, {
-  FadeIn, FadeInDown, FadeInUp,
-  useSharedValue, useAnimatedStyle, withSpring, withTiming,
+  FadeIn, FadeInDown, FadeInUp, FadeOut, ZoomIn,
+  useSharedValue, useAnimatedStyle, withTiming, runOnJS,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { ImageBackground } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getBiometricLabel, getBiometricIcon } from "@/lib/biometrics";
 import { getApiUrl } from "@/lib/query-client";
+import { onlyDigits, toLatinDigits } from "@/lib/digits";
+import OtpCodeInput, { OtpCodeInputHandle } from "@/components/auth/OtpCodeInput";
+import { neu, NeuRaised, NeuInset, NeuBadge, NeuButton, NeuRoundButton, NeuField } from "@/components/auth/neu";
 
-const CITY_IMAGE = require("@/assets/images/hasahisa-city.jpg");
-const FERRIS     = require("@/assets/images/ferris-wheel.jpg");
-const LOGO       = require("@/assets/images/logo.png");
-
-const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
+const LOGO = require("@/assets/images/logo.png");
+const OTP_TTL = 600;        // 10 دقائق — تطابق صلاحية الخادم
+const RESEND_AFTER = 60;    // ثوانٍ قبل السماح بإعادة الإرسال
 
 type Mode = "login" | "register";
+type IconName = keyof typeof Ionicons.glyphMap;
+
+const haptic = (t: "ok" | "err" | "tap") => {
+  if (Platform.OS === "web") return;
+  if (t === "tap") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  else Haptics.notificationAsync(t === "ok" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+};
+
+/** يخفي منتصف الرقم/البريد: 0111339623 → 011•••9623 */
+function maskIdentifier(id: string) {
+  const v = id.trim();
+  if (v.includes("@")) {
+    const [u, d] = v.split("@");
+    return `${u.slice(0, 2)}${"•".repeat(Math.max(1, u.length - 2))}@${d}`;
+  }
+  if (v.length <= 6) return v;
+  return `${v.slice(0, 3)}${"•".repeat(v.length - 7)}${v.slice(-4)}`;
+}
+
+function passwordStrength(p: string): { score: 0 | 1 | 2 | 3; label: string; color: string } {
+  if (!p) return { score: 0, label: "", color: Colors.divider };
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (/[A-Za-z]/.test(p) && /\d/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p) || p.length >= 12) s++;
+  if (p.length < 6) return { score: 1, label: "قصيرة جداً", color: Colors.danger };
+  if (s <= 1) return { score: 1, label: "ضعيفة", color: Colors.danger };
+  if (s === 2) return { score: 2, label: "متوسطة", color: Colors.accent };
+  return { score: 3, label: "قوية", color: Colors.primary };
+}
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login, register, enterAsGuest, loginWithBiometrics,
           enableBiometrics, biometricsAvailable, biometricsEnabled,
-          loginWithGoogle,
           loginWithGoogleWeb } = useAuth();
 
   const [mode, setMode]               = useState<Mode>("login");
@@ -51,10 +79,11 @@ export default function LoginScreen() {
   const [birthMonth, setBirthMonth]   = useState("");
   const [birthYear, setBirthYear]     = useState("");
   const [neighborhood, setNeighborhood] = useState("");
-  const [gender, setGender]           = useState<"male" | "female" | "">(""); 
+  const [gender, setGender]           = useState<"male" | "female" | "">("");
   const [feedback, setFeedback]       = useState("");
+  const [showExtras, setShowExtras]   = useState(false);
   const [bioLabel, setBioLabel]       = useState("البصمة");
-  const [bioIcon, setBioIcon]         = useState<keyof typeof Ionicons.glyphMap>("finger-print-outline");
+  const [bioIcon, setBioIcon]         = useState<IconName>("finger-print-outline");
   const [bioLoading, setBioLoading]   = useState(false);
 
   // ── OTP ──────────────────────────────────────────────────
@@ -64,333 +93,27 @@ export default function LoginScreen() {
   const [otpSending,   setOtpSending]   = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpError,     setOtpError]     = useState("");
-  const [otpSentVia,   setOtpSentVia]   = useState<"sms"|"email"|"none"|null>(null);
+  const [otpSuccess,   setOtpSuccess]   = useState(false);
+  const [otpSentVia,   setOtpSentVia]   = useState<"sms" | "email" | "none" | null>(null);
+  const [devOtp,       setDevOtp]       = useState<string | null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const otpInputRef = useRef<TextInput>(null);
+  const otpInputRef = useRef<OtpCodeInputHandle>(null);
+  const verifyingRef = useRef(false);
+
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     (async () => {
-      const label = await getBiometricLabel();
-      const icon  = await getBiometricIcon() as keyof typeof Ionicons.glyphMap;
-      setBioLabel(label);
-      setBioIcon(icon);
+      setBioLabel(await getBiometricLabel());
+      setBioIcon(await getBiometricIcon() as IconName);
     })();
   }, []);
 
   useEffect(() => {
-    if (biometricsEnabled && biometricsAvailable && mode === "login") {
-      handleBiometricLogin();
-    }
+    if (biometricsEnabled && biometricsAvailable && mode === "login") handleBiometricLogin();
   }, [biometricsEnabled, biometricsAvailable]);
 
-  const scrollRef  = useRef<ScrollView>(null);
-
-  const reset = () => {
-    setName(""); setNationalId(""); setIdentifier("");
-    setPassword(""); setConfirmPwd(""); setError("");
-    setShowPwd(false); setUseEmail(false);
-    setBirthDay(""); setBirthMonth(""); setBirthYear("");
-    setNeighborhood("");
-    setGender("");
-    setFeedback("");
-  };
-
-  const getBirthDateISO = (): string | undefined => {
-    const d = birthDay.padStart(2, "0");
-    const m = birthMonth.padStart(2, "0");
-    const y = birthYear;
-    if (d && m && y.length === 4) return `${y}-${m}-${d}`;
-    return undefined;
-  };
-
-  const buildNeighborhood = () => neighborhood.trim() || undefined;
-
-  const switchMode = (m: Mode) => { reset(); setMode(m); };
-
-  const validate = (): string | null => {
-    if (mode === "register") {
-      // الاسم ثلاثي إلزامي
-      if (!name.trim()) return "يرجى إدخال الاسم الثلاثي كاملاً";
-      const nameParts = name.trim().split(/\s+/).filter(p => p.length > 0);
-      if (nameParts.length < 3) return "يرجى إدخال الاسم ثلاثياً (الاسم الأول والثاني والثالث)";
-      // الجنس إلزامي
-      if (!gender) return "يرجى تحديد الجنس (ذكر أو أنثى)";
-      // رقم الهوية اختياري
-      const nid = nationalId.trim().replace(/\s+/g, "");
-      if (nid && !/^\d{8,20}$/.test(nid)) return "رقم الهوية يجب أن يكون 8–20 رقماً";
-      // رقم الهاتف 10 أرقام إلزامياً
-      if (!useEmail) {
-        const phone = identifier.trim().replace(/\s+/g, "");
-        if (!phone) return "يرجى إدخال رقم الهاتف";
-        if (!/^\d{10}$/.test(phone)) return "رقم الهاتف يجب أن يكون 10 أرقام بالضبط";
-      }
-    }
-    if (!identifier.trim()) return "يرجى إدخال البريد أو رقم الهاتف";
-    if (!password)           return "يرجى إدخال كلمة المرور";
-    if (password.length < 6) return "كلمة المرور 6 أحرف على الأقل";
-    if (mode === "register" && password !== confirmPwd) return "كلمتا المرور غير متطابقتين";
-    return null;
-  };
-
-  const handleSubmit = async () => {
-    setError("");
-    const err = validate();
-    if (err) { setError(err); return; }
-
-    if (mode === "register") {
-      if (true) {
-        await handleSendOtp();
-        return;
-      }
-
-      // تسجيل مباشر بدون OTP
-      setLoading(true);
-      try {
-        const id = identifier.trim();
-        const isEmail = useEmail || id.includes("@");
-        const nid = nationalId.trim().replace(/\s+/g, "");
-
-        await register(
-          name.trim(),
-          nid,
-          id,
-          isEmail,
-          password,
-          getBirthDateISO(),
-          buildNeighborhood(),
-          gender || undefined
-        );
-
-        promptEnableBiometrics(id);
-
-        if (feedback.trim()) {
-          fetch(`${getApiUrl()}/api/feedback`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "suggestion",
-              title: "اقتراح عند التسجيل",
-              body: feedback.trim(),
-              sender_name: name.trim(),
-              phone: !isEmail ? id : undefined,
-              category: "تسجيل",
-            }),
-          }).catch(() => {});
-        }
-
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      } catch (e: any) {
-        setError(e?.message || "تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى");
-
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        }
-      } finally {
-        setLoading(false);
-      }
-
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const id = identifier.trim();
-      await login(id, password);
-      promptEnableBiometrics(id);
-      if (Platform.OS !== "web")
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      setError(e.message || "حدث خطأ، يرجى المحاولة مرة أخرى");
-      if (Platform.OS !== "web")
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGuest = () => {
-    if (Platform.OS !== "web")
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    enterAsGuest();
-  };
-
-  const handleBiometricLogin = async () => {
-    setBioLoading(true);
-    try {
-      let success = false;
-      try { success = await loginWithBiometrics(); }
-      catch (e: any) { setError(e?.message || "تعذّر الدخول بالبصمة"); }
-      if (!success) {
-        if (Platform.OS !== "web")
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      } else {
-        if (Platform.OS !== "web")
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } finally {
-      setBioLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    if (loading) return;
-    setError("");
-    setLoading(true);
-    // مؤقت احتياطي: إن لم يكتمل الدخول خلال 30 ثانية نُوقف المحاول وننبّه
-    const safetyTimer = setTimeout(() => {
-      setLoading(false);
-      setError("استغرق تسجيل الدخول وقتاً طويلاً. تحقق من اتصالك وأعد المحاولة.");
-    }, 180000);
-    try {
-      // الويب: نافذة Firebase المنبثقة — الموبايل: صفحة دخول Google الآمنة ثم العودة للتطبيق
-      await loginWithGoogleWeb();
-      if (Platform.OS !== "web")
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      const code = e?.code ?? "";
-      // إلغاء النافذة المنبثقة من المستخدم — تجاهل بصمت
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" || String(e?.message || "").startsWith("أُلغي")) {
-        return;
-      }
-      if (code === "auth/unauthorized-domain" || e?.message?.includes("unauthorized-domain")) {
-        // النطاق غير مُدرج في Firebase — أخبر المستخدم باستخدام البريد/الهاتف
-        setError("تسجيل الدخول بـ Google غير متاح حالياً. يرجى استخدام البريد الإلكتروني أو رقم الهاتف.");
-      } else if (code === statusCodes.SIGN_IN_CANCELLED) {
-        // المستخدم ألغى — لا خطأ
-      } else if (code === statusCodes.IN_PROGRESS) {
-        // تسجيل جارٍ بالفعل — تجاهل
-      } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setError("خدمات Google غير متاحة على هذا الجهاز");
-      } else if (code === "auth/popup-blocked") {
-        setError("المتصفح حجب نافذة تسجيل الدخول. فعّل النوافذ المنبثقة وأعد المحاولة");
-      } else if (String(code) === "10" || e?.message?.includes("DEVELOPER_ERROR")) {
-        setError("يرجى المحاولة مرة أخرى — إذا استمرت المشكلة استخدم البريد الإلكتروني أو رقم الهاتف.");
-      } else {
-        setError(e?.message || "فشل تسجيل الدخول عبر Google");
-      }
-      if (Platform.OS !== "web")
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      clearTimeout(safetyTimer);
-      setLoading(false);
-    }
-  };
-
-  // ── OTP Handlers ─────────────────────────────────────────
-  const startOtpCountdown = () => {
-    setOtpCountdown(600); // 10 دقائق — تطابق صلاحية الخادم
-    if (otpTimerRef.current) clearInterval(otpTimerRef.current);
-    otpTimerRef.current = setInterval(() => {
-      setOtpCountdown(c => {
-        if (c <= 1) { clearInterval(otpTimerRef.current!); otpTimerRef.current = null; return 0; }
-        return c - 1;
-      });
-    }, 1000);
-  };
-
-  const proceedRegisterDirect = async () => {
-    setLoading(true);
-    try {
-      const id = identifier.trim();
-      const isEmail = useEmail || id.includes("@");
-      const nid = nationalId.trim().replace(/\s+/g, "");
-      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
-      promptEnableBiometrics(id);
-    } catch (regErr: any) {
-      setError(regErr?.message || "تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const [devOtp, setDevOtp] = useState<string | null>(null);
-
-  const handleSendOtp = async () => {
-    const err = validate();
-    if (err) { setError(err); return; }
-    setOtpSending(true);
-    setError("");
-    setDevOtp(null);
-    try {
-      const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim() }),
-      });
-      let data: any = {};
-      try { data = await res.json(); } catch { throw new Error("_otp_unavailable"); }
-      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
-      if (data.dev_otp) setDevOtp(data.dev_otp);
-      setOtpSentVia(data.sent_via ?? "none");
-      setOtpCode("");
-      setOtpError("");
-      setOtpStep(true);
-      startOtpCountdown();
-      setTimeout(() => otpInputRef.current?.focus(), 300);
-    } catch (e: any) {
-      if (e.message === "_otp_unavailable") {
-        await proceedRegisterDirect();
-      } else {
-        setError(e.message || "فشل إرسال رمز التحقق");
-      }
-    }
-    setOtpSending(false);
-  };
-
-  const handleResendOtp = async () => {
-    if (otpCountdown > 540) return; // يُتاح الإعادة بعد 60 ث من الإرسال
-    setOtpSending(true);
-    setOtpError("");
-    setDevOtp(null);
-    try {
-      const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_or_email: identifier.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل الإعادة");
-      if (data.dev_otp) setDevOtp(data.dev_otp);
-      setOtpSentVia(data.sent_via ?? "none");
-      setOtpCode("");
-      startOtpCountdown();
-    } catch (e: any) {
-      setOtpError(e.message || "فشل إعادة الإرسال");
-    }
-    setOtpSending(false);
-  };
-
-  const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) { setOtpError("يرجى إدخال الرمز المكوّن من 6 أرقام"); return; }
-    setOtpVerifying(true);
-    setOtpError("");
-    try {
-      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
-      setOtpStep(false);
-      setLoading(true);
-      const id = identifier.trim();
-      const isEmail = useEmail || id.includes("@");
-      const nid = nationalId.trim().replace(/\s+/g, "");
-      await register(name.trim(), nid, id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined, otpCode);
-      promptEnableBiometrics(id);
-      if (feedback.trim()) {
-        fetch(`${getApiUrl()}/api/feedback`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "suggestion", title: "اقتراح عند التسجيل", body: feedback.trim(), sender_name: name.trim(), phone: !isEmail ? id : undefined, category: "تسجيل" }),
-        }).catch(() => {});
-      }
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      setOtpStep(true);
-      setOtpError(e.message || "رمز التحقق غير صحيح أو منتهي الصلاحية");
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-    setOtpVerifying(false);
-    setLoading(false);
-  };
+  useEffect(() => () => { if (otpTimerRef.current) clearInterval(otpTimerRef.current); }, []);
 
   const promptEnableBiometrics = (id: string) => {
     if (!biometricsAvailable || biometricsEnabled) return;
@@ -404,1023 +127,798 @@ export default function LoginScreen() {
     );
   };
 
+  const reset = () => {
+    setName(""); setNationalId(""); setIdentifier("");
+    setPassword(""); setConfirmPwd(""); setError("");
+    setShowPwd(false); setUseEmail(false);
+    setBirthDay(""); setBirthMonth(""); setBirthYear("");
+    setNeighborhood(""); setGender(""); setFeedback(""); setShowExtras(false);
+  };
+
+  const getBirthDateISO = (): string | undefined => {
+    const d = birthDay.padStart(2, "0");
+    const m = birthMonth.padStart(2, "0");
+    const y = birthYear;
+    if (birthDay && birthMonth && y.length === 4) return `${y}-${m}-${d}`;
+    return undefined;
+  };
+
+  const buildNeighborhood = () => neighborhood.trim() || undefined;
+  const cleanIdentifier = () => {
+    const id = toLatinDigits(identifier).trim();
+    const isEmail = useEmail || id.includes("@");
+    return isEmail ? id : id.replace(/[\s-]+/g, "");
+  };
+
+  // قلب البطاقة بين «الدخول» و«حساب جديد» — تتبدّل المحتويات عند منتصف الدوران
+  const flip = useSharedValue(0);
+  const flipping = useRef(false);
+  const applyMode = (m: Mode, keepIdentifier: string) => {
+    reset();
+    if (keepIdentifier) setIdentifier(keepIdentifier);
+    setMode(m);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    flip.value = -90;
+    flip.value = withTiming(0, { duration: 260 });
+    flipping.current = false;
+  };
+  const switchMode = (m: Mode, keepIdentifier?: string) => {
+    if (m === mode || flipping.current) return;
+    haptic("tap");
+    flipping.current = true;
+    flip.value = withTiming(90, { duration: 200 }, done => { if (done) runOnJS(applyMode)(m, keepIdentifier ?? ""); });
+  };
+  const cardFlipStyle = useAnimatedStyle(() => ({ transform: [{ perspective: 1200 }, { rotateY: `${flip.value}deg` }] }));
+
+  const validate = (): string | null => {
+    if (mode === "register") {
+      if (!name.trim()) return "يرجى إدخال الاسم الثلاثي كاملاً";
+      const nameParts = name.trim().split(/\s+/).filter(Boolean);
+      if (nameParts.length < 3) return "يرجى إدخال الاسم ثلاثياً (الاسم الأول والثاني والثالث)";
+      if (!gender) return "يرجى تحديد الجنس (ذكر أو أنثى)";
+      const nid = nationalId.trim();
+      if (nid && !/^\d{8,20}$/.test(nid)) return "رقم الهوية يجب أن يكون 8–20 رقماً";
+      if (!useEmail) {
+        const phone = cleanIdentifier();
+        if (!phone) return "يرجى إدخال رقم الهاتف";
+        if (!/^\d{10}$/.test(phone)) return "رقم الهاتف يجب أن يكون 10 أرقام بالضبط";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim())) {
+        return "صيغة البريد الإلكتروني غير صحيحة";
+      }
+    }
+    if (!identifier.trim()) return "يرجى إدخال البريد أو رقم الهاتف";
+    if (!password)           return "يرجى إدخال كلمة المرور";
+    if (password.length < 6) return "كلمة المرور 6 أحرف على الأقل";
+    if (mode === "register" && password !== confirmPwd) return "كلمتا المرور غير متطابقتين";
+    return null;
+  };
+
+  const sendFeedback = (id: string, isEmail: boolean) => {
+    if (!feedback.trim()) return;
+    fetch(`${getApiUrl()}/api/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "suggestion", title: "اقتراح عند التسجيل", body: feedback.trim(), sender_name: name.trim(), phone: !isEmail ? id : undefined, category: "تسجيل" }),
+    }).catch(() => {});
+  };
+
+  const handleSubmit = async () => {
+    setError("");
+    const err = validate();
+    if (err) { setError(err); haptic("err"); return; }
+
+    if (mode === "register") { await handleSendOtp(); return; }
+
+    setLoading(true);
+    try {
+      const id = cleanIdentifier();
+      await login(id, password);
+      promptEnableBiometrics(id);
+      haptic("ok");
+    } catch (e: any) {
+      setError(e.message || "حدث خطأ، يرجى المحاولة مرة أخرى");
+      haptic("err");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuest = () => { haptic("tap"); enterAsGuest(); };
+
+  const handleBiometricLogin = async () => {
+    setBioLoading(true);
+    try {
+      let success = false;
+      try { success = await loginWithBiometrics(); }
+      catch (e: any) { setError(e?.message || "تعذّر الدخول بالبصمة"); }
+      haptic(success ? "ok" : "err");
+    } finally {
+      setBioLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (loading) return;
+    setError("");
+    setLoading(true);
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+      setError("استغرق تسجيل الدخول وقتاً طويلاً. تحقق من اتصالك وأعد المحاولة.");
+    }, 180000);
+    try {
+      await loginWithGoogleWeb();
+      haptic("ok");
+    } catch (e: any) {
+      const code = e?.code ?? "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" || String(e?.message || "").startsWith("أُلغي")) return;
+      if (code === "auth/unauthorized-domain" || e?.message?.includes("unauthorized-domain")) {
+        setError("تسجيل الدخول بـ Google غير متاح حالياً. يرجى استخدام البريد الإلكتروني أو رقم الهاتف.");
+      } else if (code === statusCodes.SIGN_IN_CANCELLED || code === statusCodes.IN_PROGRESS) {
+        // ألغى المستخدم أو تسجيل جارٍ — لا خطأ
+      } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("خدمات Google غير متاحة على هذا الجهاز");
+      } else if (code === "auth/popup-blocked") {
+        setError("المتصفح حجب نافذة تسجيل الدخول. فعّل النوافذ المنبثقة وأعد المحاولة");
+      } else if (String(code) === "10" || e?.message?.includes("DEVELOPER_ERROR")) {
+        setError("يرجى المحاولة مرة أخرى — إذا استمرت المشكلة استخدم البريد الإلكتروني أو رقم الهاتف.");
+      } else {
+        setError(e?.message || "فشل تسجيل الدخول عبر Google");
+      }
+      haptic("err");
+    } finally {
+      clearTimeout(safetyTimer);
+      setLoading(false);
+    }
+  };
+
+  // ── OTP Handlers ─────────────────────────────────────────
+  const startOtpCountdown = () => {
+    setOtpCountdown(OTP_TTL);
+    if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+    otpTimerRef.current = setInterval(() => {
+      setOtpCountdown(c => {
+        if (c <= 1) { clearInterval(otpTimerRef.current!); otpTimerRef.current = null; return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  const closeOtp = () => {
+    setOtpStep(false);
+    if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+  };
+
+  const proceedRegisterDirect = async () => {
+    setLoading(true);
+    try {
+      const id = cleanIdentifier();
+      const isEmail = useEmail || id.includes("@");
+      await register(name.trim(), nationalId.trim(), id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined);
+      promptEnableBiometrics(id);
+      sendFeedback(id, isEmail);
+    } catch (regErr: any) {
+      setError(regErr?.message || "تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestOtp = async () => {
+    const res = await fetch(`${getApiUrl()}/api/auth/send-registration-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone_or_email: cleanIdentifier() }),
+    });
+    let data: any = {};
+    try { data = await res.json(); } catch { throw new Error("_otp_unavailable"); }
+    if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
+    setDevOtp(data.dev_otp ?? null);
+    setOtpSentVia(data.sent_via ?? "none");
+    setOtpCode("");
+    setOtpError("");
+    setOtpSuccess(false);
+    startOtpCountdown();
+  };
+
+  const handleSendOtp = async () => {
+    setOtpSending(true);
+    setError("");
+    setDevOtp(null);
+    try {
+      await requestOtp();
+      setOtpStep(true);
+    } catch (e: any) {
+      if (e.message === "_otp_unavailable") await proceedRegisterDirect();
+      else { setError(e.message || "فشل إرسال رمز التحقق"); haptic("err"); }
+    }
+    setOtpSending(false);
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCountdown > OTP_TTL - RESEND_AFTER || otpSending) return;
+    setOtpSending(true);
+    try {
+      await requestOtp();
+      otpInputRef.current?.focus();
+    } catch (e: any) {
+      setOtpError(e.message === "_otp_unavailable" ? "تعذّر الاتصال بالخادم" : (e.message || "فشل إعادة الإرسال"));
+    }
+    setOtpSending(false);
+  };
+
+  const handleVerifyOtp = async (codeArg?: string) => {
+    const code = onlyDigits(codeArg ?? otpCode, 6);
+    if (code.length !== 6) { setOtpError("يرجى إدخال الرمز المكوّن من 6 أرقام"); return; }
+    if (verifyingRef.current) return; // منع الإرسال المزدوج (ضغطتان أو تحقق تلقائي + زر)
+    verifyingRef.current = true;
+    setOtpVerifying(true);
+    setOtpError("");
+    try {
+      const id = cleanIdentifier();
+      const isEmail = useEmail || id.includes("@");
+      await register(name.trim(), nationalId.trim(), id, isEmail, password, getBirthDateISO(), buildNeighborhood(), gender || undefined, code);
+      setOtpSuccess(true);
+      haptic("ok");
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+      sendFeedback(id, isEmail);
+      setTimeout(() => { setOtpStep(false); promptEnableBiometrics(id); }, 450);
+    } catch (e: any) {
+      const msg: string = e?.message || "رمز التحقق غير صحيح أو منتهي الصلاحية";
+      haptic("err");
+      // خطأ في بيانات الحساب لا في الرمز: نعود للنموذج ونعرضه هناك
+      if (msg.includes("مسجّل مسبقاً") || msg.includes("مسجلة مسبقاً")) {
+        closeOtp();
+        setError(msg);
+      } else {
+        setOtpError(msg);
+        if (msg.includes("غير صحيح")) setOtpCode("");
+        otpInputRef.current?.focus();
+      }
+    } finally {
+      verifyingRef.current = false;
+      setOtpVerifying(false);
+    }
+  };
+
+  const isRegister = mode === "register";
+  const busy = loading || otpSending;
+  const strength = passwordStrength(password);
+  const pwdMismatch = isRegister && !!confirmPwd && confirmPwd !== password;
+  const canResend = otpCountdown <= OTP_TTL - RESEND_AFTER;
+  const showGoogle = GOOGLE_LOGIN_ENABLED && !isRegister;
+  const showBio = !isRegister && biometricsAvailable && biometricsEnabled;
+  const phoneMode = isRegister && !useEmail;
+  const nameOk = name.trim().split(/\s+/).filter(Boolean).length >= 3;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      {/* ─── Hero ─────────────────────────────────────── */}
-      <ImageBackground
-        source={FERRIS}
-        style={[styles.hero, { paddingTop: insets.top }]}
-        imageStyle={styles.heroImage}
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* هالات لونية خفيفة خلف البطاقة */}
+      <View pointerEvents="none" style={[styles.blob, { top: -90, right: -70, backgroundColor: Colors.primary + "1F" }]} />
+
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 24 }]}
       >
-        {/* طبقة تدرج داكنة */}
-        <LinearGradient
-          colors={[
-            "rgba(2,12,27,0.20)",
-            "rgba(37,99,235,0.12)",
-            "rgba(2,12,27,0.88)",
-            Colors.bg,
-          ]}
-          locations={[0, 0.35, 0.72, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        {/* محتوى الـ Hero */}
-        <Animated.View
-          entering={FadeIn.delay(80).duration(900)}
-          style={styles.heroContent}
-        >
-          {/* الشعار */}
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={[Colors.primary + "30", Colors.accent + "20"]}
-              style={styles.logoGlow}
-            />
-            <View style={styles.logoWrap}>
-              <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
-            </View>
-          </View>
-
-          {/* اسم التطبيق */}
-          <Animated.View entering={FadeInUp.delay(260).springify().damping(18)} style={styles.heroTitleWrap}>
+        {/* ─── الهوية ─────────────────────────────── */}
+        <Animated.View entering={FadeIn.duration(600)} style={styles.brandRow}>
+          <NeuRaised radius={18} depth={5} style={styles.logoChip}>
+            <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+          </NeuRaised>
+          <View style={{ flex: 1 }}>
             <Text style={styles.appName}>حصاحيصاوي</Text>
-            <View style={styles.taglineRow}>
-              <View style={styles.taglineDot} />
-              <Text style={styles.tagline}>بوابتك الذكية لمدينة الحصاحيصا</Text>
-              <View style={styles.taglineDot} />
-            </View>
-          </Animated.View>
+            <Text style={styles.tagline}>بوابتك الذكية لمدينة الحصاحيصا</Text>
+          </View>
         </Animated.View>
-      </ImageBackground>
 
-      {/* ─── Form card ────────────────────────────────── */}
-      <Animated.View entering={FadeInUp.delay(160).springify().damping(20)} style={styles.card}>
-        {/* Mode tabs */}
-        <View style={styles.modeTabs}>
-          <TouchableOpacity
-            style={[styles.modeTab, mode === "login" && styles.modeTabActive]}
-            onPress={() => switchMode("login")}
-            activeOpacity={0.8}
-          >
-            {mode === "login" && (
-              <LinearGradient
-                colors={[Colors.primary + "22", Colors.primary + "0A"]}
-                style={StyleSheet.absoluteFill}
-              />
-            )}
-            <Ionicons
-              name={mode === "login" ? "log-in" : "log-in-outline"}
-              size={17}
-              color={mode === "login" ? Colors.primary : Colors.textMuted}
-            />
-            <Text style={[styles.modeTabText, mode === "login" && styles.modeTabTextActive]}>
-              تسجيل الدخول
+        {/* ─── البطاقة البارزة ─────────────────────── */}
+        <Animated.View entering={FadeInUp.delay(100).springify().damping(18)} style={cardFlipStyle}>
+          <NeuRaised radius={30} depth={12} style={styles.card}>
+            <View style={styles.badgeWrap}>
+              <NeuBadge icon={isRegister ? "sparkles" : "lock-closed"} color={isRegister ? Colors.accent : Colors.primary} />
+            </View>
+            <Text style={styles.heading}>{isRegister ? "إنشاء حساب" : "أهلاً بك"}</Text>
+            <Text style={styles.subheading}>
+              {isRegister ? "ابدأ رحلتك مع مجتمع الحصاحيصا" : "سجّل الدخول لمتابعة خدماتك"}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modeTab, mode === "register" && styles.modeTabActive]}
-            onPress={() => switchMode("register")}
-            activeOpacity={0.8}
-          >
-            {mode === "register" && (
-              <LinearGradient
-                colors={[Colors.primary + "22", Colors.primary + "0A"]}
-                style={StyleSheet.absoluteFill}
-              />
-            )}
-            <Ionicons
-              name={mode === "register" ? "person-add" : "person-add-outline"}
-              size={17}
-              color={mode === "register" ? Colors.primary : Colors.textMuted}
-            />
-            <Text style={[styles.modeTabText, mode === "register" && styles.modeTabTextActive]}>
-              حساب جديد
-            </Text>
-          </TouchableOpacity>
-        </View>
 
-        <ScrollView
-          ref={scrollRef}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.formScroll}
-        >
-          {/* الاسم الثلاثي */}
-          {mode === "register" && (
-            <Field label="الاسم الثلاثي" required icon="person-outline">
-              <TextInput
-                style={styles.input}
-                placeholder="الاسم الأول والثاني والثالث"
-                placeholderTextColor={Colors.textMuted}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-              />
-            </Field>
-          )}
-          {mode === "register" && (
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: -10, marginBottom: 4, textAlign: "right" }}>
-              مثال: محمد أحمد عبد الله
-            </Text>
-          )}
-
-          {/* رقم الهوية */}
-          {mode === "register" && (
-            <Field label="رقم الهوية الوطنية" icon="id-card-outline" optional>
-              <TextInput
-                style={styles.input}
-                placeholder="اختياري — للتوثيق فقط"
-                placeholderTextColor={Colors.textMuted}
-                value={nationalId}
-                onChangeText={v => setNationalId(v.replace(/\D/g, ""))}
-                keyboardType="numeric"
-                maxLength={20}
-              />
-              {nationalId.length >= 8 && (
-                <Ionicons name="checkmark-circle" size={20} color={Colors.primary} style={{ marginLeft: 10 }} />
+            <View style={styles.form}>
+              {isRegister && (
+                <NeuField
+                  label="الاسم الثلاثي"
+                  icon="person-outline"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="محمد أحمد عبد الله"
+                  autoCapitalize="words"
+                  textContentType="name"
+                  autoComplete="name"
+                  trailing={nameOk ? <Ionicons name="checkmark-circle" size={20} color={Colors.primary} style={styles.trail} /> : undefined}
+                />
               )}
-            </Field>
-          )}
 
-          {/* نوع التسجيل */}
-          {mode === "register" && (
-            <View style={styles.typeRow}>
-              <TypeToggle
-                label="رقم الهاتف" icon="call-outline"
-                active={!useEmail} onPress={() => { setUseEmail(false); setIdentifier(""); }}
+              {isRegister && (
+                <View style={styles.segRow}>
+                  {([
+                    { val: "male" as const,   label: "ذكر",  icon: "man-outline" as const },
+                    { val: "female" as const, label: "أنثى", icon: "woman-outline" as const },
+                  ]).map(opt => (
+                    <Choice key={opt.val} label={opt.label} icon={opt.icon} on={gender === opt.val} onPress={() => { haptic("tap"); setGender(opt.val); }} />
+                  ))}
+                </View>
+              )}
+
+              {isRegister && (
+                <NeuInset radius={16} style={styles.typeTrack}>
+                  <TypeToggle label="رقم الهاتف" icon="call-outline" active={!useEmail} onPress={() => { setUseEmail(false); setIdentifier(""); }} />
+                  <TypeToggle label="بريد إلكتروني" icon="mail-outline" active={useEmail} onPress={() => { setUseEmail(true); setIdentifier(""); }} />
+                </NeuInset>
+              )}
+
+              <NeuField
+                label={!isRegister ? "البريد أو رقم الهاتف" : useEmail ? "البريد الإلكتروني" : "رقم الهاتف"}
+                icon={!isRegister ? "person-outline" : useEmail ? "mail-outline" : "call-outline"}
+                value={identifier}
+                onChangeText={v => setIdentifier(phoneMode ? onlyDigits(v, 10) : toLatinDigits(v))}
+                placeholder={phoneMode ? "0912345678" : useEmail ? "example@email.com" : "0912345678 أو بريدك"}
+                keyboardType={phoneMode ? "phone-pad" : "email-address"}
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType={phoneMode ? "telephoneNumber" : "username"}
+                autoComplete={phoneMode ? "tel" : "username"}
+                maxLength={phoneMode ? 10 : 120}
+                hint={phoneMode ? "سيصلك رمز تحقق على هذا الرقم" : undefined}
+                trailing={phoneMode ? <Text style={[styles.counter, identifier.length === 10 && { color: Colors.primary }]}>{identifier.length}/10</Text> : undefined}
               />
-              <TypeToggle
-                label="بريد إلكتروني" icon="mail-outline"
-                active={useEmail} onPress={() => { setUseEmail(true); setIdentifier(""); }}
-              />
-            </View>
-          )}
 
-          {/* البريد / الهاتف */}
-          <Field
-            label={mode === "login" ? "البريد أو رقم الهاتف" : useEmail ? "البريد الإلكتروني" : "رقم الهاتف"}
-            required
-            icon={useEmail || mode === "login" ? "mail-outline" : "call-outline"}
-          >
-            <TextInput
-              style={styles.input}
-              placeholder={
-                mode === "login" ? "أدخل البريد أو رقم الهاتف"
-                  : useEmail ? "example@email.com" : "0912345678 (10 أرقام)"
-              }
-              placeholderTextColor={Colors.textMuted}
-              value={identifier}
-              onChangeText={setIdentifier}
-              keyboardType={useEmail || mode === "login" ? "email-address" : "phone-pad"}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </Field>
-
-          {/* كلمة المرور */}
-          <Field label="كلمة المرور" required icon="lock-closed-outline">
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="أدخل كلمة المرور"
-              placeholderTextColor={Colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPwd}
-            />
-            <Pressable onPress={() => setShowPwd(p => !p)} hitSlop={10} style={styles.eyeBtn}>
-              <Ionicons name={showPwd ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />
-            </Pressable>
-          </Field>
-
-          {/* تأكيد كلمة المرور */}
-          {mode === "register" && (
-            <Field label="تأكيد كلمة المرور" required icon="lock-closed-outline">
-              <TextInput
-                style={styles.input}
-                placeholder="أعد إدخال كلمة المرور"
-                placeholderTextColor={Colors.textMuted}
-                value={confirmPwd}
-                onChangeText={setConfirmPwd}
+              <NeuField
+                label="كلمة المرور"
+                icon="lock-closed-outline"
+                value={password}
+                onChangeText={setPassword}
+                placeholder={isRegister ? "6 أحرف على الأقل" : undefined}
                 secureTextEntry={!showPwd}
+                textContentType={isRegister ? "newPassword" : "password"}
+                autoComplete={isRegister ? "password-new" : "password"}
+                onSubmitEditing={!isRegister ? handleSubmit : undefined}
+                returnKeyType={!isRegister ? "go" : "next"}
+                trailing={
+                  <Pressable onPress={() => setShowPwd(p => !p)} hitSlop={10} style={styles.trail} accessibilityLabel={showPwd ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
+                    <Ionicons name={showPwd ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />
+                  </Pressable>
+                }
               />
-            </Field>
-          )}
 
-          {/* تاريخ الميلاد */}
-          {mode === "register" && (
-            <View style={s2.fieldWrap}>
-              <View style={s2.fieldHeader}>
-                <Ionicons name="calendar-outline" size={15} color={Colors.textMuted} />
-                <Text style={s2.fieldLabel}>تاريخ الميلاد</Text>
-                <Text style={s2.optional}>(اختياري)</Text>
-              </View>
-              <View style={s2.dateRow}>
-                <View style={[s2.dateBox, { flex: 1 }]}>
-                  <Text style={s2.dateLabel}>اليوم</Text>
-                  <TextInput
-                    style={s2.dateInput}
-                    placeholder="01"
-                    placeholderTextColor={Colors.textMuted}
-                    value={birthDay}
-                    onChangeText={v => setBirthDay(v.replace(/\D/g,"").slice(0,2))}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    textAlign="center"
-                  />
+              {isRegister && !!password && (
+                <View style={styles.strengthRow}>
+                  <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
+                  <View style={styles.strengthBars}>
+                    {[1, 2, 3].map(i => (
+                      <View key={i} style={[styles.strengthBar, { backgroundColor: i <= strength.score ? strength.color : neu.insetTop }]} />
+                    ))}
+                  </View>
                 </View>
-                <View style={[s2.dateBox, { flex: 1 }]}>
-                  <Text style={s2.dateLabel}>الشهر</Text>
-                  <TextInput
-                    style={s2.dateInput}
-                    placeholder="01"
-                    placeholderTextColor={Colors.textMuted}
-                    value={birthMonth}
-                    onChangeText={v => setBirthMonth(v.replace(/\D/g,"").slice(0,2))}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    textAlign="center"
-                  />
-                </View>
-                <View style={[s2.dateBox, { flex: 2 }]}>
-                  <Text style={s2.dateLabel}>السنة</Text>
-                  <TextInput
-                    style={s2.dateInput}
-                    placeholder="1990"
-                    placeholderTextColor={Colors.textMuted}
-                    value={birthYear}
-                    onChangeText={v => setBirthYear(v.replace(/\D/g,"").slice(0,4))}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    textAlign="center"
-                  />
-                </View>
-              </View>
-            </View>
-          )}
+              )}
 
-          {/* الجنس */}
-          {mode === "register" && (
-            <View style={s2.fieldWrap}>
-              <View style={s2.fieldHeader}>
-                <Ionicons name="person-outline" size={15} color={Colors.textMuted} />
-                <Text style={s2.fieldLabel}>الجنس</Text>
-                <Text style={s2.optional}>(مطلوب)</Text>
-              </View>
-              <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 4 }}>
-                {([
-                  { val: "male"   as const, label: "ذكر",  icon: "man-outline"   as const },
-                  { val: "female" as const, label: "أنثى", icon: "woman-outline"  as const },
-                ]).map(opt => (
-                  <TouchableOpacity
-                    key={opt.val}
-                    onPress={() => setGender(opt.val)}
-                    style={{
-                      flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
-                      gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5,
-                      borderColor: gender === opt.val ? Colors.primary : Colors.divider,
-                      backgroundColor: gender === opt.val ? Colors.primary + "15" : Colors.cardBg,
-                    }}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name={opt.icon} size={18}
-                      color={gender === opt.val ? Colors.primary : Colors.textMuted} />
-                    <Text style={{
-                      fontFamily: gender === opt.val ? "Cairo_700Bold" : "Cairo_400Regular",
-                      fontSize: 14,
-                      color: gender === opt.val ? Colors.primary : Colors.textSecondary,
-                    }}>{opt.label}</Text>
-                    {gender === opt.val && (
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+              {isRegister && (
+                <NeuField
+                  label="تأكيد كلمة المرور"
+                  icon="shield-checkmark-outline"
+                  value={confirmPwd}
+                  onChangeText={setConfirmPwd}
+                  secureTextEntry={!showPwd}
+                  textContentType="newPassword"
+                  error={pwdMismatch}
+                  hint={pwdMismatch ? "كلمتا المرور غير متطابقتين" : undefined}
+                  trailing={!!confirmPwd && !pwdMismatch ? <Ionicons name="checkmark-circle" size={20} color={Colors.primary} style={styles.trail} /> : undefined}
+                />
+              )}
+
+              {!isRegister && (
+                <TouchableOpacity onPress={() => router.push("/forgot-password" as any)} activeOpacity={0.7} style={styles.forgotBtn}>
+                  <Text style={styles.forgotText}>نسيت كلمة المرور؟</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* معلومات إضافية — مطوية افتراضياً لتقصير النموذج */}
+              {isRegister && (
+                <Pressable onPress={() => setShowExtras(v => !v)} style={styles.extrasToggle} accessibilityRole="button">
+                  <Ionicons name={showExtras ? "remove-circle-outline" : "add-circle-outline"} size={19} color={Colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.extrasTitle}>معلومات إضافية</Text>
+                    <Text style={styles.extrasSub}>الهوية، تاريخ الميلاد، الحي، اقتراح — اختيارية</Text>
+                  </View>
+                  <Ionicons name={showExtras ? "chevron-up" : "chevron-down"} size={18} color={Colors.textMuted} />
+                </Pressable>
+              )}
+
+              {isRegister && showExtras && (
+                <Animated.View entering={FadeInDown.duration(220)} style={{ gap: 14 }}>
+                  <NeuField
+                    label="رقم الهوية الوطنية (اختياري)"
+                    icon="id-card-outline"
+                    value={nationalId}
+                    onChangeText={v => setNationalId(onlyDigits(v, 20))}
+                    keyboardType="number-pad"
+                    maxLength={20}
+                    placeholder="للتوثيق فقط"
+                  />
+                  <View style={{ gap: 6 }}>
+                    <Text style={styles.smallLabel}>تاريخ الميلاد (اختياري)</Text>
+                    <View style={styles.dateRow}>
+                      <DateBox label="اليوم" placeholder="01" value={birthDay} max={2} onChange={setBirthDay} />
+                      <DateBox label="الشهر" placeholder="01" value={birthMonth} max={2} onChange={setBirthMonth} />
+                      <DateBox label="السنة" placeholder="1990" value={birthYear} max={4} onChange={setBirthYear} flex={1.6} />
+                    </View>
+                  </View>
+                  <NeuField
+                    label="القرية أو الحي (اختياري)"
+                    icon="location-outline"
+                    value={neighborhood}
+                    onChangeText={v => setNeighborhood(v.slice(0, 40))}
+                    maxLength={40}
+                  />
+                  <NeuField
+                    label="مشكلة أو اقتراح (اختياري)"
+                    icon="chatbubble-ellipses-outline"
+                    value={feedback}
+                    onChangeText={setFeedback}
+                    placeholder="هل لديك مشكلة أو اقتراح لميزة جديدة؟"
+                    multiline
+                  />
+                </Animated.View>
+              )}
+
+              {!!error && (
+                <Animated.View entering={FadeInDown.duration(200)} style={styles.errorBox}>
+                  <Ionicons name="alert-circle" size={18} color={Colors.danger} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.errorText}>{error}</Text>
+                    {isRegister && (error.includes("مسجّل مسبقاً") || error.includes("مسجلة مسبقاً")) && (
+                      <TouchableOpacity onPress={() => switchMode("login", identifier)} style={{ marginTop: 6 }}>
+                        <Text style={styles.errorLink}>انتقل إلى تسجيل الدخول ←</Text>
+                      </TouchableOpacity>
                     )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
+                  </View>
+                </Animated.View>
+              )}
 
-          {/* القرية أو الحي */}
-          {mode === "register" && (
-            <Field label="القرية أو الحي" icon="location-outline" optional>
-              <TextInput
-                style={styles.input}
-                placeholder="أدخل اسم قريتك أو حيّك"
-                placeholderTextColor={Colors.textMuted}
-                value={neighborhood}
-                onChangeText={v => setNeighborhood(v.slice(0, 40))}
-                maxLength={40}
-                textAlign="right"
+              <NeuButton
+                label={isRegister ? "متابعة والتحقق" : "تسجيل الدخول"}
+                icon={isRegister ? "shield-checkmark-outline" : "arrow-back"}
+                loading={busy}
+                onPress={handleSubmit}
               />
-            </Field>
-          )}
 
-          {/* مشكلة أو اقتراح */}
-          {mode === "register" && (
-            <View style={s2.fieldWrap}>
-              <View style={s2.fieldHeader}>
-                <Ionicons name="chatbubble-ellipses-outline" size={15} color={Colors.textMuted} />
-                <Text style={s2.fieldLabel}>مشكلة أو اقتراح</Text>
-                <Text style={s2.optional}>(اختياري)</Text>
+              {/* تبديل الوضع: زر دائري بارز كما في التصميم المرجعي */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchHint}>{isRegister ? "لديك حساب بالفعل؟" : "ليس لديك حساب؟"}</Text>
+                <NeuRoundButton
+                  icon={isRegister ? "arrow-forward" : "add"}
+                  onPress={() => switchMode(isRegister ? "login" : "register")}
+                  accessibilityLabel={isRegister ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+                />
+                <Text style={styles.switchLink} onPress={() => switchMode(isRegister ? "login" : "register")}>
+                  {isRegister ? "سجّل الدخول" : "أنشئ حساباً"}
+                </Text>
               </View>
-              <TextInput
-                style={[styles.input, {
-                  height: 80,
-                  textAlignVertical: "top",
-                  paddingTop: 10,
-                  backgroundColor: Colors.cardBg,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.divider,
-                  paddingHorizontal: 14,
-                  fontFamily: "Cairo_400Regular",
-                  fontSize: 14,
-                  color: Colors.textPrimary,
-                }]}
-                placeholder="هل لديك مشكلة في التطبيق أو اقتراح لميزة جديدة؟ أخبرنا..."
-                placeholderTextColor={Colors.textMuted}
-                value={feedback}
-                onChangeText={setFeedback}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-          )}
 
-          {/* خطأ */}
-          {!!error && (
-            <Animated.View entering={FadeInDown.duration(200)} style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color={Colors.danger} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.errorText}>{error}</Text>
-                {mode === "register" && (error.includes("مسجّل مسبقاً") || error.includes("مسجلة مسبقاً")) && (
-                  <TouchableOpacity onPress={() => { switchMode("login"); setIdentifier(identifier); }} style={{ marginTop: 6 }}>
-                    <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, textDecorationLine: "underline" }}>
-                      انتقل إلى تسجيل الدخول ←
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* زر الإرسال */}
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={loading}
-            activeOpacity={0.88}
-            style={{ opacity: loading ? 0.75 : 1, marginTop: 6 }}
-          >
-            <LinearGradient
-              colors={[Colors.primary, Colors.primaryDim]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.submitBtn}
-            >
-              {loading || otpSending
-                ? <ActivityIndicator color={Colors.text} size="small" />
-                : <>
-                    <Text style={styles.submitText}>
-                      {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
-                    </Text>
-                    <Ionicons
-                      name={mode === "login" ? "arrow-back" : "person-add-outline"}
-                      size={19} color={Colors.text}
-                    />
-                  </>
-              }
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* نسيت كلمة المرور */}
-          {mode === "login" && (
-            <TouchableOpacity
-              onPress={() => router.push("/forgot-password" as any)}
-              activeOpacity={0.7}
-              style={{ alignSelf: "center", marginTop: 8, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <Ionicons name="lock-open-outline" size={15} color={Colors.primary} />
-              <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.primary, textDecorationLine: "underline" }}>
-                نسيت كلمة المرور؟
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* زر البصمة */}
-          {mode === "login" && biometricsAvailable && biometricsEnabled && (
-            <Animated.View entering={FadeInDown.duration(300)}>
-              <TouchableOpacity
-                onPress={handleBiometricLogin}
-                disabled={bioLoading}
-                activeOpacity={0.85}
-                style={[styles.bioBtn, bioLoading && { opacity: 0.7 }]}
-              >
-                <View style={styles.bioBtnIcon}>
-                  {bioLoading
-                    ? <ActivityIndicator color={Colors.primary} size="small" />
-                    : <Ionicons name={bioIcon} size={24} color={Colors.primary} />
-                  }
+              {(showBio || showGoogle) && (
+                <View style={styles.altRow}>
+                  {showBio && (
+                    <View style={styles.altItem}>
+                      <NeuRoundButton icon={bioIcon} onPress={handleBiometricLogin} loading={bioLoading} size={52} accessibilityLabel={bioLabel} />
+                      <Text style={styles.altText}>{bioLabel}</Text>
+                    </View>
+                  )}
+                  {showGoogle && (
+                    <View style={styles.altItem}>
+                      <NeuRoundButton icon="logo-google" onPress={handleGoogleLogin} size={52} color="#4285F4" accessibilityLabel="المتابعة عبر Google" />
+                      <Text style={styles.altText}>Google</Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.bioText}>{bioLabel}</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+              )}
+            </View>
+          </NeuRaised>
+        </Animated.View>
 
-          {/* زر Google — مخفي حتى يُفعَّل تسجيل Google (مفتاح توقيع ثابت + SHA-1 في Firebase) */}
-          {GOOGLE_LOGIN_ENABLED && mode === "login" && (
-            <TouchableOpacity
-              style={styles.googleBtn}
-              onPress={handleGoogleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color={Colors.textPrimary} size="small" />
+        <TouchableOpacity style={styles.guestBtn} onPress={handleGuest} activeOpacity={0.7}>
+          <Ionicons name="compass-outline" size={18} color={Colors.textSecondary} />
+          <Text style={styles.guestText}>تصفّح كزائر بدون حساب</Text>
+          <Ionicons name="chevron-back" size={16} color={Colors.textMuted} />
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* ─── شاشة رمز التحقق ──────────────────────── */}
+      <Modal visible={otpStep} animationType="slide" onRequestClose={closeOtp} statusBarTranslucent>
+        <KeyboardAvoidingView style={otpS.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View pointerEvents="none" style={[styles.blob, { top: -80, left: -60, backgroundColor: Colors.primary + "1F" }]} />
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[otpS.scroll, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 20 }]}>
+            <View style={otpS.topBar}>
+              <NeuRoundButton icon="arrow-forward" onPress={closeOtp} size={42} color={Colors.textPrimary} accessibilityLabel="رجوع" />
+              <Text style={otpS.stepText}>الخطوة الأخيرة</Text>
+              <View style={{ width: 42 }} />
+            </View>
+
+            <NeuRaised radius={30} depth={12} style={otpS.card}>
+              {otpSuccess ? (
+                <Animated.View entering={ZoomIn.springify().damping(14)} style={otpS.successWrap}>
+                  <NeuBadge size={96}>
+                    <Ionicons name="checkmark" size={46} color={Colors.primary} />
+                  </NeuBadge>
+                  <Text style={[otpS.title, { color: Colors.primary }]}>تم التحقق بنجاح</Text>
+                  <Text style={otpS.subtitle}>أُنشئ حسابك — مرحباً بك في حصاحيصاوي</Text>
+                </Animated.View>
               ) : (
                 <>
-                  <View style={styles.googleIconFallback}>
-                    <Text style={styles.googleIconLetter}>G</Text>
+                  <View style={styles.badgeWrap}>
+                    <NeuBadge icon={otpSentVia === "email" ? "mail-open-outline" : "chatbubble-ellipses-outline"} />
                   </View>
-                  <Text style={styles.googleBtnText}>المتابعة عبر Google</Text>
+                  <Text style={otpS.title}>أدخل رمز التحقق</Text>
+                  <Text style={otpS.subtitle}>
+                    {otpSentVia === "email" ? "أرسلنا رمزاً من 6 أرقام إلى بريدك" : otpSentVia === "sms" ? "أرسلنا رسالة برمز من 6 أرقام إلى" : "رمز من 6 أرقام لتأكيد"}
+                  </Text>
+                  <View style={otpS.idRow}>
+                    <Text style={otpS.idText}>{maskIdentifier(cleanIdentifier())}</Text>
+                    <Text style={otpS.editLink} onPress={closeOtp}>تعديل</Text>
+                  </View>
+
+                  {devOtp ? (
+                    <Pressable onPress={() => { haptic("tap"); setOtpCode(devOtp); setOtpError(""); }} accessibilityRole="button" accessibilityLabel={`تعبئة الرمز ${devOtp}`}>
+                      <NeuInset radius={18} style={otpS.devCard}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={otpS.devLabel}>رمزك</Text>
+                          <Text style={otpS.devCode}>{devOtp}</Text>
+                        </View>
+                        <View style={otpS.fillBtn}>
+                          <Ionicons name="flash" size={14} color="#fff" />
+                          <Text style={otpS.fillText}>تعبئة</Text>
+                        </View>
+                      </NeuInset>
+                    </Pressable>
+                  ) : otpSentVia === "none" ? (
+                    <View style={otpS.warnCard}>
+                      <Ionicons name="warning-outline" size={18} color={Colors.accentDeep} />
+                      <Text style={otpS.warnText}>تعذّر إرسال الرمز تلقائياً — تواصل مع الدعم لتلقّي رمزك</Text>
+                    </View>
+                  ) : null}
+
+                  <View style={{ marginTop: 10 }}>
+                    <OtpCodeInput
+                      ref={otpInputRef}
+                      value={otpCode}
+                      onChange={v => { setOtpCode(v); if (otpError) setOtpError(""); }}
+                      onComplete={c => handleVerifyOtp(c)}
+                      error={!!otpError}
+                      disabled={otpVerifying}
+                    />
+                  </View>
+
+                  {!!otpError && (
+                    <Animated.View entering={FadeInDown.duration(180)} exiting={FadeOut.duration(120)} style={otpS.errorRow}>
+                      <Ionicons name="alert-circle" size={16} color={Colors.danger} />
+                      <Text style={otpS.errorText}>{otpError}</Text>
+                    </Animated.View>
+                  )}
+
+                  <View style={otpS.timerWrap}>
+                    <NeuInset radius={4} style={otpS.timerTrack}>
+                      <View style={[otpS.timerFill, { width: `${(otpCountdown / OTP_TTL) * 100}%`, backgroundColor: otpCountdown > 60 ? Colors.primary : Colors.danger }]} />
+                    </NeuInset>
+                    <Text style={[otpS.timerText, otpCountdown <= 60 && { color: Colors.danger }]}>
+                      {otpCountdown > 0
+                        ? `صالح لمدة ${Math.floor(otpCountdown / 60)}:${String(otpCountdown % 60).padStart(2, "0")}`
+                        : "انتهت صلاحية الرمز — اطلب رمزاً جديداً"}
+                    </Text>
+                  </View>
+
+                  <NeuButton
+                    label="تأكيد وإنشاء الحساب"
+                    icon="checkmark-circle-outline"
+                    loading={otpVerifying}
+                    disabled={otpCode.length < 6}
+                    onPress={() => handleVerifyOtp()}
+                  />
+
+                  <View style={otpS.resendRow}>
+                    <Text style={otpS.resendHint}>لم يصلك الرمز؟</Text>
+                    {otpSending ? (
+                      <ActivityIndicator color={Colors.primary} size="small" />
+                    ) : canResend ? (
+                      <TouchableOpacity onPress={handleResendOtp} hitSlop={8} style={otpS.resendBtn}>
+                        <Ionicons name="refresh" size={14} color={Colors.primary} />
+                        <Text style={otpS.resendLink}>إعادة الإرسال</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={otpS.resendWait}>إعادة الإرسال بعد {otpCountdown - (OTP_TTL - RESEND_AFTER)} ث</Text>
+                    )}
+                  </View>
                 </>
               )}
-            </TouchableOpacity>
-          )}
-
-          {/* فاصل */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>أو</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* زائر */}
-          <TouchableOpacity style={styles.guestBtn} onPress={handleGuest} activeOpacity={0.8}>
-            <Ionicons name="eye-outline" size={20} color={Colors.textSecondary} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.guestTitle}>متابعة كزائر</Text>
-              <Text style={styles.guestSub}>تصفح بدون حساب · مشاهدة فقط</Text>
-            </View>
-            <View style={styles.guestArrow}>
-              <Ionicons name="arrow-back" size={14} color={Colors.textMuted} />
-            </View>
-          </TouchableOpacity>
-
-          <View style={{ height: insets.bottom + 12 }} />
-        </ScrollView>
-      </Animated.View>
-
-      {/* ─── OTP Verification Modal ──────────────────────── */}
-      <Modal
-        visible={otpStep}
-        transparent
-        animationType="slide"
-        onRequestClose={() => { setOtpStep(false); if (otpTimerRef.current) clearInterval(otpTimerRef.current); }}
-      >
-        <View style={otpS.backdrop}>
-          <View style={otpS.sheet}>
-            {/* أيقونة الدرع */}
-            <View style={otpS.iconWrap}>
-              <LinearGradient colors={[Colors.primary + "30", Colors.primary + "10"]} style={StyleSheet.absoluteFill} />
-              <Ionicons name="shield-checkmark" size={38} color={Colors.primary} />
-            </View>
-
-            <Text style={otpS.title}>التحقق من الهوية</Text>
-            <Text style={otpS.subtitle}>
-              {otpSentVia === "sms"
-                ? "أُرسل رمز SMS مكوّن من 6 أرقام إلى"
-                : otpSentVia === "email"
-                ? "أُرسل رمز التحقق إلى بريدك الإلكتروني"
-                : "أدخل رمز التحقق المُرسل إلى"}{"\n"}
-              <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold" }}>
-                {identifier}
-              </Text>
-            </Text>
-
-            {/* رمز الاختبار — يظهر عند غياب خدمة الإرسال */}
-            {devOtp ? (
-              <Pressable
-                style={{ backgroundColor: "rgba(37,99,235,0.15)", borderWidth: 1.5, borderColor: Colors.primary + "60", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 4 }}
-                onPress={() => setOtpCode(devOtp)}
-              >
-                <Text style={{ color: Colors.textMuted, fontSize: 12, fontFamily: "Cairo_600SemiBold", textAlign: "center", marginBottom: 4 }}>
-                  رمز التحقق الخاص بك
-                </Text>
-                <Text style={{ color: Colors.primary, fontFamily: "Cairo_700Bold", fontSize: 28, textAlign: "center", letterSpacing: 8 }}>
-                  {devOtp}
-                </Text>
-                <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: "Cairo_400Regular", textAlign: "center", marginTop: 4 }}>
-                  اضغط لتعبئته تلقائياً
-                </Text>
-              </Pressable>
-            ) : otpSentVia === "none" ? (
-              <View style={{ backgroundColor: "rgba(245,158,11,0.12)", borderWidth: 1, borderColor: "rgba(245,158,11,0.35)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 4 }}>
-                <Text style={{ color: "#F59E0B", fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "center" }}>
-                  تعذّر إرسال الرمز تلقائياً
-                </Text>
-                <Text style={{ color: Colors.textMuted, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "center", marginTop: 2 }}>
-                  تواصل مع الدعم لتلقّي رمزك
-                </Text>
-              </View>
-            ) : null}
-
-            {/* عداد تنازلي */}
-            <View style={otpS.timerRow}>
-              <Ionicons name="time-outline" size={14} color={otpCountdown > 0 ? Colors.primary : Colors.danger} />
-              <Text style={[otpS.timerText, { color: otpCountdown > 0 ? Colors.primary : Colors.danger }]}>
-                {otpCountdown > 0
-                  ? `ينتهي خلال ${Math.floor(otpCountdown / 60)}:${String(otpCountdown % 60).padStart(2, "0")}`
-                  : "انتهت صلاحية الرمز"
-                }
-              </Text>
-            </View>
-
-            {/* 6 خانات OTP */}
-            <View style={otpS.dotsRow}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <View key={i} style={[otpS.dot, otpCode[i] && otpS.dotFilled, i === otpCode.length && otpS.dotActive]}>
-                  <Text style={otpS.dotText}>{otpCode[i] || ""}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* حقل الإدخال المخفي */}
-            <TextInput
-              ref={otpInputRef}
-              style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
-              value={otpCode}
-              onChangeText={v => { const n = v.replace(/\D/g, "").slice(0, 6); setOtpCode(n); setOtpError(""); }}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoFocus
-            />
-
-            {/* زر لتفعيل الكيبورد عند الضغط على الخانات */}
-            <TouchableOpacity style={{ position: "absolute", top: 160, left: 24, right: 24, height: 80 }} onPress={() => otpInputRef.current?.focus()} activeOpacity={1} />
-
-            {/* خطأ OTP */}
-            {!!otpError && (
-              <View style={otpS.errorRow}>
-                <Ionicons name="alert-circle" size={16} color={Colors.danger} />
-                <Text style={otpS.errorText}>{otpError}</Text>
-              </View>
-            )}
-
-            {/* زر التحقق */}
-            <TouchableOpacity
-              onPress={handleVerifyOtp}
-              disabled={otpVerifying || otpCode.length < 6}
-              activeOpacity={0.88}
-              style={{ opacity: (otpVerifying || otpCode.length < 6) ? 0.55 : 1, marginTop: 8 }}
-            >
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDim]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={otpS.verifyBtn}
-              >
-                {otpVerifying
-                  ? <ActivityIndicator color={Colors.text} size="small" />
-                  : <>
-                      <Text style={otpS.verifyText}>تأكيد الرمز وإنشاء الحساب</Text>
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.text} />
-                    </>
-                }
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* إعادة الإرسال */}
-            <TouchableOpacity
-              onPress={handleResendOtp}
-              disabled={otpSending || otpCountdown > 540}
-              style={[otpS.resendBtn, (otpSending || otpCountdown > 540) && { opacity: 0.4 }]}
-            >
-              {otpSending
-                ? <ActivityIndicator color={Colors.textMuted} size="small" />
-                : <>
-                    <Ionicons name="refresh" size={15} color={Colors.textMuted} />
-                    <Text style={otpS.resendText}>
-                      {otpCountdown > 540 ? `إعادة الإرسال بعد ${otpCountdown - 540} ث` : "إعادة إرسال الرمز"}
-                    </Text>
-                  </>
-              }
-            </TouchableOpacity>
-
-            {/* إلغاء */}
-            <TouchableOpacity
-              onPress={() => { setOtpStep(false); if (otpTimerRef.current) clearInterval(otpTimerRef.current); }}
-              style={otpS.cancelBtn}
-            >
-              <Text style={otpS.cancelText}>← العودة للتسجيل</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            </NeuRaised>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
-
     </KeyboardAvoidingView>
   );
 }
 
-/* ─── مساعدات ─────────────────────────────── */
-function Field({
-  label, icon, required, optional, children,
-}: {
-  label: string; icon: keyof typeof Ionicons.glyphMap;
-  required?: boolean; optional?: boolean; children: React.ReactNode;
-}) {
-  return (
-    <View style={styles.fieldBlock}>
-      <View style={styles.labelRow}>
-        {required && <Text style={styles.req}>*</Text>}
-        {optional && <Text style={styles.optionalTag}>اختياري</Text>}
-        <Text style={styles.fieldLabel}>{label}</Text>
-      </View>
-      <View style={styles.fieldWrap}>
-        <Ionicons name={icon} size={18} color={Colors.textMuted} style={styles.fieldIcon} />
-        {children}
-      </View>
+/* ─── مكوّنات مساعدة ─────────────────────────────── */
+function Choice({ label, icon, on, onPress }: { label: string; icon: IconName; on: boolean; onPress: () => void }) {
+  const inner = (
+    <View style={styles.choiceInner}>
+      <Ionicons name={icon} size={18} color={on ? Colors.primary : Colors.textMuted} />
+      <Text style={[styles.choiceText, on && styles.choiceTextOn]}>{label}</Text>
+      {on && <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />}
     </View>
+  );
+  // المختار يبدو «مضغوطاً» (غائراً)، وغير المختار بارزاً
+  return (
+    <Pressable onPress={onPress} style={{ flex: 1 }} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+      {on ? <NeuInset radius={16} tint={Colors.primary}>{inner}</NeuInset> : <NeuRaised radius={16} depth={5}>{inner}</NeuRaised>}
+    </Pressable>
   );
 }
 
-function TypeToggle({ label, icon, active, onPress }: {
-  label: string; icon: keyof typeof Ionicons.glyphMap; active: boolean; onPress: () => void;
+function TypeToggle({ label, icon, active, onPress }: { label: string; icon: IconName; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={{ flex: 1 }} onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }}>
+      {active ? (
+        <NeuRaised radius={12} depth={4} style={styles.typeBtn}>
+          <Ionicons name={icon} size={15} color={Colors.primary} />
+          <Text style={[styles.typeText, styles.typeTextOn]}>{label}</Text>
+        </NeuRaised>
+      ) : (
+        <View style={styles.typeBtn}>
+          <Ionicons name={icon} size={15} color={Colors.textMuted} />
+          <Text style={styles.typeText}>{label}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function DateBox({ label, placeholder, value, max, onChange, flex = 1 }: {
+  label: string; placeholder: string; value: string; max: number; onChange: (v: string) => void; flex?: number;
 }) {
   return (
-    <TouchableOpacity
-      style={[styles.typeBtn, active && styles.typeBtnActive]}
-      onPress={onPress} activeOpacity={0.8}
-    >
-      {active && (
-        <LinearGradient
-          colors={[Colors.primary + "20", Colors.primary + "08"]}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-      <Ionicons name={icon} size={15} color={active ? Colors.primary : Colors.textMuted} />
-      <Text style={[styles.typeBtnText, active && styles.typeBtnTextActive]}>{label}</Text>
-    </TouchableOpacity>
+    <NeuInset radius={14} style={[styles.dateBox, { flex }]}>
+      <Text style={styles.dateLabel}>{label}</Text>
+      <TextInput
+        style={styles.dateInput}
+        placeholder={placeholder}
+        placeholderTextColor={Colors.textSubtle}
+        value={value}
+        onChangeText={v => onChange(onlyDigits(v, max))}
+        keyboardType="number-pad"
+        maxLength={max}
+        textAlign="center"
+        accessibilityLabel={label}
+      />
+    </NeuInset>
   );
 }
 
 /* ─── أنماط ────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  root: {
-    flex: 1, backgroundColor: Colors.bg,
-  },
+  root: { flex: 1, backgroundColor: neu.base, overflow: "hidden" },
+  blob: { position: "absolute", width: 280, height: 280, borderRadius: 140 },
+  scroll: { flexGrow: 1, paddingHorizontal: 18, gap: 18, maxWidth: 520, width: "100%", alignSelf: "center" },
 
-  /* Hero */
-  hero: {
-    height: SCREEN_H * 0.40,
-    justifyContent: "flex-end",
-    paddingBottom: 0,
-  },
-  heroImage: {
-    resizeMode: "cover",
-  },
-  heroContent: {
-    alignItems: "center",
-    paddingBottom: 28,
-    gap: 12,
-  },
-  logoContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoGlow: {
-    position: "absolute",
-    width: 100, height: 100, borderRadius: 50,
-    opacity: 0.6,
-  },
-  logoWrap: {
-    width: 72, height: 72,
-    borderRadius: 22,
-    backgroundColor: Colors.cardBg,
-    overflow: "hidden",
-    borderWidth: 2, borderColor: Colors.primary + "80",
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8, shadowRadius: 20, elevation: 12,
-  },
-  logoImg: { width: "100%", height: "100%" },
-  heroTitleWrap: { alignItems: "center", gap: 6 },
-  appName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 30, color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
-  taglineRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 8,
-  },
-  taglineDot: {
-    width: 4, height: 4, borderRadius: 2,
-    backgroundColor: Colors.primary,
-    opacity: 0.8,
-  },
-  tagline: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13, color: "rgba(255,255,255,0.80)",
-  },
+  brandRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingHorizontal: 4 },
+  logoChip: { width: 54, height: 54, padding: 6 },
+  logoImg: { width: "100%", height: "100%", borderRadius: 12, backgroundColor: "#fff" },
+  appName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, textAlign: "right", lineHeight: 32 },
+  tagline: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: Colors.textMuted, textAlign: "right" },
 
-  /* Card */
-  card: {
-    flex: 1,
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: Colors.primary + "30",
-    overflow: "hidden",
-    marginTop: -12,
-  },
+  card: { paddingHorizontal: 18, paddingTop: 24, paddingBottom: 22 },
+  badgeWrap: { alignItems: "center", marginBottom: 12 },
+  heading: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center" },
+  subheading: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textMuted, textAlign: "center", marginTop: 2 },
 
-  /* Mode tabs */
-  modeTabs: {
-    flexDirection: "row",
-    margin: 16,
-    marginBottom: 10,
-    backgroundColor: Colors.bg,
-    borderRadius: 16,
-    padding: 4,
-    gap: 4,
-  },
-  modeTab: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 7, paddingVertical: 12, borderRadius: 13, overflow: "hidden",
-  },
-  modeTabActive: {
-    borderWidth: 1, borderColor: Colors.primary + "40",
-  },
-  modeTabText: {
-    fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textMuted,
-  },
-  modeTabTextActive: {
-    fontFamily: "Cairo_700Bold", color: Colors.primary,
-  },
+  form: { gap: 14, marginTop: 20 },
+  trail: { paddingHorizontal: 14 },
+  counter: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: Colors.textMuted, paddingHorizontal: 12 },
 
-  /* Form */
-  formScroll: {
-    paddingHorizontal: 20, gap: 12, paddingBottom: 12,
-  },
-  fieldBlock: { gap: 7 },
-  labelRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-  },
-  fieldLabel: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary,
-    flex: 1, textAlign: "right",
-  },
-  req: {
-    color: Colors.danger, fontFamily: "Cairo_700Bold", fontSize: 16,
-    lineHeight: 20,
-  },
-  optionalTag: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
-    backgroundColor: Colors.divider, borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
-  fieldWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5, borderColor: Colors.divider,
-    borderRadius: 16, backgroundColor: Colors.bg,
-    overflow: "hidden",
-    minHeight: 52,
-  },
-  fieldIcon: { paddingHorizontal: 13 },
-  input: {
-    flex: 1,
-    fontFamily: "Cairo_400Regular", fontSize: 15, color: Colors.textPrimary,
-    paddingVertical: 14,
-    textAlign: "right",
-  },
-  eyeBtn: { paddingHorizontal: 14 },
+  segRow: { flexDirection: "row-reverse", gap: 12 },
+  choiceInner: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13 },
+  choiceText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  choiceTextOn: { fontFamily: "Cairo_700Bold", color: Colors.primary },
 
-  /* Type row */
-  typeRow: {
-    flexDirection: "row-reverse", gap: 8,
-    backgroundColor: Colors.bg, borderRadius: 14, padding: 4,
-  },
-  typeBtn: {
-    flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
-    gap: 7, paddingVertical: 10, borderRadius: 11, overflow: "hidden",
-  },
-  typeBtnActive: {
-    borderWidth: 1, borderColor: Colors.primary + "40",
-  },
-  typeBtnText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted },
-  typeBtnTextActive: { color: Colors.primary, fontFamily: "Cairo_600SemiBold" },
+  typeTrack: { flexDirection: "row-reverse", padding: 5, gap: 6 },
+  typeBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9 },
+  typeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+  typeTextOn: { fontFamily: "Cairo_700Bold", color: Colors.primary },
 
-  /* Error */
-  errorBox: {
+  strengthRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: -6, paddingHorizontal: 6 },
+  strengthBars: { flex: 1, flexDirection: "row-reverse", gap: 5 },
+  strengthBar: { flex: 1, height: 4, borderRadius: 2 },
+  strengthLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, minWidth: 56, textAlign: "right" },
+
+  forgotBtn: { alignSelf: "flex-start", marginTop: -4, paddingVertical: 2, paddingHorizontal: 4 },
+  forgotText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
+
+  extrasToggle: {
     flexDirection: "row-reverse", alignItems: "center", gap: 10,
-    backgroundColor: Colors.danger + "14",
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    borderWidth: 1, borderColor: Colors.danger + "30",
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14,
+    borderWidth: 1.2, borderStyle: "dashed", borderColor: Colors.primary + "50",
   },
-  errorText: {
-    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger,
-    flex: 1, textAlign: "right", lineHeight: 20,
-  },
+  extrasTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
+  extrasSub: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
 
-  /* Submit */
-  submitBtn: {
-    borderRadius: 18, paddingVertical: 15,
-    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
-  },
-  submitText: {
-    fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.text,
-  },
-
-  /* Biometric */
-  bioBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 12, borderRadius: 16, paddingVertical: 13,
-    borderWidth: 1.5, borderColor: Colors.primary + "40",
-    backgroundColor: Colors.primary + "0A",
-  },
-  bioBtnIcon: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.primary + "18",
-    alignItems: "center", justifyContent: "center",
-  },
-  bioText: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.primary,
-  },
-
-  /* Divider */
-  dividerRow: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 2,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.divider },
-  dividerText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
-
-  guestBtn: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 14,
-    backgroundColor: Colors.bg, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16,
-    borderWidth: 1.5, borderColor: Colors.divider,
-  },
-  guestTitle: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary,
-    textAlign: "right",
-  },
-  guestSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted,
-    marginTop: 2, textAlign: "right",
-  },
-  guestArrow: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: Colors.divider,
-    alignItems: "center", justifyContent: "center",
-  },
-
-  /* Google Sign-In */
-  googleBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1.5,
-    borderColor: Colors.divider,
-    borderRadius: 14,
-    paddingVertical: 13,
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-  googleIcon: { width: 22, height: 22 },
-  googleIconFallback: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1, borderColor: "#DADCE0",
-    alignItems: "center", justifyContent: "center",
-  },
-  googleIconLetter: {
-    fontSize: 14, fontFamily: "Cairo_700Bold", color: "#4285F4",
-  },
-  googleBtnText: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 15,
-    color: Colors.textPrimary,
-  },
-});
-
-/* ─── أنماط OTP Modal ─────────────────────────────── */
-const otpS = StyleSheet.create({
-  backdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.75)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    borderTopWidth: 1.5, borderLeftWidth: 1, borderRightWidth: 1,
-    borderColor: Colors.primary + "30",
-    padding: 28, paddingTop: 20,
-    alignItems: "center", gap: 12,
-  },
-  iconWrap: {
-    width: 76, height: 76, borderRadius: 24,
-    alignItems: "center", justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 1.5, borderColor: Colors.primary + "40",
-    marginBottom: 4,
-  },
-  title: {
-    fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
-    textAlign: "center", lineHeight: 22,
-  },
-  timerRow: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: Colors.bg, borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderWidth: 1, borderColor: Colors.divider,
-  },
-  timerText: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 13,
-  },
-  dotsRow: {
-    flexDirection: "row-reverse", gap: 10,
-    marginVertical: 4,
-  },
-  dot: {
-    width: 48, height: 58, borderRadius: 16,
-    borderWidth: 1.5, borderColor: Colors.divider,
-    backgroundColor: Colors.bg,
-    alignItems: "center", justifyContent: "center",
-  },
-  dotFilled: {
-    borderColor: Colors.primary + "80",
-    backgroundColor: Colors.primary + "12",
-  },
-  dotActive: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-  },
-  dotText: {
-    fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary,
-  },
-  errorRow: {
-    flexDirection: "row-reverse", alignItems: "center", gap: 8,
-    backgroundColor: Colors.danger + "14",
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    borderWidth: 1, borderColor: Colors.danger + "30",
-    width: "100%",
-  },
-  errorText: {
-    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger,
-    flex: 1, textAlign: "right",
-  },
-  verifyBtn: {
-    borderRadius: 18, paddingVertical: 15, width: SCREEN_W - 56,
-    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
-  },
-  verifyText: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.text,
-  },
-  resendBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingVertical: 10, paddingHorizontal: 16,
-  },
-  resendText: {
-    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted,
-  },
-  cancelBtn: {
-    paddingVertical: 8, paddingHorizontal: 20,
-    marginTop: 2,
-  },
-  cancelText: {
-    fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted,
-    textDecorationLine: "underline",
-  },
-});
-
-const s2 = StyleSheet.create({
-  fieldWrap: { marginBottom: 12 },
-  fieldHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 },
-  fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
-  optional: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
-  dateRow: { flexDirection: "row-reverse", gap: 8 },
-  dateBox: {
-    backgroundColor: Colors.cardBg, borderRadius: 14,
-    borderWidth: 1.5, borderColor: Colors.divider, padding: 8,
-  },
-  dateLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center", marginBottom: 4 },
+  smallLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textMuted, textAlign: "right", paddingHorizontal: 6 },
+  dateRow: { flexDirection: "row-reverse", gap: 10 },
+  dateBox: { paddingTop: 6, paddingBottom: 2 },
+  dateLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
   dateInput: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 17, color: Colors.textPrimary,
-    height: 38, textAlignVertical: "center",
+    fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, height: 38, paddingVertical: 0,
+    ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null),
   },
+
+  errorBox: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 10,
+    backgroundColor: Colors.danger + "12", borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: Colors.danger + "35",
+  },
+  errorText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger, textAlign: "right", lineHeight: 20 },
+  errorLink: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary, textAlign: "right" },
+
+  switchRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 4 },
+  switchHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  switchLink: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
+
+  altRow: { flexDirection: "row-reverse", justifyContent: "center", gap: 28, marginTop: 6 },
+  altItem: { alignItems: "center", gap: 6 },
+  altText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
+
+  guestBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, alignSelf: "center" },
+  guestText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+});
+
+/* ─── أنماط شاشة رمز التحقق ─────────────────────────────── */
+const otpS = StyleSheet.create({
+  root: { flex: 1, backgroundColor: neu.base, overflow: "hidden" },
+  scroll: { flexGrow: 1, paddingHorizontal: 18, gap: 16, maxWidth: 520, width: "100%", alignSelf: "center" },
+  topBar: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
+  stepText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted },
+
+  card: { paddingHorizontal: 18, paddingTop: 24, paddingBottom: 20, gap: 10 },
+  successWrap: { alignItems: "center", gap: 12, paddingVertical: 36 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 23, color: Colors.textPrimary, textAlign: "center" },
+  subtitle: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+  idRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 12, marginTop: -4 },
+  idText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, letterSpacing: 1, writingDirection: "ltr" },
+  editLink: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
+
+  devCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14 },
+  devLabel: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+  devCode: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.primary, letterSpacing: 6, textAlign: "right", writingDirection: "ltr" },
+  fillBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.primary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
+  fillText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+
+  warnCard: {
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
+    backgroundColor: Colors.accent + "16", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: Colors.accent + "45",
+  },
+  warnText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.accentDeep, textAlign: "right" },
+
+  errorRow: {
+    flexDirection: "row-reverse", alignItems: "flex-start", gap: 8,
+    backgroundColor: Colors.danger + "12", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9,
+    borderWidth: 1, borderColor: Colors.danger + "35",
+  },
+  errorText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.danger, textAlign: "right", lineHeight: 20 },
+
+  timerWrap: { gap: 6, marginTop: 4, marginBottom: 4 },
+  timerTrack: { height: 8, flexDirection: "row-reverse", padding: 2 },
+  timerFill: { height: "100%", borderRadius: 3 },
+  timerText: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textMuted, textAlign: "center" },
+
+  resendRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 6 },
+  resendHint: { fontFamily: "Cairo_400Regular", fontSize: 13.5, color: Colors.textMuted },
+  resendBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
+  resendLink: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.primary },
+  resendWait: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSubtle },
 });

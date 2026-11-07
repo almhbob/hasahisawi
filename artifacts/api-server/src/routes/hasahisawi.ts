@@ -2404,7 +2404,10 @@ async function isPlatformOrAdminReq(req: Request): Promise<boolean> {
 
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response) => {
   try {
-    const { name, national_id, phone, email, password, birth_date, neighborhood, gender, otp_code } = req.body;
+    const { name, password, birth_date, neighborhood, gender, otp_code } = req.body;
+    const phone = req.body.phone ? toLatinDigits(req.body.phone).trim() : req.body.phone;
+    const email = req.body.email;
+    const national_id = req.body.national_id ? toLatinDigits(req.body.national_id).trim() : req.body.national_id;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
     if (!phone && !email) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
     if (password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
@@ -2412,9 +2415,12 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     if (name.length > 100) return res.status(400).json({ error: "الاسم طويل جداً" });
 
     // OTP verification (required when otp_code is supplied)
+    // لا نستهلك الرمز إلا بعد نجاح إنشاء الحساب: كان يُستهلك أولاً، فإذا فشل الإدخال
+    // (رقم مسجّل مسبقاً مثلاً) ضاع الرمز وكل محاولة لاحقة تُرجع «منتهي الصلاحية أو غير موجود».
+    let otpIdToConsume: number | null = null;
     if (otp_code) {
       const identifier = (email || phone || "").trim().toLowerCase();
-      const cleanCode = String(otp_code).trim();
+      const cleanCode = toLatinDigits(otp_code).replace(/\D/g, "");
       const otpR = await query(
         `SELECT id, code, attempts FROM otp_codes
          WHERE phone_or_email=$1 AND type='register' AND used=FALSE AND expires_at > NOW()
@@ -2433,7 +2439,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
         const remaining = 4 - otp.attempts;
         return res.status(400).json({ error: `رمز التحقق غير صحيح. المحاولات المتبقية: ${remaining}` });
       }
-      await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+      otpIdToConsume = otp.id;
     }
 
     const validGender = ["male", "female"].includes(gender) ? gender : null;
@@ -2445,6 +2451,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
        birth_date || null, neighborhood || null, validGender]
     );
     const user = result.rows[0];
+    if (otpIdToConsume) await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otpIdToConsume]);
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     // منشور ترحيبي تلقائي
@@ -6661,6 +6668,13 @@ function maskEmail(email: string): string {
   return `${shown}${"*".repeat(Math.max(2, user.length - shown.length))}@${domain}`;
 }
 
+// يحوّل الأرقام العربية (٠-٩) والفارسية (۰-۹) إلى لاتينية — لوحات مفاتيح عربية كثيرة تكتبها هكذا.
+function toLatinDigits(v: unknown): string {
+  return String(v ?? "")
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
+}
+
 function generateOTP(): string {
   // Use crypto.randomBytes for cryptographically secure 6-digit OTP
   const buf = require("crypto").randomBytes(4);
@@ -6810,7 +6824,7 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
     const { phone_or_email, type = "register" } = req.body as { phone_or_email?: string; type?: string };
     if (!phone_or_email?.trim()) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
 
-    const identifier = phone_or_email.trim().toLowerCase();
+    const identifier = toLatinDigits(phone_or_email).trim().toLowerCase();
 
     // التحقق من معدل الإرسال (حد 3 رسائل كل 10 دقائق)
     const rateLimitR = await query(
@@ -6895,7 +6909,7 @@ router.post("/auth/send-registration-otp", authLimiter, async (req: Request, res
     const { phone_or_email } = req.body as { phone_or_email?: string };
     if (!phone_or_email?.trim()) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
 
-    const raw = phone_or_email.trim();
+    const raw = toLatinDigits(phone_or_email).trim();
     if (raw.length > 200) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني" });
 
     const isEmail = raw.includes("@");
@@ -6908,6 +6922,20 @@ router.post("/auth/send-registration-otp", authLimiter, async (req: Request, res
     }
 
     const identifier = isEmail ? raw.toLowerCase() : raw;
+
+    // نخبر المستخدم قبل إرسال الرمز بدل أن يكتشف بعد إدخاله أن الحساب موجود
+    const existsR = await query(
+      isEmail ? `SELECT 1 FROM users WHERE LOWER(email)=$1 LIMIT 1` : `SELECT 1 FROM users WHERE phone=$1 LIMIT 1`,
+      [identifier]
+    );
+    if (existsR.rows.length) {
+      return res.status(409).json({
+        error: isEmail
+          ? "البريد الإلكتروني مسجّل مسبقاً، يرجى تسجيل الدخول أو استخدام بريد آخر"
+          : "رقم الهاتف مسجّل مسبقاً، يرجى تسجيل الدخول أو استخدام رقم آخر",
+        already_registered: true,
+      });
+    }
 
     const rateLimitR = await query(
       `SELECT COUNT(*) AS cnt FROM otp_codes WHERE phone_or_email=$1 AND created_at > NOW() - INTERVAL '15 minutes'`,
@@ -6944,8 +6972,8 @@ router.post("/auth/verify-reset-otp", authLimiter, async (req: Request, res: Res
     const { phone_or_email, code } = req.body as { phone_or_email?: string; code?: string };
     if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
 
-    const identifier = phone_or_email.trim().toLowerCase();
-    const cleanCode  = code.trim();
+    const identifier = toLatinDigits(phone_or_email).trim().toLowerCase();
+    const cleanCode  = toLatinDigits(code).replace(/\D/g, "");
 
     const otpR = await query(
       `SELECT id, code, attempts FROM otp_codes
@@ -6994,8 +7022,8 @@ router.post("/auth/verify-otp", authLimiter, async (req: Request, res: Response)
     const { phone_or_email, code, type = "register" } = req.body as { phone_or_email?: string; code?: string; type?: string };
     if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
 
-    const identifier = phone_or_email.trim().toLowerCase();
-    const cleanCode = code.trim();
+    const identifier = toLatinDigits(phone_or_email).trim().toLowerCase();
+    const cleanCode = toLatinDigits(code).replace(/\D/g, "");
 
     const otpR = await query(
       `SELECT id, code, attempts FROM otp_codes
