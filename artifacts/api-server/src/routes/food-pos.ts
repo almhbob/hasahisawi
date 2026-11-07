@@ -4,6 +4,7 @@
 // قواعد الأمان: كل تعديل على مطعم أو منتجاته أو فواتيره يتطلب أن يكون الطالب مالكه أو من الإدارة،
 // والأسعار تُحسب دائماً من قاعدة البيانات (لا يُوثق بسعر يرسله الجهاز).
 import { Router, type Request, type Response } from "express";
+import { notSuspended } from "./entity-status";
 import { logger } from "../lib/logger";
 import { query, sessionUser, isStaff, dbEnabled, type SessionUser } from "../lib/shared-db";
 
@@ -158,6 +159,7 @@ router.get("/food/businesses", async (req, res) => {
       // الإدارة ترى المعلّق كذلك
     } else {
       where.push(`b.status='approved'`);
+      where.push(notSuspended("food", "b.id"));
     }
     const { rows } = await query(
       `SELECT b.*, (SELECT COUNT(*)::int FROM food_products p WHERE p.business_id=b.id AND p.is_available) AS product_count

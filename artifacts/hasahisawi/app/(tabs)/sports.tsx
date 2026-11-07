@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { router as sportsRouter } from "expo-router";
 import { trackOpen } from "@/lib/views";
 import ViewCount from "@/components/ViewCount";
 import {
@@ -1147,6 +1148,7 @@ export default function SportsScreen() {
   const filteredClubs    = clubs.filter(c=>!search||c.name.includes(search));
 
   const TABS = [
+    {key:"leagues" as any as KouraTab, icon:"podium-outline", label:"الدوريات"},
     {key:"news"    as KouraTab, icon:"newspaper-outline",  label:"الأخبار"},
     {key:"players" as KouraTab, icon:"person-outline",      label:"اللاعبون",  badge:featuredPlayers.length},
     {key:"matches" as KouraTab, icon:"trophy-outline",      label:"المباريات", badge:liveMatches.length},
@@ -1236,7 +1238,7 @@ export default function SportsScreen() {
         <RtlScrollRow contentContainerStyle={s.tabsRow}>
           {TABS.map(t=>(
             <TouchableOpacity key={t.key} style={[s.tabBtn,tab===t.key&&s.tabBtnActive]}
-              onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTab(t.key); }}>
+              onPress={()=>{ if(Platform.OS!=="web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if ((t.key as string)==="leagues") { sportsRouter.push("/leagues" as any); return; } setTab(t.key); }}>
               {tab===t.key && <View style={s.tabLine} />}
               <Ionicons name={t.icon as any} size={15} color={tab===t.key?"#fff":"rgba(255,255,255,0.62)"} />
               <Text style={[s.tabTxt,tab===t.key&&s.tabTxtActive]}>{t.label}</Text>

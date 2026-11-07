@@ -45,6 +45,10 @@ import { useApiUnread } from "@/lib/api-chat";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resumePendingSectionInvite } from "@/lib/section-invites";
 import { ONBOARDING_KEY } from "./onboarding";
+import DesktopShell from "@/components/web/DesktopShell";
+import { A11yProvider } from "@/lib/a11y";
+import VoiceAssistant from "@/components/a11y/VoiceAssistant";
+import ActiveCallPill from "@/components/ActiveCallPill";
 import UpdateBanner from "@/components/UpdateBanner";
 import OfflineQueueSync from "@/components/OfflineQueueSync";
 import * as SystemUI from "expo-system-ui";
@@ -175,6 +179,14 @@ function AuthGate() {
         // ── محادثات ──
         if (data?.chatId) {
           router.push({ pathname: "/conversation", params: { chatId: data.chatId, otherName: data.otherName ?? "" } } as any);
+          return;
+        }
+
+        // ── طلبات شي إن: العميل لتفاصيل طلبه، والفريق للوحته ──
+        if (screen === "shein-order") {
+          if (data?.role) router.push({ pathname: "/shein-agent", params: { role: String(data.role) } } as any);
+          else if (data?.order_id) router.push({ pathname: "/shein-order", params: { id: String(data.order_id) } } as any);
+          else router.push("/shein" as any);
           return;
         }
 
@@ -587,20 +599,26 @@ export default function RootLayout() {
           <FirebaseProvider>
             <AuthProvider>
               <FeatureFlagsProvider>
+              <A11yProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   {/* الاتجاه LTR على كل المنصات (التصميم يتكفّل باليمين). كان الويب وحده RTL فتنعكس الواجهة */}
                   <View style={{ flex: 1, backgroundColor: Colors.bg, direction: Platform.OS === "web" ? "ltr" : undefined }}>
                     <OfflineQueueSync />
                     <InviteClaimer />
-                    <RootLayoutNav />
+                    <DesktopShell>
+                      <RootLayoutNav />
+                    </DesktopShell>
                     <NetworkBanner />
                     <AdminAlertsWatcher />
+                    <VoiceAssistant />
+                    <ActiveCallPill />
                     <LaunchSplash />
                     <UpdateBanner />
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>
+              </A11yProvider>
               </FeatureFlagsProvider>
             </AuthProvider>
           </FirebaseProvider>

@@ -17,6 +17,9 @@ import { chatApi, useChatSync, presenceText, REACTIONS, type ChatMsg } from "@/l
 import { callsApi } from "@/lib/calls";
 import { getApiUrl } from "@/lib/query-client";
 import { filePart, notify } from "@/lib/xplatform";
+import ImageLightbox from "@/components/ImageLightbox";
+import * as Sharing from "expo-sharing";
+import { captureRef } from "react-native-view-shot";
 
 const EDIT_MIN = 60;
 const DELETE_ALL_H = 24;
@@ -52,8 +55,9 @@ function confirm(title: string, msg: string, ok: string, destructive = false): P
 const tap = () => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
 // ── فقاعة رسالة ──────────────────────────────────────────────────────────────
-function Bubble({ msg, isMe, myId, otherName, showAvatar, otherAvatar, highlight, onLong, onReplyTap, onRetry, onOpenSender }: {
+function Bubble({ msg, isMe, myId, otherName, showAvatar, otherAvatar, highlight, onLong, onReplyTap, onRetry, onOpenSender, onOpenImage }: {
   onOpenSender?: () => void;
+  onOpenImage?: (uri: string) => void;
   msg: ChatMsg; isMe: boolean; myId: number; otherName: string; showAvatar: boolean; otherAvatar: string | null; highlight: string;
   onLong: () => void; onReplyTap: (id: number) => void; onRetry: () => void;
 }) {
@@ -84,7 +88,12 @@ function Bubble({ msg, isMe, myId, otherName, showAvatar, otherAvatar, highlight
             </View>
           ) : (
             <>
-              {msg.image_url ? <Image source={{ uri: msg.image_url }} style={st.img} resizeMode="cover" /> : null}
+              {msg.image_url ? (
+                <Pressable onPress={() => onOpenImage?.(msg.image_url!)} onLongPress={onLong} delayLongPress={280} accessibilityRole="imagebutton" accessibilityLabel="فتح الصورة وتكبيرها">
+                  <Image source={{ uri: msg.image_url }} style={st.img} resizeMode="cover" />
+                  <View style={st.zoomHint}><Ionicons name="expand" size={13} color="#fff" /></View>
+                </Pressable>
+              ) : null}
               {msg.content ? (
                 <Text style={[st.txt, isMe ? { color: "#fff" } : { color: Colors.textPrimary }]}>
                   {parts.map((p, i) => p.phone
@@ -341,6 +350,42 @@ export default function ConversationScreen() {
   }, [messages, myId]);
   const toBottom = () => { setNewBelow(0); nearBottom.current = true; flatRef.current?.scrollToOffset({ offset: 0, animated: true }); };
 
+  // ── عرض الصور مكبّرة ولقطة المحادثة ──
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const snapRef = useRef<View>(null);
+  const [snapping, setSnapping] = useState(false);
+  const snapshotChat = async () => {
+    setMenu(false);
+    if (!snapRef.current || snapping) return;
+    setSnapping(true);
+    // ننتظر حتى يُرسم شريط العلامة أسفل اللقطة
+    await new Promise((r) => setTimeout(r, 250));
+    try {
+      if (Platform.OS === "web") {
+        const { capturePoster } = await import("@/lib/poster-capture");
+        const { blob } = await capturePoster(snapRef as any, 1080);
+        if (!blob) throw new Error("capture failed");
+        const file = new File([blob], "hasahisawi-chat.png", { type: "image/png" });
+        const nav: any = typeof navigator !== "undefined" ? navigator : null;
+        if (nav?.canShare?.({ files: [file] })) await nav.share({ files: [file] });
+        else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob); a.download = "hasahisawi-chat.png";
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+          notify("تم حفظ اللقطة", "حُفظت صورة المحادثة في التنزيلات.");
+        }
+      } else {
+        const uri = await captureRef(snapRef, { format: "png", quality: 1, result: "tmpfile" });
+        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "لقطة المحادثة" });
+        else await Share.share({ url: uri });
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e: any) {
+      if (!/cancel|abort/i.test(String(e?.message || ""))) notify("تعذّر أخذ اللقطة", "حاول مرة أخرى.");
+    } finally { setSnapping(false); }
+  };
+
   const status = other ? presenceText(other.online, other.last_seen_at, other.typing) : "";
   const blockedAny = blocked.byMe || blocked.me;
 
@@ -386,7 +431,7 @@ export default function ConversationScreen() {
           <Text style={st.emptyText}>{openError || (searchOn ? "جرّب كلمة أخرى" : `أرسل رسالتك الأولى لـ ${otherName}`)}</Text>
         </View>
       ) : (
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, backgroundColor: Colors.bg }} ref={snapRef} collapsable={false}>
         <FlatList
           ref={flatRef}
           inverted
@@ -408,12 +453,19 @@ export default function ConversationScreen() {
               <Bubble msg={m} isMe={isMe} myId={myId} otherName={otherName} otherAvatar={otherAvatar} showAvatar={lastOfGroup && !isMe} onOpenSender={openOtherProfile}
                 highlight={searchOn ? search : ""}
                 onLong={() => { tap(); setAction(m); }}
+                onOpenImage={setViewerUri}
                 onReplyTap={(id) => { if (searchOn) { setSearchOn(false); setSearch(""); } setTimeout(() => jumpTo(id), 50); }}
                 onRetry={() => m.localId && sendText(m.content, m.reply_to ? (messages.find((x) => x.id === m.reply_to!.id) || null) : null, m.localId)} />
             );
           }}
         />
-        {newBelow > 0 ? (
+        {snapping ? (
+          <View style={st.snapMark} pointerEvents="none">
+            <Ionicons name="chatbubbles" size={13} color="#fff" />
+            <Text style={st.snapMarkTxt}>محادثة مع {otherName} · حصاحيصاوي</Text>
+          </View>
+        ) : null}
+        {newBelow > 0 && !snapping ? (
           <TouchableOpacity style={st.newPill} onPress={toBottom} activeOpacity={0.85}>
             <Ionicons name="arrow-down" size={15} color="#fff" />
             <Text style={st.newPillTxt}>{newBelow === 1 ? "رسالة جديدة" : `${newBelow} رسائل جديدة`}</Text>
@@ -485,6 +537,7 @@ export default function ConversationScreen() {
             <View style={st.handle} />
             <Text style={st.sheetTitle}>{otherName}</Text>
             <SheetBtn icon="search-outline" label="بحث في المحادثة" onPress={() => { setMenu(false); setSearchOn(true); }} />
+            <SheetBtn icon="camera-outline" label="لقطة صورة للمحادثة (مشاركة/حفظ)" onPress={snapshotChat} />
             <SheetBtn icon="call-outline" label="مكالمة صوتية عبر الإنترنت" onPress={() => { setMenu(false); startVoiceCall(); }} />
             <SheetBtn icon="keypad-outline" label="اتصال هاتفي عادي" onPress={() => { setMenu(false); handlePhoneOptions(); }} />
             <SheetBtn icon={state.muted ? "notifications-outline" : "notifications-off-outline"} label={state.muted ? "إلغاء كتم الإشعارات" : "كتم الإشعارات"} onPress={() => toggleState("muted")} />
@@ -495,6 +548,7 @@ export default function ConversationScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <ImageLightbox uri={viewerUri} onClose={() => setViewerUri(null)} title={`صورة من ${otherName}`} />
     </KeyboardAvoidingView>
   );
 }
@@ -509,6 +563,9 @@ function SheetBtn({ icon, label, onPress, danger }: { icon: any; label: string; 
 }
 
 const st = StyleSheet.create({
+  zoomHint: { position: "absolute", top: 8, left: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" },
+  snapMark: { position: "absolute", top: 8, alignSelf: "center", flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14 },
+  snapMarkTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
   container: { flex: 1, backgroundColor: Colors.bg },
   header: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider, backgroundColor: Colors.bg },
   hBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },

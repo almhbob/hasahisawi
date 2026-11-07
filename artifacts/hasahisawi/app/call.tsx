@@ -9,7 +9,7 @@ import { WebView } from "react-native-webview";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import UserAvatar from "@/components/UserAvatar";
-import { callsApi, callPageUrl, setActiveCall, consumeAutoAnswer, isAutoAnswerPending, onAutoAnswer, type VoiceCall } from "@/lib/calls";
+import { callsApi, callPageUrl, setActiveCall, setLiveCall, consumeAutoAnswer, isAutoAnswerPending, onAutoAnswer, type VoiceCall } from "@/lib/calls";
 import { setCallWindow } from "@/lib/call-native";
 import { dismissIncomingCall } from "@/lib/incoming-call";
 
@@ -133,6 +133,17 @@ export default function CallScreen() {
     return () => clearInterval(t);
   }, [phase, token, callId, close]);
 
+  // نشر المكالمة الجارية للشريط العائم (يظهر عند تصغير الشاشة)
+  useEffect(() => {
+    if (phase !== "active" || !call) return;
+    setLiveCall({ id: callId, role, name: otherName, avatar: otherAvatar, chatId: call.chat_id, since: Date.now() - secs * 1000 });
+  }, [phase, call?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const minimize = () => {
+    // الشاشة تبقى في المكدّس (والمكالمة مستمرة)، وتُفتح المحادثة فوقها
+    if (!call) return;
+    router.push({ pathname: "/conversation", params: { chatId: String(call.chat_id), otherName, otherAvatar: otherAvatar || "" } } as any);
+  };
+
   // عدّاد المدة
   useEffect(() => {
     if (phase !== "active") return;
@@ -219,6 +230,11 @@ export default function CallScreen() {
 
   return (
     <LinearGradient colors={["#06382A", "#0B5C45", "#0E7A5A"]} style={[st.root, { paddingTop: insets.top + 30, paddingBottom: insets.bottom + 30 }]}>
+      {phase === "active" ? (
+        <TouchableOpacity onPress={minimize} style={[st.minBtn, { top: insets.top + 10 }]} accessibilityLabel="تصغير المكالمة وفتح الدردشة">
+          <Ionicons name="chatbubbles" size={18} color="#fff" /><Text style={st.minTxt}>تصغير · الدردشة</Text>
+        </TouchableOpacity>
+      ) : null}
       <View style={st.top}>
         <View style={st.badge}><Ionicons name="lock-closed" size={11} color="#ffffffB0" /><Text style={st.badgeTxt}>مكالمة صوتية عبر الإنترنت · حصاحيصاوي</Text></View>
         <View style={[st.avatarRing, (phase === "incoming" || phase === "ringing") && st.avatarPulse]}>
@@ -287,6 +303,8 @@ export default function CallScreen() {
 }
 
 const st = StyleSheet.create({
+  minBtn: { position: "absolute", left: 16, zIndex: 10, flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  minTxt: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
   root: { flex: 1, justifyContent: "space-between", alignItems: "center" },
   top: { alignItems: "center", gap: 10, paddingHorizontal: 24 },
   badge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#ffffff18", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginBottom: 26 },

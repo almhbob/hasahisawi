@@ -181,6 +181,17 @@ function fromNotification(n: any): { callId: number; name: string; avatar: strin
   return { callId: Number(d.callId), name: String(d.callerName || ""), avatar: String(d.callerAvatar || "") };
 }
 
+/** تأكيد عرض المكالمة للخادم — يقرأ جلسة الدخول من التخزين (مهمة الخلفية بلا واجهة) */
+async function ackRing(callId: number) {
+  try {
+    const AsyncStorage = require("@react-native-async-storage/async-storage").default;
+    const { getApiUrl } = require("@/lib/query-client");
+    const token = await AsyncStorage.getItem("auth_session_token");
+    if (!token) return;
+    await fetch(`${getApiUrl()}/api/calls/${callId}/ring-ack`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  } catch { /* الاحتياط سيرن */ }
+}
+
 // ── تسجيل معالجات الخلفية (يُستدعى من index.js قبل تحميل التطبيق) ───────
 let registered = false;
 export function registerIncomingCallHandlers(): void {
@@ -196,6 +207,8 @@ export function registerIncomingCallHandlers(): void {
         if (!m) return;
         if (m.type === "call_cancel") { await dismissIncomingCall(m.callId); return; }
         if (m.type !== "call" || m.fs !== "1") return;
+        // نؤكد للخادم أن الجهاز تلقى المكالمة فلا يرسل إشعار الرنين الاحتياطي
+        ackRing(m.callId);
         // التطبيق مفتوح أمام المستخدم: شاشة المكالمة داخل التطبيق تتولى الأمر
         if (AppState.currentState === "active" || getActiveCall() === m.callId) return;
         await showIncomingCall(m);

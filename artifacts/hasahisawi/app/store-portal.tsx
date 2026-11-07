@@ -1,4 +1,5 @@
 import { filePart } from "@/lib/xplatform";
+import { PauseControl } from "@/components/EntityNotice";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -285,6 +286,9 @@ export default function StorePortalScreen() {
           apiBase={apiBase}
           authHeader={authHeader}
         />
+      )}
+      {activeTab === "settings" && store && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}><PauseControl type="store" id={store.id} /></View>
       )}
       {activeTab === "settings" && store && (
         <SettingsTab

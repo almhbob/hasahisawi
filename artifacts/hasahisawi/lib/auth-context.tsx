@@ -36,6 +36,7 @@ export type AuthUser = {
   neighborhood?: string | null;
   avatar_url?: string | null;
   gender?: "male" | "female" | null;
+  is_verified?: boolean;
 };
 
 type AuthContextValue = {
@@ -89,7 +90,12 @@ async function safeJson<T>(url: string, options: RequestInit = {}): Promise<T> {
     const text = await res.text();
     let data: any = {};
     try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
-    if (!res.ok) throw new Error(data?.error || data?.message || "تعذّر تنفيذ الطلب");
+    if (!res.ok) {
+      // نمرّر بيانات القفل المؤقت (retry_after / attempts_left) لتعرضها شاشة الدخول
+      throw Object.assign(new Error(data?.error || data?.message || "تعذّر تنفيذ الطلب"), {
+        status: res.status, retryAfter: data?.retry_after, attemptsLeft: data?.attempts_left, locked: !!data?.locked,
+      });
+    }
     return data as T;
   } finally {
     clearTimeout(timer);

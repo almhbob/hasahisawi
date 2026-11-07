@@ -2248,6 +2248,7 @@ export default function StudentScreen() {
           <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10, marginBottom: 18 }}>
             {([
               { k: "inst", title: "المدارس والجامعات", sub: "بوابتي المدرسية · الجداول · النتائج", icon: "business", color: "#0F766E", go: () => curriculumRouter.push("/edu-institution" as any) },
+              { k: "scan", title: "ماسح المستندات", sub: "صوّر الواجبات والملخصات · PDF واضح", icon: "scan", color: "#2A6FA8", go: () => curriculumRouter.push("/doc-scanner" as any) },
               { k: "curr", title: "المكتبة المنهجية", sub: "كتب المنهج السوداني لكل المراحل", icon: "library", color: "#2A6FA8", go: () => curriculumRouter.push("/curriculum" as any) },
               { k: "stu", title: "مساحة الطالب", sub: "حاسبة الشهادة · المذاكرة · المراجعة", icon: "school", color: "#173F5F", go: () => curriculumRouter.push({ pathname: "/edu-hub", params: { role: "student" } } as any) },
               { k: "tch", title: "مساحة المعلم", sub: "الدرجات · الحضور · الدروس · الاختبارات", icon: "easel", color: "#2F7D6D", go: () => curriculumRouter.push({ pathname: "/edu-hub", params: { role: "teacher" } } as any) },

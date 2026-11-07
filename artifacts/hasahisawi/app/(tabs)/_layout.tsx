@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useIsDesktopWeb } from "@/components/web/DesktopShell";
 import {
   Platform, StyleSheet, View, Pressable, Text,
 } from "react-native";
@@ -132,6 +133,8 @@ function FabMenuButton({ open }: { open: () => void }) {
 
 // ── شريط تبويب مخصص ─────────────────────────────────────────────
 function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
+  // على شاشة الكمبيوتر يحل الشريط الجانبي محل شريط التبويب السفلي
+  const desktop = useIsDesktopWeb();
   const insets = useSafeAreaInsets();
   const { open } = useDrawer();
   const isWeb = Platform.OS === "web";
@@ -139,6 +142,7 @@ function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   const unread = useApiUnread(isGuest ? null : (token ?? null));
 
   const currentRouteName: string = state.routes[state.index]?.name ?? "";
+  if (desktop) return null;
 
   return (
     <View style={[styles.tabBar, { paddingBottom: isWeb ? 10 : Math.max(insets.bottom, 10) }]}>

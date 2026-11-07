@@ -46,6 +46,11 @@ import demoCleanupRouter, { purgeDemoData } from "./demo-cleanup";
 import bookingEntitiesRouter, { ensureBookingEntities } from "./booking-entities";
 import cvPremiumRouter, { ensureCvPremiumDb } from "./cv-premium";
 import orgActivitiesRouter, { ensureOrgActivitiesDb } from "./org-activities";
+import fuelStationsRouter, { ensureFuelDb } from "./fuel-stations";
+import leaguesRouter, { ensureLeaguesDb } from "./leagues";
+import entityStatusRouter, { ensureEntityStatusDb } from "./entity-status";
+import memorialsRouter, { ensureMemorialsDb, startMemorialScheduler } from "./memorials";
+import sheinRouter, { ensureSheinDb } from "./shein";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -81,6 +86,11 @@ router.use(pressRouter);
 router.use(contractorsRouter);
 router.use(sectionInvitesRouter);
 router.use(unionPlusRouter);
+router.use(fuelStationsRouter);
+router.use(leaguesRouter);
+router.use(entityStatusRouter);
+router.use(memorialsRouter);
+router.use(sheinRouter);
 router.use(viewsRouter);
 router.use(eduInstRouter);
 router.use(demoCleanupRouter);
@@ -128,6 +138,12 @@ async function initializeDatabaseSchemas() {
   await ensureBookingEntities().catch(() => {});
   await ensureCvPremiumDb().catch(() => {});
   await ensureOrgActivitiesDb().catch(() => {});
+  await ensureFuelDb().catch(() => {});
+  await ensureLeaguesDb().catch(() => {});
+  await ensureEntityStatusDb().catch(() => {});
+  await ensureMemorialsDb().catch(() => {});
+  await ensureSheinDb().catch(() => {});
+  startMemorialScheduler();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();

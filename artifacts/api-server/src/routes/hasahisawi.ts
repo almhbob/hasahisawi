@@ -1,4 +1,6 @@
 import { ensureProfilePlus } from "./profile-plus";
+import { lockKey, rejectIfLocked, failResponse, clearFailures } from "../lib/login-lockout";
+import { MOD_PERMISSIONS, VALID_PERMISSION_KEYS, permissionForPath } from "../lib/mod-permissions";
 import { ensureSocialSafety, hiddenAuthorIds } from "./social-safety";
 import { ensureSocialPlus, followeeIds } from "./social-plus";
 import { ensurePushCols, forgetPushToken } from "../lib/push-normalize";
@@ -2372,10 +2374,23 @@ async function canZawajilRequest(req: Request): Promise<boolean> {
   try { return await canManageZawajil((await getSessionUser(req)) as any); } catch { return false; }
 }
 
+
+// المشرف يُقبل كمدير في مسارات الأقسام الممنوحة له فقط — والإجراءات الحساسة تبقى للمدير
+const ADMIN_ONLY_PATH = /\/admin\/users\/[^/]+\/(role|permissions|password)\b|\/admin\/(users\/[^/]+$|change-pin|validate-pin|seed|purge|sync-firebase|migrate|set-firebase|ai-settings|feature-flags|section-configs|union-managers|push)/i;
+async function moderatorAllowed(req: Request, userId: number): Promise<boolean> {
+  const path = String(req.originalUrl || req.path || "").split("?")[0];
+  if (ADMIN_ONLY_PATH.test(path)) return false;
+  const key = permissionForPath(path);
+  if (!key) return false;
+  const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section=$2 LIMIT 1`, [userId, key]).catch(() => ({ rows: [] as any[] }));
+  return r.rows.length > 0;
+}
+
 async function isAdminRequest(req: Request): Promise<boolean> {
   try {
     const user = await getSessionUser(req);
     if (user?.role === "admin") return true;
+    if (user?.role === "moderator" && await moderatorAllowed(req, Number(user.id))) return true;
     const pinHeader = req.headers["x-admin-pin"] as string | undefined;
     const pinBody = req.body?.admin_pin as string | undefined;
     const submittedPin = pinHeader || pinBody;
@@ -2404,7 +2419,10 @@ async function isPlatformOrAdminReq(req: Request): Promise<boolean> {
 
 router.post("/auth/register", registerLimiter, async (req: Request, res: Response) => {
   try {
-    const { name, national_id, phone, email, password, birth_date, neighborhood, gender, otp_code } = req.body;
+    const { name, password, birth_date, neighborhood, gender, otp_code } = req.body;
+    const phone = req.body.phone ? toLatinDigits(req.body.phone).trim() : req.body.phone;
+    const email = req.body.email;
+    const national_id = req.body.national_id ? toLatinDigits(req.body.national_id).trim() : req.body.national_id;
     if (!name || !password) return res.status(400).json({ error: "الاسم وكلمة المرور مطلوبان" });
     if (!phone && !email) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
     if (password.length < 6) return res.status(400).json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
@@ -2412,9 +2430,12 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     if (name.length > 100) return res.status(400).json({ error: "الاسم طويل جداً" });
 
     // OTP verification (required when otp_code is supplied)
+    // لا نستهلك الرمز إلا بعد نجاح إنشاء الحساب: كان يُستهلك أولاً، فإذا فشل الإدخال
+    // (رقم مسجّل مسبقاً مثلاً) ضاع الرمز وكل محاولة لاحقة تُرجع «منتهي الصلاحية أو غير موجود».
+    let otpIdToConsume: number | null = null;
     if (otp_code) {
       const identifier = (email || phone || "").trim().toLowerCase();
-      const cleanCode = String(otp_code).trim();
+      const cleanCode = toLatinDigits(otp_code).replace(/\D/g, "");
       const otpR = await query(
         `SELECT id, code, attempts FROM otp_codes
          WHERE phone_or_email=$1 AND type='register' AND used=FALSE AND expires_at > NOW()
@@ -2433,7 +2454,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
         const remaining = 4 - otp.attempts;
         return res.status(400).json({ error: `رمز التحقق غير صحيح. المحاولات المتبقية: ${remaining}` });
       }
-      await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otp.id]);
+      otpIdToConsume = otp.id;
     }
 
     const validGender = ["male", "female"].includes(gender) ? gender : null;
@@ -2445,6 +2466,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
        birth_date || null, neighborhood || null, validGender]
     );
     const user = result.rows[0];
+    if (otpIdToConsume) await query(`UPDATE otp_codes SET used=TRUE WHERE id=$1`, [otpIdToConsume]);
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     // منشور ترحيبي تلقائي
@@ -2774,12 +2796,15 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     if (!phone_or_email || !password) return res.status(400).json({ error: "البيانات ناقصة" });
     const captchaOk = await verifyRecaptcha(recaptcha_token);
     if (!captchaOk) return res.status(400).json({ error: "فشل التحقق من reCAPTCHA. أعد المحاولة." });
+    const lk = lockKey("user", phone_or_email);
+    if (await rejectIfLocked(res, lk)) return;
     const result = await query(
       `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
       [phone_or_email]
     );
     const user = result.rows[0];
-    if (!user) return res.status(401).json({ error: "بيانات غير صحيحة" });
+    if (!user) return failResponse(res, lk, "بيانات الدخول غير صحيحة.");
+    if (user.is_memorial) return res.status(403).json({ error: "هذا الحساب تذكاري لصاحبه رحمه الله، ولا يمكن الدخول إليه." });
     // مستخدم تم إنشاؤه/استيراده من Firebase أو Google بلا hash صالح لـ bcrypt.
     // لا نمرر قيماً مثل firebase_only_account إلى bcrypt.compare حتى لا يرمي Server error.
     const hasHash = isValidBcryptHashForLogin(user.password_hash);
@@ -2802,8 +2827,9 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
             : "هذا الحساب يحتاج إعادة تعيين كلمة المرور قبل الدخول."
         });
       }
-      return res.status(401).json({ error: "بيانات غير صحيحة" });
+      return failResponse(res, lk, "كلمة المرور غير صحيحة.");
     }
+    await clearFailures(lk);
     const token = randomBytes(32).toString("hex");
     await query(`INSERT INTO user_sessions (user_id, token) VALUES ($1,$2)`, [user.id, token]);
     return res.json({ user: safeUserPayload(user), token });
@@ -4364,6 +4390,20 @@ router.patch("/admin/users/:id/password", async (req: Request, res: Response) =>
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
+// GET /api/admin/moderator-permissions — كتالوج الصلاحيات والمشرفون وأقسامهم (لمدير التطبيق)
+router.get("/admin/moderator-permissions", async (req: Request, res: Response) => {
+  const me = await getSessionUser(req);
+  if (!me || me.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+  try {
+    const mods = await query(
+      `SELECT u.id, u.name, u.phone, u.email, u.avatar_url,
+              COALESCE(ARRAY_AGG(p.section) FILTER (WHERE p.section IS NOT NULL), '{}') AS sections
+         FROM users u LEFT JOIN moderator_permissions p ON p.user_id=u.id
+        WHERE u.role='moderator' GROUP BY u.id ORDER BY u.name`);
+    return res.json({ catalog: MOD_PERMISSIONS.map(({ key, label, group }) => ({ key, label, group })), moderators: mods.rows });
+  } catch (err) { logger.error({ err }, "moderator-permissions"); return res.status(500).json({ error: "Server error" }); }
+});
+
 router.get("/admin/users/:id/permissions", async (req: Request, res: Response) => {
   try {
     const currentUser = await getSessionUser(req);
@@ -4384,9 +4424,9 @@ router.put("/admin/users/:id/permissions", async (req: Request, res: Response) =
     if (!currentUser || currentUser.role !== "admin") {
       return res.status(403).json({ error: "غير مصرح" });
     }
-    const { sections } = req.body;
+    const sections = (Array.isArray(req.body?.sections) ? req.body.sections : []).filter((k: string) => VALID_PERMISSION_KEYS.has(k));
     await query(`DELETE FROM moderator_permissions WHERE user_id=$1`, [req.params.id]);
-    for (const section of sections || []) {
+    for (const section of sections) {
       await query(`INSERT INTO moderator_permissions (user_id, section) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, section]);
     }
     return res.json({ success: true });
@@ -6661,6 +6701,42 @@ function maskEmail(email: string): string {
   return `${shown}${"*".repeat(Math.max(2, user.length - shown.length))}@${domain}`;
 }
 
+// يحوّل الأرقام العربية (٠-٩) والفارسية (۰-۹) إلى لاتينية — لوحات مفاتيح عربية كثيرة تكتبها هكذا.
+function toLatinDigits(v: unknown): string {
+  return String(v ?? "")
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
+}
+
+// يوحّد أسماء الدخول قبل المقارنة: الأرقام العربية، الهمزات (أإآ→ا)، ى/ی→ي، ة→ه، ک→ك،
+// حذف التشكيل والتطويل، الحروف الصغيرة، ودمج المسافات والشرطات — حتى لا يفشل الدخول
+// بسبب اختلاف شكل الحرف بين لوحة مفاتيح وأخرى.
+function normalizeLoginName(v: unknown): string {
+  return toLatinDigits(v)
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[ً-ْٰـ]/g, "")
+    .replace(/[آأإٱ]/g, "ا")
+    .replace(/[ىی]/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/ک/g, "ك")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/[\s_\-.]+/g, "_");
+}
+
+/** اسم مستخدم لاتيني فريد لحسابات البوابات (لا يعتمد على لغة لوحة المفاتيح) */
+async function uniqueLatinUsername(table: string, base: string): Promise<string> {
+  const clean = base.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "user";
+  for (let i = 0; i < 20; i++) {
+    const cand = i === 0 ? clean : `${clean}${Math.floor(10 + Math.random() * 990)}`;
+    const ex = await query(`SELECT 1 FROM ${table} WHERE LOWER(username)=$1 LIMIT 1`, [cand]);
+    if (!ex.rows.length) return cand;
+  }
+  return `${clean}${Date.now().toString().slice(-6)}`;
+}
+
 function generateOTP(): string {
   // Use crypto.randomBytes for cryptographically secure 6-digit OTP
   const buf = require("crypto").randomBytes(4);
@@ -6810,7 +6886,7 @@ router.post("/auth/send-otp", authLimiter, async (req: Request, res: Response) =
     const { phone_or_email, type = "register" } = req.body as { phone_or_email?: string; type?: string };
     if (!phone_or_email?.trim()) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
 
-    const identifier = phone_or_email.trim().toLowerCase();
+    const identifier = toLatinDigits(phone_or_email).trim().toLowerCase();
 
     // التحقق من معدل الإرسال (حد 3 رسائل كل 10 دقائق)
     const rateLimitR = await query(
@@ -6895,7 +6971,7 @@ router.post("/auth/send-registration-otp", authLimiter, async (req: Request, res
     const { phone_or_email } = req.body as { phone_or_email?: string };
     if (!phone_or_email?.trim()) return res.status(400).json({ error: "يرجى إدخال رقم الهاتف أو البريد الإلكتروني" });
 
-    const raw = phone_or_email.trim();
+    const raw = toLatinDigits(phone_or_email).trim();
     if (raw.length > 200) return res.status(400).json({ error: "أدخل رقم الهاتف أو البريد الإلكتروني" });
 
     const isEmail = raw.includes("@");
@@ -6908,6 +6984,20 @@ router.post("/auth/send-registration-otp", authLimiter, async (req: Request, res
     }
 
     const identifier = isEmail ? raw.toLowerCase() : raw;
+
+    // نخبر المستخدم قبل إرسال الرمز بدل أن يكتشف بعد إدخاله أن الحساب موجود
+    const existsR = await query(
+      isEmail ? `SELECT 1 FROM users WHERE LOWER(email)=$1 LIMIT 1` : `SELECT 1 FROM users WHERE phone=$1 LIMIT 1`,
+      [identifier]
+    );
+    if (existsR.rows.length) {
+      return res.status(409).json({
+        error: isEmail
+          ? "البريد الإلكتروني مسجّل مسبقاً، يرجى تسجيل الدخول أو استخدام بريد آخر"
+          : "رقم الهاتف مسجّل مسبقاً، يرجى تسجيل الدخول أو استخدام رقم آخر",
+        already_registered: true,
+      });
+    }
 
     const rateLimitR = await query(
       `SELECT COUNT(*) AS cnt FROM otp_codes WHERE phone_or_email=$1 AND created_at > NOW() - INTERVAL '15 minutes'`,
@@ -6944,8 +7034,8 @@ router.post("/auth/verify-reset-otp", authLimiter, async (req: Request, res: Res
     const { phone_or_email, code } = req.body as { phone_or_email?: string; code?: string };
     if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
 
-    const identifier = phone_or_email.trim().toLowerCase();
-    const cleanCode  = code.trim();
+    const identifier = toLatinDigits(phone_or_email).trim().toLowerCase();
+    const cleanCode  = toLatinDigits(code).replace(/\D/g, "");
 
     const otpR = await query(
       `SELECT id, code, attempts FROM otp_codes
@@ -6994,8 +7084,8 @@ router.post("/auth/verify-otp", authLimiter, async (req: Request, res: Response)
     const { phone_or_email, code, type = "register" } = req.body as { phone_or_email?: string; code?: string; type?: string };
     if (!phone_or_email?.trim() || !code?.trim()) return res.status(400).json({ error: "الحقول مطلوبة" });
 
-    const identifier = phone_or_email.trim().toLowerCase();
-    const cleanCode = code.trim();
+    const identifier = toLatinDigits(phone_or_email).trim().toLowerCase();
+    const cleanCode = toLatinDigits(code).replace(/\D/g, "");
 
     const otpR = await query(
       `SELECT id, code, attempts FROM otp_codes
@@ -18380,13 +18470,40 @@ router.post("/union-manager/apply", writeLimiter, async (req: Request, res: Resp
 router.post("/union-manager/login", authLimiter, async (req: Request, res: Response) => {
   try {
     await ensureUnionMgrTables();
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
-    const r = await query(`SELECT * FROM union_managers WHERE username=$1 AND is_active=TRUE`, [username]);
-    const mgr = r.rows[0];
-    if (!mgr) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
-    const valid = await bcrypt.compare(password, mgr.password_hash);
-    if (!valid) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+    const rawUser = String(req.body?.username ?? "").slice(0, 120);
+    const rawPass = String(req.body?.password ?? "").slice(0, 128);
+    if (!rawUser.trim() || !rawPass) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+
+    const lk = lockKey("union", normalizeLoginName(rawUser));
+    if (await rejectIfLocked(res, lk)) return;
+
+    // 1) تطابق حرفي  2) تطابق بعد توحيد الحروف العربية والأرقام  3) رقم الهاتف أو البريد
+    const norm = normalizeLoginName(rawUser);
+    const lower = rawUser.trim().toLowerCase();
+    const digits = toLatinDigits(rawUser).replace(/\D/g, "");
+    let candidates = (await query(`SELECT * FROM union_managers WHERE username=$1 AND is_active=TRUE`, [rawUser.trim()])).rows;
+    if (!candidates.length) {
+      // جدول صغير (مديرو الاتحاد وموظفوه) — المقارنة بعد التوحيد تتم هنا
+      const all = (await query(`SELECT * FROM union_managers WHERE is_active=TRUE`)).rows;
+      candidates = all.filter((m: any) =>
+        normalizeLoginName(m.username) === norm ||
+        (!!m.email && String(m.email).trim().toLowerCase() === lower) ||
+        (digits.length >= 9 && toLatinDigits(m.phone || "").replace(/\D/g, "").slice(-9) === digits.slice(-9)),
+      );
+    }
+    if (!candidates.length) return failResponse(res, lk, "اسم المستخدم غير موجود. يمكنك الدخول برقم هاتفك المسجّل أيضاً.");
+
+    // كلمة المرور كما كُتبت، ثم بعد تحويل الأرقام العربية، ثم بعد حذف المسافات الطرفية
+    const passVariants = Array.from(new Set([rawPass, toLatinDigits(rawPass), rawPass.trim(), toLatinDigits(rawPass).trim()]));
+    let mgr: any = null;
+    for (const c of candidates) {
+      for (const pv of passVariants) {
+        if (await bcrypt.compare(pv, c.password_hash)) { mgr = c; break; }
+      }
+      if (mgr) break;
+    }
+    if (!mgr) return failResponse(res, lk, "كلمة المرور غير صحيحة.");
+    await clearFailures(lk);
     const token = "umt_" + randomBytes(24).toString("hex");
     await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
     const perms = mgr.staff_id ? ((await query(`SELECT permissions FROM union_staff WHERE id=$1`, [mgr.staff_id])).rows[0]?.permissions ?? {}) : null;
@@ -18871,14 +18988,9 @@ router.post("/admin/union-manager-apps/:id/grant-credentials", async (req: Reque
       return res.status(409).json({ error: "هذا المتقدم لديه حساب مسبق", username: existing.rows[0].username });
     }
 
-    // Auto-generate username from name + random suffix
-    const baseName = (app_.full_name as string)
-      .replace(/\s+/g, "_")
-      .replace(/[^؀-ۿ\w]/g, "")
-      .substring(0, 12)
-      .toLowerCase() || "union_mgr";
-    const suffix = Math.floor(1000 + Math.random() * 9000);
-    const username = `${baseName}_${suffix}`;
+    // اسم مستخدم لاتيني: الأسماء العربية المولّدة كانت تفشل عند الكتابة بلوحة مفاتيح مختلفة
+    const phoneDigits = toLatinDigits(app_.phone || "").replace(/\D/g, "").slice(-9);
+    const username = await uniqueLatinUsername("union_managers", phoneDigits.length >= 9 ? `su${phoneDigits}` : `union${Math.floor(1000 + Math.random() * 9000)}`);
 
     // Generate temporary password: 10-char alphanumeric
     const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -18972,6 +19084,48 @@ router.post("/admin/union-managers/:id/reset-password", async (req: Request, res
     logger.info({ id }, "[admin] union manager password reset");
     return res.json({ ...r.rows[0], temp_password: temp });
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/union-managers/:id/credentials — تعيين اسم مستخدم و/أو كلمة مرور يدوياً
+router.patch("/admin/union-managers/:id/credentials", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const id = parseInt(req.params.id as string, 10);
+    const cur = (await query(`SELECT id FROM union_managers WHERE id=$1`, [id])).rows[0];
+    if (!cur) return res.status(404).json({ error: "الحساب غير موجود" });
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (req.body?.username !== undefined) {
+      const u = toLatinDigits(req.body.username).trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,30}$/.test(u))
+        return res.status(400).json({ error: "اسم المستخدم: 3–30 حرفاً لاتينياً أو رقماً (يُسمح بـ . _ -) ليسهل كتابته من أي لوحة مفاتيح" });
+      const dup = await query(`SELECT 1 FROM union_managers WHERE LOWER(username)=$1 AND id<>$2`, [u, id]);
+      if (dup.rows.length) return res.status(409).json({ error: "اسم المستخدم مستخدم لحساب آخر" });
+      vals.push(u);
+      sets.push("username=$" + vals.length);
+    }
+    if (req.body?.password !== undefined) {
+      const pw = toLatinDigits(String(req.body.password));
+      if (pw.length < 8 || pw.length > 128) return res.status(400).json({ error: "كلمة المرور 8 أحرف على الأقل" });
+      vals.push(await bcrypt.hash(pw, 10));
+      sets.push("password_hash=$" + vals.length);
+    }
+    if (req.body?.phone !== undefined) {
+      vals.push(toLatinDigits(req.body.phone).replace(/[^\d+]/g, "") || null);
+      sets.push("phone=$" + vals.length);
+    }
+    if (!sets.length) return res.status(400).json({ error: "لا توجد تغييرات" });
+    sets.push("is_active=TRUE");
+    vals.push(id);
+    const r = await query(
+      "UPDATE union_managers SET " + sets.join(", ") + " WHERE id=$" + vals.length + " RETURNING id, full_name, username, phone, is_active",
+      vals,
+    );
+    await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1`, [id]);
+    logger.info({ id }, "[admin] union manager credentials updated");
+    return res.json({ ok: true, manager: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "union-managers/credentials"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── DELETE /api/admin/union-managers/:id — حذف مدير

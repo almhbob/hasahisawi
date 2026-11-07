@@ -85,7 +85,8 @@ export async function normalizePushBody(body: string): Promise<string> {
       if (v >= CALL_FS_VER) out.push(dataOnly(m)); // النسخ القديمة لا تحتاجها (ولا تفهمها)
       continue;
     }
-    if (type === "call" && v >= CALL_FS_VER) { out.push(dataOnly(m, { fs: "1" })); continue; }
+    // fallback=1: إشعار رنين عادي لجهاز لم يؤكد عرض شاشة المكالمة (مهمة الخلفية مُنعت) — لا يُحوَّل لرسالة صامتة
+    if (type === "call" && v >= CALL_FS_VER && !m.data?.fallback) { out.push(dataOnly(m, { fs: "1" })); continue; }
     out.push(m);
     const v3 = v >= 3;
     const isCall = type === "call";

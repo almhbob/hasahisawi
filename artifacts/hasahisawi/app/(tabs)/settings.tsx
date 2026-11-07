@@ -4,6 +4,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Platform, Alert, Modal, Pressable, Image, Linking,
   KeyboardAvoidingView, ActivityIndicator,
+  Switch,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
@@ -31,6 +32,10 @@ import { CULTURAL_CENTERS_KEY, CULTURAL_EVENTS_KEY, loadCulturalCenters, loadCul
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
+import { useA11y } from "@/lib/a11y";
+import CallReliabilityCard from "@/components/CallReliabilityCard";
+import { ControlCenterGrid, SectionBar as NavBar, type AdminTabItem, type TabGroup } from "@/components/admin/ControlCenter";
+import { neu, NeuRaised } from "@/components/auth/neu";
 import UserAvatar from "@/components/UserAvatar";
 import { uploadAvatar, uploadLandmarkImage } from "@/lib/firebase/storage";
 import { isFirebaseAvailable } from "@/lib/firebase/index";
@@ -1808,6 +1813,20 @@ export default function SettingsScreen() {
     { label: "منتجات السوق",  value: familyItems.filter(i => i.status === "available").length + auctionItems.filter(i => i.status === "available").length, color: Colors.accent },
   ];
 
+  // ─── تنقل اللوحة: بطاقات مجمّعة بدل شريط أفقي ─────────────────────────────
+  const TAB_COLORS: Partial<Record<AdminTab, string>> = {
+    users: "#1F5C8A", medical: "#10B981", schools: "#2E7D9A", institutions: "#27AE60", sports: "#E67E22",
+    culture: "#8E44AD", lost: "#EF4444", jobs: "#1E6E8A", market: "#E8A900", notifications: "#F97316",
+    news: "#0EA5E9", landmarks: "#9B59B6", subscriptions: "#D4AF37", profile: Colors.primary,
+  };
+  const NAV_TABS: AdminTabItem[] = ADMIN_TABS.map(x => ({ key: x.key, label: x.label, icon: x.icon as any, color: TAB_COLORS[x.key] ?? Colors.primary }));
+  const NAV_GROUPS: TabGroup[] = [
+    { title: "الحسابات", icon: "people-circle", keys: ["users", "profile", "subscriptions"] },
+    { title: "أدلة المدينة", icon: "map", keys: ["medical", "schools", "institutions", "sports", "culture", "landmarks"] },
+    { title: "المجتمع والسوق", icon: "storefront", keys: ["market", "jobs", "lost"] },
+    { title: "التواصل", icon: "megaphone", keys: ["notifications", "news"] },
+  ];
+
   // ─── Login Screen ─────────────────────────────────────────────────────────
   if (!hasAccess) {
     return (
@@ -1817,6 +1836,17 @@ export default function SettingsScreen() {
 
           {/* ─── المظهر (فاتح / داكن / تلقائي) — في الأعلى ليسهل الوصول إليه ─── */}
           <ThemeModeCard />
+          <A11yCard />
+          <CallReliabilityCard />
+          <TouchableOpacity onPress={() => router.push({ pathname: "/memorial", params: { report: "1" } } as any)} activeOpacity={0.85}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 20, padding: 14, marginBottom: 14, ...Colors.shadow.card }}>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#0F172A", alignItems: "center", justifyContent: "center" }}><Ionicons name="leaf" size={20} color="#A7F3D0" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>صدقة جارية عن فقيد</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>الإبلاغ عن وفاة صاحب حساب ليُنشر عنه ذكرٌ نافع يومياً</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
 
           {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}
           {auth.user && !auth.isGuest && (
@@ -2440,7 +2470,7 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <ModernHeader
-        title={t("admin", "overview")}
+        title="لوحة الإعدادات"
         icon={isModerator ? "shield-half-outline" : "shield-checkmark-outline"}
         rightSlot={
           <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutBtn}>
@@ -2454,22 +2484,16 @@ export default function SettingsScreen() {
         </View>
       </ModernHeader>
 
-      {/* Tab Bar */}
-      <RtlScrollRow
-        style={styles.tabBar}
-        contentContainerStyle={styles.tabBarContent}
-      >
-        {ADMIN_TABS.map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-            onPress={() => setActiveTab(tab.key)}
-          >
-            <Ionicons name={tab.icon as any} size={16} color={activeTab === tab.key ? Colors.primary : Colors.textSecondary} />
-            <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>{tab.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </RtlScrollRow>
+      {activeTab !== "overview" && (
+        <NavBar
+          current={NAV_TABS.find(x => x.key === activeTab)}
+          tabs={NAV_TABS}
+          groups={NAV_GROUPS}
+          homeLabel="لوحة الإعدادات"
+          onHome={() => setActiveTab("overview")}
+          onOpen={k => setActiveTab(k as AdminTab)}
+        />
+      )}
 
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
@@ -2478,13 +2502,42 @@ export default function SettingsScreen() {
         {/* ── OVERVIEW ── */}
         {activeTab === "overview" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>إحصائيات التطبيق</Text>
+            {/* أدوات سريعة للمدير */}
+            {isAdmin && (
+              <View style={{ gap: 10, marginBottom: 18 }}>
+                {([
+                  { icon: "key", color: "#1F5C8A", title: "حسابات بوابة الاتحاد", sub: "تعيين اسم المستخدم وكلمة المرور لمديري الاتحاد وإصلاح تعذّر الدخول", route: "/admin-portal-accounts" },
+                  { icon: "ban", color: "#B91C1C", title: "الإشراف على المنشآت", sub: "إيقاف أو حذف المطاعم والمتاجر والمؤسسات المخالفة", route: "/admin-entities" },
+                  { icon: "bag-handle", color: "#111827", title: "إدارة طلبات شي إن", sub: "حالة الخدمة، الأسعار والعمولات، الفريق، وكل الطلبات", route: "/admin-shein" },
+                  { icon: "shield-half", color: "#F0A500", title: "صلاحيات المشرفين", sub: "امنح مشرفيك إدارة أقسام وخدمات محددة لتخفيف العبء عنك", route: "/admin-permissions" },
+                  { icon: "grid", color: Colors.primary, title: "مركز التحكم الكامل", sub: "كل أقسام الإدارة: الطلبات، البلاغات، التجار، الإعدادات المتقدمة", route: "/admin" },
+                ] as const).map(q => (
+                  <TouchableOpacity key={q.route} onPress={() => router.push(q.route as any)} activeOpacity={0.85}>
+                    <NeuRaised radius={18} depth={6} style={styles.quickCard}>
+                      <View style={[styles.quickIcon, { backgroundColor: q.color + "1C" }]}>
+                        <Ionicons name={q.icon as any} size={22} color={q.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.quickTitle}>{q.title}</Text>
+                        <Text style={styles.quickSub} numberOfLines={2}>{q.sub}</Text>
+                      </View>
+                      <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+                    </NeuRaised>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <ControlCenterGrid tabs={NAV_TABS} groups={NAV_GROUPS} onOpen={k => setActiveTab(k as AdminTab)} />
+
+            <Text style={[styles.sectionTitle, { marginTop: 22 }]}>إحصائيات التطبيق</Text>
             <View style={styles.statsGrid}>
               {STATS.map((s, i) => (
-                <View key={i} style={[styles.statCard, { borderTopColor: s.color }]}>
+                <NeuRaised key={i} radius={18} depth={5} style={styles.statCardNeu}>
+                  <View style={[styles.statDot, { backgroundColor: s.color }]} />
                   <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
                   <Text style={styles.statLabel}>{s.label}</Text>
-                </View>
+                </NeuRaised>
               ))}
             </View>
             <Text style={[styles.sectionTitle, { marginTop: 20 }]}>ملخص الإضافات</Text>
@@ -3627,7 +3680,13 @@ export default function SettingsScreen() {
 // ─── Shared Styles ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
+  quickCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14 },
+  quickIcon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  quickTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  quickSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
+  statCardNeu: { width: "47%", flexGrow: 1, padding: 14, alignItems: "flex-end", gap: 2 },
+  statDot: { position: "absolute", top: 14, left: 14, width: 8, height: 8, borderRadius: 4 },
+  container: { flex: 1, backgroundColor: neu.base },
   headerLogoutBtn: {
     width: 36, height: 36, borderRadius: Colors.radius.pill,
     backgroundColor: "rgba(255,255,255,0.18)",
@@ -4437,6 +4496,69 @@ const THEME_OPTIONS: { key: ThemeMode; label: string; icon: keyof typeof Ionicon
   { key: "dark", label: "داكن", icon: "moon-outline" },
   { key: "system", label: "تلقائي", icon: "phone-portrait-outline" },
 ];
+
+function A11yCard() {
+  const a = useA11y();
+  const router = useRouter();
+  return (
+    <View style={a11ySt.card}>
+      <View style={a11ySt.head}>
+        <View style={a11ySt.icon}><Ionicons name="accessibility" size={22} color="#0B6B49" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={a11ySt.title}>وضع المكفوفين وضعاف البصر</Text>
+          <Text style={a11ySt.sub}>مساعد صوتي يقرأ الشاشات، تكبير الخط، ورئيسية ميسّرة بأزرار كبيرة</Text>
+        </View>
+        <Switch
+          value={a.enabled}
+          onValueChange={v => { a.update({ enabled: v }); a.speak(v ? "فُعّل وضع المكفوفين. زر المساعد الصوتي أسفل الشاشة يقرأ لك الصفحة." : "أُوقف وضع المكفوفين"); }}
+          accessibilityLabel="تفعيل وضع المكفوفين"
+          trackColor={{ true: Colors.primary + "88", false: Colors.divider }}
+          thumbColor={a.enabled ? Colors.primary : "#f4f4f4"}
+        />
+      </View>
+      {a.enabled && (
+        <View style={{ gap: 8 }}>
+          <View style={a11ySt.rateRow}>
+            <Text style={a11ySt.label}>سرعة النطق</Text>
+            {[0.7, 0.95, 1.2].map((r, i) => (
+              <TouchableOpacity key={r} onPress={() => { a.update({ rate: r }); a.speak(["بطيء", "عادي", "سريع"][i]); }} style={[a11ySt.chip, Math.abs(a.rate - r) < 0.08 && a11ySt.chipOn]}>
+                <Text style={[a11ySt.chipText, Math.abs(a.rate - r) < 0.08 && { color: "#fff" }]}>{["بطيء", "عادي", "سريع"][i]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={a11ySt.btnRow}>
+            <TouchableOpacity onPress={() => router.push("/accessible-home" as any)} style={a11ySt.btn}>
+              <Ionicons name="grid" size={16} color="#fff" />
+              <Text style={a11ySt.btnText}>الرئيسية الميسّرة</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => a.speak("مرحباً، هذا صوت المساعد في تطبيق حصاحيصاوي.")} style={[a11ySt.btn, { backgroundColor: Colors.accent }]}>
+              <Ionicons name="volume-high" size={16} color="#fff" />
+              <Text style={a11ySt.btnText}>تجربة الصوت</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={a11ySt.note}>لأفضل تجربة فعّل أيضاً قارئ الشاشة في هاتفك (TalkBack على أندرويد، VoiceOver على آيفون)؛ التطبيق يعمل معه.</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const a11ySt = StyleSheet.create({
+  card: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 16, marginBottom: 14, gap: 12, ...Colors.shadow.card },
+  head: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
+  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.primary + "18", alignItems: "center", justifyContent: "center" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
+  rateRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  label: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, textAlign: "right" },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
+  chipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textSecondary },
+  btnRow: { flexDirection: "row-reverse", gap: 8 },
+  btn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 10 },
+  btnText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  note: { fontFamily: "Cairo_400Regular", fontSize: 11.5, color: Colors.textMuted, textAlign: "right", lineHeight: 18 },
+});
 
 function ThemeModeCard() {
   const [mode, setMode] = React.useState<ThemeMode>(initialThemeMode);
