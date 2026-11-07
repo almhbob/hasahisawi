@@ -41,12 +41,44 @@ export type SheinSettings = {
   intl_shipping_sar_per_item: number; // الشحن الدولي لكل قطعة
   local_delivery_sdg: number;  // التوصيل داخل الحصاحيصا
   bank_info: string;           // بيانات التحويل (بنكك…)
+  policy: string;              // سياسة الخدمة (## عنوان، - بند)
+  policy_version: string;      // يتغير عند كل تعديل للسياسة — الطلب يحفظ النسخة التي وافق عليها العميل
+  rate_updated_at: string;     // آخر تحديث لسعر الصرف
 };
 const DEFAULTS: SheinSettings = {
   status: "coming_soon", note: "", sar_to_sdg: 650, proxy_fee_pct: 10, proxy_fee_fixed_sar: 10,
   local_shipping_sar: 15, intl_shipping_sar_per_item: 25, local_delivery_sdg: 3000,
-  bank_info: "",
+  bank_info: "", policy: "", policy_version: "default", rate_updated_at: "",
 };
+
+/** السياسة الافتراضية — تعدّلها الإدارة من «إدارة شي إن» */
+export const DEFAULT_POLICY = `## نطاق الخدمة
+- نشتري نيابةً عنك المنتجات المعروضة في متجر شي إن السعودية، ونشحنها إلى الحصاحيصا ونسلّمها لك.
+- حصاحيصاوي وسيط شراء وشحن، ولسنا البائع؛ جودة المنتج ومقاساته مسؤولية شي إن كما تظهر في صفحة المنتج.
+## الأسعار والدفع
+- التكلفة المعروضة قبل الإرسال تشمل: سعر المنتج، عمولة الشراء، الشحن داخل السعودية، الشحن الدولي، والتوصيل داخل الحصاحيصا.
+- يُحسب المبلغ بالجنيه وفق سعر الصرف المعلن وقت إرسال الطلب، ولا يتغير بعد تأكيد الدفع.
+- الدفع بالتحويل إلى الحساب المعلن في التطبيق فقط. لا تحوّل لأي حساب شخصي يُطلب منك خارج التطبيق.
+- أرفق صورة الإيصال ورقم العملية. لا يبدأ تنفيذ الطلب قبل التأكد من وصول المبلغ، والإيصال الواحد لا يُستخدم لأكثر من طلب.
+## تغيّر السعر أو نفاد المنتج
+- إذا ارتفع سعر المنتج في شي إن قبل الشراء نتواصل معك: تدفع الفرق أو تلغي الطلب ويُعاد مبلغك كاملاً.
+- إذا نفد المقاس أو اللون نتواصل معك لاختيار بديل أو الإلغاء مع إعادة المبلغ كاملاً.
+- إذا انخفض السعر نعيد لك الفرق.
+## الإلغاء والاسترداد
+- يمكنك إلغاء الطلب من التطبيق قبل تأكيد الدفع.
+- بعد تأكيد الدفع وقبل الشراء: يُعاد المبلغ كاملاً عند الإلغاء.
+- بعد شراء المنتج لا يمكن الإلغاء أو الإرجاع، لأن شي إن لا يتيح إرجاع المنتجات خارج السعودية.
+- إذا رُفض الإيصال أو أُلغي الطلب من جهتنا يُعاد أي مبلغ وصلنا كاملاً.
+- تُعاد المبالغ المستحقة بالتحويل إلى حسابك خلال 7 أيام عمل.
+## الشحن والتسليم
+- مدة الوصول المتوقعة من 10 إلى 25 يوماً من تاريخ الشراء، وقد تتأخر بسبب شركات الشحن أو الإجراءات الجمركية.
+- إذا فُرضت رسوم جمركية استثنائية على الشحنة نبلغك بها قبل التسليم.
+- نتواصل معك على رقمك عند وصول الطلب. إذا تعذّر التواصل 14 يوماً بعد الوصول يُعدّ الطلب متروكاً.
+- افحص المنتج عند الاستلام. التلف الناتج عن الشحن يُبلّغ خلال 48 ساعة مع صور ونعالجه معك.
+## المنتجات الممنوعة
+- لا نشحن الأدوية والمكملات، المواد القابلة للاشتعال أو السوائل المضغوطة، البطاريات المنفصلة، الأسلحة وما يشبهها، أو أي منتج يمنعه القانون السوداني أو قوانين الشحن.
+## الخصوصية
+- نستخدم رقمك وعنوانك لتنفيذ طلبك وتسليمه فقط، ولا يطّلع عليها إلا فريق الخدمة المسؤول عن طلبك.`;
 const NUM_KEYS = ["sar_to_sdg", "proxy_fee_pct", "proxy_fee_fixed_sar", "local_shipping_sar", "intl_shipping_sar_per_item", "local_delivery_sdg"] as const;
 
 const clip = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
@@ -113,6 +145,11 @@ export function ensureSheinDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+    await query(`ALTER TABLE shein_orders ADD COLUMN IF NOT EXISTS payment_ref VARCHAR(60)`);
+    await query(`ALTER TABLE shein_orders ADD COLUMN IF NOT EXISTS policy_version VARCHAR(40)`);
+    await query(`ALTER TABLE shein_orders ADD COLUMN IF NOT EXISTS policy_accepted_at TIMESTAMPTZ`);
+    // الإيصال الواحد لا يُستخدم لطلبين (عدا الملغاة)
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS shein_orders_payment_ref_uq ON shein_orders (UPPER(payment_ref)) WHERE payment_ref IS NOT NULL AND status <> 'cancelled'`);
     await query(`CREATE INDEX IF NOT EXISTS shein_orders_user_idx ON shein_orders(user_id, created_at DESC)`);
     await query(`CREATE INDEX IF NOT EXISTS shein_orders_status_idx ON shein_orders(status)`);
     await query(`CREATE TABLE IF NOT EXISTS shein_order_events (
@@ -140,10 +177,11 @@ export async function getSettings(): Promise<SheinSettings> {
     for (const r of rows as any[]) {
       const k = String(r.key).slice(6) as keyof SheinSettings;
       if (k === "status" && ["active", "coming_soon", "maintenance"].includes(r.value)) s.status = r.value;
-      else if (k === "note" || k === "bank_info") s[k] = String(r.value ?? "");
+      else if (k === "note" || k === "bank_info" || k === "policy" || k === "policy_version" || k === "rate_updated_at") s[k] = String(r.value ?? "");
       else if ((NUM_KEYS as readonly string[]).includes(k)) { const n = Number(r.value); if (Number.isFinite(n) && n >= 0) (s as any)[k] = n; }
     }
   } catch { /* defaults */ }
+  if (!s.policy.trim()) { s.policy = DEFAULT_POLICY; s.policy_version = "default"; }
   return s;
 }
 
@@ -248,6 +286,14 @@ router.post("/shein/orders", writeLimiter, wrap(async (req, res) => {
   if (!unit || unit <= 0) return res.status(400).json({ error: "أدخل سعر القطعة بالريال كما يظهر في شي إن" });
   const receipt = httpsUrl(b.payment_receipt_url);
   if (!receipt) return res.status(400).json({ error: "ارفع صورة إيصال التحويل (مثل لقطة شاشة بنكك)" });
+  const ref = String(b.payment_ref ?? "").replace(/[٠-٩]/g, ch => String("٠١٢٣٤٥٦٧٨٩".indexOf(ch))).replace(/\s+/g, "").slice(0, 60);
+  if (ref.length < 4) return res.status(400).json({ error: "أدخل رقم العملية كما يظهر في إشعار التحويل" });
+  if (!b.accept_policy) return res.status(400).json({ error: "يجب الموافقة على سياسة الخدمة قبل إرسال الطلب" });
+  if (b.policy_version && String(b.policy_version) !== s.policy_version) {
+    return res.status(409).json({ error: "حُدّثت سياسة الخدمة — راجعها ووافق عليها من جديد", code: "POLICY_CHANGED", policy_version: s.policy_version });
+  }
+  const used = await query(`SELECT id FROM shein_orders WHERE UPPER(payment_ref)=UPPER($1) AND status <> 'cancelled' LIMIT 1`, [ref]);
+  if (used.rows.length) return res.status(409).json({ error: "رقم العملية هذا مستخدم في طلب آخر — كل تحويل لطلب واحد فقط" });
   const dl = b.delivery ?? {};
   const phone = clip(dl.phone || u.phone, 30);
   if (phone.replace(/\D/g, "").length < 9) return res.status(400).json({ error: "أدخل رقم هاتف للتواصل عند التسليم" });
@@ -256,8 +302,14 @@ router.post("/shein/orders", writeLimiter, wrap(async (req, res) => {
   const fin = computeFinancials(unit, qty, s);
   const open = await query(`SELECT COUNT(*)::int AS n FROM shein_orders WHERE user_id=$1 AND status='pending_payment_verification'`, [u.id]);
   if (open.rows[0].n >= 10) return res.status(429).json({ error: "لديك طلبات كثيرة بانتظار التحقق — انتظر مراجعتها" });
-  const o = (await query(`INSERT INTO shein_orders (user_id, product_url, item_details, financials, delivery, payment_receipt_url)
-    VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [u.id, url, JSON.stringify(item), JSON.stringify(fin), JSON.stringify(delivery), receipt])).rows[0];
+  let o: any;
+  try {
+    o = (await query(`INSERT INTO shein_orders (user_id, product_url, item_details, financials, delivery, payment_receipt_url, payment_ref, policy_version, policy_accepted_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW()) RETURNING *`, [u.id, url, JSON.stringify(item), JSON.stringify(fin), JSON.stringify(delivery), receipt, ref, s.policy_version])).rows[0];
+  } catch (e: any) {
+    if (e?.code === "23505") return res.status(409).json({ error: "رقم العملية هذا مستخدم في طلب آخر — كل تحويل لطلب واحد فقط" });
+    throw e;
+  }
   await query(`INSERT INTO shein_order_events (order_id, status, actor_id) VALUES ($1,'pending_payment_verification',$2)`, [o.id, u.id]);
   notify(await agentIds("verifier"), "طلب شي إن جديد", `#${o.id} — ${fin.total_sdg.toLocaleString("en")} ج.س بانتظار التحقق من الإيصال`, { order_id: o.id, role: "verifier" }).catch(() => {});
   return res.status(201).json({ order: o, message: "استلمنا طلبك — سيُراجع الإيصال ونبلغك فور التأكيد" });
@@ -452,12 +504,19 @@ router.put("/admin/shein/settings", wrap(async (req, res) => {
   }
   if (b.note !== undefined) entries.push(["note", clip(b.note, 300)]);
   if (b.bank_info !== undefined) entries.push(["bank_info", clip(b.bank_info, 600)]);
+  if (b.policy !== undefined) {
+    const pol = clip(b.policy, 8000);
+    const cur = await getSettings();
+    if (pol !== cur.policy) { entries.push(["policy", pol]); entries.push(["policy_version", new Date().toISOString()]); }
+  }
   for (const k of NUM_KEYS) if (b[k] !== undefined) {
     const n = pos(b[k], 10_000_000);
     if (!Number.isFinite(n)) return res.status(400).json({ error: `قيمة غير صحيحة: ${k}` });
     if (k === "sar_to_sdg" && n <= 0) return res.status(400).json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" });
     entries.push([k, String(n)]);
   }
+  const rate = entries.find(e => e[0] === "sar_to_sdg");
+  if (rate && Number(rate[1]) !== (await getSettings()).sar_to_sdg) entries.push(["rate_updated_at", new Date().toISOString()]);
   for (const [k, v] of entries) await query(`INSERT INTO admin_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2`, [`shein_${k}`, v]);
   return res.json({ settings: await getSettings() });
 }));

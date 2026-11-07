@@ -14,7 +14,7 @@ import { toLatinDigits } from "@/lib/digits";
 import { NeuButton, NeuField, NeuInset, NeuRaised } from "@/components/auth/neu";
 import { ImageUploadField } from "@/components/union/ImageUploadField";
 import { ACCENT, CostBreakdown, Empty, OrderCard, ServiceBadge, SHEIN, Shell, u } from "@/components/shein/ui";
-import { computeFinancials, extractUrl, isSheinUrl, ROLE_LABEL, sheinApi, SheinOrder, SheinRole, SheinSettings } from "@/lib/shein-api";
+import { computeFinancials, extractUrl, isSheinUrl, ROLE_LABEL, sheinApi, SheinOrder, SheinRole, SheinSettings, usePolicyAccepted } from "@/lib/shein-api";
 
 const STEPS = [
   { icon: "link-outline", t: "الصق رابط المنتج من شي إن" },
@@ -100,7 +100,7 @@ export default function SheinScreen() {
                 </NeuRaised>
               ) : open ? (
                 <OrderForm token={token} settings={settings} defaultPhone={user.phone || ""} defaultName={user.name || ""}
-                  onDone={async () => { await load(); setTab("mine"); }} />
+                  onDone={async () => { await load(); setTab("mine"); }} onPolicyChanged={load} />
               ) : (
                 <Empty icon="time-outline" text="يمكنك إرسال الطلبات عند تفعيل الخدمة" />
               )
@@ -124,6 +124,11 @@ function Hero() {
           <Text style={u.meta}>أسعار واضحة، دفع عبر بنكك، وتتبّع لكل مرحلة حتى باب بيتك.</Text>
         </View>
       </View>
+      <TouchableOpacity onPress={() => router.push("/shein-policy" as any)} style={st.policyLink} accessibilityRole="link">
+        <Ionicons name="document-text-outline" size={16} color={ACCENT} />
+        <Text style={[u.meta, { color: ACCENT, fontFamily: "Cairo_700Bold" }]}>سياسة الخدمة: الأسعار، الإلغاء والاسترداد، الشحن</Text>
+        <Ionicons name="chevron-back" size={14} color={ACCENT} />
+      </TouchableOpacity>
       <View style={{ gap: 8, flexDirection: "row-reverse", flexWrap: "wrap" }}>
         {STEPS.map((s, i) => (
           <View key={i} style={st.step}>
@@ -137,7 +142,7 @@ function Hero() {
   );
 }
 
-function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { token: string; settings: SheinSettings; defaultPhone: string; defaultName: string; onDone: () => void }) {
+function OrderForm({ token, settings, defaultPhone, defaultName, onDone, onPolicyChanged }: { token: string; settings: SheinSettings; defaultPhone: string; defaultName: string; onDone: () => void; onPolicyChanged: () => void }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [size, setSize] = useState("");
@@ -149,6 +154,9 @@ function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { tok
   const [phone, setPhone] = useState(defaultPhone);
   const [address, setAddress] = useState("");
   const [receipt, setReceipt] = useState("");
+  const [payRef, setPayRef] = useState("");
+  const [accepted, setAccepted] = usePolicyAccepted();
+  const agreed = accepted === settings.policy_version;
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
 
@@ -165,16 +173,22 @@ function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { tok
     if (!urlOk) return notify("الرابط غير صحيح", "انسخ رابط المنتج من تطبيق أو موقع شي إن والصقه هنا.");
     if (unit <= 0) return notify("أدخل سعر القطعة", "اكتب السعر بالريال كما يظهر في صفحة المنتج.");
     if (!receipt) return notify("ارفع إيصال التحويل", "حوّل المبلغ المطلوب ثم ارفع لقطة شاشة الإيصال (بنكك أو غيره).");
+    if (toLatinDigits(payRef).replace(/\s/g, "").length < 4) return notify("رقم العملية", "اكتب رقم العملية كما يظهر في إشعار التحويل من بنكك.");
+    if (!agreed) return notify("سياسة الخدمة", "اقرأ سياسة الخدمة ووافق عليها قبل إرسال الطلب.");
     setBusy(true);
     try {
       const r = await sheinApi.create(token, {
-        product_url: cleanUrl, payment_receipt_url: receipt,
+        product_url: cleanUrl, payment_receipt_url: receipt, payment_ref: toLatinDigits(payRef).trim(),
+        accept_policy: true, policy_version: settings.policy_version,
         item_details: { title, size, color, qty, notes, unit_price_sar: unit, image_url: image || undefined },
         delivery: { name: defaultName, phone: toLatinDigits(phone), address },
       });
       notify("تم إرسال الطلب ✓", r.message);
       onDone();
-    } catch (e: any) { notify("تعذّر إرسال الطلب", e?.message); }
+    } catch (e: any) {
+      if (e?.code === "POLICY_CHANGED") { setAccepted(null); notify("حُدّثت سياسة الخدمة", "راجع السياسة الجديدة ووافق عليها ثم أرسل الطلب."); onPolicyChanged(); }
+      else notify("تعذّر إرسال الطلب", e?.message);
+    }
     finally { setBusy(false); }
   };
 
@@ -212,6 +226,9 @@ function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { tok
       <NeuRaised radius={20} style={u.card}>
         <Text style={u.section}>٢. التكلفة</Text>
         {unit > 0 ? <CostBreakdown f={fin} /> : <Text style={u.meta}>أدخل سعر القطعة لتظهر التكلفة كاملة.</Text>}
+        {settings.rate_updated_at ? (
+          <Text style={u.meta}><Ionicons name="time-outline" size={11} /> سعر الصرف محدَّث {new Date(settings.rate_updated_at).toLocaleDateString("ar-SD", { day: "numeric", month: "long" })}، ويُثبَّت لطلبك لحظة الإرسال.</Text>
+        ) : null}
       </NeuRaised>
 
       <NeuRaised radius={20} style={u.card}>
@@ -226,6 +243,8 @@ function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { tok
         ) : <Text style={u.meta}>ستظهر بيانات الحساب هنا — تواصل مع الدعم إن لم تظهر.</Text>}
         <ImageUploadField label={`إيصال التحويل${unit > 0 ? ` (${fin.total_sdg.toLocaleString("en-US")} ج.س)` : ""}`} value={receipt} onChange={setReceipt} folder="shein-receipts" aspect={9 / 16} />
         {tried && !receipt ? <Text style={[u.meta, { color: "#B42323" }]}>الإيصال مطلوب</Text> : null}
+        <NeuField label="رقم العملية في إشعار التحويل" icon="receipt-outline" value={payRef} onChangeText={setPayRef} autoCapitalize="characters"
+          error={tried && toLatinDigits(payRef).replace(/\s/g, "").length < 4} hint="يساعدنا على التحقق سريعاً — الإيصال الواحد لطلب واحد فقط" />
       </NeuRaised>
 
       <NeuRaised radius={20} style={u.card}>
@@ -234,8 +253,14 @@ function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { tok
         <NeuField label="العنوان / أقرب معلم" icon="location-outline" value={address} onChangeText={setAddress} placeholder="الحي، الشارع، أقرب معلم" />
       </NeuRaised>
 
+      <TouchableOpacity onPress={() => setAccepted(agreed ? null : settings.policy_version)} style={[st.agree, tried && !agreed && { borderColor: "#D93636" }]}
+        accessibilityRole="checkbox" accessibilityState={{ checked: agreed }} accessibilityLabel="أوافق على سياسة الخدمة">
+        <Ionicons name={agreed ? "checkbox" : "square-outline"} size={22} color={agreed ? ACCENT : Colors.textMuted} />
+        <Text style={[u.meta, { flex: 1, color: Colors.textPrimary, fontSize: 13 }]}>
+          قرأت <Text style={{ color: ACCENT, fontFamily: "Cairo_700Bold" }} onPress={() => router.push({ pathname: "/shein-policy", params: { accept: "1" } } as any)}>سياسة الخدمة</Text> وأوافق عليها، بما في ذلك عدم إمكانية الإلغاء بعد شراء المنتج.
+        </Text>
+      </TouchableOpacity>
       <NeuButton label={busy ? "جارٍ الإرسال…" : "إرسال الطلب"} icon="send" onPress={submit} loading={busy} />
-      <Text style={[u.meta, { textAlign: "center" }]}>بإرسال الطلب توافق على أن الأسعار قد تتغير في شي إن، وسنتواصل معك قبل أي فرق.</Text>
     </View>
   );
 }
@@ -253,6 +278,8 @@ const st = StyleSheet.create({
   tabText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
   roleBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1.2, borderColor: ACCENT + "50", backgroundColor: Colors.cardBg },
   roleText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: ACCENT },
+  policyLink: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: ACCENT + "10" },
+  agree: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, borderWidth: 1.2, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   qty: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, padding: 4, marginBottom: Platform.OS === "web" ? 4 : 2 },
   qtyBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: ACCENT + "12" },
   qtyText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, minWidth: 26, textAlign: "center" },

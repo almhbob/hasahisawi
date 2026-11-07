@@ -90,6 +90,41 @@ function MemorialPage({ uid }: { uid: number }) {
   );
 }
 
+/** بلاغ وفاة عن حسابي: إن كنت بخير فاعترض ويُلغى البلاغ فوراً */
+function AboutMe() {
+  const { token } = useAuth();
+  const [rep, setRep] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    if (!token) return;
+    const r = await fetch(`${getApiUrl()}/api/memorials/about-me`, { headers: { Authorization: `Bearer ${token}` } }).then(x => x.json()).catch(() => ({ report: null }));
+    setRep(r.report || null);
+  }, [token]);
+  useEffect(() => { load(); }, [load]);
+  if (!rep) return null;
+  const object = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${getApiUrl()}/api/memorials/${rep.id}/object`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error);
+      notify("الحمد لله على سلامتك", d.message); setRep(null);
+    } catch (e: any) { notify("تعذّر الاعتراض", e?.message); }
+    setBusy(false);
+  };
+  return (
+    <NeuRaised radius={20} depth={6} style={{ padding: 14, gap: 10, borderWidth: 1.5, borderColor: "#D93636" }}>
+      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+        <Ionicons name="alert-circle" size={26} color="#D93636" />
+        <Text style={[s.label, { flex: 1 }]}>يوجد بلاغ وفاة عن حسابك</Text>
+      </View>
+      <Text style={s.muted}>
+        قدّمه «{rep.reporter_name}» بصفته {rep.relation}.{rep.purge_at ? ` إن لم تعترض سيُحوَّل حسابك إلى صفحة تذكارية ${new Date(rep.purge_at).toLocaleString("ar-SD", { weekday: "long", hour: "2-digit", minute: "2-digit" })}.` : " ستراجعه الإدارة قريباً."} إن كنت صاحب الحساب وأنت بخير فاعترض الآن وسيُلغى البلاغ فوراً.
+      </Text>
+      <NeuButton label="أنا بخير — ألغِ البلاغ" icon="shield-checkmark" onPress={object} loading={busy} />
+    </NeuRaised>
+  );
+}
+
 function ReportForm() {
   const { token, user } = useAuth();
   const [f, setF] = useState({ phone: "", relation: "", death_date: "", certificate_url: "", notes: "" });
@@ -111,13 +146,14 @@ function ReportForm() {
     } catch (e: any) { notify("تعذّر الإرسال", e?.message); }
     setBusy(false);
   };
-  const label = (st: string) => st === "pending" ? ["قيد المراجعة", "#E8A900"] : st === "confirmed" ? ["تم — يُنشر عنه صدقة جارية", "#00966A"] : ["لم يُقبل", "#D93636"];
+  const label = (m: any) => m.status === "pending" ? ["قيد المراجعة", "#946B00"] : m.status === "confirmed" ? (m.purged_at ? ["تم — يُنشر عنه صدقة جارية", "#00966A"] : ["تأكد — يكتمل خلال 72 ساعة", "#006B4A"]) : [m.reject_reason || "لم يُقبل", "#D93636"];
   return (
     <>
+      <AboutMe />
       <NeuRaised radius={20} depth={6} style={s.intro}>
         <Ionicons name="leaf" size={26} color="#006B4A" />
         <Text style={s.introText}>
-          عند تأكيد الوفاة: تُحذف منشورات الفقيد ومحادثاته حفظاً لخصوصيته، ويتحول حسابه إلى صفحة تذكارية ينشر منها التطبيق يومياً آيةً أو ذكراً أو دعاءً نافعاً صدقةً جاريةً عنه، ويدعو له الزوار.
+          تراجع الإدارة البلاغ بعناية، ثم تمر مهلة 72 ساعة يُبلَّغ خلالها صاحب الحساب حمايةً من البلاغات الخاطئة. بعدها تُحذف منشورات الفقيد ومحادثاته حفظاً لخصوصيته، ويتحول حسابه إلى صفحة تذكارية ينشر منها التطبيق يومياً آيةً أو ذكراً أو دعاءً نافعاً صدقةً جاريةً عنه، ويدعو له الزوار.
         </Text>
       </NeuRaised>
       <NeuRaised radius={20} depth={6} style={{ padding: 14, gap: 8 }}>
@@ -135,7 +171,7 @@ function ReportForm() {
       {mine.length > 0 && (
         <NeuRaised radius={20} depth={6} style={{ padding: 14, gap: 8 }}>
           <Text style={s.label}>بلاغاتي</Text>
-          {mine.map(m => { const [l, c] = label(m.status); return (
+          {mine.map(m => { const [l, c] = label(m); return (
             <View key={m.id} style={s.reqRow}><Text style={[s.reqName]}>{m.name}</Text><Text style={[s.reqStatus, { color: c }]}>{l}</Text></View>
           ); })}
         </NeuRaised>

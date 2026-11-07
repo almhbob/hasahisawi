@@ -79,7 +79,7 @@ function Verifier({ token }: { token: string }) {
   const act = async (o: SheinOrder, approve: boolean) => {
     const note = reject[o.id]?.trim();
     if (!approve && !note) { setReject(r => ({ ...r, [o.id]: r[o.id] ?? "" })); return notify("اكتب سبب الرفض", "سيظهر السبب للعميل."); }
-    if (approve && !(await confirmAction("تأكيد الدفع", `هل وصل مبلغ ${fmt(o.financials.total_sdg)} ج.س فعلاً؟`, "تأكيد"))) return;
+    if (approve && !(await confirmAction("تأكيد الدفع", `هل وصل مبلغ ${fmt(o.financials.total_sdg)} ج.س فعلاً${o.payment_ref ? ` بالعملية ${o.payment_ref}` : ""}؟ تحقّق من كشف الحساب نفسه، فلقطة الشاشة وحدها لا تكفي.`, "تأكيد"))) return;
     setBusy(o.id);
     try { await sheinApi.verify(token, o.id, approve, note); await load(); } catch (e: any) { notify("خطأ", e?.message); }
     finally { setBusy(null); }
@@ -100,6 +100,7 @@ function Verifier({ token }: { token: string }) {
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={st.amount}>{fmt(o.financials.total_sdg)} ج.س</Text>
                 <Text style={u.meta}>{fmt(o.financials.total_sar, 2)} ر.س · صرف {fmt(o.financials.sar_to_sdg, 2)}</Text>
+                {o.payment_ref ? <Text style={[u.meta, { color: Colors.textPrimary }]} selectable>رقم العملية: <Text style={{ fontFamily: "Cairo_700Bold" }}>{o.payment_ref}</Text></Text> : null}
                 {o.customer_phone ? <Text style={u.meta}>{o.customer_phone}</Text> : null}
               </View>
             </View>

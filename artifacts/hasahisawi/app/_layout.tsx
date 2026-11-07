@@ -182,6 +182,9 @@ function AuthGate() {
           return;
         }
 
+        // ── صدقة جارية: بلاغ وفاة عن حسابي (للاعتراض) أو متابعة بلاغي ──
+        if (screen === "memorial") { router.push({ pathname: "/memorial", params: { report: "1" } } as any); return; }
+
         // ── طلبات شي إن: العميل لتفاصيل طلبه، والفريق للوحته ──
         if (screen === "shein-order") {
           if (data?.role) router.push({ pathname: "/shein-agent", params: { role: String(data.role) } } as any);

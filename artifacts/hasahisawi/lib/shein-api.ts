@@ -14,6 +14,7 @@ export type SheinRole = "verifier" | "saudi" | "hasahisa";
 export type SheinSettings = {
   status: ServiceState; note: string; sar_to_sdg: number; proxy_fee_pct: number; proxy_fee_fixed_sar: number;
   local_shipping_sar: number; intl_shipping_sar_per_item: number; local_delivery_sdg: number; bank_info: string;
+  policy: string; policy_version: string; rate_updated_at: string;
 };
 export type Financials = ReturnType<typeof computeFinancials>;
 export type SheinOrder = {
@@ -21,7 +22,7 @@ export type SheinOrder = {
   item_details: { title?: string; size?: string; color?: string; qty: number; notes?: string; unit_price_sar: number; image_url?: string | null };
   financials: Financials;
   delivery: { name?: string; phone?: string; address?: string; lat?: number | null; lng?: number | null };
-  payment_receipt_url?: string | null; tracking_number?: string | null; shein_order_no?: string | null; cancel_reason?: string | null;
+  payment_receipt_url?: string | null; payment_ref?: string | null; policy_version?: string | null; tracking_number?: string | null; shein_order_no?: string | null; cancel_reason?: string | null;
   saudi_agent_id?: number | null; hasahisa_agent_id?: number | null; package_id?: number | null;
   customer_name?: string; customer_phone?: string; saudi_agent_name?: string | null; hasahisa_agent_name?: string | null; waybill?: string | null; carrier?: string | null;
   created_at: string; updated_at: string;
@@ -77,13 +78,25 @@ export function extractUrl(text: string): string {
   return (m ? m[0] : text || "").trim().replace(/^http:\/\//i, "https://");
 }
 
+/** موافقة العميل على نسخة السياسة (تُمرَّر من شاشة السياسة إلى نموذج الطلب) */
+let accepted: string | null = null;
+const listeners = new Set<(v: string | null) => void>();
+export function setPolicyAccepted(v: string | null) { accepted = v; listeners.forEach(f => f(v)); }
+export function usePolicyAccepted(): [string | null, (v: string | null) => void] {
+  const [v, setV] = useState(accepted);
+  useEffect(() => { listeners.add(setV); return () => { listeners.delete(setV); }; }, []);
+  return [v, setPolicyAccepted];
+}
+/** عمر سعر الصرف بالأيام (null إن لم يُحدَّث قط) */
+export const rateAgeDays = (s: SheinSettings) => (s.rate_updated_at ? (Date.now() - Date.parse(s.rate_updated_at)) / 86_400_000 : null);
+
 async function call<T>(path: string, init: RequestInit = {}, token?: string | null): Promise<T> {
   const r = await fetch(`${getApiUrl()}/api${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers as any) },
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j?.error || "تعذّر الاتصال بالخادم");
+  if (!r.ok) throw Object.assign(new Error(j?.error || "تعذّر الاتصال بالخادم"), { code: j?.code, status: r.status });
   return j as T;
 }
 const post = (body?: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body ?? {}) });

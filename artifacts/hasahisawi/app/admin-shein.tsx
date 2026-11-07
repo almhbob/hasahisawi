@@ -10,7 +10,8 @@ import { confirmAction, notify } from "@/lib/xplatform";
 import { toLatinDigits } from "@/lib/digits";
 import { NeuButton, NeuField, NeuRaised } from "@/components/auth/neu";
 import { ACCENT, Empty, OrderCard, ServiceBadge, Shell, SmallBtn, u } from "@/components/shein/ui";
-import { computeFinancials, fmt, ROLE_LABEL, SERVICE_BADGE, ServiceState, sheinApi, SheinAgent, SheinOrder, SheinRole, SheinSettings, SheinStatus, STATUS_META } from "@/lib/shein-api";
+import PolicyView from "@/components/shein/PolicyView";
+import { computeFinancials, fmt, rateAgeDays, ROLE_LABEL, SERVICE_BADGE, ServiceState, sheinApi, SheinAgent, SheinOrder, SheinRole, SheinSettings, SheinStatus, STATUS_META } from "@/lib/shein-api";
 
 const NUM_FIELDS: { k: keyof SheinSettings; label: string; icon: string }[] = [
   { k: "sar_to_sdg", label: "سعر الصرف: 1 ريال = ? جنيه", icon: "swap-horizontal-outline" },
@@ -30,6 +31,7 @@ export default function AdminSheinScreen() {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<SheinRole>("verifier");
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState(false);
   const [err, setErr] = useState("");
 
   const load = useCallback(async () => {
@@ -52,7 +54,7 @@ export default function AdminSheinScreen() {
   const save = async () => {
     setSaving(true);
     try {
-      const body: any = { note: form.note ?? "", bank_info: form.bank_info ?? "" };
+      const body: any = { note: form.note ?? "", bank_info: form.bank_info ?? "", policy: form.policy ?? "" };
       for (const f of NUM_FIELDS) body[f.k] = toLatinDigits(form[f.k] ?? "");
       const r = await sheinApi.saveSettings(token, body);
       setData(d => d && { ...d, settings: r.settings });
@@ -108,8 +110,22 @@ export default function AdminSheinScreen() {
         </View>
         <Text style={[u.meta, { textAlign: "center" }]}>إجمالي قيمة الطلبات غير الملغاة: <Text style={{ fontFamily: "Cairo_700Bold", color: ACCENT }}>{fmt(revenue)} ج.س</Text></Text>
 
+        {(() => {
+          const age = rateAgeDays(data.settings);
+          if (data.settings.status !== "active" || (age !== null && age < 7)) return null;
+          return (
+            <View style={st.warn}>
+              <Ionicons name="warning-outline" size={18} color="#946B00" />
+              <Text style={[u.meta, { flex: 1, color: "#6B4D00" }]}>
+                {age === null ? "لم يُحدَّث سعر الصرف منذ تفعيل الخدمة" : `آخر تحديث لسعر الصرف قبل ${Math.floor(age)} يوماً`} — حدّثه لتجنب الخسارة في الطلبات الجديدة.
+              </Text>
+            </View>
+          );
+        })()}
+
         <NeuRaised radius={20} style={u.card}>
           <Text style={u.section}>الأسعار والعمولات</Text>
+          {data.settings.rate_updated_at ? <Text style={u.meta}>آخر تحديث لسعر الصرف: {new Date(data.settings.rate_updated_at).toLocaleString("ar-SD", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</Text> : null}
           {NUM_FIELDS.map(f => (
             <NeuField key={f.k} label={f.label} icon={f.icon as any} value={form[f.k] ?? ""} keyboardType="decimal-pad" onChangeText={t => setForm(x => ({ ...x, [f.k]: t }))} />
           ))}
@@ -117,6 +133,24 @@ export default function AdminSheinScreen() {
             placeholder={"بنك الخرطوم — بنكك\nرقم الحساب: …\nالاسم: …"} />
           <Text style={u.meta}>مثال: منتج بـ100 ريال ← العميل يدفع {fmt(sample.total_sdg)} ج.س ({fmt(sample.total_sar, 2)} ر.س)</Text>
           <NeuButton label="حفظ الإعدادات" icon="save-outline" onPress={save} loading={saving} />
+        </NeuRaised>
+
+        <NeuRaised radius={20} style={u.card}>
+          <View style={[u.row, { justifyContent: "space-between" }]}>
+            <Text style={u.section}>سياسة الخدمة</Text>
+            <TouchableOpacity onPress={() => setPreview(p => !p)}><Text style={[u.meta, { color: ACCENT }]}>{preview ? "تعديل" : "معاينة"}</Text></TouchableOpacity>
+          </View>
+          <Text style={u.meta}>اكتب «## » قبل عنوان القسم و«- » قبل كل بند. أي تعديل يُلزم العملاء بالموافقة من جديد على الطلبات الجديدة، والطلبات السابقة تبقى على النسخة التي وافقوا عليها.</Text>
+          {preview ? <PolicyView text={form.policy ?? ""} /> : (
+            <NeuField label="نص السياسة" icon="document-text-outline" value={form.policy ?? ""} multiline onChangeText={t => setForm(x => ({ ...x, policy: t }))} inputStyle={{ minHeight: 260, textAlignVertical: "top" }} />
+          )}
+          <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+            <SmallBtn label="حفظ السياسة" icon="save-outline" filled onPress={save} disabled={saving} />
+            <SmallBtn label="استعادة النص الافتراضي" icon="refresh" color="#946B00" onPress={async () => {
+              if (!(await confirmAction("استعادة السياسة الافتراضية", "سيُستبدل نصك الحالي بالسياسة الافتراضية. متابعة؟", "استعادة"))) return;
+              try { const r = await sheinApi.saveSettings(token, { policy: "" }); setData(d => d && { ...d, settings: r.settings }); setForm(f => ({ ...f, policy: r.settings.policy })); } catch (e: any) { notify("خطأ", e?.message); }
+            }} />
+          </View>
         </NeuRaised>
 
         <NeuRaised radius={20} style={u.card}>
@@ -159,6 +193,7 @@ const st = StyleSheet.create({
   stat: { width: "31.5%", flexGrow: 1, alignItems: "center", gap: 2, paddingVertical: 10, borderRadius: 16, backgroundColor: Colors.cardBg, borderWidth: 1.4, borderColor: Colors.divider },
   statN: { fontFamily: "Cairo_700Bold", fontSize: 20 },
   statL: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted },
+  warn: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#FFF7E0", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#F7D76A" },
   agent: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.divider },
   agentName: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
 });
