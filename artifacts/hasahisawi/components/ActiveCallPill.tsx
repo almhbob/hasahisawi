@@ -40,11 +40,11 @@ export default function ActiveCallPill() {
 
 const s = StyleSheet.create({
   wrap: { position: "absolute", left: 12, right: 12, zIndex: 9998, alignItems: "center" },
-  pill: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#0B6B49", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 9, maxWidth: 520, width: "100%",
+  pill: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#006B4A", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 9, maxWidth: 520, width: "100%",
     shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 12 },
-  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#4ADE80" },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#4EC99D" },
   text: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff", textAlign: "right" },
-  time: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#BBF7D0", writingDirection: "ltr" },
+  time: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A8E3CC", writingDirection: "ltr" },
   backBtn: { backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 },
   backTxt: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" },
 });

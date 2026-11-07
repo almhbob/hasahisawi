@@ -22,7 +22,7 @@ import {
 } from "@/lib/fuel-api";
 
 const FUEL_KEYS: FuelKey[] = ["gasoline", "diesel", "gas"];
-const ACCENT = "#F97316";
+const ACCENT = "#CB9200";
 
 export default function FuelStationsScreen() {
   const insets = useSafeAreaInsets();
@@ -75,7 +75,7 @@ export default function FuelStationsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* الرأس */}
-        <LinearGradient colors={["#F97316", "#EA580C", "#9A3412"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={st.hero}>
+        <LinearGradient colors={["#CB9200", "#CB9200", "#6B4D00"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={st.hero}>
           <View style={st.heroTop}>
             <TouchableOpacity onPress={() => router.back()} style={st.heroBtn} accessibilityLabel="رجوع">
               <Ionicons name="chevron-forward" size={20} color="#fff" />
@@ -146,7 +146,7 @@ export default function FuelStationsScreen() {
           </View>
 
           <TouchableOpacity onPress={() => setOnlyAvailable(v => !v)} style={st.toggleRow} activeOpacity={0.8}>
-            <View style={[st.check, onlyAvailable && { backgroundColor: "#10B981", borderColor: "#10B981" }]}>
+            <View style={[st.check, onlyAvailable && { backgroundColor: "#00966A", borderColor: "#00966A" }]}>
               {onlyAvailable && <Ionicons name="checkmark" size={14} color="#fff" />}
             </View>
             <Text style={st.toggleText}>المتوفر به الوقود الآن فقط</Text>
@@ -190,7 +190,7 @@ function Logo({ s, size = 54 }: { s: FuelStation; size?: number }) {
 function FuelPill({ s, k }: { s: FuelStation; k: FuelKey }) {
   const e = effectiveFuel(s, k);
   const meta = FUEL_META[k];
-  const color = e.available === true ? "#10B981" : e.available === false ? "#EF4444" : Colors.textMuted;
+  const color = e.available === true ? "#00966A" : e.available === false ? "#D93636" : Colors.textMuted;
   return (
     <View style={[st.pill, { borderColor: color + "55", backgroundColor: color + "12" }]}>
       <View style={[st.pillDot, { backgroundColor: color }]} />
@@ -218,7 +218,7 @@ function StationCard({ s, services, onPress }: { s: FuelStation; services: Recor
           <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
         </View>
         <View style={st.pillsRow}>
-          {s.kind === "gas_shop" ? <View style={st.kindTag}><Ionicons name="flame" size={11} color="#C2410C" /><Text style={st.kindTagText}>محل غاز</Text></View> : null}
+          {s.kind === "gas_shop" ? <View style={st.kindTag}><Ionicons name="flame" size={11} color="#946B00" /><Text style={st.kindTagText}>محل غاز</Text></View> : null}
           {fuelsFor(s.kind).map(k => <FuelPill key={k} s={s} k={k} />)}
         </View>
         <View style={st.cardFoot}>
@@ -283,16 +283,16 @@ function StationSheet({ station: s, services, onClose, token, loggedIn, onReport
 
             {ent.unavailable && ent.status ? <EntityNotice status={ent.status} isOwner={ent.isOwner} /> : null}
             <View style={st.actions}>
-              {!!s.phone && <Action icon="call" label="اتصال" color="#10B981" onPress={() => tel(s.phone)} />}
-              {!!(s.whatsapp || s.phone) && <Action icon="logo-whatsapp" label="واتساب" color="#16A34A" onPress={() => wa(s.whatsapp || s.phone)} />}
-              <Action icon="navigate" label="الاتجاهات" color="#0EA5E9" onPress={map} />
+              {!!s.phone && <Action icon="call" label="اتصال" color="#00966A" onPress={() => tel(s.phone)} />}
+              {!!(s.whatsapp || s.phone) && <Action icon="logo-whatsapp" label="واتساب" color="#00966A" onPress={() => wa(s.whatsapp || s.phone)} />}
+              <Action icon="navigate" label="الاتجاهات" color="#008259" onPress={map} />
             </View>
 
             <Text style={st.section}>حالة الوقود</Text>
             {fuelsFor(s.kind).map(k => {
               const e = effectiveFuel(s, k);
               const meta = FUEL_META[k];
-              const color = e.available === true ? "#10B981" : e.available === false ? "#EF4444" : Colors.textMuted;
+              const color = e.available === true ? "#00966A" : e.available === false ? "#D93636" : Colors.textMuted;
               const q = e.queue ? QUEUE_LABEL[e.queue] : null;
               return (
                 <NeuInset key={k} radius={16} style={st.fuelLine}>
@@ -323,10 +323,10 @@ function StationSheet({ station: s, services, onClose, token, loggedIn, onReport
                 <View key={k} style={st.reportRow}>
                   <Text style={st.reportLabel}>{FUEL_META[k].label}</Text>
                   <TouchableOpacity disabled={!!busy} onPress={() => report(k, true)} style={[st.reportBtn, { borderColor: "#10B98155" }]}>
-                    {busy === k + true ? <ActivityIndicator size="small" color="#10B981" /> : <Text style={[st.reportBtnText, { color: "#047857" }]}>متوفر</Text>}
+                    {busy === k + true ? <ActivityIndicator size="small" color="#00966A" /> : <Text style={[st.reportBtnText, { color: "#006B4A" }]}>متوفر</Text>}
                   </TouchableOpacity>
                   <TouchableOpacity disabled={!!busy} onPress={() => report(k, false)} style={[st.reportBtn, { borderColor: "#EF444455" }]}>
-                    {busy === k + false ? <ActivityIndicator size="small" color="#EF4444" /> : <Text style={[st.reportBtnText, { color: "#B91C1C" }]}>نفد</Text>}
+                    {busy === k + false ? <ActivityIndicator size="small" color="#D93636" /> : <Text style={[st.reportBtnText, { color: "#B42323" }]}>نفد</Text>}
                   </TouchableOpacity>
                 </View>
               ))}
@@ -391,7 +391,7 @@ const st = StyleSheet.create({
   kindChip: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 14, borderWidth: 1.2, borderColor: ACCENT + "50", backgroundColor: Colors.cardBg },
   kindText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: ACCENT },
   kindTag: { flexDirection: "row-reverse", alignItems: "center", gap: 3, backgroundColor: "#F9731618", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
-  kindTagText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#C2410C" },
+  kindTagText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#946B00" },
   fuelChip: { alignItems: "center", justifyContent: "center", gap: 2, paddingVertical: 9 },
   fuelChipText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textSecondary },
   toggleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
@@ -404,7 +404,7 @@ const st = StyleSheet.create({
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   meta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   tag24: { backgroundColor: "#10B98118", borderRadius: 8, paddingHorizontal: 6, marginRight: 4 },
-  tag24Text: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#047857" },
+  tag24Text: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#006B4A" },
   pillsRow: { flexDirection: "row-reverse", gap: 6, flexWrap: "wrap" },
   pill: { flexDirection: "row-reverse", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 },
   pillDot: { width: 7, height: 7, borderRadius: 4 },

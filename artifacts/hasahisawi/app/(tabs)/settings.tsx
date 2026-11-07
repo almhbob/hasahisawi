@@ -1815,9 +1815,9 @@ export default function SettingsScreen() {
 
   // ─── تنقل اللوحة: بطاقات مجمّعة بدل شريط أفقي ─────────────────────────────
   const TAB_COLORS: Partial<Record<AdminTab, string>> = {
-    users: "#1F5C8A", medical: "#10B981", schools: "#2E7D9A", institutions: "#27AE60", sports: "#E67E22",
-    culture: "#8E44AD", lost: "#EF4444", jobs: "#1E6E8A", market: "#E8A900", notifications: "#F97316",
-    news: "#0EA5E9", landmarks: "#9B59B6", subscriptions: "#D4AF37", profile: Colors.primary,
+    users: "#004D36", medical: "#00966A", schools: "#2E7D9A", institutions: "#27AE60", sports: "#E67E22",
+    culture: "#8E44AD", lost: "#D93636", jobs: "#1E6E8A", market: "#E8A900", notifications: "#CB9200",
+    news: "#008259", landmarks: "#9B59B6", subscriptions: "#D4AF37", profile: Colors.primary,
   };
   const NAV_TABS: AdminTabItem[] = ADMIN_TABS.map(x => ({ key: x.key, label: x.label, icon: x.icon as any, color: TAB_COLORS[x.key] ?? Colors.primary }));
   const NAV_GROUPS: TabGroup[] = [
@@ -1840,7 +1840,7 @@ export default function SettingsScreen() {
           <CallReliabilityCard />
           <TouchableOpacity onPress={() => router.push({ pathname: "/memorial", params: { report: "1" } } as any)} activeOpacity={0.85}
             style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 20, padding: 14, marginBottom: 14, ...Colors.shadow.card }}>
-            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#0F172A", alignItems: "center", justifyContent: "center" }}><Ionicons name="leaf" size={20} color="#A7F3D0" /></View>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#1A2C25", alignItems: "center", justifyContent: "center" }}><Ionicons name="leaf" size={20} color="#A8E3CC" /></View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>صدقة جارية عن فقيد</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>الإبلاغ عن وفاة صاحب حساب ليُنشر عنه ذكرٌ نافع يومياً</Text>
@@ -2506,10 +2506,10 @@ export default function SettingsScreen() {
             {isAdmin && (
               <View style={{ gap: 10, marginBottom: 18 }}>
                 {([
-                  { icon: "key", color: "#1F5C8A", title: "حسابات بوابة الاتحاد", sub: "تعيين اسم المستخدم وكلمة المرور لمديري الاتحاد وإصلاح تعذّر الدخول", route: "/admin-portal-accounts" },
-                  { icon: "ban", color: "#B91C1C", title: "الإشراف على المنشآت", sub: "إيقاف أو حذف المطاعم والمتاجر والمؤسسات المخالفة", route: "/admin-entities" },
-                  { icon: "bag-handle", color: "#111827", title: "إدارة طلبات شي إن", sub: "حالة الخدمة، الأسعار والعمولات، الفريق، وكل الطلبات", route: "/admin-shein" },
-                  { icon: "shield-half", color: "#F0A500", title: "صلاحيات المشرفين", sub: "امنح مشرفيك إدارة أقسام وخدمات محددة لتخفيف العبء عنك", route: "/admin-permissions" },
+                  { icon: "key", color: "#004D36", title: "حسابات بوابة الاتحاد", sub: "تعيين اسم المستخدم وكلمة المرور لمديري الاتحاد وإصلاح تعذّر الدخول", route: "/admin-portal-accounts" },
+                  { icon: "ban", color: "#B42323", title: "الإشراف على المنشآت", sub: "إيقاف أو حذف المطاعم والمتاجر والمؤسسات المخالفة", route: "/admin-entities" },
+                  { icon: "bag-handle", color: "#1A2C25", title: "إدارة طلبات شي إن", sub: "حالة الخدمة، الأسعار والعمولات، الفريق، وكل الطلبات", route: "/admin-shein" },
+                  { icon: "shield-half", color: "#E8A900", title: "صلاحيات المشرفين", sub: "امنح مشرفيك إدارة أقسام وخدمات محددة لتخفيف العبء عنك", route: "/admin-permissions" },
                   { icon: "grid", color: Colors.primary, title: "مركز التحكم الكامل", sub: "كل أقسام الإدارة: الطلبات، البلاغات، التجار، الإعدادات المتقدمة", route: "/admin" },
                 ] as const).map(q => (
                   <TouchableOpacity key={q.route} onPress={() => router.push(q.route as any)} activeOpacity={0.85}>
@@ -4503,7 +4503,7 @@ function A11yCard() {
   return (
     <View style={a11ySt.card}>
       <View style={a11ySt.head}>
-        <View style={a11ySt.icon}><Ionicons name="accessibility" size={22} color="#0B6B49" /></View>
+        <View style={a11ySt.icon}><Ionicons name="accessibility" size={22} color="#006B4A" /></View>
         <View style={{ flex: 1 }}>
           <Text style={a11ySt.title}>وضع المكفوفين وضعاف البصر</Text>
           <Text style={a11ySt.sub}>مساعد صوتي يقرأ الشاشات، تكبير الخط، ورئيسية ميسّرة بأزرار كبيرة</Text>

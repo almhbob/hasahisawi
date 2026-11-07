@@ -48,15 +48,15 @@ export default function AdminMemorials() {
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         {items === null ? <ActivityIndicator style={{ marginTop: 30 }} /> : items.length === 0 ? <Text style={[s.muted, { textAlign: "center", padding: 30 }]}>لا توجد بلاغات</Text> : items.map(m => (
-          <NeuRaised key={m.id} radius={20} depth={6} style={[s.card, m.status === "pending" && { borderWidth: 1.5, borderColor: "#FCD34D" }]}>
+          <NeuRaised key={m.id} radius={20} depth={6} style={[s.card, m.status === "pending" && { borderWidth: 1.5, borderColor: "#F7D76A" }]}>
             <View style={s.row}>
               <UserAvatar name={m.name} avatarUrl={m.avatar_url || undefined} size={44} borderRadius={14} />
               <View style={{ flex: 1 }}>
                 <Text style={s.name}>{m.name}</Text>
                 <Text style={s.muted}>{m.phone} · {m.user_posts} منشور</Text>
               </View>
-              <View style={[s.badge, { backgroundColor: m.status === "pending" ? "#FEF3C7" : m.status === "confirmed" ? "#D1FAE5" : "#FEE2E2" }]}>
-                <Text style={[s.badgeText, { color: m.status === "pending" ? "#92400E" : m.status === "confirmed" ? "#065F46" : "#991B1B" }]}>{m.status === "pending" ? "قيد المراجعة" : m.status === "confirmed" ? "مؤكد" : "مرفوض"}</Text>
+              <View style={[s.badge, { backgroundColor: m.status === "pending" ? "#FFF7E0" : m.status === "confirmed" ? "#D3F1E5" : "#FDECEC" }]}>
+                <Text style={[s.badgeText, { color: m.status === "pending" ? "#6B4D00" : m.status === "confirmed" ? "#004D36" : "#A32020" }]}>{m.status === "pending" ? "قيد المراجعة" : m.status === "confirmed" ? "مؤكد" : "مرفوض"}</Text>
               </View>
             </View>
             <Text style={s.info}>المبلِّغ: {m.reporter_name} ({m.relation}) · {m.reporter_phone || ""}</Text>
@@ -70,10 +70,10 @@ export default function AdminMemorials() {
             ) : null}
             {m.status === "pending" ? (
               <View style={s.row}>
-                <TouchableOpacity onPress={() => confirm(m)} disabled={busy === m.id} style={[s.btn, { backgroundColor: "#0B6B49", flex: 2 }]}>
+                <TouchableOpacity onPress={() => confirm(m)} disabled={busy === m.id} style={[s.btn, { backgroundColor: "#006B4A", flex: 2 }]}>
                   {busy === m.id ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="checkmark-circle" size={16} color="#fff" /><Text style={s.btnText}>تأكيد الوفاة</Text></>}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => act(m, { status: "rejected", reason: "تعذّر التحقق من البيانات" })} style={[s.btn, { borderWidth: 1, borderColor: "#EF444466" }]}><Text style={[s.btnText, { color: "#EF4444" }]}>رفض</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => act(m, { status: "rejected", reason: "تعذّر التحقق من البيانات" })} style={[s.btn, { borderWidth: 1, borderColor: "#EF444466" }]}><Text style={[s.btnText, { color: "#D93636" }]}>رفض</Text></TouchableOpacity>
               </View>
             ) : m.status === "confirmed" ? (
               <View style={s.row}>

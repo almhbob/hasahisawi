@@ -34,12 +34,12 @@ export function useIsDesktopWeb() {
 const norm = (r: string) => (r.replace("/(tabs)", "").replace(/\/$/, "") || "/");
 
 const QUICK = [
-  { title: "محطات الوقود", sub: "أين يتوفر الوقود الآن", icon: "speedometer", color: "#F97316", route: "/fuel-stations" },
-  { title: "طلبات شي إن", sub: "نشتري من السعودية ونوصّل لك", icon: "bag-handle", color: "#111827", route: "/shein" },
-  { title: "مواقيت الأذان", sub: "الصلاة القادمة والأذكار", icon: "moon", color: "#5B8DB8", route: "/(tabs)/prayer" },
-  { title: "المطاعم والكافتريات", sub: "منيو مصوّر واطلب الآن", icon: "restaurant", color: "#E05567", route: "/(tabs)/restaurants" },
-  { title: "مشاويرك علينا", sub: "اطلب سائقاً مباشرة", icon: "car", color: "#0EA5E9", route: "/(tabs)/transport" },
-  { title: "الدليل الطبي", sub: "صيدليات ومستشفيات", icon: "medkit", color: "#10B981", route: "/(tabs)/medical" },
+  { title: "محطات الوقود", sub: "أين يتوفر الوقود الآن", icon: "speedometer", color: "#CB9200", route: "/fuel-stations" },
+  { title: "طلبات شي إن", sub: "نشتري من السعودية ونوصّل لك", icon: "bag-handle", color: "#1A2C25", route: "/shein" },
+  { title: "مواقيت الأذان", sub: "الصلاة القادمة والأذكار", icon: "moon", color: "#008259", route: "/(tabs)/prayer" },
+  { title: "المطاعم والكافتريات", sub: "منيو مصوّر واطلب الآن", icon: "restaurant", color: "#CB9200", route: "/(tabs)/restaurants" },
+  { title: "مشاويرك علينا", sub: "اطلب سائقاً مباشرة", icon: "car", color: "#008259", route: "/(tabs)/transport" },
+  { title: "الدليل الطبي", sub: "صيدليات ومستشفيات", icon: "medkit", color: "#00966A", route: "/(tabs)/medical" },
 ] as const;
 
 export default function DesktopShell({ children }: { children: React.ReactNode }) {

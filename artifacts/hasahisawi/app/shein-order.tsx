@@ -53,8 +53,8 @@ export default function SheinOrderScreen() {
           </View>
           {order.status === "cancelled" ? (
             <View style={st.cancelBox}>
-              <Ionicons name="close-circle" size={20} color="#B91C1C" />
-              <Text style={[u.meta, { color: "#B91C1C", flex: 1 }]}>{order.cancel_reason || "أُلغي الطلب"}</Text>
+              <Ionicons name="close-circle" size={20} color="#B42323" />
+              <Text style={[u.meta, { color: "#B42323", flex: 1 }]}>{order.cancel_reason || "أُلغي الطلب"}</Text>
             </View>
           ) : (
             <View style={{ gap: 0, marginTop: 4 }}>
@@ -87,7 +87,7 @@ export default function SheinOrderScreen() {
               <Ionicons name="copy-outline" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
           ) : null}
-          {order.status === "pending_payment_verification" ? <SmallBtn label="إلغاء الطلب" icon="close-outline" color="#B91C1C" onPress={cancel} /> : null}
+          {order.status === "pending_payment_verification" ? <SmallBtn label="إلغاء الطلب" icon="close-outline" color="#B42323" onPress={cancel} /> : null}
         </NeuRaised>
 
         <NeuRaised radius={22} style={u.card}>
@@ -135,7 +135,7 @@ const st = StyleSheet.create({
   dotCur: { transform: [{ scale: 1.12 }] },
   bar: { width: 2, flex: 1, minHeight: 16, backgroundColor: Colors.divider },
   stepTitle: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "right" },
-  cancelBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#FEE2E2", borderRadius: 12, padding: 10 },
+  cancelBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#FDECEC", borderRadius: 12, padding: 10 },
   track: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: ACCENT + "10", borderRadius: 14, padding: 12 },
   trackNo: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right", letterSpacing: 0.5 },
   img: { width: 86, height: 86, borderRadius: 14, backgroundColor: Colors.divider },

@@ -430,7 +430,7 @@ export default function LoginScreen() {
           <NeuRoundButton
             icon="accessibility"
             size={44}
-            color={a11y.enabled ? "#B45309" : Colors.textSecondary}
+            color={a11y.enabled ? "#946B00" : Colors.textSecondary}
             accessibilityLabel={a11y.enabled ? "إيقاف وضع المكفوفين" : "تفعيل وضع المكفوفين والمساعد الصوتي"}
             onPress={() => { const v = !a11y.enabled; a11y.update({ enabled: v }); a11y.speak(v ? "فُعّل وضع المكفوفين. حقل البريد أو الهاتف ثم كلمة المرور ثم زر تسجيل الدخول. زر المساعد الصوتي أسفل يسار الشاشة." : "أُوقف وضع المكفوفين"); }}
           />

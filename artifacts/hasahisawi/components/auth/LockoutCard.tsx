@@ -46,7 +46,7 @@ export default function LockoutCard({ left, total, onForgot }: { left: number; t
       <NeuRaised radius={20} depth={7} style={s.card}>
         <View style={s.row}>
           <Animated.View style={[s.iconWrap, pulseStyle]}>
-            <Ionicons name="lock-closed" size={22} color="#B45309" />
+            <Ionicons name="lock-closed" size={22} color="#946B00" />
           </Animated.View>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>تم إيقاف المحاولات مؤقتاً</Text>
@@ -74,7 +74,7 @@ export function AttemptsDots({ left, max = 3 }: { left: number; max?: number }) 
     <View style={s.dotsRow} accessibilityLabel={`تبقّت ${left} من ${max} محاولات`}>
       <Text style={s.dotsLabel}>المحاولات المتبقية</Text>
       {Array.from({ length: max }).map((_, i) => (
-        <View key={i} style={[s.dot, { backgroundColor: i < left ? (left === 1 ? "#F59E0B" : Colors.primary) : Colors.divider }]} />
+        <View key={i} style={[s.dot, { backgroundColor: i < left ? (left === 1 ? "#E8A900" : Colors.primary) : Colors.divider }]} />
       ))}
     </View>
   );
@@ -84,12 +84,12 @@ const s = StyleSheet.create({
   card: { padding: 14, gap: 12 },
   row: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   iconWrap: { width: 46, height: 46, borderRadius: 15, backgroundColor: "#F59E0B1F", alignItems: "center", justifyContent: "center" },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#B45309", textAlign: "right" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#946B00", textAlign: "right" },
   body: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right", lineHeight: 19 },
   timer: { paddingHorizontal: 12, paddingVertical: 8, minWidth: 66, alignItems: "center" },
-  timerNum: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#B45309", writingDirection: "ltr" },
+  timerNum: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#946B00", writingDirection: "ltr" },
   track: { height: 5, borderRadius: 3, backgroundColor: Colors.divider, overflow: "hidden", flexDirection: "row-reverse" },
-  fill: { height: "100%", borderRadius: 3, backgroundColor: "#F59E0B" },
+  fill: { height: "100%", borderRadius: 3, backgroundColor: "#E8A900" },
   forgot: { flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "center" },
   forgotText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.primary },
   dotsRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-end", marginTop: -4 },

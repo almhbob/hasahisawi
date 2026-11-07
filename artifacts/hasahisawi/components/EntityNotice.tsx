@@ -54,22 +54,22 @@ export function EntityNotice({ status, isOwner, compact }: { status: EntityStatu
   if (!status || (!status.suspended && !status.paused)) return null;
   if (status.suspended) {
     return (
-      <Animated.View entering={FadeIn} style={[s.card, { backgroundColor: "#FEF2F2", borderColor: "#FCA5A5" }]} accessibilityRole="alert">
-        <View style={[s.icon, { backgroundColor: "#FEE2E2" }]}><Ionicons name="ban" size={compact ? 20 : 26} color="#B91C1C" /></View>
+      <Animated.View entering={FadeIn} style={[s.card, { backgroundColor: "#FDECEC", borderColor: "#F2A3A3" }]} accessibilityRole="alert">
+        <View style={[s.icon, { backgroundColor: "#FDECEC" }]}><Ionicons name="ban" size={compact ? 20 : 26} color="#B42323" /></View>
         <View style={{ flex: 1 }}>
-          <Text style={[s.title, { color: "#991B1B" }]}>{isOwner ? "أوقفت الإدارة منشأتك" : "الخدمة موقوفة حالياً"}</Text>
+          <Text style={[s.title, { color: "#A32020" }]}>{isOwner ? "أوقفت الإدارة منشأتك" : "الخدمة موقوفة حالياً"}</Text>
           <Text style={s.body}>{isOwner ? `السبب: ${status.suspend_reason || "مخالفة لشروط الاستخدام"}. منشأتك مخفية عن الجمهور حتى تُعالج المخالفة — تواصل مع إدارة التطبيق.` : "هذه المنشأة غير متاحة للطلب أو التواصل عبر التطبيق في الوقت الحالي."}</Text>
         </View>
       </Animated.View>
     );
   }
   return (
-    <Animated.View entering={FadeIn} style={[s.card, { backgroundColor: "#FFFBEB", borderColor: "#FCD34D" }]} accessibilityRole="alert">
-      <View style={[s.icon, { backgroundColor: "#FEF3C7" }]}><Ionicons name="moon" size={compact ? 20 : 26} color="#B45309" /></View>
+    <Animated.View entering={FadeIn} style={[s.card, { backgroundColor: "#FFF7E0", borderColor: "#F7D76A" }]} accessibilityRole="alert">
+      <View style={[s.icon, { backgroundColor: "#FFF7E0" }]}><Ionicons name="moon" size={compact ? 20 : 26} color="#946B00" /></View>
       <View style={{ flex: 1 }}>
-        <Text style={[s.title, { color: "#92400E" }]}>غير متاح مؤقتاً</Text>
+        <Text style={[s.title, { color: "#6B4D00" }]}>غير متاح مؤقتاً</Text>
         {status.pause_message ? <Text style={s.body}>{status.pause_message}</Text> : null}
-        <View style={s.resume}><Ionicons name="time-outline" size={14} color="#B45309" /><Text style={s.resumeText}>نعود {fmtResume(status.resume_at)}</Text></View>
+        <View style={s.resume}><Ionicons name="time-outline" size={14} color="#946B00" /><Text style={s.resumeText}>نعود {fmtResume(status.resume_at)}</Text></View>
       </View>
     </Animated.View>
   );
@@ -111,15 +111,15 @@ export function PauseControl({ type, id, onChanged }: { type: EntityType; id: nu
     <View style={s.panel}>
       {status.suspended ? <EntityNotice status={status} isOwner /> : null}
       <View style={s.panelHead}>
-        <View style={[s.icon, { backgroundColor: status.paused ? "#FEF3C7" : Colors.primary + "18" }]}>
-          <Ionicons name={status.paused ? "moon" : "sunny"} size={22} color={status.paused ? "#B45309" : Colors.primary} />
+        <View style={[s.icon, { backgroundColor: status.paused ? "#FFF7E0" : Colors.primary + "18" }]}>
+          <Ionicons name={status.paused ? "moon" : "sunny"} size={22} color={status.paused ? "#946B00" : Colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.panelTitle}>{status.paused ? "الخدمة متوقفة مؤقتاً" : "الخدمة متاحة"}</Text>
           <Text style={s.panelSub}>{status.paused ? `تعود ${fmtResume(status.resume_at)}` : "فعّل التنبيه إن توقفت الخدمة مؤقتاً (صلاة، نفاد، إجازة…)"}</Text>
         </View>
         <Switch value={status.paused} onValueChange={v => (v ? apply(true) : apply(false))} disabled={busy} accessibilityLabel="غير متاح مؤقتاً"
-          trackColor={{ true: "#F59E0B88", false: Colors.divider }} thumbColor={status.paused ? "#F59E0B" : "#f4f4f4"} />
+          trackColor={{ true: "#F59E0B88", false: Colors.divider }} thumbColor={status.paused ? "#E8A900" : "#f4f4f4"} />
       </View>
       {!status.paused && (
         <>
@@ -150,9 +150,9 @@ const s = StyleSheet.create({
   card: { flexDirection: "row-reverse", gap: 12, padding: 14, borderRadius: 18, borderWidth: 1.5, alignItems: "flex-start" },
   icon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 15.5, textAlign: "right" },
-  body: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#44403C", textAlign: "right", lineHeight: 21, marginTop: 2 },
-  resume: { flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 6, alignSelf: "flex-end", backgroundColor: "#FDE68A", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
-  resumeText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#92400E" },
+  body: { fontFamily: "Cairo_500Medium", fontSize: 13, color: "#2E4239", textAlign: "right", lineHeight: 21, marginTop: 2 },
+  resume: { flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 6, alignSelf: "flex-end", backgroundColor: "#FFEDB8", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
+  resumeText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#6B4D00" },
   panel: { backgroundColor: Colors.cardBg, borderRadius: 20, padding: 14, gap: 10, ...Colors.shadow.card },
   panelHead: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   panelTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
@@ -160,9 +160,9 @@ const s = StyleSheet.create({
   label: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right" },
   chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
-  chipOn: { backgroundColor: "#F59E0B", borderColor: "#F59E0B" },
+  chipOn: { backgroundColor: "#E8A900", borderColor: "#E8A900" },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   input: { backgroundColor: Colors.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, textAlign: "right", ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null) },
-  pauseBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#F59E0B", borderRadius: 14, paddingVertical: 12 },
+  pauseBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#E8A900", borderRadius: 14, paddingVertical: 12 },
   pauseText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 });

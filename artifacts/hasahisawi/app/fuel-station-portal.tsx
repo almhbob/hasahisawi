@@ -25,11 +25,11 @@ import {
 } from "@/lib/fuel-api";
 
 const FUEL_KEYS: FuelKey[] = ["gasoline", "diesel", "gas"];
-const ACCENT = "#F97316";
+const ACCENT = "#CB9200";
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  approved: { label: "معتمدة وظاهرة للمواطنين", color: "#10B981" },
-  pending: { label: "بانتظار اعتماد الإدارة", color: "#F59E0B" },
-  suspended: { label: "موقوفة", color: "#EF4444" },
+  approved: { label: "معتمدة وظاهرة للمواطنين", color: "#00966A" },
+  pending: { label: "بانتظار اعتماد الإدارة", color: "#E8A900" },
+  suspended: { label: "موقوفة", color: "#D93636" },
 };
 
 type Draft = { available: boolean; price: string; queue: "none" | "short" | "long" };
@@ -180,8 +180,8 @@ function Header({ s, isAdmin, token, onChanged }: { s: FuelStation; isAdmin: boo
       </View>
       {isAdmin && (
         <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
-          {s.status !== "approved" && <SmallBtn label="اعتماد" icon="checkmark-circle" color="#10B981" onPress={() => setStatus("approved")} />}
-          {s.status !== "suspended" && <SmallBtn label="إيقاف" icon="pause-circle" color="#EF4444" onPress={() => setStatus("suspended")} />}
+          {s.status !== "approved" && <SmallBtn label="اعتماد" icon="checkmark-circle" color="#00966A" onPress={() => setStatus("approved")} />}
+          {s.status !== "suspended" && <SmallBtn label="إيقاف" icon="pause-circle" color="#D93636" onPress={() => setStatus("suspended")} />}
         </View>
       )}
     </NeuRaised>
@@ -235,13 +235,13 @@ function FuelPanel({ s, token, onSaved }: { s: FuelStation; token: string; onSav
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={st.fuelName}>{meta.label}</Text>
-                <Text style={[st.fuelState, { color: x.available ? "#10B981" : "#EF4444" }]}>{x.available ? "متوفر الآن" : "غير متوفر"}</Text>
+                <Text style={[st.fuelState, { color: x.available ? "#00966A" : "#D93636" }]}>{x.available ? "متوفر الآن" : "غير متوفر"}</Text>
               </View>
               <Switch
                 value={x.available}
                 onValueChange={v => set(k, { available: v })}
                 trackColor={{ true: "#10B98166", false: "#EF444444" }}
-                thumbColor={x.available ? "#10B981" : "#EF4444"}
+                thumbColor={x.available ? "#00966A" : "#D93636"}
                 accessibilityLabel={`${meta.label} متوفر`}
               />
             </View>

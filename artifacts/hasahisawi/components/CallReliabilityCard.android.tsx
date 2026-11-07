@@ -40,8 +40,8 @@ export default function CallReliabilityCard() {
   return (
     <View style={s.card}>
       <View style={s.head}>
-        <View style={[s.icon, { backgroundColor: pending ? "#FEF3C7" : Colors.primary + "18" }]}>
-          <Ionicons name={pending ? "call" : "checkmark-done"} size={22} color={pending ? "#B45309" : Colors.primary} />
+        <View style={[s.icon, { backgroundColor: pending ? "#FFF7E0" : Colors.primary + "18" }]}>
+          <Ionicons name={pending ? "call" : "checkmark-done"} size={22} color={pending ? "#946B00" : Colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>المكالمات والتطبيق مغلق</Text>
@@ -50,7 +50,7 @@ export default function CallReliabilityCard() {
       </View>
       {steps.map(st => (
         <TouchableOpacity key={st.title} onPress={st.go} style={s.step} activeOpacity={0.8}>
-          <Ionicons name={st.ok ? "checkmark-circle" : "alert-circle"} size={20} color={st.ok ? "#10B981" : "#F59E0B"} />
+          <Ionicons name={st.ok ? "checkmark-circle" : "alert-circle"} size={20} color={st.ok ? "#00966A" : "#E8A900"} />
           <View style={{ flex: 1 }}>
             <Text style={s.stepTitle}>{st.title}</Text>
             <Text style={s.stepSub}>{st.sub}</Text>

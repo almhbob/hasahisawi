@@ -174,7 +174,7 @@ const cc = StyleSheet.create({
   tile: { padding: 12, minHeight: 104, alignItems: "flex-end", justifyContent: "space-between", gap: 8 },
   tileIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   tileLabel: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textPrimary, textAlign: "right", lineHeight: 19, alignSelf: "stretch" },
-  badge: { position: "absolute", top: 8, left: 8, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute", top: 8, left: 8, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: "#D93636", alignItems: "center", justifyContent: "center" },
   badgeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
   empty: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted, textAlign: "center", paddingVertical: 20 },
 

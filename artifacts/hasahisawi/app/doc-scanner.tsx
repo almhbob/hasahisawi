@@ -40,7 +40,7 @@ const FILTERS: Record<FilterKey, { label: string; icon: any; css: string; rn: an
   vivid: { label: "زاهٍ", icon: "sunny-outline", css: "saturate(1.45) contrast(1.15)", rn: [{ saturate: 1.45 }, { contrast: 1.15 }] },
 };
 const DOC_TYPES = ["واجب", "ملخص", "اختبار", "تحضير درس", "شهادة", "مستند"];
-const ACCENT = "#2A6FA8";
+const ACCENT = "#006B4A";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -194,13 +194,13 @@ export default function DocScanner() {
         body { margin: 0; font-family: 'Cairo', 'Noto Naskh Arabic', Tahoma, sans-serif; }
         .page { width: 21cm; height: 29.6cm; padding: 1cm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
         .page:last-child { page-break-after: auto; }
-        header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #2A6FA8; padding-bottom: 6px; margin-bottom: 10px; font-size: 13px; color: #1A2C25; }
-        header span { color: #64748B; font-size: 11px; }
+        header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #006B4A; padding-bottom: 6px; margin-bottom: 10px; font-size: 13px; color: #1A2C25; }
+        header span { color: #6B7D75; font-size: 11px; }
         .img { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .img img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        footer { text-align: center; font-size: 10px; color: #94A3B8; margin-top: 6px; }
+        footer { text-align: center; font-size: 10px; color: #9AABA3; margin-top: 6px; }
         .page { position: relative; }
-        .wm { position: absolute; left: 1.2cm; bottom: 1.4cm; background: rgba(11,107,73,0.85); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px; }
+        .wm { position: absolute; left: 1.2cm; bottom: 1.4cm; background: rgba(0,107,74,0.85); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px; }
       </style></head><body>${body}</body></html>`;
   }, [pages, header, docTitle, name, showWm]);
 
@@ -295,7 +295,7 @@ export default function DocScanner() {
                   <Tool icon="refresh" label="تدوير" onPress={() => update(current.id, { rotate: (((current.rotate + 90) % 360) as Page["rotate"]) })} />
                   <Tool icon="arrow-forward" label="للأمام" onPress={() => move(current.id, -1)} />
                   <Tool icon="arrow-back" label="للخلف" onPress={() => move(current.id, 1)} />
-                  <Tool icon="trash-outline" label="حذف" color="#EF4444" onPress={() => remove(current.id)} />
+                  <Tool icon="trash-outline" label="حذف" color="#D93636" onPress={() => remove(current.id)} />
                 </View>
               </View>
             )}
@@ -333,7 +333,7 @@ export default function DocScanner() {
               <View style={s.rowBetween}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>العلامة المائية «{WATERMARK}»</Text>
-                  {!verified ? <Text style={s.lock}><Ionicons name="lock-closed" size={11} color="#B45309" /> إخفاؤها متاح للحسابات الموثقة فقط</Text> : null}
+                  {!verified ? <Text style={s.lock}><Ionicons name="lock-closed" size={11} color="#946B00" /> إخفاؤها متاح للحسابات الموثقة فقط</Text> : null}
                 </View>
                 <Switch value={showWm} onValueChange={setWatermark} disabled={!verified} trackColor={{ true: ACCENT + "88", false: Colors.divider }} thumbColor={showWm ? ACCENT : "#f4f4f4"} accessibilityLabel="العلامة المائية" />
               </View>
@@ -385,9 +385,9 @@ function Tool({ icon, label, onPress, color = Colors.textSecondary }: { icon: an
 }
 
 const s = StyleSheet.create({
-  wm: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(11,107,73,0.85)", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
+  wm: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(0,107,74,0.85)", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
   wmText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
-  lock: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "#B45309", textAlign: "right" },
+  lock: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "#946B00", textAlign: "right" },
   miniBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 12, borderWidth: 1.2, borderColor: ACCENT + "50", backgroundColor: Colors.cardBg },
   miniText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: ACCENT },
   root: { flex: 1, backgroundColor: neu.base },

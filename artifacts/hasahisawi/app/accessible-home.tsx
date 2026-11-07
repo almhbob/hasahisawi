@@ -12,17 +12,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useA11y } from "@/lib/a11y";
 
 const ITEMS: { title: string; hint: string; icon: any; route: string; color: string }[] = [
-  { title: "مواقيت الأذان", hint: "الصلاة القادمة ووقتها والأذكار", icon: "moon", route: "/(tabs)/prayer", color: "#1D4ED8" },
-  { title: "الدردشة", hint: "رسائلك ومحادثاتك", icon: "chatbubbles", route: "/(tabs)/chat", color: "#047857" },
-  { title: "أرقام الطوارئ والمهمة", hint: "الشرطة والإسعاف والمطافي", icon: "call", route: "/(tabs)/numbers", color: "#B91C1C" },
-  { title: "الدليل الطبي", hint: "صيدليات ومستشفيات وعيادات", icon: "medkit", route: "/(tabs)/medical", color: "#0F766E" },
-  { title: "مشاويرك علينا", hint: "اطلب سائقاً يوصلك", icon: "car", route: "/(tabs)/transport", color: "#B45309" },
-  { title: "المواعيد", hint: "حجز موعد وتنبيهات", icon: "calendar", route: "/(tabs)/appointments", color: "#6D28D9" },
-  { title: "محطات الوقود", hint: "أين يتوفر الوقود الآن", icon: "speedometer", route: "/fuel-stations", color: "#C2410C" },
-  { title: "طلبات شي إن", hint: "اطلب من شي إن وتابع شحنتك", icon: "bag-handle", route: "/shein", color: "#111827" },
-  { title: "المطاعم", hint: "اطلب وجبتك", icon: "restaurant", route: "/(tabs)/restaurants", color: "#BE185D" },
-  { title: "ملفي الشخصي", hint: "بياناتك وحسابك", icon: "person-circle", route: "/profile", color: "#334155" },
-  { title: "الإعدادات", hint: "إعدادات الصوت وحجم الخط والتباين", icon: "settings", route: "/(tabs)/settings", color: "#475569" },
+  { title: "مواقيت الأذان", hint: "الصلاة القادمة ووقتها والأذكار", icon: "moon", route: "/(tabs)/prayer", color: "#004D36" },
+  { title: "الدردشة", hint: "رسائلك ومحادثاتك", icon: "chatbubbles", route: "/(tabs)/chat", color: "#006B4A" },
+  { title: "أرقام الطوارئ والمهمة", hint: "الشرطة والإسعاف والمطافي", icon: "call", route: "/(tabs)/numbers", color: "#B42323" },
+  { title: "الدليل الطبي", hint: "صيدليات ومستشفيات وعيادات", icon: "medkit", route: "/(tabs)/medical", color: "#006B4A" },
+  { title: "مشاويرك علينا", hint: "اطلب سائقاً يوصلك", icon: "car", route: "/(tabs)/transport", color: "#946B00" },
+  { title: "المواعيد", hint: "حجز موعد وتنبيهات", icon: "calendar", route: "/(tabs)/appointments", color: "#004D36" },
+  { title: "محطات الوقود", hint: "أين يتوفر الوقود الآن", icon: "speedometer", route: "/fuel-stations", color: "#946B00" },
+  { title: "طلبات شي إن", hint: "اطلب من شي إن وتابع شحنتك", icon: "bag-handle", route: "/shein", color: "#1A2C25" },
+  { title: "المطاعم", hint: "اطلب وجبتك", icon: "restaurant", route: "/(tabs)/restaurants", color: "#946B00" },
+  { title: "ملفي الشخصي", hint: "بياناتك وحسابك", icon: "person-circle", route: "/profile", color: "#2E4239" },
+  { title: "الإعدادات", hint: "إعدادات الصوت وحجم الخط والتباين", icon: "settings", route: "/(tabs)/settings", color: "#4A5E55" },
 ];
 
 export default function AccessibleHome() {
@@ -51,7 +51,7 @@ export default function AccessibleHome() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={s.header}>
         <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/" as any))} style={s.back} accessibilityRole="button" accessibilityLabel="رجوع">
-          <Ionicons name="arrow-forward" size={28} color="#FACC15" />
+          <Ionicons name="arrow-forward" size={28} color="#F7D76A" />
         </Pressable>
         <Text style={s.title} accessibilityRole="header">الرئيسية الميسّرة</Text>
       </View>
@@ -62,7 +62,7 @@ export default function AccessibleHome() {
           <Pressable
             key={it.route}
             onPress={() => press(i)}
-            style={[s.item, { borderColor: focus === i ? "#FACC15" : "transparent" }]}
+            style={[s.item, { borderColor: focus === i ? "#F7D76A" : "transparent" }]}
             accessibilityRole="button"
             accessibilityLabel={it.title}
             accessibilityHint={it.hint}
@@ -83,7 +83,7 @@ export default function AccessibleHome() {
           {Platform.OS === "web" && <Row label="تباين عالٍ" value={a.highContrast} onChange={v => a.update({ highContrast: v })} />}
           {Platform.OS === "android" && (
             <Pressable onPress={() => Linking.sendIntent("android.settings.ACCESSIBILITY_SETTINGS").catch(() => Linking.openSettings())} style={s.sysBtn} accessibilityRole="button">
-              <Ionicons name="accessibility" size={24} color="#0F172A" />
+              <Ionicons name="accessibility" size={24} color="#1A2C25" />
               <Text style={s.sysText}>فتح إعدادات TalkBack في الهاتف</Text>
             </Pressable>
           )}
@@ -97,25 +97,25 @@ function Row({ label, value, onChange }: { label: string; value: boolean; onChan
   return (
     <View style={s.row}>
       <Text style={s.rowText}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} accessibilityLabel={label} trackColor={{ true: "#FACC15", false: "#475569" }} thumbColor="#fff" />
+      <Switch value={value} onValueChange={onChange} accessibilityLabel={label} trackColor={{ true: "#F7D76A", false: "#4A5E55" }} thumbColor="#fff" />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#020617" },
+  root: { flex: 1, backgroundColor: "#0A110E" },
   header: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 10 },
-  back: { width: 56, height: 56, borderRadius: 18, backgroundColor: "#1E293B", alignItems: "center", justifyContent: "center" },
+  back: { width: 56, height: 56, borderRadius: 18, backgroundColor: "#1A2C25", alignItems: "center", justifyContent: "center" },
   title: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 28, color: "#FFFFFF", textAlign: "right" },
-  help: { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: "#FACC15", textAlign: "right", paddingHorizontal: 16, marginTop: 6 },
-  item: { flexDirection: "row-reverse", alignItems: "center", gap: 16, backgroundColor: "#0F172A", borderRadius: 22, padding: 14, minHeight: 92, borderWidth: 3 },
+  help: { fontFamily: "Cairo_600SemiBold", fontSize: 17, color: "#F7D76A", textAlign: "right", paddingHorizontal: 16, marginTop: 6 },
+  item: { flexDirection: "row-reverse", alignItems: "center", gap: 16, backgroundColor: "#1A2C25", borderRadius: 22, padding: 14, minHeight: 92, borderWidth: 3 },
   icon: { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   itemTitle: { fontFamily: "Cairo_700Bold", fontSize: 23, color: "#FFFFFF", textAlign: "right" },
-  itemHint: { fontFamily: "Cairo_500Medium", fontSize: 16, color: "#CBD5E1", textAlign: "right" },
-  settings: { backgroundColor: "#0F172A", borderRadius: 22, padding: 16, gap: 8, marginTop: 8 },
-  setTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FACC15", textAlign: "right" },
+  itemHint: { fontFamily: "Cairo_500Medium", fontSize: 16, color: "#C9D6CF", textAlign: "right" },
+  settings: { backgroundColor: "#1A2C25", borderRadius: 22, padding: 16, gap: 8, marginTop: 8 },
+  setTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F7D76A", textAlign: "right" },
   row: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", minHeight: 52 },
   rowText: { fontFamily: "Cairo_600SemiBold", fontSize: 18, color: "#FFFFFF" },
-  sysBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#FACC15", borderRadius: 16, padding: 14, marginTop: 6 },
-  sysText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#0F172A" },
+  sysBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#F7D76A", borderRadius: 16, padding: 14, marginTop: 6 },
+  sysText: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#1A2C25" },
 });
