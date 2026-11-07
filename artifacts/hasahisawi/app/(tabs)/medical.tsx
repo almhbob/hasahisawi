@@ -74,7 +74,7 @@ export function getTypeIcon(type: Facility["type"]) {
   return type === "pharmacy" ? "medical-bag" : type === "hospital" ? "hospital-building" : "stethoscope";
 }
 export function getTypeColor(type: Facility["type"]) {
-  return type === "pharmacy" ? Colors.primary : type === "hospital" ? "#2E7D9A" : "#2F6F8F";
+  return type === "pharmacy" ? Colors.primary : type === "hospital" ? "#006B4A" : "#946B00";
 }
 export function getTypeLabel(type: Facility["type"], t: any) {
   return type === "pharmacy" ? t("medical", "pharmacy") : type === "hospital" ? t("medical", "hospital") : t("medical", "clinic");
@@ -94,7 +94,7 @@ const CLINIC_PLANS = [
   { name: "مجاني",  color: Colors.textSecondary, icon: "●", price: "0",       perks: ["القائمة الأساسية", "30 موعد/شهر"] },
   { name: "برونزي", color: "#CD7F32", icon: "◉", price: "80,000",  perks: ["تأكيد واتساب", "100 موعد/شهر"] },
   { name: "فضي",    color: Colors.textMuted, icon: "⬡", price: "180,000", perks: ["تذكير تلقائي", "أولوية العرض", "مشرف مخصص"] },
-  { name: "ذهبي",   color: "#F59E0B", icon: "★", price: "350,000", perks: ["تقارير شهرية", "غير محدود", "شارة مميّز"] },
+  { name: "ذهبي",   color: "#E8A900", icon: "★", price: "350,000", perks: ["تقارير شهرية", "غير محدود", "شارة مميّز"] },
 ];
 
 function MedicalJoinBanner() {
@@ -103,15 +103,15 @@ function MedicalJoinBanner() {
   const waLink = `https://wa.me/249597083352?text=${encodeURIComponent("مرحباً، أريد تسجيل منشأتي الطبية في حصاحيصاوي")}`;
   return (
     <Animated.View entering={FadeIn.delay(150).duration(400)} style={mj.wrapper}>
-      <LinearGradient colors={["#0E2B18", "#0B2215", "#091C12"]} style={mj.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={[Colors.cardBg, Colors.primarySoft]} style={mj.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <View style={mj.dot1} /><View style={mj.dot2} />
         <View style={mj.topRow}>
           <View style={mj.iconBox}>
-            <MaterialCommunityIcons name="hospital-building" size={28} color="#E74C6F" />
+            <MaterialCommunityIcons name="hospital-building" size={28} color="#fff" />
           </View>
           <View style={{ flex: 1, alignItems: "flex-end" }}>
             <View style={mj.badge}>
-              <Ionicons name="shield-checkmark" size={11} color="#E74C6F" />
+              <Ionicons name="shield-checkmark" size={12} color={Colors.accentDeep} />
               <Text style={mj.badgeText}>انضمام رسمي موثّق</Text>
             </View>
             <Text style={mj.title}>سجِّل منشأتك الطبية{"\n"}في حصاحيصاوي</Text>
@@ -125,7 +125,7 @@ function MedicalJoinBanner() {
             { icon: "logo-whatsapp" as any,     text: "تأكيد المواعيد فوراً عبر واتساب" },
           ].map((f, i) => (
             <View key={i} style={mj.featureRow}>
-              <Ionicons name={f.icon as any} size={15} color="#E74C6F" />
+              <Ionicons name={f.icon as any} size={16} color={Colors.primary} />
               <Text style={mj.featureText}>{f.text}</Text>
             </View>
           ))}
@@ -152,9 +152,9 @@ function MedicalJoinBanner() {
 
         <View style={mj.typesRow}>
           {[
-            { icon: "hospital-building", label: "مستشفيات", color: "#E74C6F" },
-            { icon: "stethoscope",       label: "عيادات",   color: "#F97316" },
-            { icon: "medical-bag",       label: "صيدليات",  color: "#3E9CBF" },
+            { icon: "hospital-building", label: "مستشفيات", color: "#006B4A" },
+            { icon: "stethoscope",       label: "عيادات",   color: "#946B00" },
+            { icon: "medical-bag",       label: "صيدليات",  color: Colors.primary },
           ].map((tp, i) => (
             <View key={i} style={[mj.typeChip, { borderColor: tp.color + "40", backgroundColor: tp.color + "12" }]}>
               <MaterialCommunityIcons name={tp.icon as any} size={15} color={tp.color} />
@@ -166,18 +166,18 @@ function MedicalJoinBanner() {
         {/* أزرار الانضمام */}
         <View style={{ gap: 8, marginTop: 4 }}>
           <TouchableOpacity onPress={() => router.push("/org-join" as any)} activeOpacity={0.85} style={mj.joinBtnWrap}>
-            <LinearGradient colors={["#E74C6F", "#C43057"]} style={mj.joinBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <LinearGradient colors={[Colors.primary, "#006B4A"]} style={mj.joinBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               <Ionicons name="arrow-back" size={18} color="#fff" />
               <Text style={mj.joinBtnText}>قدّم طلب انضمام منشأتك</Text>
               <View style={mj.joinBtnIcon}>
-                <MaterialCommunityIcons name="domain-plus" size={18} color="#E74C6F" />
+                <MaterialCommunityIcons name="domain-plus" size={18} color={Colors.primary} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => Linking.openURL(waLink)} activeOpacity={0.85} style={mj.joinBtnWrap}>
-            <View style={[mj.joinBtn, { backgroundColor: "#1e3a1e", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }]}>
-              <Ionicons name="logo-whatsapp" size={18} color="#2EAD6B" />
-              <Text style={[mj.joinBtnText, { color: "#2EAD6B" }]}>تواصل معنا عبر واتساب</Text>
+            <View style={[mj.joinBtn, mj.waBtn]}>
+              <Ionicons name="logo-whatsapp" size={18} color="#006B4A" />
+              <Text style={[mj.joinBtnText, { color: "#006B4A" }]}>تواصل معنا عبر واتساب</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -739,7 +739,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
       <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* زر طرح سؤال */}
         <TouchableOpacity onPress={() => setShowAsk(true)} activeOpacity={0.85}>
-          <LinearGradient colors={["#2E7D9A", "#1A4F6B"]} style={cSty.askBtn}>
+          <LinearGradient colors={["#006B4A", "#004D36"]} style={cSty.askBtn}>
             <MaterialCommunityIcons name="comment-question-outline" size={20} color="#fff" />
             <Text style={cSty.askBtnText}>اطرح سؤالاً طبياً</Text>
             <Ionicons name="add" size={20} color="#fff" />
@@ -787,7 +787,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
           <View style={aptSty.sheetHeader}>
             <TouchableOpacity onPress={() => setShowAsk(false)}><Ionicons name="close" size={24} color={Colors.textSecondary} /></TouchableOpacity>
             <Text style={aptSty.sheetTitle}>استشارة طبية</Text>
-            <MaterialCommunityIcons name="comment-question-outline" size={22} color="#2E7D9A" />
+            <MaterialCommunityIcons name="comment-question-outline" size={22} color="#006B4A" />
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
             <View style={aptSty.field}>
@@ -814,7 +814,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
               <Text style={aptSty.fieldLabel}>النشر بشكل مجهول</Text>
             </View>
             <TouchableOpacity onPress={submitQuestion} disabled={sending} activeOpacity={0.85}>
-              <LinearGradient colors={sending ? [Colors.divider, Colors.divider] : ["#2E7D9A", "#1A4F6B"]} style={aptSty.submitBtn}>
+              <LinearGradient colors={sending ? [Colors.divider, Colors.divider] : ["#006B4A", "#004D36"]} style={aptSty.submitBtn}>
                 {sending ? <ActivityIndicator color="#fff" /> : <>
                   <Ionicons name="send" size={18} color="#fff" />
                   <Text style={aptSty.submitBtnText}>إرسال الاستشارة</Text>
@@ -831,7 +831,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
           <View style={aptSty.sheetHeader}>
             <TouchableOpacity onPress={() => setSelectedConsult(null)}><Ionicons name="close" size={24} color={Colors.textSecondary} /></TouchableOpacity>
             <Text style={aptSty.sheetTitle}>الاستشارة والردود</Text>
-            <MaterialCommunityIcons name="forum-outline" size={22} color="#2E7D9A" />
+            <MaterialCommunityIcons name="forum-outline" size={22} color="#006B4A" />
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
             {selectedConsult && (
@@ -944,7 +944,7 @@ function SpecialistsTab() {
                   <View style={{ flex: 1, alignItems: "flex-end", gap: 5 }}>
                     <Text style={spSty.name}>{sp.name}</Text>
                     <View style={spSty.specRow}>
-                      <MaterialCommunityIcons name="stethoscope" size={13} color="#2E7D9A" />
+                      <MaterialCommunityIcons name="stethoscope" size={13} color="#006B4A" />
                       <Text style={spSty.specLabel}>{sp.specialty}</Text>
                     </View>
                     {sp.clinic && (
@@ -987,7 +987,7 @@ function SpecialistsTab() {
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
         {selected && (
           <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-            <LinearGradient colors={["#0B2B18", Colors.bg]} style={spSty.detailHero}>
+            <LinearGradient colors={["#004D36", Colors.bg]} style={spSty.detailHero}>
               <TouchableOpacity onPress={() => setSelected(null)} style={{ alignSelf: "flex-end", marginBottom: 16 }}>
                 <Ionicons name="close-circle" size={26} color={Colors.textSecondary} />
               </TouchableOpacity>
@@ -996,7 +996,7 @@ function SpecialistsTab() {
               </View>
               <Text style={spSty.detailName}>{selected.name}</Text>
               <View style={[spSty.specRow, { justifyContent: "center" }]}>
-                <MaterialCommunityIcons name="stethoscope" size={15} color="#2E7D9A" />
+                <MaterialCommunityIcons name="stethoscope" size={15} color="#006B4A" />
                 <Text style={[spSty.specLabel, { fontSize: 14 }]}>{selected.specialty}</Text>
               </View>
             </LinearGradient>
@@ -1057,10 +1057,10 @@ const TABS: { key: MedTab; label: string; icon: string }[] = [
 ];
 
 const PATIENT_SERVICES = [
-  { title: "رحلتي الطبية",    sub: "مواعيد · فحوصات · روشتات · صيدلية", icon: "clipboard-pulse",    color: "#10B981", route: "/medical-patient-hub" },
-  { title: "الإجازات المرضية", sub: "إجازة مرضية مع رمز تحقق إلكتروني",  icon: "file-document-outline", color: "#1F5C8A", route: "/sick-leave" },
-  { title: "التنويم والمرافق", sub: "متابعة التنويم وإدارة المرافقين",    icon: "bed-outline",           color: "#3B82F6", route: "/hospital-admission" },
-  { title: "بوابة الكوادر الطبية", sub: "طبيب · معمل · صيدلية · تمريض",  icon: "hospital-box-outline",  color: "#F59E0B", route: "/staff-portal" },
+  { title: "رحلتي الطبية",    sub: "مواعيد · فحوصات · روشتات · صيدلية", icon: "clipboard-pulse",    color: "#00966A", route: "/medical-patient-hub" },
+  { title: "الإجازات المرضية", sub: "إجازة مرضية مع رمز تحقق إلكتروني",  icon: "file-document-outline", color: "#004D36", route: "/sick-leave" },
+  { title: "التنويم والمرافق", sub: "متابعة التنويم وإدارة المرافقين",    icon: "bed-outline",           color: "#008259", route: "/hospital-admission" },
+  { title: "بوابة الكوادر الطبية", sub: "طبيب · معمل · صيدلية · تمريض",  icon: "hospital-box-outline",  color: "#E8A900", route: "/staff-portal" },
 ] as const;
 
 function PatientServicesTab() {
@@ -1265,32 +1265,33 @@ const tabSty = StyleSheet.create({
 const mj = StyleSheet.create({
   wrapper: {
     borderRadius: Colors.radius.lg, overflow: "hidden", marginBottom: 4,
-    borderWidth: 1, borderColor: "#E74C6F30",
-    shadowColor: "#E74C6F", shadowOpacity: 0.12, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 5,
+    borderWidth: 1, borderColor: Colors.primary + "30",
+    ...Colors.shadow.card,
   },
   bg: { padding: 18, gap: 14, position: "relative", overflow: "hidden" },
-  dot1: { position: "absolute", width: 160, height: 160, borderRadius: 80, backgroundColor: "#E74C6F08", top: -50, left: -50 },
-  dot2: { position: "absolute", width: 100, height: 100, borderRadius: 50, backgroundColor: "#3E9CBF06", bottom: -20, right: 20 },
+  dot1: { position: "absolute", width: 170, height: 170, borderRadius: 85, backgroundColor: Colors.primary + "0D", top: -60, left: -60 },
+  dot2: { position: "absolute", width: 110, height: 110, borderRadius: 55, backgroundColor: Colors.accent + "14", bottom: -30, right: 10 },
   topRow: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
-  iconBox: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: "#E74C6F18", borderWidth: 1, borderColor: "#E74C6F30", justifyContent: "center", alignItems: "center" },
-  badge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#E74C6F18", borderWidth: 1, borderColor: "#E74C6F30", paddingHorizontal: 9, paddingVertical: 3, borderRadius: Colors.radius.pill, marginBottom: 8, alignSelf: "flex-end" },
-  badgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#E74C6F" },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right", lineHeight: 27 },
-  featuresList: { gap: 8, paddingRight: 4 },
+  iconBox: { width: 56, height: 56, borderRadius: Colors.radius.md, backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center", ...Colors.shadow.card },
+  badge: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: Colors.accentSoft, borderWidth: 1, borderColor: Colors.accent + "55", paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.pill, marginBottom: 8, alignSelf: "flex-end" },
+  badgeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: Colors.accentDeep },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 19, color: Colors.textPrimary, textAlign: "right", lineHeight: 29 },
+  featuresList: { gap: 9, paddingRight: 4 },
   featureRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  featureText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1, textAlign: "right" },
+  featureText: { fontFamily: "Cairo_500Medium", fontSize: 13.5, color: Colors.textSecondary, flex: 1, textAlign: "right" },
   typesRow: { flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" },
   typeChip: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: Colors.radius.pill, borderWidth: 1 },
-  typeLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
+  typeLabel: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  waBtn: { backgroundColor: Colors.primarySoft, borderWidth: 1.2, borderColor: Colors.primary + "45", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
   joinBtnWrap: { borderRadius: Colors.radius.md, overflow: "hidden", marginTop: 2 },
   joinBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", paddingVertical: 15, paddingHorizontal: 20, gap: 10 },
   joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
   joinBtnIcon: { width: 34, height: 34, borderRadius: Colors.radius.sm, backgroundColor: Colors.cardBg, justifyContent: "center", alignItems: "center" },
   freeNote: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginTop: -4 },
-  planCard:  { width: 130, backgroundColor: "#0B1E12", borderRadius: Colors.radius.md, borderWidth: 1, padding: 10, gap: 4, alignItems: "center" },
+  planCard:  { width: 130, backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, borderWidth: 1, padding: 10, gap: 4, alignItems: "center" },
   planName:  { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "center" },
   planPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center" },
-  planPerk:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6EE7B7", textAlign: "center", width: "100%" },
+  planPerk:  { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.primary, textAlign: "center", width: "100%" },
 });
 
 const aptSty = StyleSheet.create({
@@ -1367,14 +1368,14 @@ const aptSty = StyleSheet.create({
 
 const cSty = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Colors.radius.pill, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
-  chipActive: { backgroundColor: "#2E7D9A", borderColor: "#2E7D9A" },
+  chipActive: { backgroundColor: "#006B4A", borderColor: "#006B4A" },
   chipText: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textSecondary },
   askBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 15, borderRadius: Colors.radius.md },
   askBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff", flex: 1, textAlign: "center" },
   card: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.lg, padding: 14, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
   cardTop: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12 },
-  specBadge: { backgroundColor: "#2E7D9A18", paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#2E7D9A30", alignSelf: "flex-end" },
-  specBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#2E7D9A" },
+  specBadge: { backgroundColor: "#006B4A18", paddingHorizontal: 10, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#006B4A30", alignSelf: "flex-end" },
+  specBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#006B4A" },
   question: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, textAlign: "right", lineHeight: 22 },
   meta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   replyCount: { alignItems: "center", minWidth: 44, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, padding: 8, borderWidth: 1, borderColor: Colors.divider },
@@ -1384,14 +1385,14 @@ const cSty = StyleSheet.create({
   consultQuestion: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, textAlign: "right", lineHeight: 24 },
   repliesTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   replyCard: { backgroundColor: Colors.cardBg, borderRadius: Colors.radius.md, padding: 14, borderWidth: 1, borderColor: Colors.divider, gap: 8 },
-  replyCardSpec: { borderColor: "#2E7D9A40", backgroundColor: "#2E7D9A08" },
-  specRibbon: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "#2E7D9A", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, alignSelf: "flex-end" },
+  replyCardSpec: { borderColor: "#006B4A40", backgroundColor: "#006B4A08" },
+  specRibbon: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "#006B4A", paddingHorizontal: 10, paddingVertical: 4, borderRadius: Colors.radius.sm, alignSelf: "flex-end" },
   specRibbonText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#fff" },
   replyBody: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "right", lineHeight: 22 },
   replyMeta: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   replyBar: { flexDirection: "row-reverse", alignItems: "flex-end", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.cardBg },
   replyInput: { flex: 1, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, maxHeight: 100 },
-  sendBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: "#2E7D9A", justifyContent: "center", alignItems: "center" },
+  sendBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: "#006B4A", justifyContent: "center", alignItems: "center" },
 });
 
 const spSty = StyleSheet.create({
@@ -1400,7 +1401,7 @@ const spSty = StyleSheet.create({
   avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.primary + "15", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.primary + "30" },
   name: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
   specRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
-  specLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#2E7D9A" },
+  specLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#006B4A" },
   metaRow: { flexDirection: "row-reverse", alignItems: "center", gap: 5 },
   metaText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
   daysRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 5 },
