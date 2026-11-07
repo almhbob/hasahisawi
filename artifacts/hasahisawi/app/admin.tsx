@@ -50,7 +50,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "entities_moderation" | "portal_accounts" | "fuel_stations" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
+type Tab = "overview" | "memorials" | "entities_moderation" | "portal_accounts" | "fuel_stations" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -4367,6 +4367,7 @@ export default function AdminDashboard() {
     { key: "neighborhoods",  label: "الأحياء",           icon: "map",                color: "#3498DB",      adminOnly: true               },
     { key: "ai_settings",    label: "الذكاء الاصطناعي", icon: "sparkles",           color: Colors.cyber,   adminOnly: true               },
     { key: "security",       label: "الأمان",            icon: "lock-closed",        color: "#E05567",      adminOnly: true               },
+    { key: "memorials",        label: "حسابات المتوفين",   icon: "leaf",               color: "#0F766E",      modPerm: "memorial" },
     { key: "entities_moderation", label: "الإشراف على المنشآت", icon: "ban", color: "#B91C1C", modPerm: "merchants_admin" },
     { key: "fuel_stations",    label: "محطات الوقود",      icon: "speedometer",        color: "#F97316",      modPerm: "fuel_stations" },
     { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#F97316",      modPerm: "transport" },
@@ -4410,6 +4411,7 @@ export default function AdminDashboard() {
   const ROUTED_TABS: Partial<Record<Tab, string>> = {
     portal_accounts: "/admin-portal-accounts",
     entities_moderation: "/admin-entities",
+    memorials: "/admin-memorials",
     moderators: "/admin-permissions",
     fuel_stations: "/fuel-station-portal",
     transport: "/admin-transport",

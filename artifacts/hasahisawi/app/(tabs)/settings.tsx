@@ -1836,6 +1836,15 @@ export default function SettingsScreen() {
           {/* ─── المظهر (فاتح / داكن / تلقائي) — في الأعلى ليسهل الوصول إليه ─── */}
           <ThemeModeCard />
           <A11yCard />
+          <TouchableOpacity onPress={() => router.push({ pathname: "/memorial", params: { report: "1" } } as any)} activeOpacity={0.85}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: Colors.cardBg, borderRadius: 20, padding: 14, marginBottom: 14, ...Colors.shadow.card }}>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#0F172A", alignItems: "center", justifyContent: "center" }}><Ionicons name="leaf" size={20} color="#A7F3D0" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" }}>صدقة جارية عن فقيد</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" }}>الإبلاغ عن وفاة صاحب حساب ليُنشر عنه ذكرٌ نافع يومياً</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
 
           {/* ─── بطاقة الملف الشخصي للمستخدم ─── */}
           {auth.user && !auth.isGuest && (

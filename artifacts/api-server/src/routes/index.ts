@@ -49,6 +49,7 @@ import orgActivitiesRouter, { ensureOrgActivitiesDb } from "./org-activities";
 import fuelStationsRouter, { ensureFuelDb } from "./fuel-stations";
 import leaguesRouter, { ensureLeaguesDb } from "./leagues";
 import entityStatusRouter, { ensureEntityStatusDb } from "./entity-status";
+import memorialsRouter, { ensureMemorialsDb, startMemorialScheduler } from "./memorials";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -87,6 +88,7 @@ router.use(unionPlusRouter);
 router.use(fuelStationsRouter);
 router.use(leaguesRouter);
 router.use(entityStatusRouter);
+router.use(memorialsRouter);
 router.use(viewsRouter);
 router.use(eduInstRouter);
 router.use(demoCleanupRouter);
@@ -137,6 +139,8 @@ async function initializeDatabaseSchemas() {
   await ensureFuelDb().catch(() => {});
   await ensureLeaguesDb().catch(() => {});
   await ensureEntityStatusDb().catch(() => {});
+  await ensureMemorialsDb().catch(() => {});
+  startMemorialScheduler();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.
   await ensureAdminAlertsDb();

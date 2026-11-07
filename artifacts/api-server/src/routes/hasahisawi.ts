@@ -2804,6 +2804,7 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     );
     const user = result.rows[0];
     if (!user) return failResponse(res, lk, "بيانات الدخول غير صحيحة.");
+    if (user.is_memorial) return res.status(403).json({ error: "هذا الحساب تذكاري لصاحبه رحمه الله، ولا يمكن الدخول إليه." });
     // مستخدم تم إنشاؤه/استيراده من Firebase أو Google بلا hash صالح لـ bcrypt.
     // لا نمرر قيماً مثل firebase_only_account إلى bcrypt.compare حتى لا يرمي Server error.
     const hasHash = isValidBcryptHashForLogin(user.password_hash);
