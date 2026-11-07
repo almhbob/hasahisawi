@@ -23,6 +23,8 @@ import { alertForNewPendingAdminItems, countPendingAdminItems } from "@/lib/atte
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import TravelAgencyOwners from "@/components/admin/TravelAgencyOwners";
 import { DateInput, ymdToDate } from "@/components/ui/DateTimeField";
+import { AdminHero, ControlCenterGrid, SectionBar } from "@/components/admin/ControlCenter";
+import { neu } from "@/components/auth/neu";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type AdminUser = {
@@ -48,7 +50,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
+type Tab = "overview" | "portal_accounts" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -2461,6 +2463,14 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
                         </>
                       )}
                     </TouchableOpacity>
+                    {/* تعديل اسم المستخدم وكلمة المرور يدوياً */}
+                    <TouchableOpacity
+                      onPress={() => router.push("/admin-portal-accounts" as any)}
+                      style={{ flex: 1.4, paddingVertical: 9, borderRadius: 10, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 5,
+                        backgroundColor: Colors.primary + "18", borderWidth: 1, borderColor: Colors.primary + "50" }}>
+                      <Ionicons name="create-outline" size={14} color={Colors.primary} />
+                      <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.primary }}>بيانات الدخول</Text>
+                    </TouchableOpacity>
                     {/* كلمة مرور مؤقتة */}
                     <TouchableOpacity
                       onPress={() => resetManagerPassword(m.id, m.full_name, m.phone)}
@@ -4346,6 +4356,7 @@ export default function AdminDashboard() {
   const ALL_TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; badge?: number; adminOnly?: boolean; modPerm?: string }[] = [
     { key: "overview",       label: "نظرة عامة",        icon: "grid",               color: Colors.cyber                                  },
     { key: "members",        label: "الأعضاء",           icon: "people",             color: Colors.primary, modPerm: "members"            },
+    { key: "portal_accounts", label: "حسابات بوابة الاتحاد", icon: "key",              color: "#1F5C8A",      adminOnly: true               },
     { key: "social_reports", label: "بلاغات المجتمع",     icon: "flag",               color: "#E05567"                                     },
     { key: "admins",         label: "المديرون",          icon: "shield",             color: "#E05567",      adminOnly: true               },
     { key: "moderators",     label: "المشرفون",          icon: "shield-half",        color: "#F0A500",      adminOnly: true               },
@@ -4392,6 +4403,24 @@ export default function AdminDashboard() {
     if (isMod && t.modPerm) return modPerms.includes(t.modPerm);
     return true;
   });
+
+  // الأقسام التي لها شاشات مستقلة تُفتح كصفحة، والبقية تُعرض هنا
+  const ROUTED_TABS: Partial<Record<Tab, string>> = {
+    portal_accounts: "/admin-portal-accounts",
+    transport: "/admin-transport",
+    social_reports: "/admin-social-reports",
+    sections_config: "/admin-sections-config",
+    calls_diag: "/admin-calls",
+    section_invites: "/admin-invites",
+    cv_templates: "/cv-templates-admin",
+    legal_forms: "/legal-forms-admin",
+  };
+  const openTab = (k: Tab) => {
+    const route = ROUTED_TABS[k];
+    if (route) { router.push(route as any); return; }
+    setTab(k);
+  };
+  const pendingTotal = TABS.reduce((n, t) => n + (t.badge ?? 0), 0);
 
   // ─── Render helpers ────────────────────────────────────────────────────────
   function timeAgo(iso: string) {
@@ -4533,70 +4562,29 @@ export default function AdminDashboard() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <BrandPattern variant="diagonal" opacity={0.02} />
 
-      {/* Header */}
-      <LinearGradient colors={["#0A1510", "#0D1A12E0", "transparent"]} style={s.headerGrad}>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: "flex-end" }}>
-            <Text style={s.headerTitle}>لوحة الإدارة</Text>
-            <View style={s.headerBadge}>
-              <Ionicons name={isAdmin ? "shield" : "shield-half"} size={11} color={isAdmin ? "#E05567" : "#F0A500"} />
-              <Text style={[s.headerBadgeTxt, { color: isAdmin ? "#E05567" : "#F0A500" }]}>
-                {isAdmin ? "مدير النظام" : "مشرف"}
-              </Text>
-            </View>
-          </View>
-          <View style={s.headerAvatar}>
-            <Text style={s.headerAvatarLetter}>{user?.name?.charAt(0) ?? "؟"}</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Tab bar */}
-      <View style={s.tabsContainer}>
-        <RtlScrollRow contentContainerStyle={s.tabsRow}>
-          {TABS.map(t => {
-            const active = tab === t.key;
-            return (
-              <TouchableOpacity
-                key={t.key}
-                style={[s.tabBtn, active && { backgroundColor: t.color + "20", borderColor: t.color + "80" }]}
-                onPress={() => {
-                  if (t.key === "transport") { router.push("/admin-transport" as any); return; }
-                  if (t.key === "social_reports") { router.push("/admin-social-reports" as any); return; }
-                  if (t.key === "sections_config") { router.push("/admin-sections-config" as any); return; }
-                  if (t.key === "calls_diag") { router.push("/admin-calls" as any); return; }
-                  if (t.key === "section_invites") { router.push("/admin-invites" as any); return; }
-                  if (t.key === "cv_templates") { router.push("/cv-templates-admin" as any); return; }
-                  if (t.key === "legal_forms") { router.push("/legal-forms-admin" as any); return; }
-                  setTab(t.key);
-                }}
-                activeOpacity={0.75}
-              >
-                <View style={{ position: "relative" }}>
-                  <Ionicons name={t.icon} size={15} color={active ? t.color : Colors.textMuted} />
-                  {(t.badge ?? 0) > 0 && (
-                    <View style={s.tabBadge}>
-                      <Text style={s.tabBadgeText}>{t.badge}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={[s.tabLabel, active && { color: t.color, fontFamily: "Cairo_700Bold" }]}>
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </RtlScrollRow>
-      </View>
+      {tab !== "overview" && (
+        <SectionBar
+          current={TABS.find(t => t.key === tab)}
+          tabs={TABS}
+          onHome={() => setTab("overview")}
+          onOpen={k => openTab(k as Tab)}
+        />
+      )}
 
       {/* ── Content area ── */}
 
       {/* Overview */}
       {tab === "overview" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          <AdminHero name={user?.name} isAdmin={isAdmin} pending={pendingTotal} onBack={() => router.back()} />
+          <View style={{ marginTop: 16, marginBottom: 8 }}>
+            <ControlCenterGrid tabs={TABS} onOpen={k => openTab(k as Tab)} />
+          </View>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 18, marginBottom: 10 }}>
+            <Ionicons name="stats-chart" size={15} color={Colors.primary} />
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary }}>الإحصائيات</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: Colors.divider }} />
+          </View>
           {loadingStats ? (
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} />
           ) : stats ? (
@@ -8207,7 +8195,7 @@ export default function AdminDashboard() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: neu.base },
 
   /* Header */
   headerGrad: { paddingBottom: 8 },

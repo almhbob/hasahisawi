@@ -150,7 +150,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
       const res = await fetch(`${getApiUrl()}/api/union-manager/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -198,13 +198,14 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
           </TouchableOpacity>
           <View style={ls.orRow}><View style={ls.orLine} /><Text style={ls.orText}>أو باسم المستخدم</Text><View style={ls.orLine} /></View>
 
-          <Text style={ls.label}>اسم المستخدم</Text>
+          <Text style={ls.label}>اسم المستخدم أو رقم الهاتف</Text>
           <TextInput
             style={ls.input}
             value={username} onChangeText={setUsername}
-            placeholder="أدخل اسم المستخدم"
+            placeholder="اسم المستخدم أو الهاتف المسجّل"
             placeholderTextColor={Colors.textMuted}
-            textAlign="right" autoCapitalize="none"
+            textAlign="right" autoCapitalize="none" autoCorrect={false} spellCheck={false}
+            textContentType="username" autoComplete="username"
           />
 
           <Text style={ls.label}>كلمة المرور</Text>
@@ -215,6 +216,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, mgr: Manager) => vo
               placeholder="أدخل كلمة المرور"
               placeholderTextColor={Colors.textMuted}
               textAlign="right" secureTextEntry={!showPass}
+              autoCapitalize="none" autoCorrect={false} textContentType="password" autoComplete="password"
             />
             <TouchableOpacity onPress={() => setShowPass(p => !p)} style={ls.eyeBtn}>
               <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textMuted} />

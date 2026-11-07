@@ -6675,6 +6675,35 @@ function toLatinDigits(v: unknown): string {
     .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
 }
 
+// يوحّد أسماء الدخول قبل المقارنة: الأرقام العربية، الهمزات (أإآ→ا)، ى/ی→ي، ة→ه، ک→ك،
+// حذف التشكيل والتطويل، الحروف الصغيرة، ودمج المسافات والشرطات — حتى لا يفشل الدخول
+// بسبب اختلاف شكل الحرف بين لوحة مفاتيح وأخرى.
+function normalizeLoginName(v: unknown): string {
+  return toLatinDigits(v)
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[ً-ْٰـ]/g, "")
+    .replace(/[آأإٱ]/g, "ا")
+    .replace(/[ىی]/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/ک/g, "ك")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/[\s_\-.]+/g, "_");
+}
+
+/** اسم مستخدم لاتيني فريد لحسابات البوابات (لا يعتمد على لغة لوحة المفاتيح) */
+async function uniqueLatinUsername(table: string, base: string): Promise<string> {
+  const clean = base.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "user";
+  for (let i = 0; i < 20; i++) {
+    const cand = i === 0 ? clean : `${clean}${Math.floor(10 + Math.random() * 990)}`;
+    const ex = await query(`SELECT 1 FROM ${table} WHERE LOWER(username)=$1 LIMIT 1`, [cand]);
+    if (!ex.rows.length) return cand;
+  }
+  return `${clean}${Date.now().toString().slice(-6)}`;
+}
+
 function generateOTP(): string {
   // Use crypto.randomBytes for cryptographically secure 6-digit OTP
   const buf = require("crypto").randomBytes(4);
@@ -18408,13 +18437,36 @@ router.post("/union-manager/apply", writeLimiter, async (req: Request, res: Resp
 router.post("/union-manager/login", authLimiter, async (req: Request, res: Response) => {
   try {
     await ensureUnionMgrTables();
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
-    const r = await query(`SELECT * FROM union_managers WHERE username=$1 AND is_active=TRUE`, [username]);
-    const mgr = r.rows[0];
-    if (!mgr) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
-    const valid = await bcrypt.compare(password, mgr.password_hash);
-    if (!valid) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+    const rawUser = String(req.body?.username ?? "").slice(0, 120);
+    const rawPass = String(req.body?.password ?? "").slice(0, 128);
+    if (!rawUser.trim() || !rawPass) return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+
+    // 1) تطابق حرفي  2) تطابق بعد توحيد الحروف العربية والأرقام  3) رقم الهاتف أو البريد
+    const norm = normalizeLoginName(rawUser);
+    const lower = rawUser.trim().toLowerCase();
+    const digits = toLatinDigits(rawUser).replace(/\D/g, "");
+    let candidates = (await query(`SELECT * FROM union_managers WHERE username=$1 AND is_active=TRUE`, [rawUser.trim()])).rows;
+    if (!candidates.length) {
+      // جدول صغير (مديرو الاتحاد وموظفوه) — المقارنة بعد التوحيد تتم هنا
+      const all = (await query(`SELECT * FROM union_managers WHERE is_active=TRUE`)).rows;
+      candidates = all.filter((m: any) =>
+        normalizeLoginName(m.username) === norm ||
+        (!!m.email && String(m.email).trim().toLowerCase() === lower) ||
+        (digits.length >= 9 && toLatinDigits(m.phone || "").replace(/\D/g, "").slice(-9) === digits.slice(-9)),
+      );
+    }
+    if (!candidates.length) return res.status(401).json({ error: "اسم المستخدم غير موجود. يمكنك الدخول برقم هاتفك المسجّل أيضاً." });
+
+    // كلمة المرور كما كُتبت، ثم بعد تحويل الأرقام العربية، ثم بعد حذف المسافات الطرفية
+    const passVariants = Array.from(new Set([rawPass, toLatinDigits(rawPass), rawPass.trim(), toLatinDigits(rawPass).trim()]));
+    let mgr: any = null;
+    for (const c of candidates) {
+      for (const pv of passVariants) {
+        if (await bcrypt.compare(pv, c.password_hash)) { mgr = c; break; }
+      }
+      if (mgr) break;
+    }
+    if (!mgr) return res.status(401).json({ error: "كلمة المرور غير صحيحة. إن نسيتها اضغط «نسيت كلمة المرور»." });
     const token = "umt_" + randomBytes(24).toString("hex");
     await query(`INSERT INTO union_manager_sessions (manager_id,token) VALUES ($1,$2)`, [mgr.id, token]);
     const perms = mgr.staff_id ? ((await query(`SELECT permissions FROM union_staff WHERE id=$1`, [mgr.staff_id])).rows[0]?.permissions ?? {}) : null;
@@ -18899,14 +18951,9 @@ router.post("/admin/union-manager-apps/:id/grant-credentials", async (req: Reque
       return res.status(409).json({ error: "هذا المتقدم لديه حساب مسبق", username: existing.rows[0].username });
     }
 
-    // Auto-generate username from name + random suffix
-    const baseName = (app_.full_name as string)
-      .replace(/\s+/g, "_")
-      .replace(/[^؀-ۿ\w]/g, "")
-      .substring(0, 12)
-      .toLowerCase() || "union_mgr";
-    const suffix = Math.floor(1000 + Math.random() * 9000);
-    const username = `${baseName}_${suffix}`;
+    // اسم مستخدم لاتيني: الأسماء العربية المولّدة كانت تفشل عند الكتابة بلوحة مفاتيح مختلفة
+    const phoneDigits = toLatinDigits(app_.phone || "").replace(/\D/g, "").slice(-9);
+    const username = await uniqueLatinUsername("union_managers", phoneDigits.length >= 9 ? `su${phoneDigits}` : `union${Math.floor(1000 + Math.random() * 9000)}`);
 
     // Generate temporary password: 10-char alphanumeric
     const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -19000,6 +19047,48 @@ router.post("/admin/union-managers/:id/reset-password", async (req: Request, res
     logger.info({ id }, "[admin] union manager password reset");
     return res.json({ ...r.rows[0], temp_password: temp });
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// ── PATCH /api/admin/union-managers/:id/credentials — تعيين اسم مستخدم و/أو كلمة مرور يدوياً
+router.patch("/admin/union-managers/:id/credentials", async (req: Request, res: Response): Promise<any> => {
+  if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureUnionMgrTables();
+    const id = parseInt(req.params.id as string, 10);
+    const cur = (await query(`SELECT id FROM union_managers WHERE id=$1`, [id])).rows[0];
+    if (!cur) return res.status(404).json({ error: "الحساب غير موجود" });
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (req.body?.username !== undefined) {
+      const u = toLatinDigits(req.body.username).trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,30}$/.test(u))
+        return res.status(400).json({ error: "اسم المستخدم: 3–30 حرفاً لاتينياً أو رقماً (يُسمح بـ . _ -) ليسهل كتابته من أي لوحة مفاتيح" });
+      const dup = await query(`SELECT 1 FROM union_managers WHERE LOWER(username)=$1 AND id<>$2`, [u, id]);
+      if (dup.rows.length) return res.status(409).json({ error: "اسم المستخدم مستخدم لحساب آخر" });
+      vals.push(u);
+      sets.push("username=$" + vals.length);
+    }
+    if (req.body?.password !== undefined) {
+      const pw = toLatinDigits(String(req.body.password));
+      if (pw.length < 8 || pw.length > 128) return res.status(400).json({ error: "كلمة المرور 8 أحرف على الأقل" });
+      vals.push(await bcrypt.hash(pw, 10));
+      sets.push("password_hash=$" + vals.length);
+    }
+    if (req.body?.phone !== undefined) {
+      vals.push(toLatinDigits(req.body.phone).replace(/[^\d+]/g, "") || null);
+      sets.push("phone=$" + vals.length);
+    }
+    if (!sets.length) return res.status(400).json({ error: "لا توجد تغييرات" });
+    sets.push("is_active=TRUE");
+    vals.push(id);
+    const r = await query(
+      "UPDATE union_managers SET " + sets.join(", ") + " WHERE id=$" + vals.length + " RETURNING id, full_name, username, phone, is_active",
+      vals,
+    );
+    await query(`DELETE FROM union_manager_sessions WHERE manager_id=$1`, [id]);
+    logger.info({ id }, "[admin] union manager credentials updated");
+    return res.json({ ok: true, manager: r.rows[0] });
+  } catch (e: any) { logger.error({ err: e?.message }, "union-managers/credentials"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── DELETE /api/admin/union-managers/:id — حذف مدير
