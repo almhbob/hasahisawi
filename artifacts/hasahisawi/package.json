@@ -96,6 +96,7 @@
     "firebase": "^12.7.0",
     "html2canvas": "1.4.1",
     "lucide-react-native": "^0.468.0",
+    "react-native-document-scanner-plugin": "2.0.4",
     "react-native-maps": "1.20.1",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-view-shot": "4.0.3",

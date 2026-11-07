@@ -224,6 +224,12 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "react-native-document-scanner-plugin",
+        {
+          "cameraPermission": "يستخدم حصاحيصاوي الكاميرا لمسح مستنداتك وقصّها تلقائياً"
+        }
       ]
     ],
     "experiments": {

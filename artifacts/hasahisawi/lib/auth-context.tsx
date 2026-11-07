@@ -36,6 +36,7 @@ export type AuthUser = {
   neighborhood?: string | null;
   avatar_url?: string | null;
   gender?: "male" | "female" | null;
+  is_verified?: boolean;
 };
 
 type AuthContextValue = {
