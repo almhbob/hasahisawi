@@ -19,6 +19,7 @@ const ITEMS: { title: string; hint: string; icon: any; route: string; color: str
   { title: "مشاويرك علينا", hint: "اطلب سائقاً يوصلك", icon: "car", route: "/(tabs)/transport", color: "#B45309" },
   { title: "المواعيد", hint: "حجز موعد وتنبيهات", icon: "calendar", route: "/(tabs)/appointments", color: "#6D28D9" },
   { title: "محطات الوقود", hint: "أين يتوفر الوقود الآن", icon: "speedometer", route: "/fuel-stations", color: "#C2410C" },
+  { title: "طلبات شي إن", hint: "اطلب من شي إن وتابع شحنتك", icon: "bag-handle", route: "/shein", color: "#111827" },
   { title: "المطاعم", hint: "اطلب وجبتك", icon: "restaurant", route: "/(tabs)/restaurants", color: "#BE185D" },
   { title: "ملفي الشخصي", hint: "بياناتك وحسابك", icon: "person-circle", route: "/profile", color: "#334155" },
   { title: "الإعدادات", hint: "إعدادات الصوت وحجم الخط والتباين", icon: "settings", route: "/(tabs)/settings", color: "#475569" },

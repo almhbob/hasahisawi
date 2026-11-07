@@ -182,6 +182,14 @@ function AuthGate() {
           return;
         }
 
+        // ── طلبات شي إن: العميل لتفاصيل طلبه، والفريق للوحته ──
+        if (screen === "shein-order") {
+          if (data?.role) router.push({ pathname: "/shein-agent", params: { role: String(data.role) } } as any);
+          else if (data?.order_id) router.push({ pathname: "/shein-order", params: { id: String(data.order_id) } } as any);
+          else router.push("/shein" as any);
+          return;
+        }
+
         // ── مشوارك علينا: السائقون والإدارة والمشرفون ──
         if (type === "transport_admin_request" || screen === "admin-transport") {
           router.push("/admin-transport" as any);

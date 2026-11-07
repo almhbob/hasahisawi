@@ -126,6 +126,7 @@ export const GROUPS: Group[] = [
       { title: "مشاويرك علينا وخدمات التوصيل", icon: "car-outline", route: "/(tabs)/transport", color: "#F97316", isTransport: true },
       { title: "تذاكر السفر بين المدن", icon: "airplane-outline", route: "/(tabs)/travel", color: "#0EA5E9" },
       { title: "محطات الوقود ومحلات الغاز", icon: "speedometer-outline", route: "/fuel-stations", color: "#F97316" },
+      { title: "طلبات شي إن من السعودية", icon: "bag-handle-outline", route: "/shein", color: "#111827" },
     ],
   },
   {

@@ -1,4 +1,5 @@
 import { useFeatureFlags } from "@/lib/feature-flags-context";
+import { SERVICE_BADGE, useSheinServiceState } from "@/lib/shein-api";
 const UNION_LOGO = require("@/assets/images/student-union-logo.png");
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
@@ -50,6 +51,7 @@ const SERVICES: Service[] = [
   { id: "product-showcase", label: "سوق المتاجر", short: "المتاجر", sub: "ملابس، عطور، أحذية", keywords: "بوتيك محل متجر", icon: "storefront-outline", iconType: "ionicons", group: "daily", route: "/(tabs)/product-showcase" },
   { id: "restaurants", label: "المطاعم والكافتريات", short: "المطاعم", sub: "منيو مصوّر وطلبات", keywords: "أكل مطعم كافتيريا وجبات", icon: "restaurant-outline", iconType: "ionicons", group: "daily", route: "/(tabs)/restaurants" },
   { id: "fuel", label: "الوقود والغاز", short: "الوقود", sub: "المحطات ومحلات الغاز", keywords: "وقود بنزين جازولين جاز غاز طلمبة محطة سائق زحام سعر", icon: "gas-station", iconType: "material", group: "daily", route: "/fuel-stations", isNew: true },
+  { id: "shein", label: "طلبات شي إن", short: "شي إن", sub: "نشتري من السعودية ونوصّل لك", keywords: "شي ان شين shein ملابس تسوق طلب السعودية شحن", icon: "shopping-outline", iconType: "material", group: "daily", route: "/shein", isNew: true },
   { id: "travel", label: "السفر والرحلات", short: "السفر", sub: "وكالات وحجز تذاكر", keywords: "بص سفريات تذكرة طيران وكالة", icon: "airplane", iconType: "ionicons", group: "daily", route: "/(tabs)/travel" },
   { id: "appointments", label: "المواعيد", short: "المواعيد", sub: "حجز وتنبيهات", keywords: "حجز موعد", icon: "calendar-check-outline", iconType: "material", group: "daily", route: "/(tabs)/appointments" },
   { id: "calendar", label: "التقويم", short: "التقويم", sub: "أعياد ومناسبات", keywords: "تاريخ هجري مناسبة", icon: "calendar", iconType: "ionicons", group: "daily", route: "/(tabs)/calendar" },
@@ -142,7 +144,9 @@ const RIDE_BADGE: Record<string, { label: string; color: string; bg: string }> =
 };
 function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => void }) {
   const { ride_status } = useFeatureFlags();
-  const ride = item.id === "transport" ? RIDE_BADGE[ride_status] : undefined;
+  const shein = useSheinServiceState();
+  const ride = item.id === "transport" ? RIDE_BADGE[ride_status]
+    : item.id === "shein" && shein ? SERVICE_BADGE[shein] : undefined;
   return (
     <View style={styles.cardWrap}>
     <AnimatedPress onPress={() => onOpen(item)}>

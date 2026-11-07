@@ -15,7 +15,7 @@ import { GROUPS } from "@/components/DrawerMenu";
 
 const EXTRA_TITLES: Record<string, string> = {
   "/": "الرئيسية", "/prayer": "المساحة الدينية ومواقيت الأذان", "/chat": "الدردشة", "/appointments": "المواعيد",
-  "/settings": "الإعدادات", "/login": "تسجيل الدخول", "/fuel-stations": "محطات الوقود", "/accessible-home": "الرئيسية الميسّرة",
+  "/settings": "الإعدادات", "/login": "تسجيل الدخول", "/fuel-stations": "محطات الوقود", "/shein": "طلبات شي إن", "/accessible-home": "الرئيسية الميسّرة",
   "/conversation": "محادثة", "/restaurant": "صفحة مطعم", "/forgot-password": "استعادة كلمة المرور", "/doc-scanner": "ماسح المستندات",
 };
 
