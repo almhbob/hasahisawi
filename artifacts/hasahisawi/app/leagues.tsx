@@ -32,7 +32,7 @@ export default function LeaguesScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={LEAGUE_ACCENT} />}>
-        <LinearGradient colors={["#7C3AED", "#5B21B6", "#2E1065"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.hero}>
+        <LinearGradient colors={["#004D36", "#004D36", "#00301F"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.hero}>
           <View style={s.heroTop}>
             <TouchableOpacity onPress={() => router.back()} style={s.heroBtn} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={20} color="#fff" /></TouchableOpacity>
             {loggedIn && (
@@ -41,7 +41,7 @@ export default function LeaguesScreen() {
               </TouchableOpacity>
             )}
           </View>
-          <Ionicons name="trophy" size={34} color="#FACC15" style={{ alignSelf: "flex-end" }} />
+          <Ionicons name="trophy" size={34} color="#F7D76A" style={{ alignSelf: "flex-end" }} />
           <Text style={s.heroTitle}>الدوريات والبطولات</Text>
           <Text style={s.heroSub}>الجداول والنتائج والترتيب والهدافون وتذاكر المباريات في مكان واحد</Text>
           <View pointerEvents="none" style={s.heroCircle} />
@@ -80,7 +80,7 @@ export default function LeaguesScreen() {
                     <View style={[s.statusPill, { backgroundColor: STATUS_AR[l.status].color + "1A" }]}>
                       <Text style={[s.statusText, { color: STATUS_AR[l.status].color }]}>{STATUS_AR[l.status].label}</Text>
                     </View>
-                    {!l.approved && <View style={[s.statusPill, { backgroundColor: "#F59E0B1A" }]}><Text style={[s.statusText, { color: "#B45309" }]}>بانتظار الاعتماد</Text></View>}
+                    {!l.approved && <View style={[s.statusPill, { backgroundColor: "#F59E0B1A" }]}><Text style={[s.statusText, { color: "#946B00" }]}>بانتظار الاعتماد</Text></View>}
                   </View>
                 </NeuRaised>
               </Pressable>
@@ -154,7 +154,7 @@ const s = StyleSheet.create({
   logo: { width: 52, height: 52, borderRadius: 16, backgroundColor: "#fff" },
   name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#fff", textAlign: "right" },
   season: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.88)", textAlign: "right" },
-  live: { position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#EF4444", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  live: { position: "absolute", top: 10, left: 10, flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#D93636", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
   liveText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
   stats: { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, flexWrap: "wrap" },

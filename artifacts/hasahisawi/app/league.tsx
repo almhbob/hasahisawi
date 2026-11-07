@@ -64,7 +64,7 @@ export default function LeagueScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={color} />} stickyHeaderIndices={[1]}>
         <View>
           <View style={[s.hero, { paddingTop: insets.top + 8 }]}>
-            {L.cover_url ? <Image source={{ uri: L.cover_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <LinearGradient colors={[color, "#2E1065"]} style={StyleSheet.absoluteFill} />}
+            {L.cover_url ? <Image source={{ uri: L.cover_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <LinearGradient colors={[color, "#00301F"]} style={StyleSheet.absoluteFill} />}
             <LinearGradient colors={["rgba(0,0,0,0.25)", "rgba(0,0,0,0.65)"]} style={StyleSheet.absoluteFill} />
             <View style={s.heroTop}>
               <TouchableOpacity onPress={() => router.back()} style={s.round} accessibilityLabel="رجوع"><Ionicons name="arrow-forward" size={20} color="#fff" /></TouchableOpacity>
@@ -114,7 +114,7 @@ export default function LeagueScreen() {
                     return (
                       <TouchableOpacity key={r} onPress={() => setRound(r)} style={[s.roundChip, round === r && { backgroundColor: color, borderColor: color }]}>
                         <Text style={[s.roundText, round === r && { color: "#fff" }]}>الجولة {r}</Text>
-                        {allDone ? <Ionicons name="checkmark-circle" size={13} color={round === r ? "#fff" : "#10B981"} /> : null}
+                        {allDone ? <Ionicons name="checkmark-circle" size={13} color={round === r ? "#fff" : "#00966A"} /> : null}
                       </TouchableOpacity>
                     );
                   })}
@@ -129,7 +129,7 @@ export default function LeagueScreen() {
               <>
                 {groups.map(g => <StandingsTable key={g} rows={d.standings[g]} title={g ? `المجموعة ${g}` : undefined} onTeam={tid => setTeam(teamsById.get(tid) || null)} />)}
                 <View style={s.legend}>
-                  {[["#10B981", "المتصدر"], ["#0EA5E9", "المراكز المتقدمة"], ["#EF4444", "منطقة الهبوط"]].map(([c, l]) => (
+                  {[["#00966A", "المتصدر"], ["#008259", "المراكز المتقدمة"], ["#D93636", "منطقة الهبوط"]].map(([c, l]) => (
                     <View key={l} style={s.legendItem}><View style={[s.legendDot, { backgroundColor: c }]} /><Text style={s.legendText}>{l}</Text></View>
                   ))}
                 </View>
@@ -142,7 +142,7 @@ export default function LeagueScreen() {
               <NeuRaised radius={20} depth={6} style={{ paddingVertical: 6 }}>
                 {d.scorers.map((x, i) => (
                   <View key={x.player_name + x.team_id} style={s.scorer}>
-                    <View style={[s.rank, i < 3 && { backgroundColor: ["#FACC15", "#CBD5E1", "#D97706"][i] }]}><Text style={[s.rankText, i < 3 && { color: "#1A2C25" }]}>{i + 1}</Text></View>
+                    <View style={[s.rank, i < 3 && { backgroundColor: ["#F7D76A", "#C9D6CF", "#CB9200"][i] }]}><Text style={[s.rankText, i < 3 && { color: "#1A2C25" }]}>{i + 1}</Text></View>
                     <TeamBadge team={{ id: x.team_id, name: x.team_name, logo_url: x.logo_url } as any} size={30} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.scorerName}>{x.player_name}</Text>
@@ -223,7 +223,7 @@ function TeamSheet({ team, d, onClose }: { team: Team; d: LeagueDetail; onClose:
         {matches.slice(0, 12).map(m => {
           const home = m.home_team_id === team.id; const opp = teamsById.get(home ? m.away_team_id : m.home_team_id);
           const my = home ? m.home_score : m.away_score, their = home ? m.away_score : m.home_score;
-          const res = m.status === "finished" && my != null && their != null ? (my > their ? ["ف", "#10B981"] : my < their ? ["خ", "#EF4444"] : ["ت", "#94A3B8"]) : null;
+          const res = m.status === "finished" && my != null && their != null ? (my > their ? ["ف", "#00966A"] : my < their ? ["خ", "#D93636"] : ["ت", "#9AABA3"]) : null;
           return (
             <Pressable key={m.id} onPress={() => { onClose(); router.push({ pathname: "/league-match", params: { id: String(m.id) } } as any); }} style={s.mRow}>
               {res ? <View style={[s.res, { backgroundColor: res[1] }]}><Text style={s.resText}>{res[0]}</Text></View> : <View style={[s.res, { backgroundColor: Colors.divider }]}><Ionicons name="time-outline" size={12} color={Colors.textMuted} /></View>}
@@ -259,8 +259,8 @@ const s = StyleSheet.create({
   title: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", textAlign: "right" },
   sub: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "rgba(255,255,255,0.88)", textAlign: "right" },
   liveHead: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
-  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#EF4444" },
-  liveTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#EF4444" },
+  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#D93636" },
+  liveTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#D93636" },
   tabsWrap: { backgroundColor: neu.base, paddingHorizontal: 16, paddingVertical: 12 },
   tabs: { flexDirection: "row-reverse", padding: 4, gap: 2 },
   tab: { alignItems: "center", justifyContent: "center", gap: 1, paddingVertical: 7 },

@@ -7,7 +7,7 @@ import Colors from "@/constants/colors";
 import { neu, NeuRaised } from "@/components/auth/neu";
 import { Financials, fmt, SERVICE_BADGE, ServiceState, SheinOrder, SheinStatus, STATUS_META } from "@/lib/shein-api";
 
-export const SHEIN = "#111111";
+export const SHEIN = "#1A2C25";
 export const ACCENT = Colors.primary;
 
 export function Shell({ title, sub, insets, right, children }: { title: string; sub?: string; insets: any; right?: React.ReactNode; children: React.ReactNode }) {

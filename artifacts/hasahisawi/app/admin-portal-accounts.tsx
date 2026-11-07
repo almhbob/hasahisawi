@@ -23,7 +23,7 @@ type Mgr = {
   institution?: string | null;
 };
 
-const UNION = "#1F5C8A";
+const UNION = "#004D36";
 
 function genPassword() {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -125,7 +125,7 @@ export default function AdminPortalAccounts() {
       >
         {counts.fix > 0 && (
           <Pressable onPress={() => setFilter("fix")} style={st.alert}>
-            <Ionicons name="warning" size={20} color="#B45309" />
+            <Ionicons name="warning" size={20} color="#946B00" />
             <View style={{ flex: 1 }}>
               <Text style={st.alertTitle}>{counts.fix} حساب باسم مستخدم عربي</Text>
               <Text style={st.alertBody}>
@@ -175,16 +175,16 @@ export default function AdminPortalAccounts() {
                 <Text style={st.role} numberOfLines={1}>{m.title || "مدير اتحاد"}{m.institution ? ` · ${m.institution}` : ""}</Text>
               </View>
               <View style={[st.badge, { backgroundColor: m.is_active ? "#10B98118" : "#EF444418" }]}>
-                <View style={[st.dot, { backgroundColor: m.is_active ? "#10B981" : "#EF4444" }]} />
-                <Text style={[st.badgeText, { color: m.is_active ? "#047857" : "#B91C1C" }]}>{m.is_active ? "مفعّل" : "معلّق"}</Text>
+                <View style={[st.dot, { backgroundColor: m.is_active ? "#00966A" : "#D93636" }]} />
+                <Text style={[st.badgeText, { color: m.is_active ? "#006B4A" : "#B42323" }]}>{m.is_active ? "مفعّل" : "معلّق"}</Text>
               </View>
             </View>
 
             <View style={st.credBox}>
               <View style={st.credRow}>
                 <Text style={st.credLabel}>اسم المستخدم</Text>
-                <Text style={[st.credValue, needsFix(m) && { color: "#B45309" }]} selectable>{m.username}</Text>
-                {needsFix(m) && <Ionicons name="warning" size={14} color="#B45309" />}
+                <Text style={[st.credValue, needsFix(m) && { color: "#946B00" }]} selectable>{m.username}</Text>
+                {needsFix(m) && <Ionicons name="warning" size={14} color="#946B00" />}
               </View>
               {!!m.phone && (
                 <View style={st.credRow}>
@@ -199,7 +199,7 @@ export default function AdminPortalAccounts() {
               <ActionBtn
                 icon={m.is_active ? "pause-circle-outline" : "play-circle-outline"}
                 label={m.is_active ? "تعليق" : "تفعيل"}
-                color={m.is_active ? "#EF4444" : "#10B981"}
+                color={m.is_active ? "#D93636" : "#00966A"}
                 loading={acting === m.id}
                 onPress={() => toggle(m)}
               />
@@ -307,7 +307,7 @@ function CredentialsSheet({ mgr, onClose, onSaved, api, token }: {
           {saved ? (
             <View style={{ gap: 12 }}>
               <View style={st.successBox}>
-                <Ionicons name="checkmark-circle" size={22} color="#047857" />
+                <Ionicons name="checkmark-circle" size={22} color="#006B4A" />
                 <Text style={st.successText}>أُنهيت جلساته السابقة. أرسل له البيانات الجديدة:</Text>
               </View>
               <View style={st.credBox}>
@@ -315,7 +315,7 @@ function CredentialsSheet({ mgr, onClose, onSaved, api, token }: {
                 {!!saved.password && <View style={st.credRow}><Text style={st.credLabel}>كلمة المرور</Text><Text style={st.credValue} selectable>{saved.password}</Text></View>}
               </View>
               <View style={st.actions}>
-                {onlyDigits(phone).length >= 9 && <ActionBtn icon="logo-whatsapp" label="إرسال واتساب" color="#16A34A" filled onPress={whatsapp} />}
+                {onlyDigits(phone).length >= 9 && <ActionBtn icon="logo-whatsapp" label="إرسال واتساب" color="#00966A" filled onPress={whatsapp} />}
                 <ActionBtn icon="copy-outline" label="نسخ" color={Colors.primary} onPress={() => copyText(message).then(r => r === "copied" && notify("تم النسخ"))} />
               </View>
               <ActionBtn icon="close" label="إغلاق" color={Colors.textSecondary} onPress={onClose} />
@@ -392,7 +392,7 @@ const st = StyleSheet.create({
   sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
 
   alert: { flexDirection: "row-reverse", gap: 10, padding: 14, borderRadius: 16, backgroundColor: "#F59E0B14", borderWidth: 1, borderColor: "#F59E0B45" },
-  alertTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#B45309", textAlign: "right" },
+  alertTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#946B00", textAlign: "right" },
   alertBody: { fontFamily: "Cairo_400Regular", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right", lineHeight: 20, marginTop: 2 },
 
   searchBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 12 },
@@ -428,7 +428,7 @@ const st = StyleSheet.create({
   grabber: { alignSelf: "center", width: 44, height: 5, borderRadius: 3, backgroundColor: Colors.divider, marginBottom: 10 },
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
   sheetSub: { fontFamily: "Cairo_500Medium", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginBottom: 10 },
-  note: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#B45309", textAlign: "right", backgroundColor: "#F59E0B12", padding: 10, borderRadius: 10 },
+  note: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#946B00", textAlign: "right", backgroundColor: "#F59E0B12", padding: 10, borderRadius: 10 },
   fieldLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary, textAlign: "right" },
   fieldWrap: { flexDirection: "row", alignItems: "center", borderRadius: 13, borderWidth: 1.5, borderColor: Colors.divider, backgroundColor: Colors.bg, paddingHorizontal: 12 },
   input: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, paddingVertical: 11, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null) },
@@ -437,5 +437,5 @@ const st = StyleSheet.create({
   saveBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, marginTop: 4 },
   saveText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   successBox: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#10B98114", borderRadius: 12, padding: 12 },
-  successText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#047857", textAlign: "right" },
+  successText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#006B4A", textAlign: "right" },
 });

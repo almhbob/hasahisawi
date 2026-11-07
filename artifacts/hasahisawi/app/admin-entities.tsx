@@ -66,7 +66,7 @@ export default function AdminEntities() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row-reverse" }}>
         {TYPES.map(t => (
           <TouchableOpacity key={t.k} onPress={() => setType(t.k)} style={[s.chip, type === t.k && s.chipOn]}>
-            <Ionicons name={t.icon} size={15} color={type === t.k ? "#fff" : "#B91C1C"} /><Text style={[s.chipText, type === t.k && { color: "#fff" }]}>{t.label}</Text>
+            <Ionicons name={t.icon} size={15} color={type === t.k ? "#fff" : "#B42323"} /><Text style={[s.chipText, type === t.k && { color: "#fff" }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -77,26 +77,26 @@ export default function AdminEntities() {
         </NeuInset>
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
-        {items === null ? <ActivityIndicator color="#B91C1C" style={{ marginTop: 30 }} /> : items.length === 0 ? <Text style={[s.muted, { textAlign: "center", padding: 30 }]}>لا توجد نتائج</Text> : items.map((it, i) => (
+        {items === null ? <ActivityIndicator color="#B42323" style={{ marginTop: 30 }} /> : items.length === 0 ? <Text style={[s.muted, { textAlign: "center", padding: 30 }]}>لا توجد نتائج</Text> : items.map((it, i) => (
           <Animated.View key={it.id} entering={FadeInDown.delay(Math.min(i, 8) * 30)}>
-            <NeuRaised radius={18} depth={5} style={[s.card, it.suspended && { borderWidth: 1.5, borderColor: "#FCA5A5" }]}>
+            <NeuRaised radius={18} depth={5} style={[s.card, it.suspended && { borderWidth: 1.5, borderColor: "#F2A3A3" }]}>
               <View style={s.row}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name} numberOfLines={1}>{it.name}</Text>
-                  {it.suspended ? <Text style={[s.muted, { color: "#B91C1C" }]}>موقوفة: {it.suspend_reason}</Text>
-                    : it.paused ? <Text style={[s.muted, { color: "#B45309" }]}>متوقفة مؤقتاً بقرار صاحبها · تعود {fmtResume(it.resume_at)}</Text>
-                    : <Text style={[s.muted, { color: "#047857" }]}>نشطة</Text>}
+                  {it.suspended ? <Text style={[s.muted, { color: "#B42323" }]}>موقوفة: {it.suspend_reason}</Text>
+                    : it.paused ? <Text style={[s.muted, { color: "#946B00" }]}>متوقفة مؤقتاً بقرار صاحبها · تعود {fmtResume(it.resume_at)}</Text>
+                    : <Text style={[s.muted, { color: "#006B4A" }]}>نشطة</Text>}
                 </View>
-                <View style={[s.dot, { backgroundColor: it.suspended ? "#EF4444" : it.paused ? "#F59E0B" : "#10B981" }]} />
+                <View style={[s.dot, { backgroundColor: it.suspended ? "#D93636" : it.paused ? "#E8A900" : "#00966A" }]} />
               </View>
               <View style={s.row}>
                 {it.suspended ? (
-                  <TouchableOpacity onPress={() => reactivate(it)} style={[s.btn, { backgroundColor: "#10B981" }]}><Ionicons name="play-circle" size={15} color="#fff" /><Text style={s.btnText}>إعادة التفعيل</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => reactivate(it)} style={[s.btn, { backgroundColor: "#00966A" }]}><Ionicons name="play-circle" size={15} color="#fff" /><Text style={s.btnText}>إعادة التفعيل</Text></TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => setTarget(it)} style={[s.btn, { backgroundColor: "#F59E0B" }]}><Ionicons name="pause-circle" size={15} color="#fff" /><Text style={s.btnText}>إيقاف لمخالفة</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => setTarget(it)} style={[s.btn, { backgroundColor: "#E8A900" }]}><Ionicons name="pause-circle" size={15} color="#fff" /><Text style={s.btnText}>إيقاف لمخالفة</Text></TouchableOpacity>
                 )}
                 {user?.role === "admin" && (
-                  <TouchableOpacity onPress={() => remove(it)} style={[s.btn, { borderWidth: 1, borderColor: "#EF444466", flex: 0.7 }]}><Ionicons name="trash-outline" size={15} color="#EF4444" /><Text style={[s.btnText, { color: "#EF4444" }]}>حذف</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => remove(it)} style={[s.btn, { borderWidth: 1, borderColor: "#EF444466", flex: 0.7 }]}><Ionicons name="trash-outline" size={15} color="#D93636" /><Text style={[s.btnText, { color: "#D93636" }]}>حذف</Text></TouchableOpacity>
                 )}
               </View>
             </NeuRaised>
@@ -130,7 +130,7 @@ function SuspendSheet({ item, type, onClose, onDone, api, headers }: { item: Ite
           <Text style={s.title}>إيقاف «{item.name}»</Text>
           <Text style={s.muted}>تُخفى المنشأة من القوائم ويرى صاحبها السبب ليعالج المخالفة.</Text>
           <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
-            {REASONS.map(r => <TouchableOpacity key={r} onPress={() => setReason(r)} style={[s.rChip, reason === r && { backgroundColor: "#B91C1C", borderColor: "#B91C1C" }]}><Text style={[s.rText, reason === r && { color: "#fff" }]}>{r}</Text></TouchableOpacity>)}
+            {REASONS.map(r => <TouchableOpacity key={r} onPress={() => setReason(r)} style={[s.rChip, reason === r && { backgroundColor: "#B42323", borderColor: "#B42323" }]}><Text style={[s.rText, reason === r && { color: "#fff" }]}>{r}</Text></TouchableOpacity>)}
           </View>
           <NeuInset radius={12}><TextInput value={reason} onChangeText={setReason} multiline placeholder="سبب الإيقاف (يظهر لصاحب المنشأة)" placeholderTextColor={Colors.textSubtle} style={[s.input, { minHeight: 70, textAlignVertical: "top", paddingHorizontal: 12 }]} /></NeuInset>
           <NeuButton label="تأكيد الإيقاف" icon="ban" onPress={go} loading={busy} disabled={reason.trim().length < 5} />
@@ -147,9 +147,9 @@ const s = StyleSheet.create({
   title: { fontFamily: "Cairo_700Bold", fontSize: 19, color: Colors.textPrimary, textAlign: "right" },
   sub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
   muted: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
-  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: "#FCA5A5", backgroundColor: Colors.cardBg },
-  chipOn: { backgroundColor: "#B91C1C", borderColor: "#B91C1C" },
-  chipText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#B91C1C" },
+  chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: "#F2A3A3", backgroundColor: Colors.cardBg },
+  chipOn: { backgroundColor: "#B42323", borderColor: "#B42323" },
+  chipText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#B42323" },
   search: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingHorizontal: 12 },
   input: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", paddingVertical: 10, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null) },
   card: { padding: 14, gap: 10 },

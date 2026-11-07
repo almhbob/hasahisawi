@@ -109,7 +109,7 @@ function Verifier({ token }: { token: string }) {
             ) : null}
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
               <SmallBtn label="تأكيد الدفع" icon="checkmark-circle" filled onPress={() => act(o, true)} disabled={busy === o.id} />
-              <SmallBtn label={reject[o.id] !== undefined ? "إرسال الرفض" : "رفض"} icon="close-circle-outline" color="#B91C1C" onPress={() => act(o, false)} disabled={busy === o.id} />
+              <SmallBtn label={reject[o.id] !== undefined ? "إرسال الرفض" : "رفض"} icon="close-circle-outline" color="#B42323" onPress={() => act(o, false)} disabled={busy === o.id} />
             </View>
           </View>
         } />
@@ -196,7 +196,7 @@ function PackageRow({ p, action }: { p: SheinPackage; action?: React.ReactNode }
     <NeuRaised radius={18} depth={5} style={{ padding: 12, gap: 6 }}>
       <View style={[u.row, { justifyContent: "space-between" }]}>
         <Text style={st.pickTitle}><Ionicons name="cube" size={14} color={ACCENT} /> طرد #{p.id} · {p.orders} طلب</Text>
-        <Text style={[u.meta, { color: p.status === "received" ? "#15803D" : "#2563EB" }]}>{p.status === "received" ? "وصل الحصاحيصا" : "في الطريق"}</Text>
+        <Text style={[u.meta, { color: p.status === "received" ? "#006B4A" : "#006B4A" }]}>{p.status === "received" ? "وصل الحصاحيصا" : "في الطريق"}</Text>
       </View>
       <Text style={u.meta}>تتبع: {p.tracking_number || "—"}{p.waybill ? ` · بوليصة ${p.waybill}` : ""}{p.carrier ? ` · ${p.carrier}` : ""}</Text>
       <Text style={u.meta}>شُحن {new Date(p.shipped_at).toLocaleDateString("ar-SD")}{p.saudi_agent_name ? ` · ${p.saudi_agent_name}` : ""}</Text>
@@ -239,8 +239,8 @@ function Hasahisa({ token }: { token: string }) {
             </View>
             <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
               {(o.delivery?.phone || o.customer_phone) ? <SmallBtn label="اتصال" icon="call" onPress={() => Linking.openURL(`tel:${o.delivery?.phone || o.customer_phone}`)} /> : null}
-              {(o.delivery?.phone || o.customer_phone) ? <SmallBtn label="واتساب" icon="logo-whatsapp" color="#16A34A" onPress={() => openExternal(wa(String(o.delivery?.phone || o.customer_phone)))} /> : null}
-              <SmallBtn label="الملاحة" icon="navigate" color="#2563EB" onPress={() => nav(o)} />
+              {(o.delivery?.phone || o.customer_phone) ? <SmallBtn label="واتساب" icon="logo-whatsapp" color="#00966A" onPress={() => openExternal(wa(String(o.delivery?.phone || o.customer_phone)))} /> : null}
+              <SmallBtn label="الملاحة" icon="navigate" color="#006B4A" onPress={() => nav(o)} />
             </View>
             <SmallBtn label="تم التسليم" icon="checkmark-done" filled
               onPress={async () => { if (await confirmAction("تأكيد التسليم", `تسليم طلب #${o.id} للعميل؟`, "تم التسليم")) run(() => sheinApi.delivered(token, o.id), "تم التسليم ✓"); }} />

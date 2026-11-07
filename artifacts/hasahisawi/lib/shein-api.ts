@@ -31,19 +31,19 @@ export type SheinPackage = { id: number; waybill?: string | null; tracking_numbe
 export type SheinAgent = { user_id: number; role: SheinRole; active: boolean; name: string; phone?: string | null };
 
 export const STATUS_META: Record<SheinStatus, { label: string; short: string; icon: string; color: string }> = {
-  pending_payment_verification: { label: "بانتظار التحقق من الدفع", short: "التحقق من الدفع", icon: "receipt-outline", color: "#B45309" },
-  paid_and_processing: { label: "تم تأكيد الدفع — قيد التنفيذ", short: "تأكيد الدفع", icon: "card-outline", color: "#0EA5E9" },
-  purchased_saudi: { label: "تم الشراء من شي إن بالسعودية", short: "تم الشراء", icon: "bag-check-outline", color: "#7C3AED" },
-  shipped_to_sudan: { label: "شُحن إلى السودان", short: "في الطريق", icon: "airplane-outline", color: "#2563EB" },
-  received_hasahisa: { label: "وصل الحصاحيصا — جاهز للتسليم", short: "وصل الحصاحيصا", icon: "home-outline", color: "#0D9488" },
-  delivered: { label: "تم التسليم", short: "تم التسليم", icon: "checkmark-done-circle", color: "#15803D" },
-  cancelled: { label: "ملغي", short: "ملغي", icon: "close-circle-outline", color: "#B91C1C" },
+  pending_payment_verification: { label: "بانتظار التحقق من الدفع", short: "التحقق من الدفع", icon: "receipt-outline", color: "#946B00" },
+  paid_and_processing: { label: "تم تأكيد الدفع — قيد التنفيذ", short: "تأكيد الدفع", icon: "card-outline", color: "#CB9200" },
+  purchased_saudi: { label: "تم الشراء من شي إن بالسعودية", short: "تم الشراء", icon: "bag-check-outline", color: "#008259" },
+  shipped_to_sudan: { label: "شُحن إلى السودان", short: "في الطريق", icon: "airplane-outline", color: "#00966A" },
+  received_hasahisa: { label: "وصل الحصاحيصا — جاهز للتسليم", short: "وصل الحصاحيصا", icon: "home-outline", color: "#006B4A" },
+  delivered: { label: "تم التسليم", short: "تم التسليم", icon: "checkmark-done-circle", color: "#004D36" },
+  cancelled: { label: "ملغي", short: "ملغي", icon: "close-circle-outline", color: "#B42323" },
 };
 /** مراحل الخط الزمني بالترتيب */
 export const FLOW: SheinStatus[] = ["pending_payment_verification", "paid_and_processing", "purchased_saudi", "shipped_to_sudan", "received_hasahisa", "delivered"];
 
 export const SERVICE_BADGE: Record<ServiceState, { label: string; color: string; bg: string; icon: string }> = {
-  active: { label: "فعالة", color: "#15803D", bg: "#DCFCE7", icon: "checkmark-circle" },
+  active: { label: "فعالة", color: "#006B4A", bg: "#EAF9F3", icon: "checkmark-circle" },
   coming_soon: { label: "قريباً", color: "#946B00", bg: "#FFF4D6", icon: "time" },
   maintenance: { label: "قيد الصيانة", color: "#B42323", bg: "#FDECEC", icon: "construct" },
 };

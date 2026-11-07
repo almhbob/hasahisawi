@@ -71,25 +71,25 @@ export const leaguesApi = {
 };
 
 export const STATUS_AR: Record<string, { label: string; color: string }> = {
-  registration: { label: "التسجيل مفتوح", color: "#0EA5E9" },
-  running: { label: "جارٍ", color: "#10B981" },
-  finished: { label: "انتهى", color: "#64748B" },
-  scheduled: { label: "لم تبدأ", color: "#64748B" },
-  live: { label: "مباشر", color: "#EF4444" },
-  postponed: { label: "مؤجلة", color: "#F59E0B" },
-  cancelled: { label: "ملغاة", color: "#94A3B8" },
+  registration: { label: "التسجيل مفتوح", color: "#008259" },
+  running: { label: "جارٍ", color: "#00966A" },
+  finished: { label: "انتهى", color: "#6B7D75" },
+  scheduled: { label: "لم تبدأ", color: "#6B7D75" },
+  live: { label: "مباشر", color: "#D93636" },
+  postponed: { label: "مؤجلة", color: "#E8A900" },
+  cancelled: { label: "ملغاة", color: "#9AABA3" },
 };
 export const EVENT_META: Record<string, { label: string; icon: string; color: string }> = {
-  goal: { label: "هدف", icon: "football", color: "#10B981" },
-  penalty_goal: { label: "هدف من جزاء", icon: "football", color: "#10B981" },
-  own_goal: { label: "هدف عكسي", icon: "football", color: "#EF4444" },
-  penalty_miss: { label: "جزاء ضائع", icon: "close-circle", color: "#94A3B8" },
-  yellow: { label: "بطاقة صفراء", icon: "square", color: "#FACC15" },
-  red: { label: "بطاقة حمراء", icon: "square", color: "#EF4444" },
-  sub: { label: "تبديل", icon: "swap-horizontal", color: "#0EA5E9" },
+  goal: { label: "هدف", icon: "football", color: "#00966A" },
+  penalty_goal: { label: "هدف من جزاء", icon: "football", color: "#00966A" },
+  own_goal: { label: "هدف عكسي", icon: "football", color: "#D93636" },
+  penalty_miss: { label: "جزاء ضائع", icon: "close-circle", color: "#9AABA3" },
+  yellow: { label: "بطاقة صفراء", icon: "square", color: "#F7D76A" },
+  red: { label: "بطاقة حمراء", icon: "square", color: "#D93636" },
+  sub: { label: "تبديل", icon: "swap-horizontal", color: "#008259" },
 };
 export const ROLE_AR: Record<string, string> = { organizer: "اللجنة المنظمة", referee: "لجنة التحكيم", gate: "موظفو البوابة", admin: "إدارة التطبيق" };
-export const LEAGUE_ACCENT = "#7C3AED";
+export const LEAGUE_ACCENT = "#004D36";
 
 export function fmtKickoff(iso?: string | null) {
   if (!iso) return "الموعد لم يُحدد";

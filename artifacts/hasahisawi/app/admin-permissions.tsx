@@ -17,7 +17,7 @@ import UserAvatar from "@/components/UserAvatar";
 
 type Perm = { key: string; label: string; group: string };
 type Mod = { id: number; name: string; phone?: string | null; email?: string | null; avatar_url?: string | null; sections: string[] };
-const ACCENT = "#F0A500";
+const ACCENT = "#E8A900";
 
 export default function AdminPermissions() {
   const insets = useSafeAreaInsets();
@@ -89,13 +89,13 @@ export default function AdminPermissions() {
                   {m.sections.slice(0, 8).map(k => <View key={k} style={s.tag}><Text style={s.tagText}>{catalog.find(c => c.key === k)?.label || k}</Text></View>)}
                   {m.sections.length > 8 ? <Text style={s.muted}>+{m.sections.length - 8}</Text> : null}
                 </View>
-              ) : <Text style={[s.muted, { color: "#B45309" }]}>لم تُمنح أي صلاحية بعد</Text>}
+              ) : <Text style={[s.muted, { color: "#946B00" }]}>لم تُمنح أي صلاحية بعد</Text>}
               <View style={s.row}>
                 <TouchableOpacity onPress={() => setEdit(m)} style={[s.btn, { backgroundColor: ACCENT, flex: 2 }]}>
                   <Ionicons name="key" size={15} color="#fff" /><Text style={s.btnText}>تعديل الصلاحيات</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => demote(m)} style={[s.btn, { borderWidth: 1, borderColor: "#EF444455", flex: 1 }]}>
-                  <Text style={[s.btnText, { color: "#EF4444" }]}>إلغاء الإشراف</Text>
+                  <Text style={[s.btnText, { color: "#D93636" }]}>إلغاء الإشراف</Text>
                 </TouchableOpacity>
               </View>
             </NeuRaised>
@@ -225,7 +225,7 @@ const s = StyleSheet.create({
   row: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
   name: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
   count: { backgroundColor: ACCENT + "1F", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
-  countText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#B45309" },
+  countText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#946B00" },
   tags: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   tag: { backgroundColor: Colors.bg, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
   tagText: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: Colors.textSecondary },
@@ -237,7 +237,7 @@ const s = StyleSheet.create({
   sheetTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: Colors.textPrimary, textAlign: "right" },
   groupHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   groupTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
-  link: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#B45309" },
+  link: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#946B00" },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   perm: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, borderWidth: 1.2, borderColor: Colors.divider, backgroundColor: Colors.cardBg, width: "48.5%" },
   permOn: { borderColor: ACCENT, backgroundColor: ACCENT + "12" },

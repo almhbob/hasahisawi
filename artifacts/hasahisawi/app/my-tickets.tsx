@@ -15,10 +15,10 @@ import { TeamBadge } from "@/components/leagues/ui";
 import { fmtKickoff, LEAGUE_ACCENT, leaguesApi, money, ticketQr, type Ticket } from "@/lib/leagues-api";
 
 const STATE: Record<string, { label: string; color: string; icon: any }> = {
-  reserved: { label: "بانتظار تأكيد الدفع", color: "#F59E0B", icon: "time" },
-  paid: { label: "مؤكدة — جاهزة للدخول", color: "#10B981", icon: "checkmark-circle" },
-  used: { label: "استُخدمت", color: "#64748B", icon: "enter" },
-  cancelled: { label: "ملغاة", color: "#EF4444", icon: "close-circle" },
+  reserved: { label: "بانتظار تأكيد الدفع", color: "#E8A900", icon: "time" },
+  paid: { label: "مؤكدة — جاهزة للدخول", color: "#00966A", icon: "checkmark-circle" },
+  used: { label: "استُخدمت", color: "#6B7D75", icon: "enter" },
+  cancelled: { label: "ملغاة", color: "#D93636", icon: "close-circle" },
 };
 
 export default function MyTickets() {
@@ -52,7 +52,7 @@ export default function MyTickets() {
           return (
             <Animated.View key={t.id} entering={FadeInDown.delay(Math.min(i, 6) * 50)}>
               <Pressable onPress={() => setOpen(expanded ? "" : t.code)} style={s.ticket} accessibilityRole="button" accessibilityLabel={`تذكرة ${t.home_name} ضد ${t.away_name}، ${st.label}`}>
-                <LinearGradient colors={["#7C3AED", "#4C1D95"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.top}>
+                <LinearGradient colors={["#004D36", "#00301F"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={s.top}>
                   <Text style={s.league} numberOfLines={1}>{t.league_name}{t.stage ? ` · ${t.stage}` : ""}</Text>
                   <View style={s.teams}>
                     <View style={s.team}><TeamBadge team={{ id: 1, name: t.home_name || "", logo_url: t.home_logo } as any} size={42} /><Text style={s.teamName} numberOfLines={1}>{t.home_name}</Text></View>
@@ -77,7 +77,7 @@ export default function MyTickets() {
                       <Text style={s.muted}>{t.status === "paid" ? "اعرض الرمز عند البوابة — يُستخدم مرة واحدة" : t.status === "used" ? `دخلت ${t.used_at ? new Date(t.used_at).toLocaleString("ar-SD") : ""}` : "ادفع للجنة المنظمة ليُفعَّل الرمز"}</Text>
                       {t.status === "reserved" && (
                         <TouchableOpacity onPress={async () => { if (await confirmAction("إلغاء الحجز", "إلغاء هذه التذكرة؟", "إلغاء الحجز", true)) { await leaguesApi.setTicket(token!, t.code, "cancelled").catch((e) => notify("خطأ", e?.message)); load(); } }}>
-                          <Text style={[s.link, { color: "#EF4444" }]}>إلغاء الحجز</Text>
+                          <Text style={[s.link, { color: "#D93636" }]}>إلغاء الحجز</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -105,7 +105,7 @@ const s = StyleSheet.create({
   teams: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 14 },
   team: { alignItems: "center", gap: 4, width: 110 },
   teamName: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: "#fff" },
-  vs: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FACC15" },
+  vs: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F7D76A" },
   when: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#fff", textAlign: "center" },
   perf: { height: 20, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", backgroundColor: Colors.cardBg },
   hole: { position: "absolute", width: 24, height: 24, borderRadius: 12, backgroundColor: neu.base },

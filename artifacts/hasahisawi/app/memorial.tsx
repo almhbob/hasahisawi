@@ -27,7 +27,7 @@ export default function MemorialScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={20} color="#E2E8F0" /></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} accessibilityLabel="رجوع"><Ionicons name="chevron-forward" size={20} color="#E3EBE6" /></TouchableOpacity>
         <Text style={s.headTitle}>{report ? "الإبلاغ عن وفاة" : "صدقة جارية"}</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -50,7 +50,7 @@ function MemorialPage({ uid }: { uid: number }) {
   }, [uid, token]);
   useEffect(() => { load(); }, [load]);
   if (err) return <Text style={s.muted}>{err}</Text>;
-  if (!d) return <ActivityIndicator color="#CBD5E1" style={{ marginTop: 40 }} />;
+  if (!d) return <ActivityIndicator color="#C9D6CF" style={{ marginTop: 40 }} />;
   const m = d.memorial;
   const female = m.gender === "female";
   const pray = async () => {
@@ -61,7 +61,7 @@ function MemorialPage({ uid }: { uid: number }) {
   return (
     <>
       <Animated.View entering={FadeIn.duration(700)}>
-        <LinearGradient colors={["#1E293B", "#0F172A"]} style={s.hero}>
+        <LinearGradient colors={["#1A2C25", "#1A2C25"]} style={s.hero}>
           <View style={s.avatarRing}><UserAvatar name={m.name} avatarUrl={m.avatar_url || undefined} size={92} borderRadius={46} /></View>
           <Text style={s.name}>{m.name}</Text>
           <Text style={s.rahma}>{female ? "رحمها" : "رحمه"} الله وغفر {female ? "لها" : "له"}</Text>
@@ -111,11 +111,11 @@ function ReportForm() {
     } catch (e: any) { notify("تعذّر الإرسال", e?.message); }
     setBusy(false);
   };
-  const label = (st: string) => st === "pending" ? ["قيد المراجعة", "#F59E0B"] : st === "confirmed" ? ["تم — يُنشر عنه صدقة جارية", "#10B981"] : ["لم يُقبل", "#EF4444"];
+  const label = (st: string) => st === "pending" ? ["قيد المراجعة", "#E8A900"] : st === "confirmed" ? ["تم — يُنشر عنه صدقة جارية", "#00966A"] : ["لم يُقبل", "#D93636"];
   return (
     <>
       <NeuRaised radius={20} depth={6} style={s.intro}>
-        <Ionicons name="leaf" size={26} color="#0B6B49" />
+        <Ionicons name="leaf" size={26} color="#006B4A" />
         <Text style={s.introText}>
           عند تأكيد الوفاة: تُحذف منشورات الفقيد ومحادثاته حفظاً لخصوصيته، ويتحول حسابه إلى صفحة تذكارية ينشر منها التطبيق يومياً آيةً أو ذكراً أو دعاءً نافعاً صدقةً جاريةً عنه، ويدعو له الزوار.
         </Text>
@@ -145,24 +145,24 @@ function ReportForm() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0B1220" },
+  root: { flex: 1, backgroundColor: "#0D1613" },
   header: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 10 },
-  iconBtn: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#1E293B" },
-  headTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F1F5F9" },
-  muted: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#94A3B8", textAlign: "right", lineHeight: 20 },
-  hero: { borderRadius: 28, padding: 24, alignItems: "center", gap: 6, borderWidth: 1, borderColor: "#334155" },
-  avatarRing: { padding: 4, borderRadius: 54, borderWidth: 2, borderColor: "#CBD5E1", marginBottom: 6 },
-  name: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F8FAFC" },
-  rahma: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#A7F3D0" },
-  date: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#94A3B8" },
-  verse: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E2E8F0", marginTop: 8 },
-  stats: { flexDirection: "row-reverse", alignItems: "center", gap: 18, marginTop: 12, backgroundColor: "#1E293B", borderRadius: 16, paddingHorizontal: 20, paddingVertical: 8 },
-  stat: { alignItems: "center" }, sep: { width: 1, height: 28, backgroundColor: "#334155" },
-  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F8FAFC" },
-  statLabel: { fontFamily: "Cairo_500Medium", fontSize: 11.5, color: "#94A3B8" },
-  prayBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#0B6B49", borderRadius: 18, paddingVertical: 15 },
+  iconBtn: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#1A2C25" },
+  headTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F3F7F5" },
+  muted: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#9AABA3", textAlign: "right", lineHeight: 20 },
+  hero: { borderRadius: 28, padding: 24, alignItems: "center", gap: 6, borderWidth: 1, borderColor: "#2E4239" },
+  avatarRing: { padding: 4, borderRadius: 54, borderWidth: 2, borderColor: "#C9D6CF", marginBottom: 6 },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F3F7F5" },
+  rahma: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#A8E3CC" },
+  date: { fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#9AABA3" },
+  verse: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E3EBE6", marginTop: 8 },
+  stats: { flexDirection: "row-reverse", alignItems: "center", gap: 18, marginTop: 12, backgroundColor: "#1A2C25", borderRadius: 16, paddingHorizontal: 20, paddingVertical: 8 },
+  stat: { alignItems: "center" }, sep: { width: 1, height: 28, backgroundColor: "#2E4239" },
+  statNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F3F7F5" },
+  statLabel: { fontFamily: "Cairo_500Medium", fontSize: 11.5, color: "#9AABA3" },
+  prayBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#006B4A", borderRadius: 18, paddingVertical: 15 },
   prayText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
-  section: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E2E8F0", textAlign: "right", marginTop: 6 },
+  section: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E3EBE6", textAlign: "right", marginTop: 6 },
   post: { fontFamily: "Cairo_600SemiBold", fontSize: 14.5, color: Colors.textPrimary, textAlign: "right", lineHeight: 26 },
   postDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "right", marginTop: 6 },
   intro: { flexDirection: "row-reverse", gap: 12, padding: 14, alignItems: "flex-start" },
@@ -171,7 +171,7 @@ const s = StyleSheet.create({
   input: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, textAlign: "right", paddingHorizontal: 12, paddingVertical: 10, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null) },
   chips: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 },
   chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
-  chipOn: { backgroundColor: "#0B6B49", borderColor: "#0B6B49" },
+  chipOn: { backgroundColor: "#006B4A", borderColor: "#006B4A" },
   chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textSecondary },
   reqRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
   reqName: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary },

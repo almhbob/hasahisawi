@@ -137,7 +137,7 @@ export default function AdminSheinScreen() {
                 <Text style={st.agentName}>{a.name}</Text>
                 <Text style={u.meta}>{ROLE_LABEL[a.role]}{a.phone ? ` · ${a.phone}` : ""}</Text>
               </View>
-              <TouchableOpacity onPress={() => removeAgent(a)} accessibilityLabel={`إزالة ${a.name}`}><Ionicons name="trash-outline" size={18} color="#B91C1C" /></TouchableOpacity>
+              <TouchableOpacity onPress={() => removeAgent(a)} accessibilityLabel={`إزالة ${a.name}`}><Ionicons name="trash-outline" size={18} color="#B42323" /></TouchableOpacity>
             </View>
           ))}
         </NeuRaised>
@@ -145,7 +145,7 @@ export default function AdminSheinScreen() {
         <Text style={u.section}>{filter ? STATUS_META[filter].label : "أحدث الطلبات"} ({data.orders.length})</Text>
         {data.orders.length === 0 ? <Empty icon="bag-outline" text="لا توجد طلبات" /> : data.orders.map(o => (
           <OrderCard key={o.id} o={o} showCustomer footer={["pending_payment_verification", "paid_and_processing", "purchased_saudi"].includes(o.status)
-            ? <SmallBtn label="إلغاء إداري" icon="close-outline" color="#B91C1C" onPress={() => cancel(o)} /> : undefined} />
+            ? <SmallBtn label="إلغاء إداري" icon="close-outline" color="#B42323" onPress={() => cancel(o)} /> : undefined} />
         ))}
       </ScrollView>
     </Shell>

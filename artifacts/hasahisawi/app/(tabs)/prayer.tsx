@@ -553,9 +553,9 @@ function PrayerScreen() {
           تحت قائمة المحتوى فتختفي العناوين وتُقص الأيقونات */}
       <View style={s.tabRow}>
         {([
-          { key: "prayer",  label: "المواقيت",  icon: "time-outline",            color: "#5B8DB8" },
+          { key: "prayer",  label: "المواقيت",  icon: "time-outline",            color: "#008259" },
           { key: "adhkar",  label: "الأذكار",   icon: "leaf-outline",            color: "#22C55E" },
-          { key: "tasbih",  label: "المسبحة",   icon: "radio-button-on-outline", color: "#F59E0B" },
+          { key: "tasbih",  label: "المسبحة",   icon: "radio-button-on-outline", color: "#E8A900" },
           { key: "hijri",   label: "الهجري",    icon: "moon-outline",            color: Colors.accent },
         ] as const).map(t => {
           const on = tab === t.key;

@@ -102,7 +102,7 @@ export async function renderPageWeb(p: ExportPage, watermark: string | null): Pr
     ctx.textAlign = "left"; ctx.direction = "rtl" as any;
     const tw = ctx.measureText(watermark).width;
     const x = fs, y = c.height - fs;
-    ctx.fillStyle = "rgba(11,107,73,0.82)";
+    ctx.fillStyle = "rgba(0,107,74,0.82)";
     const r = fs * 0.5;
     ctx.beginPath(); (ctx as any).roundRect?.(x - r, y - fs - r * 0.4, tw + r * 2, fs + r * 1.4, r); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.fillText(watermark, x + tw, y - r * 0.15);

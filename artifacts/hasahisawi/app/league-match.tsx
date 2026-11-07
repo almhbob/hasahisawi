@@ -41,7 +41,7 @@ export default function LeagueMatchScreen() {
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={color} />}>
-        <LinearGradient colors={[color, "#1E1B4B"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[s.board, { paddingTop: insets.top + 8 }]}>
+        <LinearGradient colors={[color, "#00301F"]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[s.board, { paddingTop: insets.top + 8 }]}>
           <View style={s.boardTop}>
             <TouchableOpacity onPress={() => router.back()} style={s.round} accessibilityLabel="رجوع"><Ionicons name="arrow-forward" size={20} color="#fff" /></TouchableOpacity>
             <Pressable onPress={() => router.push({ pathname: "/league", params: { id: String(d.league.id) } } as any)}>
@@ -197,11 +197,11 @@ function RefereePanel({ d, token, onChanged }: { d: MatchDetail; token: string; 
     <Animated.View entering={FadeInDown}>
       <NeuRaised radius={20} depth={7} style={{ padding: 14, gap: 10, borderWidth: 1.5, borderColor: "#F59E0B66" }}>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
-          <Ionicons name="flag" size={18} color="#B45309" /><Text style={[s.h, { color: "#B45309" }]}>لوحة الحكم</Text>
+          <Ionicons name="flag" size={18} color="#946B00" /><Text style={[s.h, { color: "#946B00" }]}>لوحة الحكم</Text>
         </View>
         <View style={{ flexDirection: "row-reverse", gap: 6 }}>
           {([["scheduled", "لم تبدأ"], ["live", "بدأت (مباشر)"], ["finished", "انتهت"]] as const).map(([k, l]) => (
-            <TouchableOpacity key={k} onPress={() => setStatus(k)} disabled={!!busy} style={[s.stBtn, m.status === k && { backgroundColor: k === "live" ? "#EF4444" : k === "finished" ? "#10B981" : "#64748B", borderColor: "transparent" }]}>
+            <TouchableOpacity key={k} onPress={() => setStatus(k)} disabled={!!busy} style={[s.stBtn, m.status === k && { backgroundColor: k === "live" ? "#D93636" : k === "finished" ? "#00966A" : "#6B7D75", borderColor: "transparent" }]}>
               {busy === k ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[s.stText, m.status === k && { color: "#fff" }]}>{l}</Text>}
             </TouchableOpacity>
           ))}
@@ -240,7 +240,7 @@ function RefereePanel({ d, token, onChanged }: { d: MatchDetail; token: string; 
             {d.events.slice(-4).map(e => (
               <View key={e.id} style={s.evRow}>
                 <Text style={s.muted} numberOfLines={1}>{e.minute ?? "—"}' · {(EVENT_META[e.type] || EVENT_META.goal).label} · {e.player_name || ""}</Text>
-                <TouchableOpacity onPress={() => run("del" + e.id, () => leaguesApi.removeEvent(token, m.id, e.id))} accessibilityLabel="حذف الحدث"><Ionicons name="trash-outline" size={16} color="#EF4444" /></TouchableOpacity>
+                <TouchableOpacity onPress={() => run("del" + e.id, () => leaguesApi.removeEvent(token, m.id, e.id))} accessibilityLabel="حذف الحدث"><Ionicons name="trash-outline" size={16} color="#D93636" /></TouchableOpacity>
               </View>
             ))}
           </View>
@@ -267,7 +267,7 @@ const s = StyleSheet.create({
   teamName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "center" },
   mid: { width: 120, alignItems: "center" },
   score: { fontFamily: "Cairo_700Bold", fontSize: 40, color: "#fff", writingDirection: "ltr" },
-  kick: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#FACC15" },
+  kick: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F7D76A" },
   infoRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5 },
   info: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "center" },
   tabs: { flexDirection: "row-reverse", padding: 4, gap: 2 },

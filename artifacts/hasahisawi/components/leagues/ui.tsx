@@ -5,7 +5,8 @@ import Colors from "@/constants/colors";
 import { NeuRaised } from "@/components/auth/neu";
 import { fmtKickoff, LEAGUE_ACCENT, STATUS_AR, type Match, type StandingRow, type Team } from "@/lib/leagues-api";
 
-const PALETTE = ["#0EA5E9", "#10B981", "#F97316", "#7C3AED", "#EF4444", "#0F766E", "#B45309", "#DB2777"];
+// تدرجات شعار التطبيق: الأخضر والذهبي
+const PALETTE = ["#00966A", "#CB9200", "#006B4A", "#946B00", "#004D36", "#E8A900", "#008259", "#6B4D00"];
 export const teamColor = (t?: { id?: number; color?: string | null } | null) => t?.color || PALETTE[(t?.id ?? 0) % PALETTE.length];
 
 export function TeamBadge({ team, size = 40 }: { team?: Pick<Team, "id" | "name" | "logo_url" | "color" | "short_name"> | null; size?: number }) {
@@ -60,7 +61,7 @@ export function MatchCard({ m, home, away, onPress }: { m: Match; home?: Team; a
           </View>
           <View style={u.center}>
             {done ? (
-              <ScorePair home={hs} away={as} style={[u.score, m.status === "live" && { color: "#EF4444" }]} />
+              <ScorePair home={hs} away={as} style={[u.score, m.status === "live" && { color: "#D93636" }]} />
             ) : (
               <>
                 <Text style={u.time}>{m.kickoff ? new Date(m.kickoff).toLocaleTimeString("ar-SD", { hour: "numeric", minute: "2-digit" }) : "—"}</Text>
@@ -85,7 +86,7 @@ export function MatchCard({ m, home, away, onPress }: { m: Match; home?: Team; a
   );
 }
 
-const FORM_C: Record<string, string> = { W: "#10B981", D: "#94A3B8", L: "#EF4444" };
+const FORM_C: Record<string, string> = { W: "#00966A", D: "#9AABA3", L: "#D93636" };
 const FORM_AR: Record<string, string> = { W: "ف", D: "ت", L: "خ" };
 
 export function StandingsTable({ rows, title, onTeam }: { rows: StandingRow[]; title?: string; onTeam?: (id: number) => void }) {
@@ -100,7 +101,7 @@ export function StandingsTable({ rows, title, onTeam }: { rows: StandingRow[]; t
       {rows.map((r, i) => (
         <Pressable key={r.team_id} onPress={() => onTeam?.(r.team_id)} style={[u.tr, i % 2 === 1 && { backgroundColor: Colors.bg + "AA" }]}>
           <View style={[u.cPos, { alignItems: "center" }]}>
-            <View style={[u.posBar, { backgroundColor: i === 0 ? "#10B981" : i < 3 ? "#0EA5E9" : i >= rows.length - 2 && rows.length > 5 ? "#EF4444" : "transparent" }]} />
+            <View style={[u.posBar, { backgroundColor: i === 0 ? "#00966A" : i < 3 ? "#008259" : i >= rows.length - 2 && rows.length > 5 ? "#D93636" : "transparent" }]} />
             <Text style={u.pos}>{i + 1}</Text>
           </View>
           <View style={[u.cTeam, { flexDirection: "row-reverse", alignItems: "center", gap: 8 }]}>
@@ -113,7 +114,7 @@ export function StandingsTable({ rows, title, onTeam }: { rows: StandingRow[]; t
             </View>
           </View>
           {[r.p, r.w, r.d, r.l].map((v, k) => <Text key={k} style={u.cNum}>{v}</Text>)}
-          <Text style={[u.cNum, { color: r.gd > 0 ? "#10B981" : r.gd < 0 ? "#EF4444" : Colors.textSecondary }]}>{r.gd > 0 ? `+${r.gd}` : r.gd}</Text>
+          <Text style={[u.cNum, { color: r.gd > 0 ? "#00966A" : r.gd < 0 ? "#D93636" : Colors.textSecondary }]}>{r.gd > 0 ? `+${r.gd}` : r.gd}</Text>
           <Text style={[u.cNum, u.pts]}>{r.pts}</Text>
         </Pressable>
       ))}

@@ -85,12 +85,12 @@ export default function VoiceAssistant() {
             <Big icon="reader" label="اقرأ هذه الشاشة" onPress={cmd(tap)} />
             <Big icon="grid" label="الرئيسية الميسّرة" onPress={cmd(() => router.push("/accessible-home" as any))} />
             <Big icon="arrow-forward" label="رجوع للشاشة السابقة" onPress={cmd(() => router.canGoBack() ? router.back() : router.replace("/accessible-home" as any))} />
-            <Big icon="call" label="أرقام الطوارئ" color="#DC2626" onPress={cmd(() => router.push("/(tabs)/numbers" as any))} />
+            <Big icon="call" label="أرقام الطوارئ" color="#D93636" onPress={cmd(() => router.push("/(tabs)/numbers" as any))} />
             <View style={s.row}>
               <Big flex icon="remove" label="أبطأ" onPress={() => { const r = Math.max(0.5, +(a.rate - 0.15).toFixed(2)); a.update({ rate: r }); a.speak("أبطأ"); }} />
               <Big flex icon="add" label="أسرع" onPress={() => { const r = Math.min(1.5, +(a.rate + 0.15).toFixed(2)); a.update({ rate: r }); a.speak("أسرع"); }} />
             </View>
-            <Big icon="close" label="إغلاق" color="#475569" onPress={() => { setMenu(false); a.speak("أُغلقت القائمة"); }} />
+            <Big icon="close" label="إغلاق" color="#4A5E55" onPress={() => { setMenu(false); a.speak("أُغلقت القائمة"); }} />
           </View>
         </View>
       </Modal>
@@ -98,7 +98,7 @@ export default function VoiceAssistant() {
   );
 }
 
-function Big({ icon, label, onPress, color = "#0B6B49", flex }: { icon: any; label: string; onPress: () => void; color?: string; flex?: boolean }) {
+function Big({ icon, label, onPress, color = "#006B4A", flex }: { icon: any; label: string; onPress: () => void; color?: string; flex?: boolean }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.big, { backgroundColor: color }, flex && { flex: 1 }, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={label}>
       <Ionicons name={icon} size={26} color="#fff" />
@@ -110,13 +110,13 @@ function Big({ icon, label, onPress, color = "#0B6B49", flex }: { icon: any; lab
 const s = StyleSheet.create({
   fab: {
     position: "absolute", left: 16, width: 66, height: 66, borderRadius: 33, zIndex: 9999,
-    backgroundColor: "#0B6B49", alignItems: "center", justifyContent: "center",
-    borderWidth: 3, borderColor: "#FACC15",
+    backgroundColor: "#006B4A", alignItems: "center", justifyContent: "center",
+    borderWidth: 3, borderColor: "#F7D76A",
     shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 12,
   },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#0F172A", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, gap: 10, width: "100%", maxWidth: 620, alignSelf: "center" },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FACC15", textAlign: "center", marginBottom: 6 },
+  sheet: { backgroundColor: "#1A2C25", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, gap: 10, width: "100%", maxWidth: 620, alignSelf: "center" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F7D76A", textAlign: "center", marginBottom: 6 },
   row: { flexDirection: "row-reverse", gap: 10 },
   big: { flexDirection: "row-reverse", alignItems: "center", gap: 14, minHeight: 64, borderRadius: 18, paddingHorizontal: 18 },
   bigText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },

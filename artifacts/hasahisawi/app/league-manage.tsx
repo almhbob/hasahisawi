@@ -116,8 +116,8 @@ function TeamsSec({ d, token, reload }: { d: LeagueDetail; token: string; reload
             <View key={t.id} style={s.rowItem}>
               <TeamBadge team={t} size={34} />
               <View style={{ flex: 1 }}><Text style={s.itemTitle}>{t.name}</Text><Text style={s.muted}>{[t.manager_name, t.manager_phone, t.coach].filter(Boolean).join(" · ")}</Text></View>
-              <TouchableOpacity onPress={async () => { await leaguesApi.updateTeam(token, d.league.id, t.id, { status: "approved" }); reload(); }} style={[s.mini, { backgroundColor: "#10B981" }]}><Text style={s.miniText}>اعتماد</Text></TouchableOpacity>
-              <TouchableOpacity onPress={async () => { await leaguesApi.updateTeam(token, d.league.id, t.id, { status: "rejected" }); reload(); }} style={[s.mini, { backgroundColor: "#EF4444" }]}><Text style={s.miniText}>رفض</Text></TouchableOpacity>
+              <TouchableOpacity onPress={async () => { await leaguesApi.updateTeam(token, d.league.id, t.id, { status: "approved" }); reload(); }} style={[s.mini, { backgroundColor: "#00966A" }]}><Text style={s.miniText}>اعتماد</Text></TouchableOpacity>
+              <TouchableOpacity onPress={async () => { await leaguesApi.updateTeam(token, d.league.id, t.id, { status: "rejected" }); reload(); }} style={[s.mini, { backgroundColor: "#D93636" }]}><Text style={s.miniText}>رفض</Text></TouchableOpacity>
             </View>
           ))}
         </NeuRaised>
@@ -137,7 +137,7 @@ function TeamsSec({ d, token, reload }: { d: LeagueDetail; token: string; reload
           <TeamBadge team={t} size={38} />
           <View style={{ flex: 1 }}><Text style={s.itemTitle}>{t.name}</Text><Text style={s.muted}>{t.group_name ? `المجموعة ${t.group_name} · ` : ""}{t.players_count || 0} لاعب{t.coach ? ` · ${t.coach}` : ""}</Text></View>
           <TouchableOpacity onPress={() => setSquad(t)} style={[s.mini, { backgroundColor: LEAGUE_ACCENT }]}><Text style={s.miniText}>اللاعبون</Text></TouchableOpacity>
-          <TouchableOpacity onPress={async () => { if (await confirmAction("حذف الفريق", `حذف «${t.name}» ومبارياته؟`, "حذف", true)) { await leaguesApi.removeTeam(token, d.league.id, t.id); reload(); } }} accessibilityLabel="حذف"><Ionicons name="trash-outline" size={18} color="#EF4444" /></TouchableOpacity>
+          <TouchableOpacity onPress={async () => { if (await confirmAction("حذف الفريق", `حذف «${t.name}» ومبارياته؟`, "حذف", true)) { await leaguesApi.removeTeam(token, d.league.id, t.id); reload(); } }} accessibilityLabel="حذف"><Ionicons name="trash-outline" size={18} color="#D93636" /></TouchableOpacity>
         </NeuRaised>
       ))}
       <SquadSheet team={squad} d={d} token={token} onClose={() => { setSquad(null); reload(); }} />
@@ -254,7 +254,7 @@ function MatchesSec({ d, token, reload }: { d: LeagueDetail; token: string; relo
         <View key={m.id} style={{ gap: 4 }}>
           <MatchCard m={m} home={byId.get(m.home_team_id)} away={byId.get(m.away_team_id)} onPress={() => setEdit(m)} />
           <View style={s.matchMeta}>
-            <Ionicons name="flag-outline" size={12} color={m.referee_name ? "#10B981" : "#F59E0B"} />
+            <Ionicons name="flag-outline" size={12} color={m.referee_name ? "#00966A" : "#E8A900"} />
             <Text style={[s.muted, { flex: 1 }]}>{m.referee_name ? `الحكم: ${m.referee_name}` : "لم يُسند حكم"}</Text>
             <TouchableOpacity onPress={() => router.push({ pathname: "/league-match", params: { id: String(m.id) } } as any)}><Text style={s.link}>مركز المباراة</Text></TouchableOpacity>
           </View>
@@ -367,7 +367,7 @@ function TicketsSec({ d, token }: { d: LeagueDetail; token: string }) {
       {mid && (
         <>
           <View style={s.kpis}>
-            {[["محجوزة", tickets.filter(t => t.status === "reserved").length, "#F59E0B"], ["مدفوعة", tickets.filter(t => t.status === "paid").length, "#10B981"], ["دخلت", tickets.filter(t => t.status === "used").length, LEAGUE_ACCENT], ["الإيراد", money(revenue), Colors.textPrimary]].map(([l, v, c]) => (
+            {[["محجوزة", tickets.filter(t => t.status === "reserved").length, "#E8A900"], ["مدفوعة", tickets.filter(t => t.status === "paid").length, "#00966A"], ["دخلت", tickets.filter(t => t.status === "used").length, LEAGUE_ACCENT], ["الإيراد", money(revenue), Colors.textPrimary]].map(([l, v, c]) => (
               <NeuRaised key={String(l)} radius={14} depth={4} style={s.kpi}><Text style={[s.kpiNum, { color: c as string }]}>{v}</Text><Text style={s.muted}>{l}</Text></NeuRaised>
             ))}
           </View>
@@ -394,7 +394,7 @@ function TicketsSec({ d, token }: { d: LeagueDetail; token: string }) {
                   </View>
                   <StatusPill status={t.status === "used" ? "finished" : t.status === "paid" ? "running" : t.status === "cancelled" ? "cancelled" : "postponed"} />
                   {t.status === "reserved" && (
-                    <TouchableOpacity onPress={async () => { await leaguesApi.setTicket(token, t.code, "paid"); load(); }} style={[s.mini, { backgroundColor: "#10B981" }]}><Text style={s.miniText}>تأكيد الدفع</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={async () => { await leaguesApi.setTicket(token, t.code, "paid"); load(); }} style={[s.mini, { backgroundColor: "#00966A" }]}><Text style={s.miniText}>تأكيد الدفع</Text></TouchableOpacity>
                   )}
                 </View>
               ))}
@@ -432,7 +432,7 @@ function GateSec({ d, token }: { d: LeagueDetail; token: string }) {
     <>
       <MatchPicker d={d} value={mid} onChange={setMid} />
       {result && (
-        <Animated.View entering={ZoomIn} style={[s.result, { backgroundColor: result.ok ? "#10B981" : "#EF4444" }]}>
+        <Animated.View entering={ZoomIn} style={[s.result, { backgroundColor: result.ok ? "#00966A" : "#D93636" }]}>
           <Ionicons name={result.ok ? "checkmark-circle" : "close-circle"} size={54} color="#fff" />
           <Text style={s.resultTitle}>{result.title}</Text>
           <Text style={s.resultSub}>{result.sub}</Text>
@@ -493,7 +493,7 @@ function StaffSec({ d, token, reload }: { d: LeagueDetail; token: string; reload
               <View key={x.user_id + r} style={s.rowItem}>
                 <View style={s.avatar}><Text style={s.avatarText}>{(x.name || "؟").charAt(0)}</Text></View>
                 <View style={{ flex: 1 }}><Text style={s.itemTitle}>{x.name}</Text>{x.title ? <Text style={s.muted}>{x.title}</Text> : null}</View>
-                <TouchableOpacity onPress={async () => { if (await confirmAction("إزالة", `إزالة ${x.name} من ${ROLE_AR[r]}؟`, "إزالة", true)) { await leaguesApi.removeStaff(token, d.league.id, x.user_id, r); reload(); } }}><Ionicons name="close-circle-outline" size={20} color="#EF4444" /></TouchableOpacity>
+                <TouchableOpacity onPress={async () => { if (await confirmAction("إزالة", `إزالة ${x.name} من ${ROLE_AR[r]}؟`, "إزالة", true)) { await leaguesApi.removeStaff(token, d.league.id, x.user_id, r); reload(); } }}><Ionicons name="close-circle-outline" size={20} color="#D93636" /></TouchableOpacity>
               </View>
             ))}
           </NeuRaised>
@@ -519,7 +519,7 @@ function SettingsSec({ d, token, reload }: { d: LeagueDetail; token: string; rel
     } catch (e: any) { notify("خطأ", e?.message); }
     setBusy(false);
   };
-  const COLORS = ["#7C3AED", "#0B6B49", "#1D4ED8", "#B91C1C", "#B45309", "#0F766E", "#DB2777", "#111827"];
+  const COLORS = ["#00301F", "#004D36", "#006B4A", "#00966A", "#4EC99D", "#6B4D00", "#946B00", "#E8A900"];
   return (
     <NeuRaised radius={18} depth={6} style={{ padding: 14, gap: 8 }}>
       <ImageUploadField label="شعار الدوري" value={f.logo_url || ""} onChange={u => setF({ ...f, logo_url: u })} folder="leagues" aspect={1} />
@@ -533,7 +533,7 @@ function SettingsSec({ d, token, reload }: { d: LeagueDetail; token: string; rel
       </View>
       <Text style={s.label}>اللون</Text>
       <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
-        {COLORS.map(c => <TouchableOpacity key={c} onPress={() => setF({ ...f, primary_color: c })} style={[s.color, { backgroundColor: c }, f.primary_color === c && { borderWidth: 3, borderColor: "#FACC15" }]} accessibilityLabel={c} />)}
+        {COLORS.map(c => <TouchableOpacity key={c} onPress={() => setF({ ...f, primary_color: c })} style={[s.color, { backgroundColor: c }, f.primary_color === c && { borderWidth: 3, borderColor: "#F7D76A" }]} accessibilityLabel={c} />)}
       </View>
       <Text style={s.label}>النقاط (فوز / تعادل / خسارة)</Text>
       <View style={{ flexDirection: "row-reverse", gap: 8 }}>
@@ -569,7 +569,7 @@ const s = StyleSheet.create({
   title: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "right" },
   sub: { fontFamily: "Cairo_500Medium", fontSize: 11.5, color: Colors.textMuted, textAlign: "right" },
   muted: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
-  approve: { marginHorizontal: 16, marginBottom: 10, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#10B981", borderRadius: 14, paddingVertical: 10 },
+  approve: { marginHorizontal: 16, marginBottom: 10, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#00966A", borderRadius: 14, paddingVertical: 10 },
   approveText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   secChip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   secText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: Colors.textPrimary },
@@ -595,7 +595,7 @@ const s = StyleSheet.create({
   resultTitle: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#fff" },
   resultSub: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#fff", textAlign: "center" },
   camWrap: { height: 340, borderRadius: 22, overflow: "hidden", backgroundColor: "#000", alignItems: "center", justifyContent: "center" },
-  camFrame: { width: 220, height: 220, borderRadius: 24, borderWidth: 4, borderColor: "#FACC15" },
+  camFrame: { width: 220, height: 220, borderRadius: 24, borderWidth: 4, borderColor: "#F7D76A" },
   camClose: { position: "absolute", top: 12, left: 12, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
   roleBtn: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: Colors.divider },
   avatar: { width: 34, height: 34, borderRadius: 11, backgroundColor: LEAGUE_ACCENT, alignItems: "center", justifyContent: "center" },

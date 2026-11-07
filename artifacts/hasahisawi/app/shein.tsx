@@ -225,7 +225,7 @@ function OrderForm({ token, settings, defaultPhone, defaultName, onDone }: { tok
           </NeuInset>
         ) : <Text style={u.meta}>ستظهر بيانات الحساب هنا — تواصل مع الدعم إن لم تظهر.</Text>}
         <ImageUploadField label={`إيصال التحويل${unit > 0 ? ` (${fin.total_sdg.toLocaleString("en-US")} ج.س)` : ""}`} value={receipt} onChange={setReceipt} folder="shein-receipts" aspect={9 / 16} />
-        {tried && !receipt ? <Text style={[u.meta, { color: "#B91C1C" }]}>الإيصال مطلوب</Text> : null}
+        {tried && !receipt ? <Text style={[u.meta, { color: "#B42323" }]}>الإيصال مطلوب</Text> : null}
       </NeuRaised>
 
       <NeuRaised radius={20} style={u.card}>

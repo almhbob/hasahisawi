@@ -22,9 +22,9 @@ export type FuelStation = {
 export type FuelCatalog = { fuels: Record<FuelKey, { label: string; unit: string }>; services: Record<string, string> };
 
 export const FUEL_META: Record<FuelKey, { label: string; unit: string; icon: string; color: string }> = {
-  gasoline: { label: "بنزين", unit: "لتر", icon: "car-sport", color: "#10B981" },
-  diesel: { label: "جازولين", unit: "لتر", icon: "bus", color: "#0EA5E9" },
-  gas: { label: "غاز الطبخ", unit: "أسطوانة", icon: "flame", color: "#F97316" },
+  gasoline: { label: "بنزين", unit: "لتر", icon: "car-sport", color: "#00966A" },
+  diesel: { label: "جازولين", unit: "لتر", icon: "bus", color: "#008259" },
+  gas: { label: "غاز الطبخ", unit: "أسطوانة", icon: "flame", color: "#CB9200" },
 };
 
 export const SERVICE_ICONS: Record<string, string> = {
@@ -33,9 +33,9 @@ export const SERVICE_ICONS: Record<string, string> = {
 };
 
 export const QUEUE_LABEL: Record<string, { label: string; color: string }> = {
-  none: { label: "بلا زحام", color: "#10B981" },
-  short: { label: "زحام خفيف", color: "#F59E0B" },
-  long: { label: "زحام شديد", color: "#EF4444" },
+  none: { label: "بلا زحام", color: "#00966A" },
+  short: { label: "زحام خفيف", color: "#E8A900" },
+  long: { label: "زحام شديد", color: "#D93636" },
 };
 
 async function call<T>(path: string, init: RequestInit = {}, token?: string | null): Promise<T> {
