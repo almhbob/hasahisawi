@@ -447,6 +447,7 @@ router.get("/stores", wrap(async (req, res) => {
   const params: unknown[] = [womenOnly];
   let where = `s.status='active' AND s.women_only=$1 AND ${notSuspended("store", "s.id")}`;
   if ((STORE_TYPES as readonly string[]).includes(type)) { params.push(type); where += ` AND s.type=$${params.length}`; }
+  else if (type === "food") where += ` AND s.type IN ('restaurant','cafe')`; // تُعرض في قسم المطاعم والكافيهات
   const q = String(req.query.q || "").trim();
   if (q) { params.push(`%${q.slice(0, 60)}%`); where += ` AND (s.name ILIKE $${params.length} OR s.description ILIKE $${params.length})`; }
   const r = await query(
@@ -461,7 +462,8 @@ router.get("/stores", wrap(async (req, res) => {
 // معرض المنتجات من كل المتاجر النشطة (للصفحة الرئيسية «سوق المتاجر»)
 router.get("/stores/feed", wrap(async (req, res) => {
   const params: unknown[] = [];
-  let where = `s.status='active' AND s.women_only=FALSE AND ${notSuspended("store", "s.id")} AND p.is_available AND (p.stock IS NULL OR p.stock > 0)`;
+  // المطاعم والكافتيريات مكانها قسم «المطاعم والكافيهات»، ومتاجر النساء مكانها قسم المرأة
+  let where = `s.status='active' AND s.women_only=FALSE AND s.type NOT IN ('restaurant','cafe') AND ${notSuspended("store", "s.id")} AND p.is_available AND (p.stock IS NULL OR p.stock > 0)`;
   const type = String(req.query.type || "");
   if ((STORE_TYPES as readonly string[]).includes(type)) { params.push(type); where += ` AND s.type=$${params.length}`; }
   const q = String(req.query.q || "").trim();
@@ -477,8 +479,8 @@ router.get("/stores/feed", wrap(async (req, res) => {
        FROM store_products p JOIN stores s ON s.id=p.store_id WHERE ${where} ORDER BY ${order} LIMIT 300`, params);
   const stores = await query(
     `SELECT s.id, s.name, s.type, s.logo_url, s.cover_url, s.is_open, s.delivery_available,
-            (SELECT COUNT(*)::int FROM store_products p WHERE p.store_id=s.id AND p.is_available) AS product_count
-       FROM stores s WHERE s.status='active' AND s.women_only=FALSE AND ${notSuspended("store", "s.id")} ORDER BY product_count DESC, s.id DESC LIMIT 30`);
+            (SELECT COUNT(*)::int FROM store_products p WHERE p.store_id=s.id AND p.is_available AND (p.stock IS NULL OR p.stock > 0)) AS product_count
+       FROM stores s WHERE s.status='active' AND s.women_only=FALSE AND s.type NOT IN ('restaurant','cafe') AND ${notSuspended("store", "s.id")} ORDER BY product_count DESC, s.id DESC LIMIT 200`);
   return res.json({
     products: r.rows.map((x: any) => ({ ...productRow(x), delivery_fee: Number(x.delivery_fee || 0), min_order: Number(x.min_order || 0) })),
     stores: stores.rows,

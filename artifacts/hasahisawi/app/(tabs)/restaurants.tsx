@@ -8,6 +8,7 @@ import ModernHeader from "@/components/ui/ModernHeader";
 import CartButton from "@/components/CartButton";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
+import { getApiUrl } from "@/lib/query-client";
 import BusinessFormModal from "@/components/food/BusinessFormModal";
 import BizLogo from "@/components/food/BizLogo";
 import { foodApi, TYPE_META, bizColor, fmtMoney, type BizType, type FoodBusiness } from "@/lib/food-api";
@@ -18,6 +19,8 @@ export default function RestaurantsScreen() {
   const [type, setType] = useState<BizType | "">("");
   const [q, setQ] = useState("");
   const [list, setList] = useState<FoodBusiness[]>([]);
+  // مطاعم وكافتيريات سُجّلت من «لوحة متجري» — مكانها هذا القسم لا سوق المتاجر
+  const [foodStores, setFoodStores] = useState<any[]>([]);
   const [mine, setMine] = useState<FoodBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,6 +36,7 @@ export default function RestaurantsScreen() {
         token ? foodApi.businesses(token, { mine: true }).catch(() => ({ businesses: [] as FoodBusiness[] })) : Promise.resolve({ businesses: [] as FoodBusiness[] }),
       ]);
       setList(a.businesses); setMine(m.businesses);
+      fetch(`${getApiUrl()}/api/stores?type=food`).then((r) => (r.ok ? r.json() : [])).then((j) => setFoodStores(Array.isArray(j) ? j : [])).catch(() => {});
     } catch (e: any) { setError(e?.message || "تعذّر التحميل"); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
@@ -43,6 +47,11 @@ export default function RestaurantsScreen() {
     const t = q.trim();
     return list.filter((b) => (!type || b.business_type === type) && (!t || b.name.includes(t) || (b.description || "").includes(t) || (b.district || "").includes(t)));
   }, [list, type, q]);
+
+  const storesShown = useMemo(() => {
+    const t = q.trim();
+    return foodStores.filter((x) => (!type || x.type === type) && (!t || String(x.name).includes(t) || String(x.description || "").includes(t)));
+  }, [foodStores, type, q]);
 
   const openRegister = () => { if (!token) return router.push("/login" as any); setForm(true); };
 
@@ -100,12 +109,12 @@ export default function RestaurantsScreen() {
 
           {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} /> : error ? (
             <TouchableOpacity onPress={load} style={s.empty}><Ionicons name="refresh" size={30} color={Colors.textMuted} /><Text style={s.emptyTxt}>{error} — اضغط لإعادة المحاولة</Text></TouchableOpacity>
-          ) : shown.length === 0 ? (
+          ) : shown.length === 0 && storesShown.length === 0 ? (
             <View style={s.empty}>
               <MaterialCommunityIcons name="silverware-fork-knife" size={40} color={Colors.textMuted} />
-              <Text style={s.emptyTitle}>{list.length ? "لا نتائج مطابقة" : "لا توجد مطاعم مسجّلة بعد"}</Text>
-              <Text style={s.emptyTxt}>{list.length ? "جرّب نوعاً آخر أو كلمة بحث مختلفة" : "إن كنت صاحب مطعم أو كافتيريا، سجّل محلك واستقبل الطلبات من التطبيق"}</Text>
-              {!list.length ? <TouchableOpacity onPress={openRegister} style={s.cta}><Text style={s.ctaTxt}>سجّل مطعمك مجاناً</Text></TouchableOpacity> : null}
+              <Text style={s.emptyTitle}>{list.length || foodStores.length ? "لا نتائج مطابقة" : "لا توجد مطاعم مسجّلة بعد"}</Text>
+              <Text style={s.emptyTxt}>{list.length || foodStores.length ? "جرّب نوعاً آخر أو كلمة بحث مختلفة" : "إن كنت صاحب مطعم أو كافتيريا، سجّل محلك واستقبل الطلبات من التطبيق"}</Text>
+              {!list.length && !foodStores.length ? <TouchableOpacity onPress={openRegister} style={s.cta}><Text style={s.ctaTxt}>سجّل مطعمك مجاناً</Text></TouchableOpacity> : null}
             </View>
           ) : shown.map((b) => {
             const c = bizColor(b);
@@ -133,6 +142,29 @@ export default function RestaurantsScreen() {
               </AnimatedPress>
             );
           })}
+          {!loading && storesShown.length ? storesShown.map((x) => (
+            <AnimatedPress key={`st${x.id}`} onPress={() => router.push({ pathname: "/stores", params: { open: String(x.id) } } as any)}>
+              <View style={s.card}>
+                <View style={[s.cover, { backgroundColor: (TYPE_META[x.type as BizType]?.color || Colors.primary) + "22" }]}>
+                  {x.cover_url ? <Image source={{ uri: x.cover_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+                  <View style={[s.openPill, { backgroundColor: x.is_open !== false && x.accepts_orders !== false ? "#0E9C64" : "#6B6B6B" }]}>
+                    <Text style={s.openTxt}>{x.is_open !== false && x.accepts_orders !== false ? "يستقبل الطلبات" : "مغلق الآن"}</Text>
+                  </View>
+                </View>
+                <View style={s.cardBody}>
+                  <View style={{ marginTop: -34 }}><View style={s.logoRing}>
+                    {x.logo_url ? <Image source={{ uri: x.logo_url }} style={{ width: 58, height: 58, borderRadius: 29 }} /> : <View style={{ width: 58, height: 58, borderRadius: 29, alignItems: "center", justifyContent: "center", backgroundColor: Colors.primary + "18" }}><MaterialCommunityIcons name={(TYPE_META[x.type as BizType]?.icon || "storefront-outline") as any} size={26} color={Colors.primary} /></View>}
+                  </View></View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={s.name} numberOfLines={1}>{x.name}</Text>
+                    <Text style={s.meta} numberOfLines={1}>{TYPE_META[x.type as BizType]?.label || "مطعم"}{x.address ? ` · ${x.address}` : ""}{Number(x.product_count) ? ` · ${x.product_count} صنف` : ""}</Text>
+                    <Text style={s.modes} numberOfLines={1}>{x.delivery_available ? "توصيل" : "استلام من المحل"}</Text>
+                  </View>
+                  <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+                </View>
+              </View>
+            </AnimatedPress>
+          )) : null}
         </View>
       </ScrollView>
 
