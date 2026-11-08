@@ -9749,17 +9749,76 @@ router.get("/sports/posts", async (_req: Request, res: Response) => {
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
 });
 
+// ── صلاحيات القسم الرياضي ──────────────────────────────────────
+// المدير، أو المشرف بصلاحية «الرياضة والدوريات»، أو حامل «رمز القسم الرياضي» (أو رمز الإدارة العام).
+// رمز القسم الرياضي مستقل عن رمز الإدارة: يُعطى لمدير القسم دون كشف رمز التطبيق، ويُولَّد من جديد في أي وقت.
+async function sportsCode(): Promise<string | null> {
+  const r = await query(`SELECT value FROM admin_settings WHERE key='sports_code'`).catch(() => ({ rows: [] as any[] }));
+  return r.rows[0]?.value || null;
+}
+function codeEquals(a: string, b: string) {
+  const x = Buffer.from(a.trim().toUpperCase()), y = Buffer.from(b.trim().toUpperCase());
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+async function isSportsManagerSession(req: Request): Promise<boolean> {
+  const u = await getSessionUser(req);
+  if (!u) return false;
+  if (u.role === "admin") return true;
+  if (u.role !== "moderator") return false;
+  const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section='leagues' LIMIT 1`, [u.id]).catch(() => ({ rows: [] as any[] }));
+  return r.rows.length > 0;
+}
+async function isSportsRequest(req: Request): Promise<boolean> {
+  if (await isSportsManagerSession(req)) return true;
+  const code = String(req.headers["x-sports-code"] || req.headers["x-admin-pin"] || "");
+  if (code) { const c = await sportsCode(); if (c && codeEquals(code, c)) return true; }
+  return isAdminRequest(req);
+}
+
+// GET /api/sports/access — هل للمستخدم إدارة القسم الرياضي بلا رمز؟
+router.get("/sports/access", async (req: Request, res: Response) => {
+  return res.json({ admin: await isSportsManagerSession(req), code_configured: !!(await sportsCode()) });
+});
+// POST /api/sports/validate-code { code } — رمز القسم الرياضي (أو رمز الإدارة العام)
+router.post("/sports/validate-code", pinLimiter, async (req: Request, res: Response) => {
+  const code = String(req.body?.code || "");
+  if (code.length < 4 || code.length > 64) return res.json({ valid: false });
+  const c = await sportsCode();
+  if (c && codeEquals(code, c)) return res.json({ valid: true, kind: "sports" });
+  const a = await query(`SELECT value FROM admin_settings WHERE key='admin_pin'`).catch(() => ({ rows: [] as any[] }));
+  return res.json({ valid: pinMatches(code, a.rows[0]?.value), kind: "admin" });
+});
+// GET /api/admin/sports/code — عرض الرمز الحالي (استرجاعه) للمدير ومشرف الرياضة
+router.get("/admin/sports/code", async (req: Request, res: Response) => {
+  if (!(await isSportsManagerSession(req))) return res.status(403).json({ error: "للمدير أو مشرف القسم الرياضي" });
+  const r = await query(`SELECT value FROM admin_settings WHERE key='sports_code'`).catch(() => ({ rows: [] as any[] }));
+  const at = await query(`SELECT value FROM admin_settings WHERE key='sports_code_at'`).catch(() => ({ rows: [] as any[] }));
+  return res.json({ code: r.rows[0]?.value || null, updated_at: at.rows[0]?.value || null });
+});
+// POST /api/admin/sports/code — توليد رمز جديد (الرمز القديم يتوقف فوراً)
+router.post("/admin/sports/code", pinLimiter, async (req: Request, res: Response) => {
+  if (!(await isSportsManagerSession(req))) return res.status(403).json({ error: "للمدير أو مشرف القسم الرياضي" });
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(8);
+  let code = ""; for (const b of bytes) code += alphabet[b % alphabet.length];
+  const now = new Date().toISOString();
+  await query(`INSERT INTO admin_settings (key, value) VALUES ('sports_code',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [code]);
+  await query(`INSERT INTO admin_settings (key, value) VALUES ('sports_code_at',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [now]);
+  logger.info({ by: (await getSessionUser(req))?.id }, "[sports] code rotated");
+  return res.json({ code, updated_at: now });
+});
+
 router.post("/sports/posts", async (req: Request, res: Response) => {
   try {
+    // المدير، مشرف «الرياضة والدوريات»، أو حامل رمز القسم الرياضي
+    if (!(await isSportsRequest(req))) return res.status(403).json({ error: "غير مصرح" });
     const user = await getSessionUser(req);
-    if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
-    if (user.role !== "admin" && user.role !== "moderator") return res.status(403).json({ error: "غير مصرح" });
     const { title, content, type, team, image_url } = req.body;
     if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
     const { rows } = await query(
       `INSERT INTO sports_posts (author_name, author_id, title, content, type, team, image_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [user.name, user.id, title.trim(), content.trim(), type || "news", team || null, image_url || null]
+      [user?.name || "إدارة القسم الرياضي", user?.id ?? null, title.trim(), content.trim(), type || "news", team || null, image_url || null]
     );
     return res.status(201).json(rows[0]);
   } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
@@ -9775,7 +9834,7 @@ router.patch("/sports/posts/:id/like", async (_req: Request, res: Response) => {
 
 router.delete("/sports/posts/:id", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM sports_posts WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
@@ -9790,7 +9849,7 @@ router.get("/sports/players", async (_req: Request, res: Response) => {
 
 router.post("/sports/players", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { name, position, team, age, goals, assists, matches_played, photo_url, bio } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
     const { rows } = await query(
@@ -9804,7 +9863,7 @@ router.post("/sports/players", async (req: Request, res: Response) => {
 
 router.patch("/sports/players/:id", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { name, position, team, age, goals, assists, matches_played, photo_url, bio } = req.body;
     const { rows } = await query(
       `UPDATE sports_players SET name=COALESCE($1,name), position=COALESCE($2,position), team=COALESCE($3,team),
@@ -9820,7 +9879,7 @@ router.patch("/sports/players/:id", async (req: Request, res: Response) => {
 
 router.delete("/sports/players/:id", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM sports_players WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
@@ -9835,7 +9894,7 @@ router.get("/sports/matches", async (_req: Request, res: Response) => {
 
 router.post("/sports/matches", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { home_team, away_team, home_score, away_score, match_date, venue, status, notes } = req.body;
     if (!home_team?.trim() || !away_team?.trim() || !match_date) return res.status(400).json({ error: "الفريقان والتاريخ مطلوبان" });
     const { rows } = await query(
@@ -9850,7 +9909,7 @@ router.post("/sports/matches", async (req: Request, res: Response) => {
 
 router.patch("/sports/matches/:id", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     const { home_score, away_score, status, notes } = req.body;
     const { rows } = await query(
       `UPDATE sports_matches SET home_score=COALESCE($1,home_score), away_score=COALESCE($2,away_score),
@@ -9864,7 +9923,7 @@ router.patch("/sports/matches/:id", async (req: Request, res: Response) => {
 
 router.delete("/sports/matches/:id", async (req: Request, res: Response) => {
   try {
-    if (!await isAdminRequest(req)) return res.status(403).json({ error: "غير مصرح" });
+    if (!await isSportsRequest(req)) return res.status(403).json({ error: "غير مصرح" });
     await query(`DELETE FROM sports_matches WHERE id=$1`, [req.params.id]);
     return res.json({ ok: true });
   } catch (e) { return res.status(500).json({ error: "Server error" }); }
