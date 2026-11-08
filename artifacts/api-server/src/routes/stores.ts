@@ -247,6 +247,8 @@ router.put("/store/my", wrap(async (req, res) => {
   const b = req.body || {};
   const logo = await uploadImage(req, "logo", `hasahisawi/stores/${u.id}`);
   const cover = await uploadImage(req, "cover", `hasahisawi/stores/${u.id}`);
+  const sent = (f: string) => !!((req as any).files?.[f]?.[0]);
+  if ((sent("logo") && !logo) || (sent("cover") && !cover)) return res.status(502).json({ error: "تعذّر رفع الصورة، حاول مرة أخرى" });
   const type = (STORE_TYPES as readonly string[]).includes(b.type) ? b.type : s.type;
   const name = str(b.name, 120) || s.name;
   // A rejected store goes back to review after the owner edits it.
@@ -260,6 +262,9 @@ router.put("/store/my", wrap(async (req, res) => {
      b.delivery_available !== undefined ? bool(b.delivery_available) : s.delivery_available,
      b.min_order !== undefined ? num(b.min_order) : s.min_order, b.delivery_fee !== undefined ? num(b.delivery_fee) : s.delivery_fee,
      logo, cover, status, s.id]);
+  // إزالة الشعار أو الغلاف بطلب صريح
+  if (bool(b.remove_logo) && !logo) await query(`UPDATE stores SET logo_url=NULL WHERE id=$1`, [s.id]);
+  if (bool(b.remove_cover) && !cover) await query(`UPDATE stores SET cover_url=NULL WHERE id=$1`, [s.id]);
   // الإعدادات الإضافية (اختيارية — تُحدَّث فقط إن أُرسلت)
   const PAY = ["cash", "bankak", "fawry", "ocash", "transfer"];
   const ex: [string, unknown][] = [];

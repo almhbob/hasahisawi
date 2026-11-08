@@ -273,6 +273,7 @@ export default function StorePortalScreen() {
       {activeTab === "overview" && store && (
         <OverviewTab
           store={store}
+          onStoreChange={setStore}
           apiBase={apiBase}
           authHeader={authHeader}
           onRefresh={onRefresh}
@@ -600,12 +601,14 @@ function PendingView({
 
 function OverviewTab({
   store,
+  onStoreChange,
   apiBase,
   authHeader,
   onRefresh,
   refreshing,
 }: {
   store: MyStore;
+  onStoreChange: (s: MyStore) => void;
   apiBase: string;
   authHeader: Record<string, string>;
   onRefresh: () => void;
@@ -651,6 +654,7 @@ function OverviewTab({
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <>
+          <StoreBrandCard store={store} apiBase={apiBase} authHeader={authHeader} onChange={onStoreChange} />
           {/* Stats Grid */}
           <Animated.View entering={FadeInDown.springify().delay(50)} style={styles.statsGrid}>
             <StatCard label="طلبات اليوم" value={todayOrders.length.toString()} icon="receipt-outline" color={Colors.primary} />
@@ -680,6 +684,72 @@ function OverviewTab({
     </ScrollView>
   );
 }
+
+/** هوية المتجر: الشعار والغلاف كما يراهما العملاء، مع تغييرهما مباشرة */
+function StoreBrandCard({ store, apiBase, authHeader, onChange }: { store: MyStore; apiBase: string; authHeader: Record<string, string>; onChange: (s: MyStore) => void }) {
+  const [busy, setBusy] = useState<"" | "logo" | "cover">("");
+  const send = async (kind: "logo" | "cover", uri: string | null) => {
+    setBusy(kind);
+    try {
+      const form = new FormData();
+      if (uri) form.append(kind, await filePart(uri, `${kind}.jpg`, "image/jpeg"));
+      else form.append(`remove_${kind}`, "true");
+      const r = await fetch(`${apiBase}/api/store/my`, { method: "PUT", headers: { ...authHeader }, body: form });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error || "تعذّر الحفظ");
+      onChange(j);
+    } catch (e: any) { Alert.alert("تعذّر التحديث", e?.message || ""); }
+    finally { setBusy(""); }
+  };
+  const pick = async (kind: "logo" | "cover") => {
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.85, allowsEditing: true, aspect: kind === "logo" ? [1, 1] : [16, 9] });
+    if (!r.canceled && r.assets[0]) send(kind, r.assets[0].uri);
+  };
+  const logoMenu = () => {
+    if (!store.logo_url) { pick("logo"); return; }
+    Alert.alert("شعار المتجر", "يظهر في سوق المتاجر وصفحة متجرك والسلة والطلبات", [
+      { text: "تغيير الشعار", onPress: () => pick("logo") },
+      { text: "إزالة الشعار", style: "destructive", onPress: () => send("logo", null) },
+      { text: "إلغاء", style: "cancel" },
+    ]);
+  };
+  const initial = (store.name || "م").trim().charAt(0);
+  return (
+    <Animated.View entering={FadeInDown.springify()} style={brand.card}>
+      <TouchableOpacity activeOpacity={0.9} onPress={() => pick("cover")} style={brand.cover} accessibilityRole="button" accessibilityLabel="تغيير صورة الغلاف">
+        {store.cover_url ? <Image source={{ uri: store.cover_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.primaryDeep }]} />}
+        <View style={brand.coverBtn}>
+          {busy === "cover" ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="image-outline" size={14} color="#fff" />}
+          <Text style={brand.coverBtnT}>{store.cover_url ? "تغيير الغلاف" : "إضافة غلاف"}</Text>
+        </View>
+      </TouchableOpacity>
+      <View style={brand.row}>
+        <TouchableOpacity onPress={logoMenu} style={brand.logo} accessibilityRole="button" accessibilityLabel={store.logo_url ? "تغيير شعار المتجر" : "إضافة شعار المتجر"}>
+          {store.logo_url ? <Image source={{ uri: store.logo_url }} style={brand.logoImg} /> : <Text style={brand.initial}>{initial}</Text>}
+          <View style={brand.cam}>{busy === "logo" ? <ActivityIndicator size="small" color="#3D2C00" /> : <Ionicons name="camera" size={13} color="#3D2C00" />}</View>
+        </TouchableOpacity>
+        <View style={{ flex: 1, paddingTop: 30 }}>
+          <Text style={brand.name} numberOfLines={1}>{store.name}</Text>
+          <Text style={brand.hint}>{store.logo_url ? "اضغط الشعار لتغييره أو إزالته" : "أضف شعار متجرك ليتعرّف عليك العملاء في السوق"}</Text>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+const brand = StyleSheet.create({
+  card: { backgroundColor: Colors.cardBg, borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: Colors.divider, marginBottom: 14 },
+  cover: { height: 110, justifyContent: "flex-start", alignItems: "flex-start", padding: 10 },
+  coverBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 4 },
+  coverBtnT: { fontFamily: "Cairo_600SemiBold", fontSize: 11.5, color: "#fff" },
+  row: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 12, paddingHorizontal: 14, paddingBottom: 14, marginTop: -36 },
+  logo: { width: 76, height: 76, borderRadius: 24, backgroundColor: Colors.primary, borderWidth: 3, borderColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  logoImg: { width: 70, height: 70, borderRadius: 21 },
+  initial: { fontFamily: "Cairo_700Bold", fontSize: 30, color: "#fff" },
+  cam: { position: "absolute", bottom: -4, left: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: "#E8A900", borderWidth: 2, borderColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  name: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, textAlign: "right" },
+  hint: { fontFamily: "Cairo_500Medium", fontSize: 12, color: Colors.textMuted, textAlign: "right" },
+});
 
 function StatCard({
   label,
@@ -1567,12 +1637,12 @@ function SettingsTab({
   };
 
   const pickLogo = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.85, allowsEditing: true, aspect: [1, 1] });
     if (!result.canceled && result.assets[0]) setLogoUri(result.assets[0].uri);
   };
 
   const pickCover = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.85, allowsEditing: true, aspect: [16, 9] });
     if (!result.canceled && result.assets[0]) setCoverUri(result.assets[0].uri);
   };
 
