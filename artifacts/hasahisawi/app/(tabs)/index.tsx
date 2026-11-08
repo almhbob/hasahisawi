@@ -257,7 +257,7 @@ export default function HomeScreen() {
                 <View style={styles.logoBox}><Image source={APP_LOGO} style={styles.logo} resizeMode="contain" /></View>
                 <View>
                   <Text style={styles.brandName}>حصاحيصاوي</Text>
-                  <Text style={styles.brandSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>في خدمة مواطن الحصاحيصا وضواحيها</Text>
+                  <Text style={styles.brandSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>لخدمة مواطن المنطقة وضواحيها</Text>
                 </View>
               </View>
               <View style={styles.heroActions}>
