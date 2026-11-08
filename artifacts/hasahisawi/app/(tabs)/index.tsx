@@ -3,6 +3,7 @@ import { SERVICE_BADGE, useSheinServiceState } from "@/lib/shein-api";
 const UNION_LOGO = require("@/assets/images/student-union-logo.png");
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
+import SectionGlyph, { hasSectionGlyph } from "@/components/SectionGlyph";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -133,6 +134,8 @@ function SvcIcon({ item, size, color }: { item: Service; size: number; color: st
   // الشارة تُرسم دائماً هلالاً أحمر على أرضية بيضاء (هيئتها المعتمدة)
   if (item.iconType === "srcs") return <RedCrescentMark size={size + 6} background="#FFFFFF" />;
   if (item.iconType === "union") return <Image source={UNION_LOGO} style={{ width: size + 10, height: size + 10 }} accessibilityLabel="شعار اتحاد الطلاب" />;
+  // نظام أيقونات حصاحيصاوي (مصمم في فيجما): ثنائي اللون بذهبي الشعار
+  if (hasSectionGlyph(item.id)) return <SectionGlyph id={item.id} size={size + 3} color={color} />;
   return item.iconType === "ionicons"
     ? <Ionicons name={item.icon} size={size} color={color} />
     : <MaterialCommunityIcons name={item.icon} size={size} color={color} />;
