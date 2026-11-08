@@ -52,6 +52,7 @@ import entityStatusRouter, { ensureEntityStatusDb } from "./entity-status";
 import memorialsRouter, { ensureMemorialsDb, startMemorialScheduler } from "./memorials";
 import sheinRouter, { ensureSheinDb } from "./shein";
 import marketPostsRouter, { ensureMarketPostsDb } from "./market-posts";
+import patientJourneyRouter, { ensurePatientJourneyDb } from "./patient-journey";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -93,6 +94,7 @@ router.use(entityStatusRouter);
 router.use(memorialsRouter);
 router.use(sheinRouter);
 router.use(marketPostsRouter);
+router.use(patientJourneyRouter);
 router.use(viewsRouter);
 router.use(eduInstRouter);
 router.use(demoCleanupRouter);
@@ -146,6 +148,7 @@ async function initializeDatabaseSchemas() {
   await ensureMemorialsDb().catch(() => {});
   await ensureSheinDb().catch(() => {});
   await ensureMarketPostsDb().catch(() => {});
+  await ensurePatientJourneyDb().catch(() => {});
   startMemorialScheduler();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.

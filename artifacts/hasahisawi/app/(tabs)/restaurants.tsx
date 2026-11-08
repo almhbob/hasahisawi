@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
+import CartButton from "@/components/CartButton";
 import AnimatedPress from "@/components/AnimatedPress";
 import { useAuth } from "@/lib/auth-context";
 import BusinessFormModal from "@/components/food/BusinessFormModal";
@@ -49,7 +50,7 @@ export default function RestaurantsScreen() {
     <View style={s.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}>
-        <ModernHeader title="المطاعم والكافتريات" subtitle="اطلب من مطاعم الحصاحيصا مباشرة" icon="restaurant-outline">
+        <ModernHeader title="المطاعم والكافتريات" subtitle="اطلب من مطاعم الحصاحيصا مباشرة" icon="restaurant-outline" rightSlot={<CartButton />}>
           <View style={s.searchBox}>
             <Ionicons name="search" size={18} color={Colors.textMuted} />
             <TextInput value={q} onChangeText={setQ} placeholder="ابحث عن مطعم أو حي…" placeholderTextColor={Colors.textMuted} style={s.searchInput} textAlign="right" />
