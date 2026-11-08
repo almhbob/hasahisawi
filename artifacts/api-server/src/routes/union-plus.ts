@@ -191,7 +191,7 @@ for (const portal of [true, false]) {
       const p = readActivity(req.body || {}); if (!p.ok) return res.status(400).json({ error: p.error });
       const status: ActStatus = STATUSES.includes(req.body?.status) ? req.body.status : "published";
       const r = await query(`INSERT INTO union_activities (title, body, category, activity_date, location, cover_url, images, attendees, created_by, created_by_admin, author_name, status, published_at, archived_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12, CASE WHEN $12 <> 'draft' THEN NOW() END, CASE WHEN $12='archived' THEN NOW() END) RETURNING *`,
+        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12::text, CASE WHEN $12::text <> 'draft' THEN NOW() END, CASE WHEN $12::text = 'archived' THEN NOW() END) RETURNING *`,
         [...p.v, who.kind === "manager" ? who.id : null, who.kind === "admin" ? who.id : null, who.name, status]);
       if (status === "published" && req.body?.announce) await announce(r.rows[0]);
       return res.status(201).json({ activity: actOut(r.rows[0]) });
@@ -217,9 +217,9 @@ for (const portal of [true, false]) {
     try {
       const prev = (await query(`SELECT status FROM union_activities WHERE id=$1`, [parseInt(String(req.params.id), 10) || 0])).rows[0];
       if (!prev) return res.status(404).json({ error: "النشاط غير موجود" });
-      const r = await query(`UPDATE union_activities SET status=$1,
-          published_at = CASE WHEN $1='published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
-          archived_at = CASE WHEN $1='archived' THEN NOW() ELSE NULL END, updated_at=NOW()
+      const r = await query(`UPDATE union_activities SET status=$1::text,
+          published_at = CASE WHEN $1::text='published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
+          archived_at = CASE WHEN $1::text='archived' THEN NOW() ELSE NULL END, updated_at=NOW()
         WHERE id=$2 RETURNING *`, [status, parseInt(String(req.params.id), 10) || 0]);
       if (status === "published" && prev.status === "draft" && req.body?.announce) await announce(r.rows[0]);
       return res.json({ activity: actOut(r.rows[0]) });

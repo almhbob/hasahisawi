@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { ArchiveTab } from "@/components/union/PortalArchiveElections";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -75,7 +76,7 @@ export default function StudentUnionAdminScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
 
-  const [tab, setTab] = useState<"members" | "partners">("members");
+  const [tab, setTab] = useState<"members" | "activities" | "partners">("members");
 
   // طلبات العضوية
   const [apps, setApps]       = useState<Application[]>([]);
@@ -218,8 +219,9 @@ export default function StudentUnionAdminScreen() {
       {/* تبويبات الصفحات */}
       <View style={s.tabRow}>
         {([
-          ["members",  "العضويات",   "school-outline"],
-          ["partners", "الشراكات",   "briefcase-outline"],
+          ["members",    "العضويات", "school-outline"],
+          ["activities", "الأنشطة",  "images-outline"],
+          ["partners",   "الشراكات", "briefcase-outline"],
         ] as const).map(([key, label, icon]) => (
           <TouchableOpacity key={key} onPress={() => setTab(key)}
             style={[s.tabBtn, tab === key && s.tabBtnActive]}>
@@ -407,6 +409,11 @@ export default function StudentUnionAdminScreen() {
       )}
 
       {/* محتوى الشراكات */}
+      {/* الأنشطة: نشر وأرشفة من إدارة التطبيق */}
+      {tab === "activities" && (token
+        ? <View style={{ flex: 1 }}><ArchiveTab token={token} canEdit base="/admin/student-union/activities" /></View>
+        : <Text style={{ textAlign: "center", padding: 30, color: Colors.textMuted, fontFamily: "Cairo_500Medium" }}>سجّل الدخول بحساب الإدارة</Text>)}
+
       {tab === "partners" && (
         <ScrollView showsVerticalScrollIndicator={false}>
           {pLoading ? (

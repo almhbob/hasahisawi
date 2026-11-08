@@ -67,7 +67,8 @@ export default function AccessibleHome() {
             accessibilityLabel={it.title}
             accessibilityHint={it.hint}
           >
-            <View style={[s.icon, { backgroundColor: it.color }]}><Ionicons name={it.icon} size={34} color="#fff" /></View>
+            {/* في وضع المكفوفين لا نعرض الأيقونات: البطاقة نص كبير فقط، والقارئ يقرأ الاسم والتلميح */}
+            {!a.enabled && <View style={[s.icon, { backgroundColor: it.color }]}><Ionicons name={it.icon} size={34} color="#fff" /></View>}
             <View style={{ flex: 1 }}>
               <Text style={s.itemTitle}>{it.title}</Text>
               <Text style={s.itemHint}>{it.hint}</Text>

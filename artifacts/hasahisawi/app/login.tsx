@@ -816,7 +816,7 @@ function DateBox({ label, placeholder, value, max, onChange, flex = 1 }: {
 }) {
   return (
     <NeuInset radius={14} style={[styles.dateBox, { flex }]}>
-      <Text style={styles.dateLabel}>{label}</Text>
+      <Text style={styles.dateLabel} maxFontSizeMultiplier={1.4}>{label}</Text>
       <TextInput
         style={styles.dateInput}
         placeholder={placeholder}
@@ -826,6 +826,7 @@ function DateBox({ label, placeholder, value, max, onChange, flex = 1 }: {
         keyboardType="number-pad"
         maxLength={max}
         textAlign="center"
+        maxFontSizeMultiplier={1.4}
         accessibilityLabel={label}
       />
     </NeuInset>
@@ -881,10 +882,12 @@ const styles = StyleSheet.create({
 
   smallLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: Colors.textMuted, textAlign: "right", paddingHorizontal: 6 },
   dateRow: { flexDirection: "row-reverse", gap: 10 },
-  dateBox: { paddingTop: 6, paddingBottom: 2 },
+  dateBox: { paddingTop: 6, paddingBottom: 6 },
   dateLabel: { fontFamily: "Cairo_500Medium", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
   dateInput: {
-    fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, height: 38, paddingVertical: 0,
+    // ارتفاع مرن + بلا حشو الخط على أندرويد: خط Cairo طويل الصعود والنزول فكان الارتفاع الثابت (38) يقص الأرقام
+    fontFamily: "Cairo_700Bold", fontSize: 18, lineHeight: 30, color: Colors.textPrimary, minHeight: 44, paddingVertical: 4,
+    includeFontPadding: false, textAlignVertical: "center",
     ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null),
   },
 

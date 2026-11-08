@@ -2073,21 +2073,21 @@ export default function SettingsScreen() {
               }}
               activeOpacity={0.82}
             >
-              <View style={[contactSty.actionIconBox, { backgroundColor: "#E74C3C18", borderColor: "#E74C3C35" }]}>
-                <MaterialCommunityIcons name="bug-outline" size={22} color="#E74C3C" />
+              <View style={[contactSty.actionIconBox, { backgroundColor: "#D9363618", borderColor: "#D9363635" }]}>
+                <MaterialCommunityIcons name="bug-outline" size={22} color="#D93636" />
               </View>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={contactSty.actionTitle}>الإبلاغ عن مشكلة</Text>
                 <Text style={contactSty.actionSub}>أرسل تقرير مشكلة عبر واتساب</Text>
               </View>
               <View style={contactSty.waBadge}>
-                <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+                <MaterialCommunityIcons name="whatsapp" size={18} color="#00966A" />
               </View>
             </TouchableOpacity>
 
             {/* زر الاقتراح */}
             <TouchableOpacity
-              style={[contactSty.actionBtn, { borderColor: "#F59E0B25" }]}
+              style={[contactSty.actionBtn, { borderColor: "#E8A90025" }]}
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 Linking.openURL(PLATFORM.waSuggest(auth.user?.name)).catch(() =>
@@ -2096,15 +2096,15 @@ export default function SettingsScreen() {
               }}
               activeOpacity={0.82}
             >
-              <View style={[contactSty.actionIconBox, { backgroundColor: "#F59E0B18", borderColor: "#F59E0B35" }]}>
-                <Ionicons name="bulb-outline" size={22} color="#F59E0B" />
+              <View style={[contactSty.actionIconBox, { backgroundColor: "#E8A90018", borderColor: "#E8A90035" }]}>
+                <Ionicons name="bulb-outline" size={22} color="#E8A900" />
               </View>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={contactSty.actionTitle}>اقتراح أو ملاحظة</Text>
                 <Text style={contactSty.actionSub}>ساعدنا في تطوير التطبيق</Text>
               </View>
               <View style={contactSty.waBadge}>
-                <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+                <MaterialCommunityIcons name="whatsapp" size={18} color="#00966A" />
               </View>
             </TouchableOpacity>
 
@@ -2148,7 +2148,7 @@ export default function SettingsScreen() {
             {/* معلومات الاتصال */}
             <View style={contactSty.infoBox}>
               <View style={contactSty.infoRow}>
-                <MaterialCommunityIcons name="whatsapp" size={13} color="#25D366" />
+                <MaterialCommunityIcons name="whatsapp" size={13} color="#00966A" />
                 <Text style={contactSty.infoText}>{PLATFORM.whatsapp}</Text>
                 <Text style={contactSty.infoDot}>•</Text>
                 <Text style={contactSty.infoText}>{PLATFORM.phoneSudan}</Text>
@@ -2164,7 +2164,7 @@ export default function SettingsScreen() {
           <View style={legalSty.card}>
             <View style={legalSty.headerRow}>
               <View style={legalSty.iconBox}>
-                <Ionicons name="shield-checkmark" size={22} color="#10B981" />
+                <Ionicons name="shield-checkmark" size={22} color="#00966A" />
               </View>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={legalSty.title}>الخصوصية والسياسات</Text>
@@ -2183,7 +2183,7 @@ export default function SettingsScreen() {
               activeOpacity={0.8}
             >
               <View style={legalSty.btnIcon}>
-                <Ionicons name="document-text-outline" size={20} color="#10B981" />
+                <Ionicons name="document-text-outline" size={20} color="#00966A" />
               </View>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={legalSty.btnTitle}>سياسة الخصوصية</Text>
@@ -2201,7 +2201,7 @@ export default function SettingsScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={legalSty.btnIcon}>
-                    <Ionicons name="ban-outline" size={20} color="#10B981" />
+                    <Ionicons name="ban-outline" size={20} color="#00966A" />
                   </View>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={legalSty.btnTitle}>المستخدمون المحظورون</Text>
@@ -2249,12 +2249,12 @@ export default function SettingsScreen() {
             style={devCardBtnSty.card}
           >
             <LinearGradient
-              colors={["#0D1B4B", "#091230"]}
+              colors={["#004D36", "#00301F"]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
             <LinearGradient
-              colors={["#2563EB55", "transparent"]}
+              colors={["#4EC99D40", "transparent"]}
               start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }}
               style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
             />
@@ -2266,7 +2266,7 @@ export default function SettingsScreen() {
                 <Text style={devCardBtnSty.title}>معلومات المطور</Text>
                 <Text style={devCardBtnSty.sub}>الفريق التقني وراء حصاحيصاوي</Text>
               </View>
-              <Ionicons name="chevron-back" size={18} color="#2563EB" />
+              <Ionicons name="chevron-back" size={18} color="#E8A900" />
             </View>
             <View style={devCardBtnSty.footer}>
               <View style={devCardBtnSty.dot} />
@@ -3707,7 +3707,8 @@ const styles = StyleSheet.create({
   langNote: { fontSize: 13, color: Colors.textMuted, marginTop: 6, textAlign: "center" },
   settingSection: { marginBottom: 20 },
   settingLabel: { fontSize: 14, fontFamily: "Cairo_600SemiBold", color: Colors.textPrimary, marginBottom: 4 },
-  loginWrap: { flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 24, paddingBottom: 60 },
+  // البطاقات بعرض الشاشة كاملاً (alignItems:center كان يقلّصها إلى عرض محتواها فتتكسّر الكلمات حرفاً حرفاً)
+  loginWrap: { flexGrow: 1, alignItems: "stretch", paddingHorizontal: 16, paddingBottom: 120, gap: 14, width: "100%", maxWidth: 720, alignSelf: "center" },
   loginCard: {
     backgroundColor: Colors.cardBg, borderRadius: Colors.radius.xl, padding: 28,
     width: "100%", maxWidth: 380, alignItems: "center", gap: 12,
@@ -4207,12 +4208,12 @@ const contactSty = StyleSheet.create({
   sub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   onlineBadge: {
     flexDirection: "row-reverse", alignItems: "center", gap: 5,
-    backgroundColor: "#25D36618", borderRadius: 20,
+    backgroundColor: "#00966A18", borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: "#25D36635",
+    borderWidth: 1, borderColor: "#00966A35",
   },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#25D366" },
-  onlineText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#25D366" },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#00966A" },
+  onlineText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#00966A" },
   // أزرار الإجراءات الرئيسية
   actionBtn: {
     flexDirection: "row-reverse",
@@ -4220,7 +4221,7 @@ const contactSty = StyleSheet.create({
     backgroundColor: Colors.surface3,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E74C3C22",
+    borderColor: "#D9363622",
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -4240,9 +4241,9 @@ const contactSty = StyleSheet.create({
   },
   waBadge: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "#25D36618",
+    backgroundColor: "#00966A18",
     justifyContent: "center", alignItems: "center",
-    borderWidth: 1, borderColor: "#25D36630",
+    borderWidth: 1, borderColor: "#00966A30",
   },
   // فاصل
   divider: {
@@ -4308,9 +4309,9 @@ const legalSty = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface2,
     borderRadius: 22, borderWidth: 1,
-    borderColor: "#10B98125",
+    borderColor: "#00966A25",
     padding: 18, gap: 12,
-    shadowColor: "#10B981",
+    shadowColor: "#00966A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -4324,21 +4325,21 @@ const legalSty = StyleSheet.create({
   iconBox: {
     width: 50, height: 50, borderRadius: 15,
     justifyContent: "center", alignItems: "center",
-    backgroundColor: "#10B98118",
-    borderWidth: 1.5, borderColor: "#10B98135",
+    backgroundColor: "#00966A18",
+    borderWidth: 1.5, borderColor: "#00966A35",
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "right" },
   sub:   { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "right", marginTop: 2 },
   btn: {
     flexDirection: "row-reverse", alignItems: "center",
     backgroundColor: Colors.surface3,
-    borderRadius: 14, borderWidth: 1, borderColor: "#10B98122",
+    borderRadius: 14, borderWidth: 1, borderColor: "#00966A22",
     paddingHorizontal: 16, paddingVertical: 14,
   },
   btnIcon: {
     width: 44, height: 44, borderRadius: 13,
     justifyContent: "center", alignItems: "center",
-    backgroundColor: "#10B98115", borderWidth: 1, borderColor: "#10B98130",
+    backgroundColor: "#00966A15", borderWidth: 1, borderColor: "#00966A30",
     flexShrink: 0,
   },
   btnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
@@ -4374,14 +4375,14 @@ const profileCompleteSty = StyleSheet.create({
 
 const linkPcSty = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(37,99,235,0.06)",
-    borderWidth: 1, borderColor: "rgba(37,99,235,0.20)",
+    backgroundColor: "rgba(232,169,0,0.06)",
+    borderWidth: 1, borderColor: "rgba(232,169,0,0.20)",
     borderRadius: 16, padding: 14, gap: 12, marginTop: 10,
   },
   cardHeader: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   iconWrap: {
     width: 40, height: 40, borderRadius: 11,
-    backgroundColor: "rgba(37,99,235,0.15)",
+    backgroundColor: "rgba(232,169,0,0.15)",
     alignItems: "center", justifyContent: "center",
   },
   textWrap: { flex: 1, gap: 2 },
@@ -4414,19 +4415,19 @@ const linkPcSty = StyleSheet.create({
 const devCardBtnSty = StyleSheet.create({
   card: {
     borderRadius: 18, overflow: "hidden",
-    borderWidth: 1, borderColor: "rgba(37,99,235,0.35)",
+    borderWidth: 1, borderColor: "rgba(232,169,0,0.35)",
     padding: 16, gap: 8, marginBottom: 4,
   },
   row: { flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   iconWrap: {
     width: 50, height: 50, borderRadius: 14,
-    backgroundColor: "rgba(37,99,235,0.15)",
+    backgroundColor: "rgba(232,169,0,0.15)",
     alignItems: "center", justifyContent: "center",
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" },
   sub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.55)", textAlign: "right", marginTop: 2 },
   footer: { flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#10B981" },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#00966A" },
   footerText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.4)" },
 });
 
@@ -4434,7 +4435,7 @@ const devCardBtnSty = StyleSheet.create({
 const devModalSty = StyleSheet.create({
   card: {
     borderRadius: 24, overflow: "hidden",
-    borderWidth: 1, borderColor: "rgba(37,99,235,0.4)",
+    borderWidth: 1, borderColor: "rgba(232,169,0,0.4)",
     padding: 20, gap: 14,
   },
   borderGlow: {

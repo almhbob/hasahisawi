@@ -1,4 +1,4 @@
-// بوابة إدارة الاتحاد — تبويبا «الأرشيف» و«الانتخابات»
+// بوابة إدارة الاتحاد — تبويبا «الأنشطة» (نشر وأرشفة) و«الانتخابات»
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal,
@@ -28,44 +28,69 @@ async function api<T = any>(token: string, path: string, init: RequestInit = {})
 }
 const fmtDay = (s?: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" }) : "");
 
-// ═══════════════════════ الأرشيف ═══════════════════════
+// ═══════════════════════ الأنشطة: مسودة ← منشور ← مؤرشف ═══════════════════════
+type ActStatus = "draft" | "published" | "archived";
 type Activity = {
   id: number; title: string; body: string | null; category: string; category_label: string; activity_date: string;
   location: string | null; cover_url: string | null; images: string[]; attendees: number | null;
+  status?: ActStatus; author_name?: string | null; published_at?: string | null; archived_at?: string | null;
 };
 const CATS: [string, string][] = [
   ["seminar", "ندوة ومحاضرة"], ["course", "دورة وورشة"], ["trip", "رحلة"], ["sports", "نشاط رياضي"], ["culture", "نشاط ثقافي وفني"],
   ["volunteer", "عمل طوعي"], ["meeting", "جمعية عمومية"], ["celebration", "احتفال وتكريم"], ["other", "أخرى"],
 ];
+const ACT_STATUS: Record<ActStatus, { label: string; color: string; icon: any }> = {
+  draft: { label: "مسودة", color: "#946B00", icon: "create-outline" },
+  published: { label: "منشور", color: "#00966A", icon: "megaphone-outline" },
+  archived: { label: "مؤرشف", color: "#4A5E55", icon: "archive-outline" },
+};
 const emptyAct = () => ({ title: "", body: "", category: "seminar", activity_date: new Date().toISOString().slice(0, 10), location: "", images: [] as string[], attendees: "" });
 
-export function ArchiveTab({ token, canEdit }: { token: string; canEdit: boolean }) {
+/**
+ * إدارة الأنشطة: بوابة الاتحاد (base الافتراضي) أو إدارة التطبيق (base="/admin/student-union/activities").
+ * من لا يملك صلاحية التعديل يرى الأرشيف العام فقط.
+ */
+export function ArchiveTab({ token, canEdit, base = "/union-manager/activities" }: { token: string; canEdit: boolean; base?: string }) {
   const [list, setList] = useState<Activity[]>([]);
   const [stats, setStats] = useState<{ total: number; attendees: number; photos: number }>({ total: 0, attendees: 0, photos: 0 });
+  const [counts, setCounts] = useState<Record<ActStatus, number>>({ draft: 0, published: 0, archived: 0 });
+  const [filter, setFilter] = useState<ActStatus | "all">("all");
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<ReturnType<typeof emptyAct> | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    try { const d = await api(token, "/union/activities"); setList(d.activities || []); setStats(d.stats || stats); }
-    catch (e: any) { notify("تنبيه", e.message); } finally { setLoading(false); }
-  }, [token]);
+    try {
+      const d = await api(token, canEdit ? `${base}${filter === "all" ? "" : `?status=${filter}`}` : "/union/activities");
+      setList(d.activities || []); setStats(d.stats || stats); if (d.counts) setCounts(d.counts);
+    } catch (e: any) { notify("تنبيه", e.message); } finally { setLoading(false); }
+  }, [token, canEdit, base, filter]);
   useEffect(() => { load(); }, [load]);
 
-  const save = async () => {
+  const save = async (status: ActStatus) => {
     if (!form) return;
     setSaving(true);
     try {
-      const body = JSON.stringify({ ...form, attendees: form.attendees === "" ? null : Number(form.attendees), cover_url: form.images[0] || null });
-      if (editId) await api(token, `/union-manager/activities/${editId}`, { method: "PATCH", body });
-      else await api(token, "/union-manager/activities", { method: "POST", body });
+      const body = { ...form, attendees: form.attendees === "" ? null : Number(form.attendees), cover_url: form.images[0] || null };
+      if (editId) await api(token, `${base}/${editId}`, { method: "PATCH", body: JSON.stringify(body) });
+      else await api(token, base, { method: "POST", body: JSON.stringify({ ...body, status, announce: status === "published" && announce }) });
       setForm(null); setEditId(null); load();
+      if (!editId) notify(status === "draft" ? "حُفظت المسودة" : "تم النشر ✓", status === "draft" ? "يمكنك نشرها متى شئت." : announce ? "نُشر النشاط وأُعلن في أخبار الاتحاد." : "نُشر النشاط.");
     } catch (e: any) { notify("تنبيه", e.message); } finally { setSaving(false); }
   };
+  const setStatus = async (a: Activity, status: ActStatus) => {
+    const msg = status === "archived" ? `نقل «${a.title}» إلى الأرشيف؟ يبقى متاحاً في أرشيف الاتحاد ويخرج من الأنشطة الحالية.`
+      : status === "published" && a.status === "draft" ? `نشر «${a.title}» وإعلانه في أخبار الاتحاد؟`
+      : status === "published" ? `إعادة نشر «${a.title}» ضمن الأنشطة الحالية؟` : `إعادة «${a.title}» إلى المسودات وإخفاؤه عن الأعضاء؟`;
+    if (!(await confirmAction(ACT_STATUS[status].label, msg, "تأكيد"))) return;
+    try { await api(token, `${base}/${a.id}/status`, { method: "POST", body: JSON.stringify({ status, announce: a.status === "draft" && status === "published" }) }); load(); }
+    catch (e: any) { notify("تنبيه", e.message); }
+  };
   const remove = async (a: Activity) => {
-    if (!(await confirmAction("حذف النشاط", `حذف «${a.title}» من الأرشيف؟`, "حذف", true))) return;
-    try { await api(token, `/union-manager/activities/${a.id}`, { method: "DELETE" }); load(); } catch (e: any) { notify("تنبيه", e.message); }
+    if (!(await confirmAction("حذف النشاط", `حذف «${a.title}» نهائياً؟ للإخفاء دون حذف استخدم الأرشفة أو المسودة.`, "حذف", true))) return;
+    try { await api(token, `${base}/${a.id}`, { method: "DELETE" }); load(); } catch (e: any) { notify("تنبيه", e.message); }
   };
 
   return (
@@ -76,35 +101,79 @@ export function ArchiveTab({ token, canEdit }: { token: string; canEdit: boolean
             <View key={i} style={st.stat}><Text style={st.statN}>{n}</Text><Text style={st.statL}>{l}</Text></View>
           ))}
         </View>
-        {loading ? <ActivityIndicator color={UC} style={{ marginTop: 30 }} /> : list.length === 0 ? (
-          <View style={st.empty}><Ionicons name="images-outline" size={44} color={Colors.textMuted} /><Text style={st.emptyT}>الأرشيف فارغ. وثّق أول نشاط للاتحاد.</Text></View>
-        ) : list.map((a) => (
-          <View key={a.id} style={st.card}>
-            {a.cover_url ? <Image source={{ uri: a.cover_url }} style={st.cover} /> : null}
-            <View style={{ padding: 12, gap: 4 }}>
-              <View style={st.rowR}>
-                <View style={st.tag}><Text style={st.tagT}>{a.category_label}</Text></View>
-                <Text style={st.meta}>{fmtDay(a.activity_date)}</Text>
-              </View>
-              <Text style={st.title}>{a.title}</Text>
-              <Text style={st.meta}>{[a.location, a.attendees ? `${a.attendees} مشارك` : "", a.images.length ? `${a.images.length} صورة` : ""].filter(Boolean).join(" · ")}</Text>
-              {canEdit && (
-                <View style={[st.rowR, { gap: 8, marginTop: 6 }]}>
-                  <TouchableOpacity style={st.ghost} onPress={() => { setEditId(a.id); setForm({ title: a.title, body: a.body || "", category: a.category, activity_date: a.activity_date.slice(0, 10), location: a.location || "", images: a.images, attendees: a.attendees == null ? "" : String(a.attendees) }); }}>
-                    <Ionicons name="pencil-outline" size={15} color={UC2} /><Text style={st.ghostT}>تعديل</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[st.ghost, { borderColor: RED + "50" }]} onPress={() => remove(a)}>
-                    <Ionicons name="trash-outline" size={15} color={RED} /><Text style={[st.ghostT, { color: RED }]}>حذف</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
+        {canEdit && (
+          <View style={st.wrap}>
+            {(["all", "draft", "published", "archived"] as const).map((k) => {
+              const on = filter === k;
+              const n = k === "all" ? counts.draft + counts.published + counts.archived : counts[k];
+              return (
+                <TouchableOpacity key={k} onPress={() => { setLoading(true); setFilter(k); }} style={[st.chip, on && st.chipOn]} accessibilityRole="tab" accessibilityState={{ selected: on }}>
+                  <Text style={[st.chipT, on && { color: UC2 }]}>{k === "all" ? "الكل" : ACT_STATUS[k].label} ({n})</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        ))}
+        )}
+        {loading ? <ActivityIndicator color={UC} style={{ marginTop: 30 }} /> : list.length === 0 ? (
+          <View style={st.empty}><Ionicons name="images-outline" size={44} color={Colors.textMuted} /><Text style={st.emptyT}>{filter === "draft" ? "لا توجد مسودات." : "لا توجد أنشطة بعد. وثّق أول نشاط للاتحاد."}</Text></View>
+        ) : list.map((a) => {
+          const s = ACT_STATUS[a.status || "published"];
+          return (
+            <View key={a.id} style={[st.card, a.status === "draft" && { borderColor: s.color + "70", borderStyle: "dashed" }]}>
+              {a.cover_url ? <Image source={{ uri: a.cover_url }} style={[st.cover, a.status === "archived" && { opacity: 0.85 }]} /> : null}
+              <View style={{ padding: 12, gap: 4 }}>
+                <View style={st.rowR}>
+                  <View style={[st.rowR, { gap: 6 }]}>
+                    {canEdit && (
+                      <View style={[st.tag, { backgroundColor: s.color + "1F", flexDirection: "row-reverse", alignItems: "center", gap: 4 }]}>
+                        <Ionicons name={s.icon} size={12} color={s.color} /><Text style={[st.tagT, { color: s.color }]}>{s.label}</Text>
+                      </View>
+                    )}
+                    <View style={st.tag}><Text style={st.tagT}>{a.category_label}</Text></View>
+                  </View>
+                  <Text style={st.meta}>{fmtDay(a.activity_date)}</Text>
+                </View>
+                <Text style={st.title}>{a.title}</Text>
+                <Text style={st.meta}>{[a.location, a.attendees ? `${a.attendees} مشارك` : "", a.images.length ? `${a.images.length} صورة` : ""].filter(Boolean).join(" · ")}</Text>
+                {canEdit && a.author_name ? <Text style={st.meta}>بواسطة {a.author_name}</Text> : null}
+                {canEdit && (
+                  <View style={[st.wrap, { gap: 8, marginTop: 6 }]}>
+                    {a.status === "draft" && (
+                      <TouchableOpacity style={[st.ghost, { backgroundColor: "#00966A", borderColor: "#00966A" }]} onPress={() => setStatus(a, "published")}>
+                        <Ionicons name="megaphone-outline" size={15} color="#fff" /><Text style={[st.ghostT, { color: "#fff" }]}>نشر</Text>
+                      </TouchableOpacity>
+                    )}
+                    {a.status !== "archived" && a.status !== "draft" && (
+                      <TouchableOpacity style={st.ghost} onPress={() => setStatus(a, "archived")}>
+                        <Ionicons name="archive-outline" size={15} color={UC2} /><Text style={st.ghostT}>أرشفة</Text>
+                      </TouchableOpacity>
+                    )}
+                    {a.status === "archived" && (
+                      <TouchableOpacity style={st.ghost} onPress={() => setStatus(a, "published")}>
+                        <Ionicons name="refresh-outline" size={15} color={UC2} /><Text style={st.ghostT}>إعادة النشر</Text>
+                      </TouchableOpacity>
+                    )}
+                    {a.status !== "draft" && (
+                      <TouchableOpacity style={st.ghost} onPress={() => setStatus(a, "draft")}>
+                        <Ionicons name="eye-off-outline" size={15} color={UC2} /><Text style={st.ghostT}>إخفاء كمسودة</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={st.ghost} onPress={() => { setEditId(a.id); setForm({ title: a.title, body: a.body || "", category: a.category, activity_date: a.activity_date.slice(0, 10), location: a.location || "", images: a.images, attendees: a.attendees == null ? "" : String(a.attendees) }); }}>
+                      <Ionicons name="pencil-outline" size={15} color={UC2} /><Text style={st.ghostT}>تعديل</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[st.ghost, { borderColor: RED + "50" }]} onPress={() => remove(a)}>
+                      <Ionicons name="trash-outline" size={15} color={RED} /><Text style={[st.ghostT, { color: RED }]}>حذف</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+          );
+        })}
       </ScrollView>
       {canEdit && (
-        <TouchableOpacity style={st.fab} onPress={() => { setEditId(null); setForm(emptyAct()); }}>
-          <Ionicons name="add-circle" size={20} color="#fff" /><Text style={st.fabT}>توثيق نشاط</Text>
+        <TouchableOpacity style={st.fab} onPress={() => { setEditId(null); setAnnounce(true); setForm(emptyAct()); }}>
+          <Ionicons name="add-circle" size={20} color="#fff" /><Text style={st.fabT}>نشاط جديد</Text>
         </TouchableOpacity>
       )}
 
@@ -112,7 +181,7 @@ export function ArchiveTab({ token, canEdit }: { token: string; canEdit: boolean
         <KeyboardAvoidingView style={st.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           {form && (
             <ScrollView style={st.sheet} contentContainerStyle={{ gap: 10, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
-              <Text style={st.sheetT}>{editId ? "تعديل النشاط" : "توثيق نشاط جديد"}</Text>
+              <Text style={st.sheetT}>{editId ? "تعديل النشاط" : "نشاط جديد"}</Text>
               <Text style={st.label}>عنوان النشاط *</Text>
               <TextInput style={st.input} value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} placeholder="مثال: ورشة كتابة السيرة الذاتية" placeholderTextColor={Colors.textMuted} textAlign="right" />
               <Text style={st.label}>التصنيف</Text>
@@ -124,7 +193,7 @@ export function ArchiveTab({ token, canEdit }: { token: string; canEdit: boolean
                 ))}
               </View>
               <View style={[st.rowR, { gap: 10, alignItems: "flex-start" }]}>
-                <View style={{ flex: 1.4 }}><DateInput label="التاريخ *" value={form.activity_date} onChange={(v) => setForm({ ...form, activity_date: v })} maxDate={new Date()} clearable={false} /></View>
+                <View style={{ flex: 1.4 }}><DateInput label="التاريخ *" value={form.activity_date} onChange={(v) => setForm({ ...form, activity_date: v })} clearable={false} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={st.label}>عدد المشاركين</Text>
                   <TextInput style={st.input} value={form.attendees} onChangeText={(v) => setForm({ ...form, attendees: v.replace(/\D/g, "") })} keyboardType="numeric" placeholder="0" placeholderTextColor={Colors.textMuted} textAlign="right" />
@@ -135,11 +204,20 @@ export function ArchiveTab({ token, canEdit }: { token: string; canEdit: boolean
               <Text style={st.label}>وصف النشاط</Text>
               <TextInput style={[st.input, { minHeight: 100, textAlignVertical: "top" }]} multiline value={form.body} onChangeText={(v) => setForm({ ...form, body: v })} placeholder="ما الذي جرى، ومن شارك، وما الذي تحقق" placeholderTextColor={Colors.textMuted} textAlign="right" />
               <ImagesUploadField label="صور النشاط (الأولى غلاف)" value={form.images} onChange={(v) => setForm({ ...form, images: v })} folder="union/activities" max={30} />
-              <View style={[st.rowR, { gap: 10, marginTop: 6 }]}>
-                <TouchableOpacity style={[st.primary, { flex: 2 }, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryT}>{editId ? "حفظ التعديلات" : "إضافة إلى الأرشيف"}</Text>}
+              {!editId && (
+                <TouchableOpacity onPress={() => setAnnounce(!announce)} style={[st.rowR, { justifyContent: "flex-start", gap: 8, paddingVertical: 4 }]} accessibilityRole="checkbox" accessibilityState={{ checked: announce }}>
+                  <Ionicons name={announce ? "checkbox" : "square-outline"} size={22} color={announce ? GREEN : Colors.textMuted} />
+                  <Text style={st.label}>إعلان النشاط في أخبار الاتحاد عند النشر</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[st.ghost, { flex: 1, justifyContent: "center" }]} onPress={() => setForm(null)}><Text style={st.ghostT}>إلغاء</Text></TouchableOpacity>
+              )}
+              <View style={[st.rowR, { gap: 10, marginTop: 6 }]}>
+                <TouchableOpacity style={[st.primary, { flex: 2 }, saving && { opacity: 0.6 }]} onPress={() => save("published")} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryT}>{editId ? "حفظ التعديلات" : "نشر الآن"}</Text>}
+                </TouchableOpacity>
+                {!editId && (
+                  <TouchableOpacity style={[st.ghost, { flex: 1, justifyContent: "center" }]} onPress={() => save("draft")} disabled={saving}><Text style={st.ghostT}>حفظ كمسودة</Text></TouchableOpacity>
+                )}
+                <TouchableOpacity style={[st.ghost, { flex: 0.8, justifyContent: "center" }]} onPress={() => setForm(null)}><Text style={st.ghostT}>إلغاء</Text></TouchableOpacity>
               </View>
             </ScrollView>
           )}

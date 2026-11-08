@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { ICON_GLYPHS } from "@/lib/a11y-icons";
 import { router, usePathname } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,7 +34,15 @@ export function screenTitle(pathname: string): string {
 function webPageText(): string {
   if (Platform.OS !== "web" || typeof document === "undefined") return "";
   const root = document.getElementById("root");
-  const t = (root?.innerText || "").replace(/[‏‎]/g, "").split("\n").map(x => x.trim()).filter(x => x.length > 1);
+  if (!root) return "";
+  // نسخة من الصفحة بلا الأيقونات وما أُخفي عن القارئ، ثم نزيل أي حرف أيقونة متبقٍ
+  const clone = root.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('[aria-hidden="true"]').forEach((n) => n.remove());
+  clone.style.position = "absolute"; clone.style.left = "-99999px"; clone.style.top = "0";
+  document.body.appendChild(clone);
+  const raw = clone.innerText || "";
+  clone.remove();
+  const t = raw.replace(ICON_GLYPHS, "").replace(/[\u200E\u200F]/g, "").split("\n").map(x => x.trim()).filter(x => x.length > 1);
   const uniq: string[] = [];
   for (const x of t) if (!uniq.includes(x)) uniq.push(x);
   return uniq.join("، ").slice(0, 1800);
@@ -99,9 +108,10 @@ export default function VoiceAssistant() {
 }
 
 function Big({ icon, label, onPress, color = "#006B4A", flex }: { icon: any; label: string; onPress: () => void; color?: string; flex?: boolean }) {
+  const { enabled } = useA11y();
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.big, { backgroundColor: color }, flex && { flex: 1 }, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={label}>
-      <Ionicons name={icon} size={26} color="#fff" />
+      {!enabled && <Ionicons name={icon} size={26} color="#fff" />}
       <Text style={s.bigText}>{label}</Text>
     </Pressable>
   );
