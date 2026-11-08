@@ -1220,6 +1220,8 @@ export default function StoresScreen() {
         onClose={() => {
           setSelectedStore(null);
           setStoreData(null);
+          // فُتح المتجر من «سوق المتاجر» أو السلة: نعود إليهما بدل قائمة متاجر مكرّرة
+          if (navParams.open && router.canGoBack()) router.back();
         }}
         onAddToCart={addToCart}
         onRemoveFromCart={removeFromCart}

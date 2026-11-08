@@ -94,9 +94,8 @@ export const GROUPS: Group[] = [
   {
     label: "تسوّق ومطاعم",
     items: [
-      { title: "متاجر المجتمع",   icon: "bag-handle-outline",    route: "/stores",             color: Colors.accent  },
+      { title: "سوق المتاجر",     icon: "storefront-outline",    route: "/(tabs)/product-showcase", color: Colors.accent },
       { title: "المطاعم والكافيهات", icon: "restaurant-outline", route: "/(tabs)/restaurants", color: "#F97316"      },
-      { title: "سوق المتاجر",     icon: "cart-outline",          route: "/(tabs)/product-showcase", color: Colors.cyber },
     ],
   },
   {
@@ -143,7 +142,7 @@ export const GROUPS: Group[] = [
     // reachable — but grouped here instead of mixed into consumer services.
     label: "بوابات الشركاء",
     items: [
-      { title: "بوابة التاجر",     icon: "storefront-outline", route: "/store-portal",           color: Colors.primary },
+      { title: "لوحة متجري",       icon: "storefront-outline", route: "/store-portal",           color: Colors.primary },
       { title: "بوابة المصمم",     icon: "color-palette-outline", route: "/designer-portal",     color: "#3B78A6" },
       { title: "بوابة مدير زواجل", icon: "shield-outline",     route: "/(tabs)/zawajil-manager", color: "#C46A3A" },
     ],
