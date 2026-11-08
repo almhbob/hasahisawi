@@ -16,6 +16,7 @@ import {
   Linking,
   Image,
 } from "react-native";
+import { uploadFile } from "@/lib/firebase/storage";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -72,6 +73,10 @@ type Product = {
   category_id: number | null;
   category_name?: string;
   is_available: boolean;
+  gallery?: string[];
+  old_price?: number | null;
+  stock?: number | null;
+  is_featured?: boolean;
 };
 
 type OrderItem = {
@@ -932,7 +937,12 @@ function ProductCard({
         {product.category_name ? (
           <Text style={styles.productCategory}>{product.category_name}</Text>
         ) : null}
-        <Text style={[styles.productPrice, { color: Colors.accent }]}>{product.price} ج.س</Text>
+        <Text style={[styles.productPrice, { color: Colors.accent }]}>{product.price} ج.س{product.old_price ? <Text style={{ color: Colors.textMuted, textDecorationLine: "line-through", fontSize: 11 }}>  {product.old_price}</Text> : null}</Text>
+        {product.stock != null || product.is_featured || (product.gallery?.length ?? 0) > 0 ? (
+          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: product.stock === 0 ? "#B42318" : Colors.textMuted, textAlign: "right" }}>
+            {[product.is_featured ? "⭐ مميّز" : "", product.stock != null ? (product.stock === 0 ? "نفدت الكمية" : `المتوفر ${product.stock}`) : "", product.gallery?.length ? `🖼 ${product.gallery.length + 1} صور` : ""].filter(Boolean).join(" · ")}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.productActions}>
         <Switch
@@ -981,6 +991,12 @@ function ProductModal({
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showCatPicker, setShowCatPicker] = useState(false);
+  // معرض الصور الإضافية + سعر قبل الخصم + المخزون + مميّز
+  const [gallery, setGallery] = useState<string[]>([]);
+  const [uploadingGal, setUploadingGal] = useState(false);
+  const [oldPrice, setOldPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [featured, setFeatured] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -990,6 +1006,10 @@ function ProductModal({
       setCategoryId(product?.category_id ?? null);
       setIsAvailable(product?.is_available ?? true);
       setImageUri(null);
+      setGallery(product?.gallery ?? []);
+      setOldPrice(product?.old_price ? String(product.old_price) : "");
+      setStock(product?.stock != null ? String(product.stock) : "");
+      setFeatured(!!product?.is_featured);
     }
   }, [visible, product]);
 
@@ -1003,8 +1023,22 @@ function ProductModal({
     }
   };
 
+  const addGallery = async () => {
+    if (gallery.length >= 6) { Alert.alert("الحد الأقصى", "حتى 6 صور إضافية لكل منتج"); return; }
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.8, allowsMultipleSelection: true, selectionLimit: 6 - gallery.length });
+    if (r.canceled) return;
+    setUploadingGal(true);
+    try {
+      const urls: string[] = [];
+      for (const a of r.assets.slice(0, 6 - gallery.length)) urls.push(await uploadFile(`stores/products/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`, a.uri));
+      setGallery((g) => [...g, ...urls].slice(0, 6));
+    } catch (e: any) { Alert.alert("تعذّر رفع الصور", e?.message || ""); }
+    finally { setUploadingGal(false); }
+  };
+
   const save = async () => {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسم المنتج"); return; }
+    if (oldPrice.trim() && Number(oldPrice) <= Number(price)) { Alert.alert("سعر قبل الخصم", "يجب أن يكون أعلى من السعر الحالي — أو اتركه فارغاً"); return; }
     if (!price.trim()) { Alert.alert("تنبيه", "أدخل السعر"); return; }
     setSaving(true);
     try {
@@ -1014,6 +1048,10 @@ function ProductModal({
       form.append("description", description.trim());
       if (categoryId !== null) form.append("category_id", categoryId.toString());
       form.append("is_available", isAvailable.toString());
+      form.append("gallery", JSON.stringify(gallery));
+      form.append("old_price", oldPrice.trim());
+      form.append("stock", stock.trim());
+      form.append("is_featured", featured.toString());
       if (imageUri) {
         form.append("image", await filePart(imageUri, "product.jpg", "image/jpeg"));
       }
@@ -1083,6 +1121,44 @@ function ProductModal({
               keyboardType="numeric"
               textAlign="right"
             />
+
+            <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>السعر قبل الخصم</Text>
+                <TextInput style={styles.input} value={oldPrice} onChangeText={(v) => setOldPrice(v.replace(/[^0-9.]/g, ""))} placeholder="اختياري" placeholderTextColor={Colors.textMuted} keyboardType="numeric" textAlign="right" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>الكمية المتوفرة</Text>
+                <TextInput style={styles.input} value={stock} onChangeText={(v) => setStock(v.replace(/\D/g, ""))} placeholder="غير محدودة" placeholderTextColor={Colors.textMuted} keyboardType="number-pad" textAlign="right" />
+              </View>
+            </View>
+            {oldPrice && Number(oldPrice) > Number(price) && Number(price) > 0 ? (
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#B42318", textAlign: "right", marginTop: -4, marginBottom: 6 }}>
+                🔖 خصم {Math.round((1 - Number(price) / Number(oldPrice)) * 100)}% يظهر للعملاء
+              </Text>
+            ) : null}
+
+            <Text style={styles.fieldLabel}>معرض الصور (حتى 6)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingBottom: 6 }}>
+              {gallery.map((u, i) => (
+                <View key={u}>
+                  <Image source={{ uri: u }} style={{ width: 72, height: 72, borderRadius: 12 }} />
+                  <TouchableOpacity onPress={() => setGallery((g) => g.filter((_, j) => j !== i))} style={{ position: "absolute", top: 3, left: 3, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" }} accessibilityLabel="إزالة الصورة">
+                    <Ionicons name="close" size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {gallery.length < 6 ? (
+                <TouchableOpacity onPress={addGallery} disabled={uploadingGal} style={{ width: 72, height: 72, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", borderColor: Colors.primary + "70", alignItems: "center", justifyContent: "center", backgroundColor: Colors.primary + "0A" }}>
+                  {uploadingGal ? <ActivityIndicator color={Colors.primary} /> : <><Ionicons name="images-outline" size={22} color={Colors.primary} /><Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.primary }}>إضافة</Text></>}
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
+
+            <View style={styles.switchRow}>
+              <Switch value={featured} onValueChange={setFeatured} trackColor={{ false: Colors.divider, true: "#E8A90060" }} thumbColor={featured ? "#E8A900" : "#ccc"} />
+              <Text style={styles.fieldLabel}>⭐ منتج مميّز (يظهر أولاً في سوق المتاجر)</Text>
+            </View>
 
             <Text style={styles.fieldLabel}>التصنيف</Text>
             <TouchableOpacity
