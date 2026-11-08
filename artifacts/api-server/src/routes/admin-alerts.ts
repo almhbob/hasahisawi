@@ -31,7 +31,7 @@ export const ALERT_RULES: Rule[] = [
   { re: /^\/travel-agencies\/apply\/?$/,                  kind: "travel_agency",   title: "✈️ طلب انضمام وكالة سفر",      screen: "travel" },
   { re: /^\/travel\/bookings\/?$/,                        kind: "travel_booking",  title: "🎫 حجز سفر جديد",              screen: "travel" },
   { re: /^\/travel\/bookings\/\d+\/submit-payment\/?$/,   kind: "travel_payment",  title: "💳 إيصال دفع لحجز سفر",        screen: "travel" },
-  { re: /^\/medical\/staff\/register\/?$/,                kind: "medical_staff",   title: "🩺 طلب تسجيل كادر طبي",        screen: "requests" },
+  { re: /^\/medical\/staff\/register\/?$/,                kind: "medical_staff",   title: "🩺 طلب تسجيل كادر طبي",        screen: "medical_staff" },
   { re: /^\/communities\/register\/?$/,                   kind: "community",       title: "🏘️ طلب تسجيل مجتمع",          screen: "requests" },
   { re: /^\/ads\/request\/?$/,                            kind: "ad",              title: "📣 طلب إعلان",                 screen: "ads" },
   // طلبات كانت لا تصل للإدارة إطلاقاً

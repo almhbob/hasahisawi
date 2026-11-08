@@ -16,7 +16,15 @@ import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 const BACKEND_TOKEN_KEY = "auth_session_token";
 
 type StaffType = "doctor" | "lab" | "pharmacist" | "nurse";
-type Staff = { id: number; staff_type: StaffType; full_name: string; specialty?: string; facility?: string; is_verified: boolean };
+type Staff = { id: number; staff_type: StaffType; full_name: string; specialty?: string; facility?: string; is_verified: boolean; status: "pending" | "approved" | "rejected"; review_note?: string | null };
+/** ملف الخادم (medical_staff_profiles) ← نموذج البوابة */
+function toStaff(p: any): Staff {
+  return {
+    id: p.id, staff_type: (p.staff_type === "lab_technician" ? "lab" : p.staff_type) as StaffType,
+    full_name: p.display_name || p.user_name || "", specialty: p.specialty || undefined, facility: p.facility_name || undefined,
+    is_verified: p.status === "approved", status: p.status || "pending", review_note: p.review_note,
+  };
+}
 type Patient = { id: number; name: string; phone?: string };
 type Order = { id: number; patient_name: string; patient_phone?: string; medications?: string; tests?: string; status: string; created_at: string; notes?: string };
 type Prescription = { id: number; patient_name: string; medication_name: string; dosage?: string; frequency?: string; duration?: string; prescribed_date?: string };
@@ -473,7 +481,8 @@ export default function StaffPortalScreen() {
     try {
       const res = await api("/api/medical/staff/profile");
       const data = await res.json();
-      if (data.staff) setStaff(data.staff);
+      const prof = data.profile ?? data.staff;
+      if (prof) setStaff(toStaff(prof));
       else setRegistering(true);
     } catch { setRegistering(true); }
     finally { setLoading(false); }
@@ -520,10 +529,20 @@ export default function StaffPortalScreen() {
             {staff.specialty && <Text style={s.badgeSpec}>{staff.specialty}</Text>}
             {!staff.is_verified && (
               <View style={s.unverifiedBadge}>
-                <Text style={s.unverifiedTxt}>قيد المراجعة</Text>
+                <Text style={s.unverifiedTxt}>{staff.status === "rejected" ? "لم يُعتمد" : "قيد المراجعة"}</Text>
               </View>
             )}
           </View>
+          {staff.status !== "approved" && (
+            <View style={s.reviewNote}>
+              <Ionicons name={staff.status === "rejected" ? "alert-circle-outline" : "time-outline"} size={18} color={staff.status === "rejected" ? "#D93636" : "#946B00"} />
+              <Text style={s.reviewNoteText}>
+                {staff.status === "rejected"
+                  ? `لم يُعتمد طلبك${staff.review_note ? `: ${staff.review_note}` : ""}. عدّل بياناتك من زر التعديل أعلاه وأعد الإرسال.`
+                  : "طلبك قيد مراجعة الإدارة. عند الاعتماد ستظهر في «الأخصائيون» بالقسم الطبي ويصلك إشعار."}
+              </Text>
+            </View>
+          )}
 
           {staff.staff_type === "doctor"     && <DoctorPortal staff={staff} />}
           {staff.staff_type === "lab"        && <LabPortal staff={staff} />}
@@ -551,6 +570,8 @@ function statusLabel(s: string) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root:   { flex: 1, backgroundColor: Colors.bg },
+  reviewNote: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 8, padding: 12, borderRadius: 14, backgroundColor: "#FFF7E0", borderWidth: 1, borderColor: "#F7D76A" },
+  reviewNoteText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#6B4D00", textAlign: "right", lineHeight: 20 },
   header: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 14,

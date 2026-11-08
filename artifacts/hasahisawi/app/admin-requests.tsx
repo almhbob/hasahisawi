@@ -12,7 +12,7 @@ import { confirmAction, notify } from "@/lib/xplatform";
 import { setAdminUnread } from "@/lib/admin-alerts-store";
 import type { AdminAlert } from "@/components/AdminAlertsWatcher";
 
-type Tab = "feed" | "stores" | "women" | "general" | "verify";
+type Tab = "feed" | "stores" | "women" | "general" | "verify" | "medical";
 
 const SCREEN_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   designers: "color-palette-outline", writers: "id-card-outline", srcs: "medkit-outline", volunteer: "hand-left-outline", ithraa: "library-outline", verify: "shield-checkmark-outline", contractors: "construct-outline", edu_inst: "school-outline",
@@ -88,6 +88,7 @@ export default function AdminRequestsScreen() {
   const [women, setWomen] = useState<any[]>([]);
   const [general, setGeneral] = useState<any[]>([]);
   const [verifs, setVerifs] = useState<any[]>([]);
+  const [medStaff, setMedStaff] = useState<any[]>([]);
 
   const call = useCallback(async (path: string, init?: RequestInit) => {
     const r = await fetch(`${getApiUrl()}${path}`, {
@@ -120,6 +121,7 @@ export default function AdminRequestsScreen() {
         setWomen(all);
       }
       else if (tab === "verify") { const d = await call("/api/admin/verification-requests?status=pending"); setVerifs(d.requests || []); }
+      else if (tab === "medical") { const d = await call("/api/admin/medical-staff"); setMedStaff(d.staff || []); }
       else { const d = await call("/api/admin/join-requests"); setGeneral(d.requests || []); }
     } catch (e: any) { notify("تعذّر التحميل", e?.message); }
     finally { setLoading(false); }
@@ -143,6 +145,17 @@ export default function AdminRequestsScreen() {
     } catch (e: any) { notify("تعذّر التنفيذ", e?.message); }
   };
 
+  const reviewStaff = async (item: any, status: "approved" | "rejected") => {
+    const ok = await confirmAction(status === "approved" ? "اعتماد الكادر الطبي" : "رفض الطلب",
+      status === "approved" ? `سيظهر «${item.name}» فوراً في «الأخصائيون» بالقسم الطبي ويُبلَّغ بالاعتماد.` : "سيُخفى من «الأخصائيون» ويُبلَّغ بإمكانية تعديل بياناته وإعادة الإرسال.",
+      status === "approved" ? "اعتماد ونشر" : "رفض", status === "rejected");
+    if (!ok) return;
+    try {
+      const d = await call(`/api/admin/medical-staff/${item.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      if (d?.published) notify("تم ✅", d.published);
+      load();
+    } catch (e: any) { notify("تعذّر", e?.message || "حاول مرة أخرى"); }
+  };
   const reviewVerif = async (id: number, status: "approved" | "rejected") => {
     const ok = await confirmAction(status === "approved" ? "توثيق الحساب" : "رفض التوثيق", status === "approved" ? "ستظهر شارة «موثوق» بجانب اسم المستخدم في كل التطبيق." : "سيصل إشعار للمستخدم بإمكانية إعادة المحاولة.", status === "approved" ? "توثيق" : "رفض", status === "rejected");
     if (!ok) return;
@@ -158,6 +171,7 @@ export default function AdminRequestsScreen() {
     { key: "stores" as const, label: "المتاجر", icon: "storefront-outline" as const },
     ...(isAdmin ? [{ key: "women" as const, label: "ركن المرأة", icon: "flower-outline" as const }] : []),
     { key: "general" as const, label: "طلبات عامة", icon: "document-text-outline" as const },
+    { key: "medical" as const, label: "الكوادر الطبية", icon: "medkit-outline" as const },
     { key: "verify" as const, label: "التوثيق", icon: "shield-checkmark-outline" as const },
   ]), [isAdmin]);
 
@@ -170,7 +184,7 @@ export default function AdminRequestsScreen() {
     );
   }
 
-  const data: any[] = tab === "feed" ? alerts : tab === "stores" ? stores : tab === "women" ? women : tab === "verify" ? verifs : general;
+  const data: any[] = tab === "feed" ? alerts : tab === "stores" ? stores : tab === "women" ? women : tab === "verify" ? verifs : tab === "medical" ? medStaff : general;
   const VKIND: Record<string, string> = { identity: "توثيق هوية", professional: "توثيق مهني", business: "نشاط تجاري", public_figure: "شخصية عامة" };
 
   const renderItem = ({ item }: { item: any }) => {
@@ -192,6 +206,7 @@ export default function AdminRequestsScreen() {
             {a.screen === "stores" ? <Act label="مراجعة المتجر" color="#1D66D4" icon="open-outline" onPress={() => setTab("stores")} />
               : a.screen === "women" && isAdmin ? <Act label="مراجعة" color="#1D66D4" icon="open-outline" onPress={() => setTab("women")} />
               : a.screen === "requests" ? <Act label="مراجعة" color="#1D66D4" icon="open-outline" onPress={() => setTab("general")} />
+              : a.screen === "medical_staff" ? <Act label="مراجعة الكادر" color="#00966A" icon="medkit-outline" onPress={() => setTab("medical")} />
               : a.screen === "verify" ? <Act label="مراجعة التوثيق" color="#1D66D4" icon="open-outline" onPress={() => setTab("verify")} />
               : SCREEN_ROUTE[a.screen] ? <Act label={`مراجعة · ${SCREEN_ROUTE[a.screen].label}`} color="#1D66D4" icon="open-outline" onPress={() => router.push({ pathname: SCREEN_ROUTE[a.screen].path, params: SCREEN_ROUTE[a.screen].params } as any)} />
               : <Act label="فتح لوحة الإدارة" color="#1D66D4" icon="open-outline" onPress={() => router.push("/admin" as any)} />}
@@ -216,6 +231,30 @@ export default function AdminRequestsScreen() {
             {item.status !== "active" && <Act label="اعتماد" color="#00966A" icon="checkmark-circle-outline" onPress={() => review("store", item.id, "active", "اعتماد المتجر")} />}
             {item.status === "pending" && <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => review("store", item.id, "rejected", "رفض الطلب")} />}
             {item.status === "active" && <Act label="إيقاف" color={Colors.textSecondary} icon="pause-circle-outline" onPress={() => review("store", item.id, "suspended", "إيقاف المتجر")} />}
+          </View>
+        </View>
+      );
+    }
+    if (tab === "medical") {
+      const live = item.status === "approved" && item.specialist_id;
+      return (
+        <View style={s.card}>
+          <View style={s.row}>
+            <View style={[s.icon, { backgroundColor: "#00966A1A" }]}><Ionicons name="medkit-outline" size={18} color="#00966A" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.title}>{item.name}</Text>
+              <Text style={s.body}>{item.type_label}{item.specialty ? ` · ${item.specialty}` : ""}{item.facility_name ? ` · ${item.facility_name}` : ""}</Text>
+              {!!item.license_number && <Text style={s.meta}>رقم الترخيص: {item.license_number}</Text>}
+              {!!item.phone && <Text style={s.meta}>{item.phone}</Text>}
+              <Text style={s.meta}>{live ? "ظاهر في «الأخصائيون» بالقسم الطبي" : item.status === "approved" ? "معتمد — أعد الاعتماد لنشره" : ago(item.created_at)}</Text>
+            </View>
+            <Pill status={item.status} />
+          </View>
+          <View style={s.actions}>
+            {!!item.phone && <Act label="اتصال" color="#00966A" icon="call-outline" onPress={() => Linking.openURL(`tel:${item.phone}`)} />}
+            <Act label="الملف" color="#006B4A" icon="person-outline" onPress={() => router.push({ pathname: "/profile" as any, params: { id: String(item.user_id) } })} />
+            {!live && <Act label={item.status === "approved" ? "نشر في الأخصائيين" : "اعتماد ونشر"} color="#00966A" icon="checkmark-circle-outline" onPress={() => reviewStaff(item, "approved")} />}
+            {item.status !== "rejected" && <Act label={item.status === "approved" ? "إيقاف" : "رفض"} color="#D93636" icon="close-circle-outline" onPress={() => reviewStaff(item, "rejected")} />}
           </View>
         </View>
       );
