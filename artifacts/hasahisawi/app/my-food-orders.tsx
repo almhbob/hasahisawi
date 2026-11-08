@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart";
 import { foodApi, STATUS_META, ORDER_TYPE_AR, fmtMoney, timeAgo, waLink, type FoodOrder, type OrderStatus } from "@/lib/food-api";
 
 const STEPS: OrderStatus[] = ["new", "accepted", "preparing", "ready", "delivered"];
@@ -12,6 +13,12 @@ const STEPS: OrderStatus[] = ["new", "accepted", "preparing", "ready", "delivere
 export default function MyFoodOrders() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  const cartCtx = useCart();
+  const reorder = (o: FoodOrder) => {
+    cartCtx.refill({ source: "food", id: o.business_id, name: o.business_name || "مطعم", logo: o.business_logo ?? null },
+      o.items.map((it) => ({ id: Number(it.id), name: it.name, price: Number(it.price), qty: Number(it.qty), note: it.note })).filter((l) => l.id));
+    router.push({ pathname: "/restaurant", params: { id: String(o.business_id) } } as any);
+  };
   const [orders, setOrders] = useState<FoodOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,7 +80,7 @@ export default function MyFoodOrders() {
                   {o.business_phone ? <TouchableOpacity onPress={() => Linking.openURL(`tel:${o.business_phone}`)} style={st.iconBtn} accessibilityLabel="اتصال بالمطعم"><Ionicons name="call" size={17} color={Colors.primary} /></TouchableOpacity> : null}
                   {wa ? <TouchableOpacity onPress={() => Linking.openURL(wa)} style={st.iconBtn} accessibilityLabel="واتساب المطعم"><Ionicons name="logo-whatsapp" size={18} color="#1FA855" /></TouchableOpacity> : null}
                   {o.status === "new" ? <TouchableOpacity onPress={() => cancel(o)} style={[st.iconBtn, { paddingHorizontal: 12, width: "auto" }]}><Text style={st.cancel}>إلغاء</Text></TouchableOpacity> : null}
-                  <TouchableOpacity onPress={() => router.push({ pathname: "/restaurant", params: { id: String(o.business_id) } } as any)} style={[st.iconBtn, { paddingHorizontal: 12, width: "auto" }]}><Text style={st.again}>اطلب مجدداً</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => reorder(o)} style={[st.iconBtn, { paddingHorizontal: 12, width: "auto" }]} accessibilityLabel="اطلب الأصناف نفسها مجدداً"><Text style={st.again}>اطلب مجدداً</Text></TouchableOpacity>
                 </View>
               </View>
             </View>

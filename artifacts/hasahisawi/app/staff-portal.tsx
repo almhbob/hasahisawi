@@ -11,6 +11,8 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
+import StaffPatients from "@/components/medical/StaffPatients";
+import { useLocalSearchParams } from "expo-router";
 
 // Must match TOKEN_KEY in lib/auth-context.tsx
 const BACKEND_TOKEN_KEY = "auth_session_token";
@@ -475,6 +477,8 @@ export default function StaffPortalScreen() {
   const [staff, setStaff] = useState<Staff | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [area, setArea] = useState<"work" | "patients">(params.tab === "patients" ? "patients" : "work");
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -544,6 +548,17 @@ export default function StaffPortalScreen() {
             </View>
           )}
 
+          {staff.status === "approved" && (
+            <View style={s.areaRow}>
+              {([["patients", "مرضاي وملفاتهم", "people"], ["work", staff.staff_type === "doctor" ? "الروشتات والتحاليل" : staff.staff_type === "lab" ? "طلبات المعمل" : staff.staff_type === "pharmacist" ? "طلبات الصيدلية" : "مهامي", "briefcase"]] as const).map(([k, l, ic]) => (
+                <TouchableOpacity key={k} onPress={() => setArea(k)} style={[s.areaBtn, area === k && s.areaOn]} accessibilityRole="tab" accessibilityState={{ selected: area === k }}>
+                  <Ionicons name={ic} size={15} color={area === k ? "#fff" : Colors.textSecondary} />
+                  <Text style={[s.areaT, area === k && { color: "#fff" }]}>{l}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          {staff.status === "approved" && area === "patients" ? <StaffPatients /> : <>
           {staff.staff_type === "doctor"     && <DoctorPortal staff={staff} />}
           {staff.staff_type === "lab"        && <LabPortal staff={staff} />}
           {staff.staff_type === "pharmacist" && <PharmacistPortal staff={staff} />}
@@ -553,6 +568,7 @@ export default function StaffPortalScreen() {
               <Text style={s.emptyTxt}>بوابة التمريض قيد التطوير</Text>
             </View>
           )}
+          </>}
         </>
       ) : null}
     </View>
@@ -569,6 +585,10 @@ function statusLabel(s: string) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
+  areaRow: { flexDirection: "row-reverse", gap: 6, marginHorizontal: 16, marginTop: 10, padding: 4, borderRadius: 16, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
+  areaBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 12 },
+  areaOn: { backgroundColor: "#004D36" },
+  areaT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary },
   root:   { flex: 1, backgroundColor: Colors.bg },
   reviewNote: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 8, padding: 12, borderRadius: 14, backgroundColor: "#FFF7E0", borderWidth: 1, borderColor: "#F7D76A" },
   reviewNoteText: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 12.5, color: "#6B4D00", textAlign: "right", lineHeight: 20 },

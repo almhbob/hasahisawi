@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EntityNotice, useEntityStatus } from "@/components/EntityNotice";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Linking, Modal, Pressable, TextInput, KeyboardAvoidingView, Platform, Alert, Share, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,6 +12,8 @@ import { useAuth } from "@/lib/auth-context";
 import BizLogo from "@/components/food/BizLogo";
 import { foodApi, TYPE_META, CAT_META, CAT_KEYS, ORDER_TYPE_AR, bizColor, fmtMoney, productImage, waLink, type FoodBusiness, type FoodProduct, type FoodCat, type OrderType } from "@/lib/food-api";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
+import { useCart, type CartVendor } from "@/lib/cart";
+import CartButton from "@/components/CartButton";
 
 function notify(t: string, m?: string) { if (Platform.OS === "web") (globalThis as any).alert?.(m ? `${t}\n${m}` : t); else Alert.alert(t, m); }
 
@@ -24,7 +26,11 @@ export default function RestaurantScreen() {
   const [canManage, setCanManage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cat, setCat] = useState<FoodCat | "">("");
-  const [cart, setCart] = useState<Record<number, number>>({});
+  // السلة الموحّدة: محفوظة لكل مطعم وتبقى عند الخروج أو إغلاق التطبيق
+  const cartCtx = useCart();
+  const cartRef = useRef(cartCtx); cartRef.current = cartCtx;
+  const basket = cartCtx.get("food", Number(id));
+  const cart = useMemo(() => Object.fromEntries((basket?.lines ?? []).map((l) => [l.id, l.qty])) as Record<number, number>, [basket]);
   const [sheet, setSheet] = useState(false);
   const [detail, setDetail] = useState<FoodProduct | null>(null);
   const [type, setType] = useState<OrderType>("takeaway");
@@ -43,6 +49,11 @@ export default function RestaurantScreen() {
     try {
       const r = await foodApi.business(String(id), token);
       setBiz(r.business); setProducts(r.products); setCanManage(r.can_manage);
+      const b0 = cartRef.current.get("food", r.business.id);
+      if (b0) {
+        const avail = new Map(r.products.filter((p) => p.is_available && (p.stock == null || p.stock > 0)).map((p) => [p.id, p]));
+        cartRef.current.refill(vendor(r.business), b0.lines.filter((l) => avail.has(l.id)).map((l) => ({ ...l, price: Number(avail.get(l.id)!.price), name: avail.get(l.id)!.name, max: avail.get(l.id)!.stock ?? 99 })));
+      }
       const b = r.business;
       setType(b.delivery_enabled ? "delivery" : b.takeaway_enabled ? "takeaway" : "dine_in");
     } catch (e: any) { setError(e?.message || "تعذّر التحميل"); }
@@ -62,10 +73,15 @@ export default function RestaurantScreen() {
   const subtotal = lines.reduce((s, l) => s + l.p.price * l.qty, 0);
   const fee = biz && type === "delivery" ? biz.delivery_fee : 0;
 
-  const add = (p: FoodProduct, d = 1) => setCart((c) => {
-    const n = Math.max(0, Math.min(p.stock ?? 99, (c[p.id] || 0) + d));
-    const next = { ...c }; if (n) next[p.id] = n; else delete next[p.id]; return next;
+  const vendor = (b: FoodBusiness): CartVendor => ({
+    source: "food", id: b.id, name: b.name, logo: b.logo_url ?? null, color: bizColor(b), deliveryFee: Number(b.delivery_fee || 0), minOrder: Number(b.min_order || 0),
+    modes: (["delivery", "takeaway", "dine_in"] as const).filter((t) => (t === "delivery" ? b.delivery_enabled : t === "takeaway" ? b.takeaway_enabled : b.dine_in_enabled)) as any,
+    kindLabel: TYPE_META[b.business_type]?.label,
   });
+  const add = (p: FoodProduct, d = 1) => {
+    if (!biz) return;
+    cartCtx.add(vendor(biz), { id: p.id, name: p.name, price: Number(p.price), image: productImage(p) ?? null, max: p.stock ?? 99 }, d);
+  };
 
   if (error) return (
     <View style={[st.center, { paddingTop: insets.top }]}>
@@ -92,7 +108,7 @@ export default function RestaurantScreen() {
         business_id: biz.id, order_type: type, items: lines.map((l) => ({ id: l.p.id, qty: l.qty })),
         customer_name: form.name, customer_phone: form.phone, delivery_address: type === "delivery" ? form.address : undefined, notes: form.notes,
       });
-      setCart({}); setSheet(false);
+      cartCtx.clear("food", biz.id); setSheet(false);
       notify("تم إرسال طلبك ✅", `${r.message}\nرقم الطلب: ${r.order.order_number}\nستصلك إشعارات بكل مرحلة.`);
       router.push("/my-food-orders" as any);
     } catch (e: any) {
@@ -111,6 +127,7 @@ export default function RestaurantScreen() {
             <TouchableOpacity onPress={() => router.back()} style={st.round} accessibilityLabel="رجوع"><Ionicons name="arrow-forward" size={20} color="#fff" /></TouchableOpacity>
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
               <TouchableOpacity onPress={() => Share.share({ message: `${biz.name} على حصاحيصاوي — اطلب الآن:\nhttps://play.google.com/store/apps/details?id=com.almhbob.hasahisawi` }).catch(() => {})} style={st.round} accessibilityLabel="مشاركة"><Ionicons name="share-social-outline" size={19} color="#fff" /></TouchableOpacity>
+              <CartButton bg="rgba(0,0,0,0.28)" />
               {canManage ? <TouchableOpacity onPress={() => router.push({ pathname: "/restaurant-manage", params: { id: String(biz.id) } } as any)} style={st.round} accessibilityLabel="لوحة المطعم"><Ionicons name="speedometer-outline" size={19} color="#fff" /></TouchableOpacity> : null}
             </View>
           </View>

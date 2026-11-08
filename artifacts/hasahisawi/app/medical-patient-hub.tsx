@@ -14,9 +14,10 @@ import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
+import PatientJourneyPanel from "@/components/medical/PatientJourneyPanel";
 
-const MED = "#10B981";
-const MED2 = "#6EE7B7";
+const MED = "#00966A";
+const MED2 = "#BFEBD9";
 
 type Appointment = { id: number; facility_name: string; appointment_date: string; appointment_time: string; status: string; notes: string };
 type LabResult = { id: number; order_id: number; ready_at: string; summary_notes: string; results_data: any; tests: any };
@@ -51,7 +52,8 @@ export default function MedicalPatientHubScreen() {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
 
-  const [tab, setTab] = useState<"appointments" | "labs" | "prescriptions" | "pharmacy">("appointments");
+  const [tab, setTab] = useState<"journey" | "docs" | "appointments" | "labs" | "prescriptions" | "pharmacy">("journey");
+  const [reloadKey, setReloadKey] = useState(0);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -235,6 +237,8 @@ export default function MedicalPatientHubScreen() {
   };
 
   const TABS = [
+    { key: "journey",      label: "رحلتي",     icon: "git-network-outline", count: 0 },
+    { key: "docs",         label: "مستنداتي",  icon: "images-outline",      count: 0 },
     { key: "appointments", label: "مواعيدي",   icon: "calendar-outline",    count: appointments.filter(a => a.status !== "cancelled").length },
     { key: "labs",         label: "المختبر",    icon: "flask-outline",        count: labResults.length },
     { key: "prescriptions",label: "الروشتات",  icon: "document-text-outline", count: prescriptions.length },
@@ -243,13 +247,13 @@ export default function MedicalPatientHubScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <LinearGradient colors={["#064E3B", "#065F46"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={["#00966A", "#004D36"]} style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={MED2} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={s.headerTitle}>ملفي الطبي</Text>
-          <Text style={s.headerSub}>جميع خدماتي الصحية في مكان واحد</Text>
+          <Text style={s.headerTitle}>رحلتي الطبية</Text>
+          <Text style={s.headerSub}>ملفك وفريق رعايتك ومستنداتك في مكان واحد</Text>
         </View>
         <TouchableOpacity onPress={() => router.push("/medical-record-setup" as any)} style={s.iconBtn} hitSlop={12}>
           <Ionicons name="person-outline" size={22} color={MED2} />
@@ -275,7 +279,7 @@ export default function MedicalPatientHubScreen() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAll(); }} tintColor={MED} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setReloadKey((k) => k + 1); loadAll(); }} tintColor={MED} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
       >
@@ -283,6 +287,9 @@ export default function MedicalPatientHubScreen() {
           <View style={s.center}><ActivityIndicator color={MED} size="large" /></View>
         ) : (
           <>
+            {(tab === "journey" || tab === "docs") && token && user ? (
+              <PatientJourneyPanel token={token} userId={Number(user.id)} view={tab} reloadKey={reloadKey} />
+            ) : null}
             {/* ── مواعيدي ── */}
             {tab === "appointments" && (
               <Animated.View entering={FadeInDown.springify()}>

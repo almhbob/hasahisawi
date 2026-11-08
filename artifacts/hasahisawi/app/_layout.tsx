@@ -49,6 +49,7 @@ import { resumePendingSectionInvite } from "@/lib/section-invites";
 import { ONBOARDING_KEY } from "./onboarding";
 import DesktopShell from "@/components/web/DesktopShell";
 import { A11yProvider } from "@/lib/a11y";
+import { CartProvider } from "@/lib/cart";
 import VoiceAssistant from "@/components/a11y/VoiceAssistant";
 import ActiveCallPill from "@/components/ActiveCallPill";
 import UpdateBanner from "@/components/UpdateBanner";
@@ -235,6 +236,8 @@ function AuthGate() {
         }
         if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
+        if (screen === "staff-portal") { router.push({ pathname: "/staff-portal", params: data?.tab ? { tab: String(data.tab) } : {} } as any); return; }
+        if (screen === "medical-patient-hub") { router.push("/medical-patient-hub" as any); return; }
         if (screen === "invitation" && data?.t) { router.push({ pathname: "/invitation", params: { t: String(data.t) } } as any); return; }
         if (type === "medical_consultation") {
           router.push({ pathname: "/(tabs)/medical", params: { tab: "consultations", ...(data?.consultation_id ? { consult: String(data.consultation_id) } : {}) } } as any);
@@ -461,6 +464,7 @@ function RootLayoutNav() {
         <Stack.Screen name="lawyer-portal"        options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="client-case-chat"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-patient-hub"  options={{ headerShown: false, animation: "slide_from_right" }} />
+        <Stack.Screen name="cart" options={{ headerShown: false, animation: "slide_from_bottom" }} />
         <Stack.Screen name="sick-leave"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="hospital-admission"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />
@@ -602,6 +606,7 @@ export default function RootLayout() {
             <AuthProvider>
               <FeatureFlagsProvider>
               <A11yProvider>
+              <CartProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   {/* الاتجاه LTR على كل المنصات (التصميم يتكفّل باليمين). كان الويب وحده RTL فتنعكس الواجهة */}
@@ -620,6 +625,7 @@ export default function RootLayout() {
                   </View>
                 </KeyboardProvider>
               </GestureHandlerRootView>
+              </CartProvider>
               </A11yProvider>
               </FeatureFlagsProvider>
             </AuthProvider>

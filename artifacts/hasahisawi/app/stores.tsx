@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EntityNotice, useEntityStatus } from "@/components/EntityNotice";
 import {
   View,
@@ -18,7 +18,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCart, basketKey, type CartVendor } from "@/lib/cart";
+import CartButton from "@/components/CartButton";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
@@ -537,7 +539,7 @@ function OrderSuccessModal({
 
 // ─── MyOrderCard ─────────────────────────────────────────────────────────────
 
-function MyOrderCard({ order, index }: { order: StoreOrder; index: number }) {
+function MyOrderCard({ order, index, onReorder }: { order: StoreOrder; index: number; onReorder?: (o: StoreOrder) => void }) {
   const statusCfg =
     ORDER_STATUS_CONFIG[order.status] ?? {
       label: order.status,
@@ -580,6 +582,11 @@ function MyOrderCard({ order, index }: { order: StoreOrder; index: number }) {
           <TouchableOpacity style={styles.detailsBtn} onPress={showDetails}>
             <Text style={styles.detailsBtnText}>التفاصيل</Text>
           </TouchableOpacity>
+          {onReorder && order.items?.length ? (
+            <TouchableOpacity style={[styles.detailsBtn, { backgroundColor: "#E8A90026" }]} onPress={() => onReorder(order)} accessibilityLabel="اطلب مجدداً">
+              <Text style={[styles.detailsBtnText, { color: "#7A5900" }]}>اطلب مجدداً</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </Animated.View>
@@ -808,8 +815,18 @@ export default function StoresScreen() {
   } | null>(null);
   const [storeLoading, setStoreLoading] = useState(false);
 
-  // Cart
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // السلة الموحّدة: محفوظة لكل متجر ولا تُفرَّغ عند الخروج منه
+  const cartCtx = useCart();
+  const vendorOf = (st: Store): CartVendor => ({
+    source: "store", id: st.id, name: st.name, logo: st.logo_url ?? null, deliveryFee: Number(st.delivery_fee ?? 0),
+    minOrder: Number(st.min_order ?? 0), deliveryAvailable: !!st.delivery_available, kindLabel: storeTypeLabel(st.type),
+  });
+  const basket = selectedStore ? cartCtx.get("store", selectedStore.id) : undefined;
+  const cart: CartItem[] = useMemo(() => (basket?.lines ?? []).map((l) => ({
+    product: storeData?.products.find((p) => p.id === l.id) ?? ({ id: l.id, name: l.name, price: l.price, image_url: l.image ?? undefined, is_available: true, sort_order: 0 } as any),
+    qty: l.qty,
+  })), [basket, storeData]);
+  const setCart = (_v: CartItem[]) => { if (selectedStore) cartCtx.clear("store", selectedStore.id); };
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -849,11 +866,25 @@ export default function StoresScreen() {
     fetchStores();
   }, [fetchStores]);
 
+  // روابط مباشرة: ‎/stores?open=ID (من السلة) و ‎/stores?tab=myorders (تتبّع الطلب)
+  const navParams = useLocalSearchParams<{ open?: string; tab?: string }>();
+  const openedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (navParams.tab === "myorders" && openedRef.current !== "tab") { openedRef.current = "tab"; handleTabChange("myorders"); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navParams.tab, token]);
+  useEffect(() => {
+    const id = Number(navParams.open);
+    if (!id || openedRef.current === `open:${id}` || !stores.length) return;
+    const st = stores.find((x) => x.id === id);
+    if (st) { openedRef.current = `open:${id}`; openStore(st); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navParams.open, stores]);
+
   // ── Fetch store detail ──────────────────────────────────────────────────────
 
   const openStore = async (store: Store) => {
     setSelectedStore(store);
-    setCart([]);
     setStoreLoading(true);
     setStoreData(null);
     try {
@@ -865,6 +896,11 @@ export default function StoresScreen() {
         categories: data.categories ?? [],
         products: data.products ?? [],
       });
+      const b = cartCtx.get("store", store.id);
+      if (b) {
+        const avail = new Map<number, any>((data.products ?? []).filter((p: any) => p.is_available !== false).map((p: any) => [p.id, p]));
+        cartCtx.refill(vendorOf(data.store ?? store), b.lines.filter((l) => avail.has(l.id)).map((l) => ({ ...l, price: Number(avail.get(l.id).price), name: avail.get(l.id).name })));
+      }
     } catch {
       Alert.alert("خطأ", "تعذّر تحميل تفاصيل المتجر. تحقق من الاتصال.");
     } finally {
@@ -875,39 +911,32 @@ export default function StoresScreen() {
   // ── Cart helpers ────────────────────────────────────────────────────────────
 
   const addToCart = (product: Product) => {
-    setCart((prev) => {
-      const existing = prev.find((ci) => ci.product.id === product.id);
-      if (existing) {
-        return prev.map((ci) =>
-          ci.product.id === product.id ? { ...ci, qty: ci.qty + 1 } : ci
-        );
-      }
-      return [...prev, { product, qty: 1 }];
-    });
+    if (!selectedStore) return;
+    cartCtx.add(vendorOf(storeData?.store ?? selectedStore), { id: product.id, name: product.name, price: Number(product.price), image: product.image_url ?? null }, 1);
   };
 
   const removeFromCart = (productId: number) => {
-    setCart((prev) => {
-      const existing = prev.find((ci) => ci.product.id === productId);
-      if (!existing) return prev;
-      if (existing.qty <= 1) return prev.filter((ci) => ci.product.id !== productId);
-      return prev.map((ci) =>
-        ci.product.id === productId ? { ...ci, qty: ci.qty - 1 } : ci
-      );
-    });
+    if (!selectedStore) return;
+    cartCtx.setQty("store", selectedStore.id, productId, cartCtx.qty("store", selectedStore.id, productId) - 1);
   };
 
   const updateQty = (productId: number, delta: number) => {
-    if (delta > 0) {
-      const product = cart.find((ci) => ci.product.id === productId)?.product;
-      if (product) addToCart(product);
-    } else {
-      removeFromCart(productId);
-    }
+    if (!selectedStore) return;
+    cartCtx.setQty("store", selectedStore.id, productId, cartCtx.qty("store", selectedStore.id, productId) + delta);
   };
 
   const deleteFromCart = (productId: number) => {
-    setCart((prev) => prev.filter((ci) => ci.product.id !== productId));
+    if (selectedStore) cartCtx.setQty("store", selectedStore.id, productId, 0);
+  };
+
+  /** إتمام الطلب من صفحة السلة الموحّدة (بيانات محفوظة، ملاحظات لكل صنف، توصيل/استلام) */
+  const goCheckout = () => {
+    if (!selectedStore) return;
+    const key = basketKey("store", selectedStore.id);
+    setShowCart(false);
+    setSelectedStore(null);
+    setStoreData(null);
+    router.push({ pathname: "/cart", params: { focus: key } } as any);
   };
 
   // ── Submit order ────────────────────────────────────────────────────────────
@@ -1036,14 +1065,14 @@ export default function StoresScreen() {
         showBack
         onBack={() => router.back()}
         gradient={Colors.gradients.brand}
-        rightSlot={token ? (
+        rightSlot={<View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}><CartButton />{token ? (
           <TouchableOpacity onPress={() => router.push("/store-portal" as any)} activeOpacity={0.85}
             style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7 }}
             accessibilityLabel={hasStore ? "لوحة متجري" : "سجّل متجرك"}>
             <Ionicons name={hasStore ? "settings-outline" : "add-circle-outline"} size={15} color="#fff" />
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff" }}>{hasStore ? "لوحة متجري" : "سجّل متجرك"}</Text>
           </TouchableOpacity>
-        ) : undefined}
+        ) : null}</View>}
       />
 
       {/* Tabs */}
@@ -1157,7 +1186,15 @@ export default function StoresScreen() {
             contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: insets.bottom + 24 }}
             showsVerticalScrollIndicator={false}
             renderItem={({ item, index }) => (
-              <MyOrderCard order={item} index={index} />
+              <MyOrderCard order={item} index={index} onReorder={(o) => {
+                const sid = Number((o as any).store_id);
+                if (!sid) return;
+                cartCtx.refill({ source: "store", id: sid, name: o.store_name, logo: o.store_logo ?? null },
+                  (o.items ?? []).map((it: any) => ({ id: Number(it.id), name: it.name, price: Number(it.price), qty: Number(it.qty) })).filter((l) => l.id));
+                setActiveTab("browse");
+                const st = stores.find((x) => x.id === sid);
+                if (st) openStore(st); else router.push({ pathname: "/cart", params: { focus: basketKey("store", sid) } } as any);
+              }} />
             )}
           />
         )
@@ -1172,7 +1209,6 @@ export default function StoresScreen() {
         onClose={() => {
           setSelectedStore(null);
           setStoreData(null);
-          setCart([]);
         }}
         onAddToCart={addToCart}
         onRemoveFromCart={removeFromCart}
@@ -1187,10 +1223,7 @@ export default function StoresScreen() {
         onClose={() => setShowCart(false)}
         onUpdateQty={updateQty}
         onRemove={deleteFromCart}
-        onCheckout={() => {
-          setShowCart(false);
-          setShowCheckout(true);
-        }}
+        onCheckout={goCheckout}
       />
 
       {/* Checkout Sheet */}
