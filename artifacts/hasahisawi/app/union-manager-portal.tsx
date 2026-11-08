@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
@@ -20,6 +20,7 @@ import { DateInput, TimeInput } from "@/components/ui/DateTimeField";
 import { useAuth } from "@/lib/auth-context";
 import { ImageUploadField, ImagesUploadField } from "@/components/union/ImageUploadField";
 import { ArchiveTab, ElectionsTab } from "@/components/union/PortalArchiveElections";
+import { TasksTab } from "@/components/union/TasksTab";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -1456,7 +1457,11 @@ export default function UnionManagerPortalScreen() {
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab]     = useState<"staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "archive" | "elections" | "account">("requests");
+  const [tab, setTab]     = useState<"tasks" | "staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "archive" | "elections" | "account">("requests");
+  const [taskBadge, setTaskBadge] = useState(0);
+  // فتح تبويب محدد من الإشعار (مثل: مهمة جديدة ← «المهام»)
+  const params = useLocalSearchParams<{ tab?: string }>();
+  useEffect(() => { if (params.tab) setTab(params.tab as any); }, [params.tab]);
   const [inboxBadge, setInboxBadge] = useState(0);
   const [stats, setStats] = useState({ staff: 0, upcoming_meetings: 0, messages: 0, pending_requests: 0, members: 0, expiring_cards: 0 });
   const [reqBadge, setReqBadge] = useState(0);
@@ -1508,17 +1513,19 @@ export default function UnionManagerPortalScreen() {
   if (!token || !manager) return <LoginScreen onLogin={handleLogin} />;
 
   const TABS = ([
+    { key: "tasks",    icon: "checkbox-outline",     label: manager.staff_id ? "مهامي" : "المهام", badge: taskBadge, show: true },
     { key: "requests", icon: "mail-unread-outline",  label: "الطلبات",    badge: reqBadge,   show: can("can_manage_requests") },
     { key: "members",  icon: "id-card-outline",      label: "الأعضاء",    badge: stats.expiring_cards || 0, show: true },
     { key: "inbox",    icon: "file-tray-full-outline", label: "الرسائل",  badge: inboxBadge, show: can("can_manage_requests") },
     { key: "news",     icon: "megaphone-outline",     label: "الأخبار",    badge: 0, show: can("can_post_announcements") },
-    { key: "elections", icon: "checkbox-outline",     label: "الانتخابات", badge: 0, show: true },
-    { key: "archive",  icon: "images-outline",        label: "الأرشيف",    badge: 0, show: true },
+    { key: "elections", icon: "ribbon-outline",       label: "الانتخابات", badge: 0, show: true },
+    { key: "archive",  icon: "images-outline",        label: "الأنشطة",    badge: 0, show: true },
     { key: "staff",    icon: "people-outline",        label: "الموظفون",   badge: 0, show: true },
     { key: "meetings", icon: "calendar-outline",      label: "الاجتماعات", badge: 0, show: true },
     { key: "messages", icon: "chatbubbles-outline",   label: "الفريق",     badge: 0, show: true },
     { key: "account",  icon: "settings-outline",      label: "الحساب",     badge: 0, show: true },
   ]).filter(x => x.show);
+  // الموظف يبدأ بمهامه، والرئاسة بالطلبات (أو أول تبويب متاح)
   const activeTab = TABS.some(x => x.key === tab) ? tab : (TABS[0].key as typeof tab);
 
   return (
@@ -1554,6 +1561,7 @@ export default function UnionManagerPortalScreen() {
 
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
+        {activeTab === "tasks"    && <TasksTab token={token} onOpenCount={setTaskBadge} />}
         {activeTab === "members"  && <MembersTab token={token} can={can} />}
         {activeTab === "archive"  && <ArchiveTab token={token} canEdit={can("can_post_announcements")} />}
         {activeTab === "elections" && <ElectionsTab token={token} canManage={!manager.staff_id} />}

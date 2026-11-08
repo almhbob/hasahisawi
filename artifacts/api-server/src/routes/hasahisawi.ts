@@ -2798,12 +2798,25 @@ router.post("/auth/login", authLimiter, async (req: Request, res: Response) => {
     if (!captchaOk) return res.status(400).json({ error: "فشل التحقق من reCAPTCHA. أعد المحاولة." });
     const lk = lockKey("user", phone_or_email);
     if (await rejectIfLocked(res, lk)) return;
+    // بحث متسامح: البريد بلا مسافات أو حروف خفية وبأحرف صغيرة، والهاتف بآخر 9 أرقام (09… / +249… / ٠٩…)
+    const rawId = toLatinDigits(String(phone_or_email)).replace(/[\s\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
+    const emailKey = rawId.includes("@") ? rawId.toLowerCase() : "";
+    const digits = rawId.replace(/\D/g, "");
+    const phoneKey = !emailKey && digits.length >= 9 ? digits.slice(-9) : "";
     const result = await query(
-      `SELECT * FROM users WHERE phone=$1 OR LOWER(email)=LOWER($1)`,
-      [phone_or_email]
+      `SELECT * FROM users
+        WHERE ($1::text <> '' AND LOWER(REGEXP_REPLACE(COALESCE(email,''), '[[:space:]\u200B-\u200F\u202A-\u202E\uFEFF]', '', 'g')) = $1)
+           OR ($2::text <> '' AND RIGHT(REGEXP_REPLACE(COALESCE(phone,''), '[^0-9]', '', 'g'), 9) = $2)
+           OR phone = $3
+        ORDER BY id LIMIT 5`,
+      [emailKey, phoneKey, String(phone_or_email).trim()]
     );
-    const user = result.rows[0];
-    if (!user) return failResponse(res, lk, "بيانات الدخول غير صحيحة.");
+    if (!result.rows.length) return failResponse(res, lk, "بيانات الدخول غير صحيحة.");
+    // عند تكرار الحساب بنفس البريد/الهاتف نختار الذي تطابق كلمة مروره
+    let user = result.rows[0];
+    for (const cand of result.rows) {
+      if (isValidBcryptHashForLogin(cand.password_hash) && await bcrypt.compare(String(password), cand.password_hash)) { user = cand; break; }
+    }
     if (user.is_memorial) return res.status(403).json({ error: "هذا الحساب تذكاري لصاحبه رحمه الله، ولا يمكن الدخول إليه." });
     // مستخدم تم إنشاؤه/استيراده من Firebase أو Google بلا hash صالح لـ bcrypt.
     // لا نمرر قيماً مثل firebase_only_account إلى bcrypt.compare حتى لا يرمي Server error.

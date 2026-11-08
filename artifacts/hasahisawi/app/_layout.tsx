@@ -1,3 +1,5 @@
+import "@/lib/font-scale"; // سقف تكبير الخط (يعمل مع React 19 بخلاف defaultProps)
+import "@/lib/a11y-icons"; // الأيقونات مخفية عن قارئ الشاشة في كل التطبيق
 import Colors from "@/constants/colors";
 import { installWebAlert } from "@/lib/web-alert";
 import { claimPendingInvite } from "@/lib/invites";
@@ -57,16 +59,7 @@ import { activeScheme } from "@/constants/theme-mode";
 // ── ضبط حجم الخط على الموبايل ─────────────────────────────────────
 // بعض الأجهزة تكون عليها إعدادات Accessibility بحجم خط كبير جداً، وهذا كان يسبب
 // تداخل البطاقات في شاشة الإعدادات. نسمح بتكبير بسيط فقط للحفاظ على الشكل.
-try {
-  (Text as any).defaultProps = {
-    ...((Text as any).defaultProps || {}),
-    maxFontSizeMultiplier: 1.25, // was 1.12: too low for older users who enlarge system text
-  };
-  (TextInput as any).defaultProps = {
-    ...((TextInput as any).defaultProps || {}),
-    maxFontSizeMultiplier: 1.2,
-  };
-} catch {}
+// السقف يُطبَّق فعلياً عبر lib/font-scale (‏defaultProps لا تعمل مع React 19): نص ×1.25 وخانات الإدخال ×1.2
 
 // رسائل Alert.alert تظهر على الويب أيضاً (react-native-web يتجاهلها)
 installWebAlert();
@@ -208,6 +201,7 @@ function AuthGate() {
         if (screen === "student-union-contact" || type === "student_union_reply") { router.push("/student-union-contact" as any); return; }
         if (screen === "student-union-news" || type === "student_union_post") { router.push("/student-union-news" as any); return; }
         if (screen === "union-manager-portal" || type === "union_meeting") { router.push("/union-manager-portal" as any); return; }
+        if (screen === "union-tasks") { router.push({ pathname: "/union-manager-portal", params: { tab: "tasks" } } as any); return; }
         if (type === "student_union_member") { router.push("/student-union-status" as any); return; }
         if (screen === "student-union-elections" || type === "union_election") { router.push({ pathname: "/student-union-elections", params: data?.id ? { id: String(data.id) } : {} } as any); return; }
 

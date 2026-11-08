@@ -6,6 +6,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AccessibilityInfo, Platform, Text, TextInput } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Speech from "expo-speech";
+import { setFontCaps } from "@/lib/font-scale";
 
 const KEY = "@hasahisawi_a11y_v1";
 
@@ -34,8 +35,7 @@ const A11yContext = createContext<Ctx>({
 
 function applyTextScaling(large: boolean) {
   try {
-    (Text as any).defaultProps = { ...((Text as any).defaultProps || {}), maxFontSizeMultiplier: large ? 2 : 1.25 };
-    (TextInput as any).defaultProps = { ...((TextInput as any).defaultProps || {}), maxFontSizeMultiplier: large ? 1.8 : 1.2 };
+    setFontCaps(large ? 2 : 1.25, large ? 1.8 : 1.2);
   } catch { /* */ }
 }
 

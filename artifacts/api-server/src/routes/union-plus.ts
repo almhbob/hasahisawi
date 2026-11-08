@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-// اتحاد الطلاب — أرشيف الأنشطة + الانتخابات
+// اتحاد الطلاب — الأنشطة (مسودة/منشور/مؤرشف) + مهام الموظفين + الانتخابات
 //
 // ضمانات نزاهة الانتخابات:
 //  • سرية الاقتراع: الأصوات تُخزَّن في جدول لا يحمل هوية الناخب ولا وقت التصويت ومعرّفها عشوائي،
@@ -17,7 +17,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { logger } from "../lib/logger";
 import { query, sessionUser, dbClient } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
-import { umAuth, notifyUnionUser } from "./hasahisawi";
+import { umAuth, notifyUnionUser, isAdminRequest, ensureStudentUnionPlus } from "./hasahisawi";
 
 const router = Router();
 
@@ -37,6 +37,25 @@ function ensureDb(): Promise<void> {
       activity_date DATE NOT NULL, location VARCHAR(200), cover_url TEXT, images JSONB NOT NULL DEFAULT '[]'::jsonb,
       attendees INTEGER, created_by INTEGER, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`);
     await query(`CREATE INDEX IF NOT EXISTS idx_union_activities_date ON union_activities(activity_date DESC)`);
+    // دورة النشر: مسودة ← منشور (يظهر في «الأنشطة») ← مؤرشف (يبقى في الأرشيف فقط). الموجود سابقاً يُعدّ منشوراً.
+    await query(`ALTER TABLE union_activities ADD COLUMN IF NOT EXISTS status VARCHAR(12) NOT NULL DEFAULT 'published'`);
+    await query(`ALTER TABLE union_activities ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`);
+    await query(`ALTER TABLE union_activities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`);
+    await query(`ALTER TABLE union_activities ADD COLUMN IF NOT EXISTS author_name VARCHAR(200)`);
+    await query(`ALTER TABLE union_activities ADD COLUMN IF NOT EXISTS created_by_admin INTEGER`);
+    await query(`UPDATE union_activities SET published_at=COALESCE(published_at, created_at) WHERE status='published' AND published_at IS NULL`);
+    // مهام موظفي الاتحاد
+    await query(`CREATE TABLE IF NOT EXISTS union_tasks (
+      id SERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, description TEXT,
+      assignee_staff_id INTEGER NOT NULL, created_by INTEGER, created_by_name VARCHAR(200),
+      priority VARCHAR(8) NOT NULL DEFAULT 'normal', status VARCHAR(12) NOT NULL DEFAULT 'todo',
+      progress INTEGER NOT NULL DEFAULT 0, due_date DATE, completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_union_tasks_assignee ON union_tasks(assignee_staff_id, status)`);
+    await query(`CREATE TABLE IF NOT EXISTS union_task_comments (
+      id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES union_tasks(id) ON DELETE CASCADE,
+      author_id INTEGER, author_name VARCHAR(200), body TEXT NOT NULL, kind VARCHAR(10) NOT NULL DEFAULT 'comment',
+      created_at TIMESTAMPTZ DEFAULT NOW())`);
     await query(`CREATE TABLE IF NOT EXISTS union_elections (
       id SERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, description TEXT,
       nominations_start TIMESTAMPTZ NOT NULL, nominations_end TIMESTAMPTZ NOT NULL,
@@ -67,7 +86,7 @@ function ensureDb(): Promise<void> {
       actor VARCHAR(200), action VARCHAR(60) NOT NULL, details TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
   })().catch((e) => { ready = null; throw e; }));
 }
-router.use(["/union/activities", "/union/elections", "/union-manager/activities", "/union-manager/elections"], async (_req, res, next) => {
+router.use(["/union/activities", "/union/elections", "/union-manager/activities", "/union-manager/elections", "/union-manager/tasks", "/admin/student-union/activities"], async (_req, res, next) => {
   try { await ensureDb(); next(); } catch (err) { logger.error({ err }, "[union-plus] ensure"); res.status(500).json({ error: "تعذّر التهيئة" }); }
 });
 
@@ -88,6 +107,9 @@ const actOut = (a: any) => ({ ...a, category_label: ACTIVITY_CATS[a.category] ??
 router.get("/union/activities", async (req: Request, res: Response) => {
   try {
     const args: unknown[] = []; const w: string[] = [];
+    // current = المنشور حالياً، archive = المؤرشف، والافتراضي كلاهما (لا مسودات للعامة)
+    const scope = String(req.query.scope ?? "");
+    w.push(scope === "current" ? `status='published'` : scope === "archive" ? `status='archived'` : `status IN ('published','archived')`);
     const year = parseInt(String(req.query.year ?? ""), 10);
     if (year > 2000) { args.push(year); w.push(`EXTRACT(YEAR FROM activity_date)=$${args.length}`); }
     if (ACTIVITY_CATS[String(req.query.category ?? "")]) { args.push(String(req.query.category)); w.push(`category=$${args.length}`); }
@@ -95,14 +117,14 @@ router.get("/union/activities", async (req: Request, res: Response) => {
     const stats = (await query(`SELECT COUNT(*)::int AS total, COALESCE(SUM(attendees),0)::int AS attendees,
         COALESCE(SUM(jsonb_array_length(images)),0)::int AS photos,
         ARRAY(SELECT DISTINCT EXTRACT(YEAR FROM activity_date)::int FROM union_activities ORDER BY 1 DESC) AS years
-      FROM union_activities`)).rows[0];
+      FROM union_activities WHERE status IN ('published','archived')`)).rows[0];
     return res.json({ activities: r.rows.map(actOut), stats, categories: ACTIVITY_CATS });
   } catch (e) { return fail(res, e, "activities"); }
 });
 
 router.get("/union/activities/:id", async (req: Request, res: Response): Promise<any> => {
   try {
-    const r = await query(`SELECT * FROM union_activities WHERE id=$1`, [parseInt(String(req.params.id), 10) || 0]);
+    const r = await query(`SELECT * FROM union_activities WHERE id=$1 AND status IN ('published','archived')`, [parseInt(String(req.params.id), 10) || 0]);
     if (!r.rows[0]) return res.status(404).json({ error: "النشاط غير موجود" });
     return res.json({ activity: actOut(r.rows[0]) });
   } catch (e) { return fail(res, e, "activity"); }
@@ -119,33 +141,275 @@ function readActivity(b: any): { ok: false; error: string } | { ok: true; v: any
   return { ok: true, v: [title, clip(b.body, 6000) || null, ACTIVITY_CATS[b.category] ? b.category : "other", date, clip(b.location, 200) || null, cover, JSON.stringify(images), att] };
 }
 
-router.post("/union-manager/activities", writeLimiter, async (req: Request, res: Response): Promise<any> => {
-  const m = await umAuth(req, res, "can_post_announcements"); if (!m) return;
+const STATUSES = ["draft", "published", "archived"] as const;
+type ActStatus = (typeof STATUSES)[number];
+type Actor = { kind: "manager" | "admin"; id: number; name: string };
+
+/** من يدير الأنشطة: بوابة الاتحاد (صلاحية النشر) أو إدارة التطبيق (مدير/مشرف بصلاحية اتحاد الطلاب) */
+async function activityActor(req: Request, res: Response, portal: boolean): Promise<Actor | null> {
+  if (portal) {
+    const m = await umAuth(req, res, "can_post_announcements"); if (!m) return null;
+    return { kind: "manager", id: m.id, name: m.full_name };
+  }
+  if (!(await isAdminRequest(req))) { res.status(403).json({ error: "غير مصرح" }); return null; }
+  const u = await sessionUser(req);
+  return { kind: "admin", id: u?.id ?? 0, name: u?.name ?? "إدارة التطبيق" };
+}
+
+/** عند النشر مع خيار الإعلان: خبر في «أخبار الاتحاد» */
+async function announce(a: any) {
   try {
-    const p = readActivity(req.body || {}); if (!p.ok) return res.status(400).json({ error: p.error });
-    const r = await query(`INSERT INTO union_activities (title, body, category, activity_date, location, cover_url, images, attendees, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9) RETURNING *`, [...p.v, m.id]);
-    return res.status(201).json({ activity: actOut(r.rows[0]) });
-  } catch (e) { return fail(res, e, "activity-create"); }
+    await ensureStudentUnionPlus();
+    const body = [a.body ? String(a.body).slice(0, 600) : "", [a.location, `بتاريخ ${String(a.activity_date).slice(0, 10)}`].filter(Boolean).join(" · ")].filter(Boolean).join("\n\n");
+    await query(`INSERT INTO student_union_posts (manager_id, title, body, image_url) VALUES ($1,$2,$3,$4)`,
+      [a.created_by ?? null, `نشاط جديد: ${a.title}`.slice(0, 200), body || a.title, a.cover_url]);
+  } catch (e: any) { logger.warn({ err: e?.message }, "[union-plus] announce"); }
+}
+
+for (const portal of [true, false]) {
+  const base = portal ? "/union-manager/activities" : "/admin/student-union/activities";
+
+  // كل الأنشطة بما فيها المسودات + عدّاد كل حالة
+  router.get(base, async (req: Request, res: Response): Promise<any> => {
+    const who = await activityActor(req, res, portal); if (!who) return;
+    try {
+      const st = String(req.query.status ?? "");
+      const r = await query(`SELECT * FROM union_activities ${STATUSES.includes(st as any) ? "WHERE status=$1" : ""}
+        ORDER BY (status='draft') DESC, activity_date DESC, id DESC LIMIT 400`, STATUSES.includes(st as any) ? [st] : []);
+      const c = await query(`SELECT status, COUNT(*)::int AS n FROM union_activities GROUP BY status`);
+      const counts: Record<string, number> = { draft: 0, published: 0, archived: 0 };
+      for (const x of c.rows) counts[x.status] = x.n;
+      const stats = (await query(`SELECT COUNT(*)::int AS total, COALESCE(SUM(attendees),0)::int AS attendees,
+        COALESCE(SUM(jsonb_array_length(images)),0)::int AS photos FROM union_activities WHERE status IN ('published','archived')`)).rows[0];
+      return res.json({ activities: r.rows.map(actOut), counts, stats, categories: ACTIVITY_CATS });
+    } catch (e) { return fail(res, e, "activities-admin"); }
+  });
+
+  router.post(base, writeLimiter, async (req: Request, res: Response): Promise<any> => {
+    const who = await activityActor(req, res, portal); if (!who) return;
+    try {
+      const p = readActivity(req.body || {}); if (!p.ok) return res.status(400).json({ error: p.error });
+      const status: ActStatus = STATUSES.includes(req.body?.status) ? req.body.status : "published";
+      const r = await query(`INSERT INTO union_activities (title, body, category, activity_date, location, cover_url, images, attendees, created_by, created_by_admin, author_name, status, published_at, archived_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12::text, CASE WHEN $12::text <> 'draft' THEN NOW() END, CASE WHEN $12::text = 'archived' THEN NOW() END) RETURNING *`,
+        [...p.v, who.kind === "manager" ? who.id : null, who.kind === "admin" ? who.id : null, who.name, status]);
+      if (status === "published" && req.body?.announce) await announce(r.rows[0]);
+      return res.status(201).json({ activity: actOut(r.rows[0]) });
+    } catch (e) { return fail(res, e, "activity-create"); }
+  });
+
+  router.patch(`${base}/:id`, writeLimiter, async (req: Request, res: Response): Promise<any> => {
+    const who = await activityActor(req, res, portal); if (!who) return;
+    try {
+      const p = readActivity(req.body || {}); if (!p.ok) return res.status(400).json({ error: p.error });
+      const r = await query(`UPDATE union_activities SET title=$1, body=$2, category=$3, activity_date=$4, location=$5, cover_url=$6,
+        images=$7::jsonb, attendees=$8, updated_at=NOW() WHERE id=$9 RETURNING *`, [...p.v, parseInt(String(req.params.id), 10) || 0]);
+      if (!r.rows[0]) return res.status(404).json({ error: "النشاط غير موجود" });
+      return res.json({ activity: actOut(r.rows[0]) });
+    } catch (e) { return fail(res, e, "activity-update"); }
+  });
+
+  // POST …/:id/status  { status: draft|published|archived, announce?: boolean }
+  router.post(`${base}/:id/status`, writeLimiter, async (req: Request, res: Response): Promise<any> => {
+    const who = await activityActor(req, res, portal); if (!who) return;
+    const status = String(req.body?.status ?? "") as ActStatus;
+    if (!STATUSES.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    try {
+      const prev = (await query(`SELECT status FROM union_activities WHERE id=$1`, [parseInt(String(req.params.id), 10) || 0])).rows[0];
+      if (!prev) return res.status(404).json({ error: "النشاط غير موجود" });
+      const r = await query(`UPDATE union_activities SET status=$1::text,
+          published_at = CASE WHEN $1::text='published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
+          archived_at = CASE WHEN $1::text='archived' THEN NOW() ELSE NULL END, updated_at=NOW()
+        WHERE id=$2 RETURNING *`, [status, parseInt(String(req.params.id), 10) || 0]);
+      if (status === "published" && prev.status === "draft" && req.body?.announce) await announce(r.rows[0]);
+      return res.json({ activity: actOut(r.rows[0]) });
+    } catch (e) { return fail(res, e, "activity-status"); }
+  });
+
+  router.delete(`${base}/:id`, async (req: Request, res: Response): Promise<any> => {
+    const who = await activityActor(req, res, portal); if (!who) return;
+    try {
+      await query(`DELETE FROM union_activities WHERE id=$1`, [parseInt(String(req.params.id), 10) || 0]);
+      return res.json({ ok: true });
+    } catch (e) { return fail(res, e, "activity-delete"); }
+  });
+}
+
+// ═══════════════════════ مهام الموظفين ═══════════════════════
+//  • الرئاسة (ومن يملك صلاحية إدارة الموظفين) تُسند المهام وتتابع الجميع.
+//  • كل موظف يرى مهامه فقط، ويحدّث حالتها ونسبة إنجازها ويعلّق عليها.
+//  • كل إسناد/تحديث/تعليق يرسل إشعاراً للطرف الآخر.
+const TASK_STATUS = ["todo", "in_progress", "review", "done", "blocked"] as const;
+const TASK_STATUS_LABEL: Record<string, string> = { todo: "جديدة", in_progress: "قيد التنفيذ", review: "بانتظار المراجعة", done: "مكتملة", blocked: "متعثرة" };
+const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
+
+const isLead = (m: any) => !m.staff_id || m.permissions?.can_manage_staff === true;
+
+async function pushToManagers(managerIds: (number | null | undefined)[], title: string, body: string, data: Record<string, unknown>) {
+  const ids = [...new Set(managerIds.filter((x): x is number => typeof x === "number"))];
+  if (!ids.length) return;
+  try {
+    const { rows } = await query(`SELECT DISTINCT token FROM union_manager_push_tokens WHERE manager_id = ANY($1::int[]) AND token LIKE 'ExponentPushToken[%'`, [ids]);
+    if (!rows.length) return;
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(4000),
+      body: JSON.stringify(rows.map((r: any) => ({ to: r.token, title, body, sound: "default", priority: "high", channelId: "hasahisawi-default", data: { ...data, screen: "union-tasks" } }))),
+    }).catch(() => {});
+  } catch (e: any) { logger.warn({ err: e?.message }, "[union-tasks] push"); }
+}
+/** حساب البوابة الخاص بالموظف (لإشعاره) */
+const accountOfStaff = async (staffId: number): Promise<number | null> =>
+  (await query(`SELECT id FROM union_managers WHERE staff_id=$1 AND is_active=TRUE LIMIT 1`, [staffId])).rows[0]?.id ?? null;
+/** حسابات الرئاسة (لإشعارها بتحديثات الموظفين) */
+const leadAccounts = async (): Promise<number[]> =>
+  (await query(`SELECT m.id FROM union_managers m LEFT JOIN union_staff st ON st.id=m.staff_id
+     WHERE m.is_active=TRUE AND (m.staff_id IS NULL OR (st.permissions->>'can_manage_staff')='true')`)).rows.map((r: any) => r.id);
+
+const TASK_SELECT = `SELECT t.*, st.full_name AS assignee_name, st.role AS assignee_role, st.committee AS assignee_committee,
+  (SELECT COUNT(*)::int FROM union_task_comments c WHERE c.task_id=t.id AND c.kind='comment') AS comments,
+  (t.due_date IS NOT NULL AND t.due_date < CURRENT_DATE AND t.status <> 'done') AS overdue
+  FROM union_tasks t LEFT JOIN union_staff st ON st.id=t.assignee_staff_id`;
+const taskOut = (t: any) => ({ ...t, status_label: TASK_STATUS_LABEL[t.status] ?? t.status });
+
+async function loadTask(id: number, m: any) {
+  const t = (await query(`${TASK_SELECT} WHERE t.id=$1`, [id])).rows[0];
+  if (!t) return null;
+  if (!isLead(m) && t.assignee_staff_id !== m.staff_id) return "forbidden" as const;
+  return t;
+}
+
+// GET /union-manager/tasks?status=&staff=  — الموظف: مهامه؛ الرئاسة: الكل + ملخص لكل موظف
+router.get("/union-manager/tasks", async (req: Request, res: Response): Promise<any> => {
+  const m = await umAuth(req, res); if (!m) return;
+  try {
+    const lead = isLead(m);
+    if (!lead && !m.staff_id) return res.json({ tasks: [], lead });
+    const args: unknown[] = []; const w: string[] = [];
+    if (!lead) { args.push(m.staff_id); w.push(`t.assignee_staff_id=$${args.length}`); }
+    else if (parseInt(String(req.query.staff ?? ""), 10) > 0) { args.push(parseInt(String(req.query.staff), 10)); w.push(`t.assignee_staff_id=$${args.length}`); }
+    const st = String(req.query.status ?? "");
+    if (st === "open") w.push(`t.status <> 'done'`);
+    else if (TASK_STATUS.includes(st as any)) { args.push(st); w.push(`t.status=$${args.length}`); }
+    const r = await query(`${TASK_SELECT} ${w.length ? "WHERE " + w.join(" AND ") : ""}
+      ORDER BY (t.status='done'), CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+      t.due_date NULLS LAST, t.id DESC LIMIT 400`, args);
+    const scope = lead ? "" : `WHERE assignee_staff_id=${Number(m.staff_id)}`;
+    const sum = (await query(`SELECT COUNT(*) FILTER (WHERE status<>'done')::int AS open,
+        COUNT(*) FILTER (WHERE status='done')::int AS done,
+        COUNT(*) FILTER (WHERE status<>'done' AND due_date < CURRENT_DATE)::int AS overdue,
+        COUNT(*) FILTER (WHERE status='review')::int AS review,
+        COUNT(*) FILTER (WHERE status<>'done' AND due_date = CURRENT_DATE)::int AS due_today
+      FROM union_tasks ${scope}`)).rows[0];
+    const staff = lead ? (await query(`SELECT st.id, st.full_name, st.role, st.committee,
+        COUNT(t.id) FILTER (WHERE t.status<>'done')::int AS open,
+        COUNT(t.id) FILTER (WHERE t.status='done')::int AS done,
+        COUNT(t.id) FILTER (WHERE t.status<>'done' AND t.due_date < CURRENT_DATE)::int AS overdue
+      FROM union_staff st LEFT JOIN union_tasks t ON t.assignee_staff_id=st.id
+      WHERE st.is_active=TRUE GROUP BY st.id ORDER BY st.full_name`)).rows : [];
+    return res.json({ tasks: r.rows.map(taskOut), summary: sum, staff, lead, statuses: TASK_STATUS_LABEL });
+  } catch (e) { return fail(res, e, "tasks"); }
 });
 
-router.patch("/union-manager/activities/:id", writeLimiter, async (req: Request, res: Response): Promise<any> => {
-  const m = await umAuth(req, res, "can_post_announcements"); if (!m) return;
+router.get("/union-manager/tasks/:id", async (req: Request, res: Response): Promise<any> => {
+  const m = await umAuth(req, res); if (!m) return;
   try {
-    const p = readActivity(req.body || {}); if (!p.ok) return res.status(400).json({ error: p.error });
-    const r = await query(`UPDATE union_activities SET title=$1, body=$2, category=$3, activity_date=$4, location=$5, cover_url=$6,
-      images=$7::jsonb, attendees=$8, updated_at=NOW() WHERE id=$9 RETURNING *`, [...p.v, parseInt(String(req.params.id), 10) || 0]);
-    if (!r.rows[0]) return res.status(404).json({ error: "النشاط غير موجود" });
-    return res.json({ activity: actOut(r.rows[0]) });
-  } catch (e) { return fail(res, e, "activity-update"); }
+    const t = await loadTask(parseInt(String(req.params.id), 10) || 0, m);
+    if (!t) return res.status(404).json({ error: "المهمة غير موجودة" });
+    if (t === "forbidden") return res.status(403).json({ error: "هذه المهمة ليست مسندة إليك" });
+    const c = await query(`SELECT id, author_name, body, kind, created_at FROM union_task_comments WHERE task_id=$1 ORDER BY id`, [t.id]);
+    return res.json({ task: taskOut(t), comments: c.rows, lead: isLead(m) });
+  } catch (e) { return fail(res, e, "task"); }
 });
 
-router.delete("/union-manager/activities/:id", async (req: Request, res: Response): Promise<any> => {
-  const m = await umAuth(req, res, "can_post_announcements"); if (!m) return;
+router.post("/union-manager/tasks", writeLimiter, async (req: Request, res: Response): Promise<any> => {
+  const m = await umAuth(req, res); if (!m) return;
+  if (!isLead(m)) return res.status(403).json({ error: "إسناد المهام لرئاسة الاتحاد أو من يملك صلاحية إدارة الموظفين" });
   try {
-    await query(`DELETE FROM union_activities WHERE id=$1`, [parseInt(String(req.params.id), 10) || 0]);
-    return res.json({ ok: true });
-  } catch (e) { return fail(res, e, "activity-delete"); }
+    const b = req.body || {};
+    const title = clip(b.title, 200);
+    if (title.length < 3) return res.status(400).json({ error: "اكتب عنوان المهمة" });
+    const sid = parseInt(String(b.assignee_staff_id ?? ""), 10) || 0;
+    const staff = (await query(`SELECT id, full_name FROM union_staff WHERE id=$1 AND is_active=TRUE`, [sid])).rows[0];
+    if (!staff) return res.status(400).json({ error: "اختر موظفاً نشطاً" });
+    const due = /^\d{4}-\d{2}-\d{2}$/.test(String(b.due_date ?? "")) ? String(b.due_date) : null;
+    const pr = PRIORITIES.includes(b.priority) ? b.priority : "normal";
+    const t = (await query(`INSERT INTO union_tasks (title, description, assignee_staff_id, created_by, created_by_name, priority, due_date)
+      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, [title, clip(b.description, 4000) || null, sid, m.id, m.full_name, pr, due])).rows[0];
+    await query(`INSERT INTO union_task_comments (task_id, author_id, author_name, body, kind) VALUES ($1,$2,$3,$4,'event')`, [t.id, m.id, m.full_name, `أسند المهمة إلى ${staff.full_name}`]);
+    pushToManagers([await accountOfStaff(sid)], pr === "urgent" ? "🔴 مهمة عاجلة جديدة" : "مهمة جديدة", `${title}${due ? ` — التسليم ${due}` : ""}`, { task_id: t.id }).catch(() => {});
+    const full = (await query(`${TASK_SELECT} WHERE t.id=$1`, [t.id])).rows[0];
+    return res.status(201).json({ task: taskOut(full) });
+  } catch (e) { return fail(res, e, "task-create"); }
+});
+
+// PATCH /union-manager/tasks/:id — الموظف: الحالة ونسبة الإنجاز؛ الرئاسة: كل الحقول
+router.patch("/union-manager/tasks/:id", writeLimiter, async (req: Request, res: Response): Promise<any> => {
+  const m = await umAuth(req, res); if (!m) return;
+  try {
+    const t = await loadTask(parseInt(String(req.params.id), 10) || 0, m);
+    if (!t) return res.status(404).json({ error: "المهمة غير موجودة" });
+    if (t === "forbidden") return res.status(403).json({ error: "هذه المهمة ليست مسندة إليك" });
+    const lead = isLead(m); const b = req.body || {};
+    const sets: string[] = []; const vals: unknown[] = []; const events: string[] = [];
+    const put = (col: string, v: unknown) => { vals.push(v); sets.push(`${col}=$${vals.length}`); };
+    let status = t.status as string;
+    if (b.status !== undefined) {
+      if (!TASK_STATUS.includes(b.status)) return res.status(400).json({ error: "حالة غير صالحة" });
+      // الموظف يرفع المهمة للمراجعة؛ الرئاسة وحدها تعتمد الإكمال (إن كان للموظف رئيس غيره)
+      status = b.status === "done" && !lead ? "review" : b.status;
+      if (status !== t.status) { put("status", status); events.push(`غيّر الحالة إلى «${TASK_STATUS_LABEL[status]}»`); }
+      put("completed_at", status === "done" ? new Date() : null);
+    }
+    if (b.progress !== undefined) {
+      const pg = Math.max(0, Math.min(100, parseInt(String(b.progress), 10) || 0));
+      if (pg !== t.progress) { put("progress", pg); events.push(`حدّث الإنجاز إلى ${pg}%`); }
+    } else if (status === "done") put("progress", 100);
+    if (lead) {
+      if (b.title !== undefined) { const v = clip(b.title, 200); if (v.length < 3) return res.status(400).json({ error: "اكتب عنوان المهمة" }); put("title", v); }
+      if (b.description !== undefined) put("description", clip(b.description, 4000) || null);
+      if (b.priority !== undefined && PRIORITIES.includes(b.priority)) put("priority", b.priority);
+      if (b.due_date !== undefined) put("due_date", /^\d{4}-\d{2}-\d{2}$/.test(String(b.due_date)) ? b.due_date : null);
+      if (b.assignee_staff_id !== undefined) {
+        const sid = parseInt(String(b.assignee_staff_id), 10) || 0;
+        const s2 = (await query(`SELECT full_name FROM union_staff WHERE id=$1 AND is_active=TRUE`, [sid])).rows[0];
+        if (!s2) return res.status(400).json({ error: "اختر موظفاً نشطاً" });
+        if (sid !== t.assignee_staff_id) { put("assignee_staff_id", sid); events.push(`أعاد إسناد المهمة إلى ${s2.full_name}`); }
+      }
+    }
+    if (!sets.length) return res.json({ task: taskOut(t) });
+    vals.push(t.id);
+    await query(`UPDATE union_tasks SET ${sets.join(", ")}, updated_at=NOW() WHERE id=$${vals.length}`, vals);
+    for (const ev of events) await query(`INSERT INTO union_task_comments (task_id, author_id, author_name, body, kind) VALUES ($1,$2,$3,$4,'event')`, [t.id, m.id, m.full_name, ev]);
+    const full = (await query(`${TASK_SELECT} WHERE t.id=$1`, [t.id])).rows[0];
+    if (events.length) {
+      const msg = `${t.title}: ${events.join("، ")}`;
+      if (lead) pushToManagers([await accountOfStaff(full.assignee_staff_id)], "تحديث على مهمتك", msg, { task_id: t.id }).catch(() => {});
+      else pushToManagers(await leadAccounts(), status === "review" ? `✅ ${m.full_name} أنجز مهمة — بانتظار مراجعتك` : `تحديث من ${m.full_name}`, msg, { task_id: t.id }).catch(() => {});
+    }
+    return res.json({ task: taskOut(full) });
+  } catch (e) { return fail(res, e, "task-update"); }
+});
+
+router.post("/union-manager/tasks/:id/comments", writeLimiter, async (req: Request, res: Response): Promise<any> => {
+  const m = await umAuth(req, res); if (!m) return;
+  try {
+    const t = await loadTask(parseInt(String(req.params.id), 10) || 0, m);
+    if (!t) return res.status(404).json({ error: "المهمة غير موجودة" });
+    if (t === "forbidden") return res.status(403).json({ error: "هذه المهمة ليست مسندة إليك" });
+    const body = clip(req.body?.body, 2000);
+    if (!body) return res.status(400).json({ error: "اكتب التعليق" });
+    const c = (await query(`INSERT INTO union_task_comments (task_id, author_id, author_name, body) VALUES ($1,$2,$3,$4) RETURNING id, author_name, body, kind, created_at`, [t.id, m.id, m.full_name, body])).rows[0];
+    const others = isLead(m) ? [await accountOfStaff(t.assignee_staff_id)] : await leadAccounts();
+    pushToManagers(others.filter(x => x !== m.id), `تعليق على «${t.title}»`, `${m.full_name}: ${body.slice(0, 120)}`, { task_id: t.id }).catch(() => {});
+    return res.status(201).json({ comment: c });
+  } catch (e) { return fail(res, e, "task-comment"); }
+});
+
+router.delete("/union-manager/tasks/:id", async (req: Request, res: Response): Promise<any> => {
+  const m = await umAuth(req, res); if (!m) return;
+  if (!isLead(m)) return res.status(403).json({ error: "حذف المهام لرئاسة الاتحاد" });
+  try { await query(`DELETE FROM union_tasks WHERE id=$1`, [parseInt(String(req.params.id), 10) || 0]); return res.json({ ok: true }); }
+  catch (e) { return fail(res, e, "task-delete"); }
 });
 
 // ═══════════════════════ الانتخابات ═══════════════════════
