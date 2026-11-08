@@ -38,7 +38,7 @@ export const MOD_PERMISSIONS: ModPermission[] = [
   { key: "lawyers_admin", label: "المحامون والاستمارات القانونية", group: "المهن والصحة", paths: ["lawyers", "lawyer-applications", "legal-forms", "legal-form-suggestions", "contract-settings"] },
   { key: "designers_admin", label: "المصممون ومعرض التصاميم", group: "المهن والصحة", paths: ["design-gallery"] },
   { key: "contractors", label: "شركات المقاولات", group: "المهن والصحة", paths: ["contractors"] },
-  { key: "medical", label: "الصحة والعيادات والمواعيد", group: "المهن والصحة", paths: ["medical-institutions", "clinic-supervisors", "clinic-subscriptions", "clinic-subscription-plans", "specialists", "appointments", "sick-leaves", "admissions"] },
+  { key: "medical", label: "الصحة والعيادات والمواعيد", group: "المهن والصحة", paths: ["medical-institutions", "medical-staff", "clinic-supervisors", "clinic-subscriptions", "clinic-subscription-plans", "specialists", "appointments", "sick-leaves", "admissions"] },
   { key: "cv_templates", label: "قوالب السيرة الذاتية", group: "المهن والصحة", paths: ["cv"] },
   // المدينة والتنقل
   { key: "landmarks", label: "المعالم", group: "المدينة والتنقل", paths: ["landmarks"] },

@@ -2386,7 +2386,7 @@ async function moderatorAllowed(req: Request, userId: number): Promise<boolean> 
   return r.rows.length > 0;
 }
 
-async function isAdminRequest(req: Request): Promise<boolean> {
+export async function isAdminRequest(req: Request): Promise<boolean> {
   try {
     const user = await getSessionUser(req);
     if (user?.role === "admin") return true;
@@ -17421,29 +17421,119 @@ router.patch("/admin/section-configs/:key", async (req: Request, res: Response) 
 })();
 
 // ─── Medical Staff ────────────────────────────────────────────────
+// مراجعة الكوادر الطبية: التسجيل يدخل قائمة «بانتظار المراجعة»، وقبول الإدارة ينشر الكادر
+// تلقائياً في «الأخصائيون» بالقسم الطبي (جدول specialists) ويُبلغه. الرفض/الإيقاف يخفيه.
+const STAFF_TYPE_LABEL: Record<string, string> = {
+  doctor: "طبيب", lab_technician: "فني مختبر", pharmacist: "صيدلي", nurse: "ممرض/ة", receptionist: "استقبال", admin: "إدارة منشأة",
+};
+let staffReviewReady: Promise<void> | null = null;
+function ensureStaffReview(): Promise<void> {
+  return (staffReviewReady ??= (async () => {
+    await query(`ALTER TABLE medical_staff_profiles ADD COLUMN IF NOT EXISTS status VARCHAR(12) NOT NULL DEFAULT 'pending'`);
+    await query(`ALTER TABLE medical_staff_profiles ADD COLUMN IF NOT EXISTS review_note TEXT`);
+    await query(`ALTER TABLE medical_staff_profiles ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`);
+    await query(`ALTER TABLE medical_staff_profiles ADD COLUMN IF NOT EXISTS bio TEXT`);
+    await query(`ALTER TABLE medical_staff_profiles ADD COLUMN IF NOT EXISTS display_name VARCHAR(200)`);
+    await query(`ALTER TABLE medical_staff_profiles ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(40)`);
+    await query(`ALTER TABLE specialists ADD COLUMN IF NOT EXISTS staff_user_id INTEGER`);
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS specialists_staff_user_uq ON specialists(staff_user_id) WHERE staff_user_id IS NOT NULL`);
+  })().catch((e) => { staffReviewReady = null; throw e; }));
+}
+
+/** نشر الكادر المعتمد في «الأخصائيون» (أو تحديث بطاقته) */
+async function publishStaffAsSpecialist(profile: any): Promise<void> {
+  const u = (await query(`SELECT name, phone, avatar_url FROM users WHERE id=$1`, [profile.user_id])).rows[0] || {};
+  const typeLabel = STAFF_TYPE_LABEL[profile.staff_type] || "كادر طبي";
+  const specialty = (profile.specialty || typeLabel).slice(0, 100);
+  const base = String(profile.display_name || u.name || "كادر طبي").replace(/^د\.?\s*/, "");
+  const name = `${profile.staff_type === "doctor" ? "د. " : ""}${base}`.slice(0, 200);
+  const bio = profile.bio || `${typeLabel}${profile.facility_name ? ` — ${profile.facility_name}` : ""}`;
+  await query(
+    `INSERT INTO specialists (name, specialty, bio, clinic, phone, photo_url, staff_user_id, is_active)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)
+     ON CONFLICT (staff_user_id) WHERE staff_user_id IS NOT NULL
+     DO UPDATE SET name=$1, specialty=$2, bio=$3, clinic=$4, phone=$5, photo_url=COALESCE($6, specialists.photo_url), is_active=TRUE`,
+    [name, specialty, bio, profile.facility_name || null, profile.contact_phone || u.phone || null, u.avatar_url || null, profile.user_id]);
+}
+
 router.post("/medical/staff/register", writeLimiter, async (req: Request, res: Response) => {
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
+    await ensureStaffReview();
     const b = req.body as any;
     const TYPES = ["doctor","lab_technician","pharmacist","nurse","receptionist"];
+    if (b.staff_type === "lab") b.staff_type = "lab_technician"; // اسم النوع في التطبيق
     if (!TYPES.includes(b.staff_type)) return res.status(400).json({ error: "نوع الموظف غير صالح" });
+    const facility = String(b.facility_name ?? b.facility ?? "").trim().slice(0, 200) || null;
+    const displayName = String(b.full_name ?? "").trim().slice(0, 200) || null;
+    const phone = String(b.phone ?? "").replace(/[^\d+]/g, "").slice(0, 40) || null;
+    // التعديل بعد الاعتماد يُبقي الاعتماد ويحدّث البطاقة المنشورة؛ المرفوض يعود للمراجعة
     const r = await query(
-      `INSERT INTO medical_staff_profiles (user_id,staff_type,facility_id,facility_name,specialty,license_number)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (user_id) DO UPDATE SET staff_type=$2,facility_id=$3,facility_name=$4,specialty=$5,license_number=$6
+      `INSERT INTO medical_staff_profiles (user_id,staff_type,facility_id,facility_name,specialty,license_number,bio,display_name,contact_phone,status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
+       ON CONFLICT (user_id) DO UPDATE SET staff_type=$2,facility_id=$3,facility_name=$4,specialty=$5,license_number=$6,
+         bio=COALESCE($7, medical_staff_profiles.bio), display_name=COALESCE($8, medical_staff_profiles.display_name),
+         contact_phone=COALESCE($9, medical_staff_profiles.contact_phone),
+         status=CASE WHEN medical_staff_profiles.status='approved' THEN 'approved' ELSE 'pending' END
        RETURNING *`,
-      [user.id, b.staff_type, b.facility_id||null, b.facility_name?.trim()||null, b.specialty?.trim()||null, b.license_number?.trim()||null]
+      [user.id, b.staff_type, b.facility_id||null, facility, b.specialty?.trim()||null, b.license_number?.trim()||null, b.bio?.trim()?.slice(0, 600)||null, displayName, phone]
     );
-    return res.json({ profile: r.rows[0] });
+    const prof = r.rows[0];
+    if (prof.status === "approved") await publishStaffAsSpecialist(prof).catch(() => {});
+    return res.json({ profile: prof });
   } catch (e: any) { return res.status(500).json({ error: "Server error" }); }
+});
+
+// GET /api/admin/medical-staff?status=pending|approved|rejected
+router.get("/admin/medical-staff", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  try {
+    await ensureStaffReview();
+    const st = String(req.query.status || "");
+    const r = await query(
+      `SELECT p.*, COALESCE(p.display_name, u.name) AS name, COALESCE(p.contact_phone, u.phone) AS phone, u.email, u.avatar_url,
+              (SELECT s.id FROM specialists s WHERE s.staff_user_id=p.user_id AND s.is_active) AS specialist_id
+         FROM medical_staff_profiles p JOIN users u ON u.id=p.user_id
+        ${["pending", "approved", "rejected"].includes(st) ? "WHERE p.status=$1" : ""}
+        ORDER BY (p.status='pending') DESC, p.created_at DESC LIMIT 300`,
+      ["pending", "approved", "rejected"].includes(st) ? [st] : []);
+    const c = await query(`SELECT status, COUNT(*)::int AS n FROM medical_staff_profiles GROUP BY status`);
+    const counts: Record<string, number> = { pending: 0, approved: 0, rejected: 0 };
+    for (const x of c.rows) counts[x.status] = x.n;
+    return res.json({ staff: r.rows.map((x: any) => ({ ...x, type_label: STAFF_TYPE_LABEL[x.staff_type] || x.staff_type })), counts });
+  } catch (e: any) { logger.error({ err: e?.message }, "[admin/medical-staff]"); return res.status(500).json({ error: "Server error" }); }
+});
+
+// PATCH /api/admin/medical-staff/:id  { status: approved|rejected, note? }
+router.patch("/admin/medical-staff/:id", async (req: Request, res: Response) => {
+  if (!(await isAdminRequest(req))) return res.status(403).json({ error: "غير مصرح" });
+  const status = String(req.body?.status || "");
+  if (!["approved", "rejected"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+  try {
+    await ensureStaffReview();
+    const note = String(req.body?.note || "").trim().slice(0, 300) || null;
+    const r = await query(`UPDATE medical_staff_profiles SET status=$1, review_note=$2, reviewed_at=NOW() WHERE id=$3 RETURNING *`,
+      [status, note, Number(req.params.id)]);
+    const prof = r.rows[0];
+    if (!prof) return res.status(404).json({ error: "غير موجود" });
+    if (status === "approved") {
+      await publishStaffAsSpecialist(prof);
+      await sendPushToUser(prof.user_id, "✅ تم اعتمادك ككادر طبي", "أصبحت ظاهراً في «الأخصائيون» بالقسم الطبي، ويمكن للمرضى التواصل والحجز معك.", { type: "medical_staff_review", screen: "staff-portal" }).catch(() => {});
+    } else {
+      await query(`UPDATE specialists SET is_active=FALSE WHERE staff_user_id=$1`, [prof.user_id]);
+      await sendPushToUser(prof.user_id, "طلب الكادر الطبي", note ? `لم يُعتمد طلبك: ${note}` : "لم يُعتمد طلبك — راجع بياناتك وأعد الإرسال من بوابة الكوادر الطبية.", { type: "medical_staff_review", screen: "staff-portal" }).catch(() => {});
+    }
+    return res.json({ profile: prof, published: status === "approved" ? "ظاهر الآن في «الأخصائيون» بالقسم الطبي" : null });
+  } catch (e: any) { logger.error({ err: e?.message }, "[admin/medical-staff/patch]"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/medical/staff/profile", async (req: Request, res: Response) => {
   const user = await getSessionUser(req);
   if (!user) return res.status(401).json({ error: "غير مصرح" });
   try {
-    const r = await query(`SELECT * FROM medical_staff_profiles WHERE user_id=$1`, [user.id]);
+    await ensureStaffReview().catch(() => {});
+    const r = await query(`SELECT p.*, u.name AS user_name FROM medical_staff_profiles p JOIN users u ON u.id=p.user_id WHERE p.user_id=$1`, [user.id]);
     return res.json({ profile: r.rows[0] || null });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
@@ -19278,7 +19368,7 @@ router.patch("/union-manager/staff/:id/permissions", async (req: Request, res: R
 // كل ما يخص الاتحاد يصل لمدير الاتحاد (بوابته) لا لإدارة التطبيق.
 // ══════════════════════════════════════════════════════════════════
 let _suPlusReady: Promise<void> | null = null;
-function ensureStudentUnionPlus(): Promise<void> {
+export function ensureStudentUnionPlus(): Promise<void> {
   if (!_suPlusReady) _suPlusReady = (async () => {
     await ensureUnionTables();
     await ensureUnionMgrTables();
