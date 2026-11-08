@@ -20,13 +20,19 @@ export type SectionInvite = {
   invitee_phone: string | null; message: string | null; max_uses: number | null; uses: number; opens: number;
   expires_at: string | null; revoked_at: string | null; created_at: string;
   status: InviteStatus; section: SectionInfo | null; share_url: string; app_url: string; share_text: string;
+  parent_id?: number | null; inviter_name?: string | null; depth?: number;
 };
 
 export type PublicInvite = {
   valid: boolean; reason: string | null; status: InviteStatus | "missing";
   section?: SectionInfo; invitee_name?: string; invitee_kind?: InviteKind; message?: string | null;
   expires_at?: string | null; created_at?: string; inviter?: string; share_url?: string; app_url?: string;
+  /** دعوة مُمرَّرة من مستخدم (لا من الإدارة) */
+  relayed?: boolean; depth?: number; can_forward?: boolean;
+  accepted_by_me?: boolean; my_forwards?: number;
 };
+
+export type ForwardBody = { invitee_name: string; invitee_kind: InviteKind; invitee_phone?: string; note?: string };
 
 export type AcceptResult = { ok: true; already: boolean; route: string; params: Record<string, string>; section: SectionInfo };
 
@@ -57,6 +63,10 @@ export const sectionInvitesApi = {
     call<{ invite: SectionInvite }>(`/admin/section-invites/${id}`, token, { method: "PATCH", body: JSON.stringify({ action: "extend", days, add_uses: addUses }) }),
   publicGet: (t: string, token?: string | null) => call<PublicInvite>(`/public/section-invites/${encodeURIComponent(t)}`, token),
   accept: (token: string, t: string) => call<AcceptResult>(`/section-invites/${encodeURIComponent(t)}/accept`, token, { method: "POST", body: "{}" }),
+  /** المستلم يدعو شخصاً آخر أو جهة إلى القسم نفسه */
+  forward: (token: string, t: string, body: ForwardBody) =>
+    call<{ invite: SectionInvite }>(`/section-invites/${encodeURIComponent(t)}/forward`, token, { method: "POST", body: JSON.stringify(body) }),
+  mine: (token: string, from?: string) => call<{ invites: SectionInvite[] }>(`/section-invites/mine${from ? `?from=${encodeURIComponent(from)}` : ""}`, token),
 };
 
 export const STATUS_META: Record<InviteStatus, { label: string; color: string; bg: string }> = {

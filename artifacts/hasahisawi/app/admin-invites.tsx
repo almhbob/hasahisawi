@@ -413,6 +413,12 @@ function InviteRow({ inv, showSection, onShare, onPatch }: { inv: SectionInvite;
           <Text style={s.invSub} numberOfLines={1}>
             {showSection && inv.section ? `${inv.section.title} · ` : ""}{fmtInviteDate(inv.created_at)}{inv.expires_at ? ` · حتى ${fmtInviteDate(inv.expires_at)}` : " · بلا انتهاء"}
           </Text>
+          {inv.parent_id ? (
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, alignSelf: "flex-end", marginTop: 3, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: "#FFF4D6" }}>
+              <Ionicons name="paper-plane" size={11} color="#7A5900" />
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#7A5900" }}>مُمرَّرة من {inv.inviter_name || "مستخدم"}</Text>
+            </View>
+          ) : null}
         </View>
         <View style={[s.pill, { backgroundColor: st.bg }]}><Text style={[s.pillT, { color: st.color }]}>{st.label}</Text></View>
       </View>
