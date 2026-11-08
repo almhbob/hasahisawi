@@ -616,6 +616,8 @@ function StoreDetailModal({
 }) {
   const insets = useSafeAreaInsets();
   const [activeCatId, setActiveCatId] = useState<number | null>(null);
+  const { user: me } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (storeData) setActiveCatId(null);
@@ -651,6 +653,15 @@ function StoreDetailModal({
             <TouchableOpacity style={styles.detailBackBtn} onPress={onClose}>
               <Ionicons name="chevron-forward" size={20} color="#fff" />
             </TouchableOpacity>
+            {me?.role === "admin" && store ? (
+              <TouchableOpacity
+                onPress={() => { onClose(); router.push({ pathname: "/store-portal", params: { store: String(store.id) } } as any); }}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: "#E8A900", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7 }}
+                accessibilityRole="button" accessibilityLabel="إدارة المتجر بصلاحية المدير">
+                <Ionicons name="construct-outline" size={15} color="#3D2C00" />
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#3D2C00" }}>إدارة المتجر</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
           {/* Store info overlay */}
           <View style={styles.detailStoreInfoCard}>

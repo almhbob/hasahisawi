@@ -171,6 +171,16 @@ async function myStore(userId: number) {
   return r.rows[0] ?? null;
 }
 
+/** متجر لوحة الإدارة: متجر المستخدم، أو — لمدير التطبيق فقط — أي متجر يحدده بالترويسة X-Manage-Store */
+async function storeFor(req: Request, u: SessionUser) {
+  const id = Number(req.headers["x-manage-store"] || 0);
+  if (u.role === "admin" && Number.isInteger(id) && id > 0) {
+    const r = await query(`SELECT * FROM stores WHERE id=$1`, [id]);
+    return r.rows[0] ?? null;
+  }
+  return myStore(u.id);
+}
+
 /** Women-only stores are visible only to women and admins. */
 function canSeeWomenStore(u: SessionUser | null) {
   return !!u && (u.role === "admin" || normalizeGender(u.gender) === "female");
@@ -234,15 +244,15 @@ router.post("/store/register", wrap(async (req, res) => {
   const logo = await uploadImage(req, "logo", `hasahisawi/stores/${u.id}`);
   const r = await query(
     `INSERT INTO stores(owner_id,name,type,description,logo_url,phone,address,working_hours,delivery_available,min_order,delivery_fee,women_only,status)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING *`,
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
     [u.id, name, type, str(b.description, 1000), logo, phone, str(b.address, 200), str(b.working_hours, 80),
-     bool(b.delivery_available), num(b.min_order), num(b.delivery_fee), womenOnly]);
+     bool(b.delivery_available), num(b.min_order), num(b.delivery_fee), womenOnly, u.role === "admin" ? "active" : "pending"]);
   return res.status(201).json({ ...storeRow(r.rows[0]), owner_name: u.name, store_name: name });
 }));
 
 router.get("/store/my", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id);
+  const s = await storeFor(req, u);
   if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   return res.json(storeRow(s));
 }));
@@ -250,7 +260,7 @@ router.get("/store/my", wrap(async (req, res) => {
 router.put("/store/my", wrap(async (req, res) => {
   await withFiles(req, res);
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id);
+  const s = await storeFor(req, u);
   if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const b = req.body || {};
   const logo = await uploadImage(req, "logo", `hasahisawi/stores/${u.id}`);
@@ -300,14 +310,14 @@ router.put("/store/my", wrap(async (req, res) => {
 // ── categories ────────────────────────────────────────────────────────────────
 router.get("/store/my/categories", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.json([]);
+  const s = await storeFor(req, u); if (!s) return res.json([]);
   const r = await query(`SELECT * FROM store_categories WHERE store_id=$1 ORDER BY sort_order, id`, [s.id]);
   return res.json(r.rows);
 }));
 
 router.post("/store/my/categories", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
+  const s = await storeFor(req, u); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const name = str(req.body?.name, 80);
   if (!name) return res.status(400).json({ error: "اسم الصنف مطلوب" });
   const c = await query(`SELECT COUNT(*)::int AS n FROM store_categories WHERE store_id=$1`, [s.id]);
@@ -318,7 +328,7 @@ router.post("/store/my/categories", wrap(async (req, res) => {
 
 router.delete("/store/my/categories/:id", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
+  const s = await storeFor(req, u); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const r = await query(`DELETE FROM store_categories WHERE id=$1 AND store_id=$2 RETURNING id`, [Number(req.params.id), s.id]);
   if (!r.rows[0]) return res.status(404).json({ error: "الصنف غير موجود" });
   return res.json({ ok: true });
@@ -327,7 +337,7 @@ router.delete("/store/my/categories/:id", wrap(async (req, res) => {
 // ── products ──────────────────────────────────────────────────────────────────
 router.get("/store/my/products", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.json([]);
+  const s = await storeFor(req, u); if (!s) return res.json([]);
   const r = await query(
     `SELECT p.*, c.name AS category_name FROM store_products p LEFT JOIN store_categories c ON c.id=p.category_id
      WHERE p.store_id=$1 ORDER BY p.sort_order, p.id DESC`, [s.id]);
@@ -344,7 +354,7 @@ async function validCategory(storeId: number, raw: unknown): Promise<number | nu
 router.post("/store/my/products", wrap(async (req, res) => {
   await withFiles(req, res);
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
+  const s = await storeFor(req, u); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const b = req.body || {};
   const name = str(b.name, 120);
   if (!name) return res.status(400).json({ error: "اسم المنتج مطلوب" });
@@ -366,7 +376,7 @@ router.post("/store/my/products", wrap(async (req, res) => {
 router.put("/store/my/products/:id", wrap(async (req, res) => {
   await withFiles(req, res);
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
+  const s = await storeFor(req, u); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const cur = await query(`SELECT * FROM store_products WHERE id=$1 AND store_id=$2`, [Number(req.params.id), s.id]);
   const p = cur.rows[0]; if (!p) return res.status(404).json({ error: "المنتج غير موجود" });
   const b = req.body || {};
@@ -391,7 +401,7 @@ router.put("/store/my/products/:id", wrap(async (req, res) => {
 
 router.delete("/store/my/products/:id", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
+  const s = await storeFor(req, u); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const r = await query(`DELETE FROM store_products WHERE id=$1 AND store_id=$2 RETURNING id`, [Number(req.params.id), s.id]);
   if (!r.rows[0]) return res.status(404).json({ error: "المنتج غير موجود" });
   return res.json({ ok: true });
@@ -400,7 +410,7 @@ router.delete("/store/my/products/:id", wrap(async (req, res) => {
 // ── merchant orders ───────────────────────────────────────────────────────────
 router.get("/store/my/orders", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.json([]);
+  const s = await storeFor(req, u); if (!s) return res.json([]);
   const r = await query(`SELECT * FROM store_orders WHERE store_id=$1 ORDER BY id DESC LIMIT 200`, [s.id]);
   return res.json(r.rows.map(orderRow));
 }));
@@ -412,7 +422,7 @@ const ORDER_STATUS_AR: Record<string, string> = {
 
 router.patch("/store/my/orders/:id", wrap(async (req, res) => {
   const u = await requireUser(req, res); if (!u) return;
-  const s = await myStore(u.id); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
+  const s = await storeFor(req, u); if (!s) return res.status(404).json({ error: "لا يوجد متجر" });
   const status = String(req.body?.status || "");
   if (!(ORDER_STATUSES as readonly string[]).includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
   const r = await query(`UPDATE store_orders SET status=$1,updated_at=NOW() WHERE id=$2 AND store_id=$3 RETURNING *`, [status, Number(req.params.id), s.id]);

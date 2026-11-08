@@ -193,7 +193,7 @@ function normalizeWomenGender(value: string | null | undefined) {
 
 function WomenScreen() {
   const { user, isGuest, setUserGender, token } = useAuth();
-  // ركن المرأة معزول على الخادم: كل طلب يجب أن يحمل جلسة المستخدمة.
+  // قسم المرأة معزول على الخادم: كل طلب يجب أن يحمل جلسة المستخدمة.
   const wFetch = (url: string, init: RequestInit = {}) =>
     fetch(url, { ...init, headers: { ...((init.headers as Record<string, string>) || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   const router = useRouter();
@@ -212,7 +212,7 @@ function WomenScreen() {
   const [storesLoading, setStoresLoading]   = useState(false);
   const [storeSearch, setStoreSearch]       = useState("");
 
-  // ── متاجر ركن المرأة ────────────────────────────────────────────────────────
+  // ── متاجر قسم المرأة ────────────────────────────────────────────────────────
   const [shops, setShops]                   = useState<WomenShop[]>([]);
   const [shopsLoading, setShopsLoading]     = useState(false);
   const [shopCategory, setShopCategory]     = useState("all");
@@ -1008,7 +1008,7 @@ function WomenScreen() {
         </ScrollView>
       )}
 
-      {/* ══ TAB: SHOPS (متاجر ركن المرأة) ══ */}
+      {/* ══ TAB: SHOPS (متاجر قسم المرأة) ══ */}
       {subTab === "shops" && (
         <View style={{ flex: 1 }}>
           {/* فلتر الفئات */}
@@ -1055,7 +1055,7 @@ function WomenScreen() {
               <LinearGradient colors={["#B4436C20", "#FF4FA310"]} style={StyleSheet.absoluteFill} />
               <MaterialCommunityIcons name="store-plus-outline" size={26} color="#B4436C" />
               <View style={{ flex: 1 }}>
-                <Text style={sp.addBannerTitle}>افتحي متجرك في ركن المرأة!</Text>
+                <Text style={sp.addBannerTitle}>افتحي متجرك في قسم المرأة!</Text>
                 <Text style={sp.addBannerSub}>إكسسوارات، عطور، أحذية وأكثر — اعرضي منتجاتك لآلاف المستخدمات</Text>
               </View>
               <Ionicons name="chevron-back" size={18} color="#B4436C" />
@@ -1508,7 +1508,7 @@ function WomenScreen() {
                 <TouchableOpacity onPress={() => setApplyShopModal(false)} style={sp.closeBtn}>
                   <Ionicons name="close" size={22} color={Colors.textMuted} />
                 </TouchableOpacity>
-                <Text style={sp.modalTitle}>🏪 فتح متجر في ركن المرأة</Text>
+                <Text style={sp.modalTitle}>🏪 فتح متجر في قسم المرأة</Text>
               </View>
 
               {applyDone ? (
