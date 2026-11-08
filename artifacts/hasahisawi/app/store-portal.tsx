@@ -327,6 +327,7 @@ function RegisterStoreView({
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<StoreType>("general");
+  const routerNav = useRouter();
   const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -408,8 +409,14 @@ function RegisterStoreView({
         />
 
         <Text style={styles.fieldLabel}>نوع المتجر</Text>
+        {/* المطاعم والكافتيريات تُسجَّل من قسمها الخاص لتظهر فيه مع قائمة الطعام والطلبات */}
+        <TouchableOpacity onPress={() => routerNav.push("/(tabs)/restaurants" as any)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: "#E8A90018", borderRadius: 12, padding: 10, marginBottom: 8 }}>
+          <Ionicons name="restaurant-outline" size={18} color="#8A6A00" />
+          <Text style={{ flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5C4600", textAlign: "right" }}>مطعم أو كافتيريا؟ سجّله من قسم «المطاعم والكافيهات» ليظهر هناك مع قائمة الطعام</Text>
+          <Ionicons name="chevron-back" size={16} color="#8A6A00" />
+        </TouchableOpacity>
         <View style={styles.typeGrid}>
-          {STORE_TYPES.map((st) => (
+          {STORE_TYPES.filter((st) => st.key !== "restaurant" && st.key !== "cafe").map((st) => (
             <TouchableOpacity
               key={st.key}
               style={[styles.typeBtn, type === st.key && styles.typeBtnActive]}
