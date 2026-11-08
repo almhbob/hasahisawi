@@ -12,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import { fsGetCollection, fsAddDoc, fsDeleteDoc, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
+import SportsCodeModal from "@/components/sports/SportsCodeModal";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -903,6 +904,9 @@ export default function SportsScreen() {
   const [search,  setSearch]  = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [validatedPin, setValidatedPin] = useState<string | null>(null);
+  // المدير ومشرف «الرياضة والدوريات» يدخلون الإدارة بحساباتهم مباشرة بلا رمز
+  const [sessionAdmin, setSessionAdmin] = useState(false);
+  const [codeModal, setCodeModal] = useState(false);
   const [pinModal, setPinModal]   = useState(false);
   const [pinInput, setPinInput]   = useState("");
   const [pinError, setPinError]   = useState("");
@@ -1003,13 +1007,23 @@ export default function SportsScreen() {
   useEffect(()=>{ load(); },[load]);
   useFocusEffect(useCallback(()=>{ load(); },[load]));
 
+  useEffect(() => {
+    const base = getApiUrl();
+    if (!base || !auth.token) { setSessionAdmin(false); return; }
+    fetchWithTimeout(`${base}/api/sports/access`, { headers: { Authorization: `Bearer ${auth.token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.admin) { setSessionAdmin(true); setIsAdmin(true); } else setSessionAdmin(false); })
+      .catch(() => {});
+  }, [auth.token]);
+
   const adminLogin = async () => {
     const base = getApiUrl();
     if (!base) { setPinError("لا يوجد اتصال بالخادم"); return; }
     try {
-      const res = await fetchWithTimeout(`${base}/api/admin/validate-pin`, {
+      // رمز القسم الرياضي (أو رمز الإدارة العام)
+      const res = await fetchWithTimeout(`${base}/api/sports/validate-code`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pinInput }),
+        body: JSON.stringify({ code: pinInput.trim() }),
       });
       // validate-pin always answers 200 with { valid }; the old check only looked at res.ok,
       // so ANY typed code unlocked the admin UI.
@@ -1179,7 +1193,7 @@ export default function SportsScreen() {
               <LinearGradient colors={[Colors.cardBgElevated,Colors.cardBg]} style={s.pinInner}>
                 <View style={s.pinIconBox}><Ionicons name="football" size={32} color={Colors.primary} /></View>
                 <Text style={s.pinTitle}>إدارة الحصاحيصا كورة</Text>
-                <Text style={s.pinSub}>أدخل الرمز السري للوصول إلى لوحة الإدارة</Text>
+                <Text style={s.pinSub}>أدخل «رمز القسم الرياضي» الذي تحصل عليه من إدارة التطبيق</Text>
                 <TextInput style={s.pinInput} value={pinInput} onChangeText={v=>{setPinInput(v);setPinError("");}} placeholder="••••" placeholderTextColor={Colors.textMuted} secureTextEntry keyboardType="numeric" textAlign="center" maxLength={6} />
                 {pinError ? <Text style={s.pinError}>{pinError}</Text> : null}
                 <View style={{flexDirection:"row-reverse",gap:10,width:"100%",marginTop:8}}>
@@ -1198,6 +1212,8 @@ export default function SportsScreen() {
         </Pressable>
       </Modal>
 
+      {sessionAdmin && auth.token ? <SportsCodeModal token={auth.token} visible={codeModal} onClose={() => setCodeModal(false)} /> : null}
+
       {/* Header */}
       <ModernHeader
         title="الحصاحيصا كورة حديثة"
@@ -1207,10 +1223,17 @@ export default function SportsScreen() {
           <View style={{flexDirection:"row-reverse",gap:8,alignItems:"center"}}>
             {isAdmin ? (
               <>
-                <TouchableOpacity style={s.adminBadge} onPress={logout}>
-                  <Ionicons name="log-out-outline" size={13} color="#fff" />
-                  <Text style={[s.adminBadgeTxt,{color:"#fff"}]}>خروج</Text>
-                </TouchableOpacity>
+                {sessionAdmin ? (
+                  <TouchableOpacity style={s.adminBadge} onPress={() => setCodeModal(true)} accessibilityLabel="رمز القسم الرياضي">
+                    <Ionicons name="key-outline" size={13} color="#fff" />
+                    <Text style={[s.adminBadgeTxt,{color:"#fff"}]}>رمز القسم</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={s.adminBadge} onPress={logout}>
+                    <Ionicons name="log-out-outline" size={13} color="#fff" />
+                    <Text style={[s.adminBadgeTxt,{color:"#fff"}]}>خروج</Text>
+                  </TouchableOpacity>
+                )}
                 {tab!=="clubs" && <TouchableOpacity style={s.fabAdd} onPress={()=>{
                   if (tab==="news") setAddPost(true);
                   else if (tab==="players") setAddPlayer(true);

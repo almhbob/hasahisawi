@@ -8,7 +8,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
-import { notify } from "@/lib/xplatform";
+import { confirmAction, notify } from "@/lib/xplatform";
 import { neu, NeuButton, NeuInset, NeuRaised } from "@/components/auth/neu";
 import { leaguesApi, LEAGUE_ACCENT, STATUS_AR, type League } from "@/lib/leagues-api";
 
@@ -20,9 +20,10 @@ export default function LeaguesScreen() {
   const [items, setItems] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [canManage, setCanManage] = useState(false);
 
   const load = useCallback(async () => {
-    try { setItems((await leaguesApi.list(token)).leagues); } catch (e: any) { notify("تعذّر التحميل", e?.message); }
+    try { const r = await leaguesApi.list(token); setItems(r.leagues); setCanManage(!!r.can_manage); } catch (e: any) { notify("تعذّر التحميل", e?.message); }
     setLoading(false);
   }, [token]);
   useEffect(() => { load(); }, [load]);
@@ -80,7 +81,16 @@ export default function LeaguesScreen() {
                     <View style={[s.statusPill, { backgroundColor: STATUS_AR[l.status].color + "1A" }]}>
                       <Text style={[s.statusText, { color: STATUS_AR[l.status].color }]}>{STATUS_AR[l.status].label}</Text>
                     </View>
-                    {!l.approved && <View style={[s.statusPill, { backgroundColor: "#F59E0B1A" }]}><Text style={[s.statusText, { color: "#946B00" }]}>بانتظار الاعتماد</Text></View>}
+                    {!l.approved && <View style={[s.statusPill, { backgroundColor: "#E8A9001A" }]}><Text style={[s.statusText, { color: "#946B00" }]}>بانتظار الاعتماد</Text></View>}
+                    {(canManage || l.created_by === user?.id) && token ? (
+                      <TouchableOpacity hitSlop={10} accessibilityLabel={`حذف ${l.name}`} style={s.delBtn} onPress={async () => {
+                        if (!(await confirmAction("حذف الدوري", `حذف «${l.name}» نهائياً مع فرقه ومبارياته وتذاكره؟ لا يمكن التراجع.`, "حذف نهائي", true))) return;
+                        try { await leaguesApi.remove(token, l.id); setItems(xs => xs.filter(x => x.id !== l.id)); notify("تم حذف الدوري"); }
+                        catch (e: any) { notify("تعذّر الحذف", e?.message); }
+                      }}>
+                        <Ionicons name="trash-outline" size={17} color="#D93636" />
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 </NeuRaised>
               </Pressable>
@@ -138,6 +148,7 @@ function CreateSheet({ visible, onClose, token, onCreated }: { visible: boolean;
 }
 
 const s = StyleSheet.create({
+  delBtn: { marginRight: "auto", width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#FDECEC" },
   root: { flex: 1, backgroundColor: neu.base },
   hero: { margin: 12, borderRadius: 28, padding: 18, paddingBottom: 36, overflow: "hidden", gap: 2 },
   heroTop: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },

@@ -47,7 +47,7 @@ export const MOD_PERMISSIONS: ModPermission[] = [
   { key: "culture", label: "الثقافة", group: "المدينة والتنقل", paths: ["cultural-centers", "cultural-events"] },
   { key: "transport", label: "مشوارك علينا", group: "المدينة والتنقل", paths: ["transport"] },
   { key: "travel", label: "السفر والوكالات", group: "المدينة والتنقل", paths: ["travel", "travel-agencies"] },
-  { key: "leagues", label: "الدوريات الرياضية", group: "المدينة والتنقل", paths: ["leagues"] },
+  { key: "leagues", label: "الرياضة والدوريات (القسم الرياضي)", group: "المدينة والتنقل", paths: ["leagues", "sports"] },
 ];
 
 const BY_SEGMENT = new Map<string, string>();
@@ -55,7 +55,8 @@ for (const p of MOD_PERMISSIONS) for (const seg of p.paths) BY_SEGMENT.set(seg, 
 
 /** القسم الذي يتبعه مسار إداري: /api/admin/<segment>/… */
 export function permissionForPath(path: string): string | null {
-  const m = /\/admin\/([a-z0-9_-]+)/i.exec(path || "");
+  // مسارات الإدارة /admin/<قسم>، ومسارات القسم الرياضي /api/sports/… (تتبع صلاحية «الرياضة والدوريات»)
+  const m = /\/admin\/([a-z0-9_-]+)/i.exec(path || "") || /\/api\/(sports)\//i.exec(path || "");
   return m ? BY_SEGMENT.get(m[1].toLowerCase()) ?? null : null;
 }
 

@@ -46,7 +46,8 @@ async function call<T>(path: string, token?: string | null, init: RequestInit = 
 const body = (method: string, b: unknown): RequestInit => ({ method, body: JSON.stringify(b) });
 
 export const leaguesApi = {
-  list: (t?: string | null) => call<{ leagues: League[] }>("/leagues", t),
+  list: (t?: string | null) => call<{ leagues: League[]; can_manage?: boolean }>("/leagues", t),
+  remove: (t: string, id: number) => call<{ ok: boolean }>(`/leagues/${id}`, t, { method: "DELETE" }),
   get: (id: number, t?: string | null) => call<LeagueDetail>(`/leagues/${id}`, t),
   create: (t: string, b: Partial<League>) => call<{ league: League; message: string }>("/leagues", t, body("POST", b)),
   update: (t: string, id: number, b: Partial<League> & { approved?: boolean }) => call<{ league: League }>(`/leagues/${id}`, t, body("PATCH", b)),

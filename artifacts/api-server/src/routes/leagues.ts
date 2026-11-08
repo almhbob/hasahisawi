@@ -86,10 +86,19 @@ export function ensureLeaguesDb(): Promise<void> {
 }
 
 // ── الصلاحيات ─────────────────────────────────────────────
+/** إدارة الرياضة: مدير التطبيق، أو المشرف الممنوح صلاحية «الرياضة والدوريات» (leagues) */
+export async function isSportsAdmin(u: SessionUser | null): Promise<boolean> {
+  if (!u) return false;
+  if (u.role === "admin") return true;
+  if (u.role !== "moderator") return false;
+  const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section='leagues' LIMIT 1`, [u.id]).catch(() => ({ rows: [] as any[] }));
+  return r.rows.length > 0;
+}
+
 async function rolesOf(u: SessionUser | null, leagueId: number): Promise<Set<Role | "admin">> {
   const s = new Set<Role | "admin">();
   if (!u) return s;
-  if (u.role === "admin") { s.add("admin"); s.add("organizer"); }
+  if (await isSportsAdmin(u)) { s.add("admin"); s.add("organizer"); }
   const r = await query(`SELECT role FROM league_staff WHERE league_id=$1 AND user_id=$2`, [leagueId, u.id]);
   for (const x of r.rows) s.add(x.role);
   return s;
@@ -137,8 +146,8 @@ router.get("/leagues", async (req: Request, res: Response) => {
               EXISTS (SELECT 1 FROM league_staff s WHERE s.league_id=l.id AND s.user_id=$1) AS is_staff
          FROM leagues l
         WHERE l.approved OR l.created_by=$1 OR $2
-        ORDER BY (l.status='running') DESC, l.updated_at DESC`, [u?.id ?? 0, u?.role === "admin"]);
-    return res.json({ leagues: r.rows });
+        ORDER BY (l.status='running') DESC, l.updated_at DESC`, [u?.id ?? 0, await isSportsAdmin(u)]);
+    return res.json({ leagues: r.rows, can_manage: await isSportsAdmin(u) });
   } catch (e: any) { logger.error({ err: e?.message }, "leagues list"); return res.status(500).json({ error: "تعذّر التحميل" }); }
 });
 
@@ -215,11 +224,12 @@ router.post("/leagues", writeLimiter, async (req: Request, res: Response) => {
     const f = leagueFields(req.body);
     if (!f.name || String(f.name).length < 3) return res.status(400).json({ error: "اسم الدوري مطلوب" });
     const keys = Object.keys(f);
+    const sportsAdmin = await isSportsAdmin(u);
     const r = await query(
       `INSERT INTO leagues (${keys.join(",")}, created_by, approved) VALUES (${keys.map((_, i) => `$${i + 1}`).join(",")}, $${keys.length + 1}, $${keys.length + 2}) RETURNING *`,
-      [...keys.map(k => f[k]), u.id, u.role === "admin"]);
+      [...keys.map(k => f[k]), u.id, sportsAdmin]);
     await query(`INSERT INTO league_staff (league_id, user_id, role, title) VALUES ($1,$2,'organizer','رئيس اللجنة المنظمة') ON CONFLICT DO NOTHING`, [r.rows[0].id, u.id]);
-    return res.status(201).json({ league: r.rows[0], message: u.role === "admin" ? "أُنشئ الدوري" : "أُنشئ الدوري — يظهر للجمهور بعد اعتماد إدارة التطبيق، ويمكنك تجهيزه الآن." });
+    return res.status(201).json({ league: r.rows[0], message: sportsAdmin ? "أُنشئ الدوري" : "أُنشئ الدوري — يظهر للجمهور بعد اعتماد إدارة التطبيق، ويمكنك تجهيزه الآن." });
   } catch (e: any) { logger.error({ err: e?.message }, "league create"); return res.status(500).json({ error: "Server error" }); }
 });
 
@@ -228,7 +238,7 @@ router.patch("/leagues/:id", writeLimiter, async (req: Request, res: Response) =
   if (!isOrg(await rolesOf(u, id))) return deny(res);
   try {
     const f = leagueFields(req.body);
-    if (u?.role === "admin" && typeof req.body?.approved === "boolean") f.approved = req.body.approved;
+    if (typeof req.body?.approved === "boolean" && await isSportsAdmin(u)) f.approved = req.body.approved;
     const keys = Object.keys(f).filter(k => !(k === "name" && !f[k]));
     if (!keys.length) return res.status(400).json({ error: "لا توجد تغييرات" });
     const r = await query(`UPDATE leagues SET ${keys.map((k, i) => `${k}=$${i + 1}`).join(", ")}, updated_at=NOW() WHERE id=$${keys.length + 1} RETURNING *`, [...keys.map(k => f[k]), id]);
@@ -239,7 +249,8 @@ router.patch("/leagues/:id", writeLimiter, async (req: Request, res: Response) =
 router.delete("/leagues/:id", async (req: Request, res: Response) => {
   const u = await sessionUser(req); const id = int(req.params.id);
   const l = (await query(`SELECT created_by FROM leagues WHERE id=$1`, [id]).catch(() => ({ rows: [] as any[] }))).rows[0];
-  if (!l || !(u?.role === "admin" || l.created_by === u?.id)) return deny(res, "الحذف لمنشئ الدوري أو إدارة التطبيق");
+  if (!l) return res.status(404).json({ error: "الدوري غير موجود" });
+  if (!(await isSportsAdmin(u) || l.created_by === u?.id)) return deny(res, "الحذف لمنشئ الدوري أو إدارة الرياضة");
   await query(`DELETE FROM leagues WHERE id=$1`, [id]);
   return res.json({ ok: true });
 });

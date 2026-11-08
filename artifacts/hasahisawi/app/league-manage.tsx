@@ -65,7 +65,7 @@ export default function LeagueManage() {
         </View>
         <TouchableOpacity onPress={() => router.push({ pathname: "/league", params: { id: String(d.league.id) } } as any)} style={s.iconBtn} accessibilityLabel="عرض صفحة الدوري"><Ionicons name="eye-outline" size={18} color={Colors.textPrimary} /></TouchableOpacity>
       </View>
-      {user?.role === "admin" && !d.league.approved && (
+      {roles.includes("admin") && !d.league.approved && (
         <TouchableOpacity onPress={async () => { await leaguesApi.update(token!, d.league.id, { approved: true }); load(); }} style={s.approve}>
           <Ionicons name="checkmark-circle" size={18} color="#fff" /><Text style={s.approveText}>اعتماد الدوري ونشره للجمهور (إدارة التطبيق)</Text>
         </TouchableOpacity>
@@ -87,6 +87,19 @@ export default function LeagueManage() {
           {sec === "gate" && <GateSec d={d} token={token!} />}
           {sec === "staff" && <StaffSec d={d} token={token!} reload={load} />}
           {sec === "settings" && <SettingsSec d={d} token={token!} reload={load} />}
+          {sec === "settings" && (roles.includes("admin") || d.league.created_by === user?.id) && (
+            <NeuRaised radius={18} depth={4} style={{ padding: 14, gap: 8, borderWidth: 1, borderColor: "#D9363633" }}>
+              <Text style={[s.label, { color: "#D93636" }]}>حذف الدوري</Text>
+              <Text style={s.muted}>يحذف الدوري نهائياً مع الفرق والمباريات والأحداث والتذاكر. لإخفائه مؤقتاً غيّر حالته بدل الحذف.</Text>
+              <TouchableOpacity accessibilityRole="button" style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: "#D93636" }} onPress={async () => {
+                if (!(await confirmAction("حذف الدوري", `حذف «${d.league.name}» نهائياً؟ لا يمكن التراجع.`, "حذف نهائي", true))) return;
+                try { await leaguesApi.remove(token!, d.league.id); notify("تم حذف الدوري"); router.replace("/leagues" as any); }
+                catch (e: any) { notify("تعذّر الحذف", e?.message); }
+              }}>
+                <Ionicons name="trash" size={18} color="#fff" /><Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#fff" }}>حذف الدوري نهائياً</Text>
+              </TouchableOpacity>
+            </NeuRaised>
+          )}
         </Animated.View>
       </ScrollView>
     </View>
