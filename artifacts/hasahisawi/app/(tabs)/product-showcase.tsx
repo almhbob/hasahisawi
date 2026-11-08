@@ -31,7 +31,9 @@ const TYPE_AR: Record<string, string> = { boutique: "بوتيك", general: "مت
 export default function ProductShowcase() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [adminOpen, setAdminOpen] = useState(false);
   const cart = useCart();
   const [data, setData] = useState<{ products: Product[]; stores: StoreLite[] } | null>(null);
   const [err, setErr] = useState("");
@@ -89,11 +91,18 @@ export default function ProductShowcase() {
             <TextInput value={q} onChangeText={setQ} placeholder="ابحث عن منتج أو متجر…" placeholderTextColor={Colors.textMuted} style={st.searchIn} returnKeyType="search" />
             {q ? <Pressable onPress={() => setQ("")} hitSlop={8}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></Pressable> : null}
           </View>
-          <Pressable onPress={() => router.push((token ? "/store-portal" : "/login") as any)} style={st.ownerCta} accessibilityRole="button">
+          {isAdmin ? (
+            <Pressable onPress={() => setAdminOpen(true)} style={st.ownerCta} accessibilityRole="button">
+              <MaterialCommunityIcons name="shield-crown-outline" size={18} color="#3D2C00" />
+              <Text style={st.ownerCtaT}>إدارة المتاجر (مدير التطبيق)</Text>
+              <Ionicons name="chevron-back" size={16} color="#3D2C00" />
+            </Pressable>
+          ) : null}
+          {isAdmin ? null : <Pressable onPress={() => router.push((token ? "/store-portal" : "/login") as any)} style={st.ownerCta} accessibilityRole="button">
             <MaterialCommunityIcons name={hasStore ? "view-dashboard-outline" : "storefront-plus-outline"} size={18} color="#3D2C00" />
             <Text style={st.ownerCtaT}>{hasStore ? "لوحة إدارة متجري" : "افتح متجرك في السوق — مجاناً"}</Text>
             <Ionicons name="chevron-back" size={16} color="#3D2C00" />
-          </Pressable>
+          </Pressable>}
         </LinearGradient>
 
         {/* الفلاتر (ثابتة أثناء التمرير) */}
@@ -171,8 +180,65 @@ export default function ProductShowcase() {
         </View>
       ) : null}
 
+      {adminOpen ? <AdminStoresSheet token={token} onClose={() => setAdminOpen(false)} /> : null}
       {open ? <ProductSheet p={open} qty={cart.qty("store", open.store_id, open.id)} onAdd={(d) => add(open, d)} onClose={() => setOpen(null)} /> : null}
     </View>
+  );
+}
+
+const STATUS_AR: Record<string, [string, string]> = { active: ["نشط", GREEN], pending: ["بانتظار الاعتماد", "#8A6A00"], suspended: ["موقوف", "#B42318"], rejected: ["مرفوض", "#B42318"] };
+
+/** لوحة مدير التطبيق: كل المتاجر (حتى غير المعتمدة) مع الدخول إلى لوحة أي منها */
+function AdminStoresSheet({ token, onClose }: { token: string | null; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [list, setList] = useState<any[] | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    fetch(`${getApiUrl()}/api/admin/stores`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (r) => { const j = await r.json().catch(() => []); if (!r.ok) throw new Error(j?.error || "تعذّر التحميل"); setList(j); })
+      .catch((e) => setErr(e?.message || "تعذّر التحميل"));
+  }, [token]);
+  const go = (path: string, params?: any) => { onClose(); router.push((params ? { pathname: path, params } : path) as any); };
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={st.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[st.sheet, { width: "100%", maxWidth: 560, paddingBottom: insets.bottom + 14 }]}>
+          <View style={{ padding: 16, gap: 4, flexDirection: "row-reverse", alignItems: "center" }}>
+            <View style={{ flex: 1 }}>
+              <Text style={st.sName}>إدارة المتاجر</Text>
+              <Text style={st.muted}>اختر متجراً لرفع صور منتجاته وتعديلها بصلاحية مدير التطبيق</Text>
+            </View>
+            <Pressable onPress={onClose} style={[st.close, { position: "relative", top: 0, left: 0 }]} accessibilityLabel="إغلاق"><Ionicons name="close" size={20} color="#fff" /></Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingBottom: 10 }}>
+            <Pressable onPress={() => go("/store-portal")} style={[st.storeRow, { borderColor: GOLD, borderStyle: "dashed" }]}>
+              <View style={[st.storeLogoSm, { backgroundColor: GOLD + "30" }]}><Ionicons name="add" size={22} color="#3D2C00" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={st.pName}>متجري (للتجربة)</Text>
+                <Text style={st.muted}>افتح متجراً باسمك — يُعتمد فوراً لأنك المدير — أو ادخل لوحته إن كان موجوداً</Text>
+              </View>
+              <Ionicons name="chevron-back" size={18} color={DEEP} />
+            </Pressable>
+            {err ? <Text style={[st.muted, { color: "#B42318" }]}>{err}</Text> : !list ? <ActivityIndicator color={GREEN} style={{ marginVertical: 20 }} /> : !list.length ? (
+              <Text style={[st.muted, { textAlign: "center", marginVertical: 12 }]}>لا توجد متاجر مسجّلة بعد — ابدأ بمتجر للتجربة من الأعلى</Text>
+            ) : list.map((s) => {
+              const [lbl, col] = STATUS_AR[s.status] ?? [s.status, Colors.textMuted];
+              return (
+                <Pressable key={s.id} onPress={() => go("/store-portal", { store: String(s.id) })} style={st.storeRow} accessibilityRole="button" accessibilityLabel={`إدارة ${s.name}`}>
+                  <View style={st.storeLogoSm}>{s.logo_url ? <Image source={{ uri: s.logo_url }} style={{ width: 40, height: 40 }} /> : <Text style={[st.storeInit, { fontSize: 17 }]}>{String(s.name || "م").trim().charAt(0)}</Text>}</View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.pName} numberOfLines={1}>{s.name}</Text>
+                    <Text style={st.muted} numberOfLines={1}>{s.owner_name || "—"} · {Number(s.product_count || 0)} منتج · <Text style={{ color: col, fontFamily: "Cairo_700Bold" }}>{lbl}</Text></Text>
+                  </View>
+                  <Text style={st.linkT}>إدارة</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
