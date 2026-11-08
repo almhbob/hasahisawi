@@ -1,6 +1,6 @@
 // 🛍️ سوق المتاجر: معرض منتجات كل المتاجر المعتمدة (بوتيكات، عطور، أحذية، إلكترونيات…)
 // مرتبط بالسلة الموحّدة، ولوحة إدارة لكل صاحب متجر (منتجات بمعرض صور، خصومات، مخزون، طلبات).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Image, ActivityIndicator, Modal, RefreshControl, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,6 +13,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useCart, fmtSdg, type CartVendor } from "@/lib/cart";
 import CartButton from "@/components/CartButton";
 import ImageLightbox from "@/components/ImageLightbox";
+import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const GREEN = "#00966A";
 const DEEP = "#004D36";
@@ -97,21 +98,21 @@ export default function ProductShowcase() {
 
         {/* الفلاتر (ثابتة أثناء التمرير) */}
         <View style={st.filters}>
-          <RtlRow contentContainerStyle={st.chips}>
+          <RtlScrollRow contentContainerStyle={st.chips}>
             {TYPES.map(([k, l, ic]) => (
               <Pressable key={k || "all"} onPress={() => setType(k)} style={[st.chip, type === k && st.chipOn]} accessibilityRole="tab" accessibilityState={{ selected: type === k }}>
                 <Ionicons name={ic as any} size={14} color={type === k ? "#fff" : DEEP} /><Text style={[st.chipT, type === k && { color: "#fff" }]}>{l}</Text>
               </Pressable>
             ))}
-          </RtlRow>
-          <RtlRow contentContainerStyle={[st.chips, { paddingTop: 0 }]}>
+          </RtlScrollRow>
+          <RtlScrollRow contentContainerStyle={[st.chips, { paddingTop: 0 }]}>
             {SORTS.map(([k, l]) => (
               <Pressable key={k || "new"} onPress={() => setSort(k)} style={[st.sort, sort === k && st.sortOn]}>
                 {k === "deals" ? <Ionicons name="pricetag" size={12} color={sort === k ? "#3D2C00" : "#B42318"} /> : null}
                 <Text style={[st.sortT, sort === k && { color: "#3D2C00" }]}>{l}</Text>
               </Pressable>
             ))}
-          </RtlRow>
+          </RtlScrollRow>
         </View>
 
         <View style={{ paddingHorizontal: 16, gap: 14, width: "100%", maxWidth: 1100, alignSelf: "center" }}>
@@ -119,15 +120,15 @@ export default function ProductShowcase() {
           {data?.stores.length && !qDebounced ? (
             <View style={{ gap: 8, marginTop: 6 }}>
               <Text style={st.secT}>المتاجر</Text>
-              <RtlRow contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
+              <RtlScrollRow contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
                 {data.stores.map((s) => (
                   <Pressable key={s.id} onPress={() => router.push({ pathname: "/stores", params: { open: String(s.id) } } as any)} style={st.store}>
-                    <View style={st.storeLogo}>{s.logo_url ? <Image source={{ uri: s.logo_url }} style={st.storeLogoImg} /> : <Ionicons name="storefront" size={22} color={GREEN} />}</View>
+                    <View style={st.storeLogo}>{s.logo_url ? <Image source={{ uri: s.logo_url }} style={st.storeLogoImg} /> : <Text style={st.storeInit}>{s.name.trim().charAt(0)}</Text>}</View>
                     <Text style={st.storeN} numberOfLines={1}>{s.name}</Text>
                     <Text style={[st.storeS, { color: s.is_open === false ? "#B42318" : GREEN }]}>{s.is_open === false ? "مغلق الآن" : `${s.product_count} منتج`}</Text>
                   </Pressable>
                 ))}
-              </RtlRow>
+              </RtlScrollRow>
             </View>
           ) : null}
 
@@ -135,9 +136,9 @@ export default function ProductShowcase() {
           {featured.length && !qDebounced && !sort ? (
             <View style={{ gap: 8 }}>
               <Text style={st.secT}>⭐ مختارات مميّزة</Text>
-              <RtlRow contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
+              <RtlScrollRow contentContainerStyle={{ gap: 10, flexDirection: "row-reverse" }}>
                 {featured.map((p) => <ProductCard key={`f${p.id}`} p={p} w={Math.min(200, cardW + 20)} qty={cart.qty("store", p.store_id, p.id)} onOpen={() => setOpen(p)} onAdd={(d) => add(p, d)} />)}
-              </RtlRow>
+              </RtlScrollRow>
             </View>
           ) : null}
 
@@ -172,17 +173,6 @@ export default function ProductShowcase() {
 
       {open ? <ProductSheet p={open} qty={cart.qty("store", open.store_id, open.id)} onAdd={(d) => add(open, d)} onClose={() => setOpen(null)} /> : null}
     </View>
-  );
-}
-
-/** صف أفقي يبدأ من اليمين (الواجهة LTR على الويب، فنمرّر إلى النهاية عند العرض) */
-function RtlRow({ contentContainerStyle, children }: { contentContainerStyle?: any; children: React.ReactNode }) {
-  const ref = useRef<ScrollView>(null);
-  return (
-    <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[{ flexDirection: "row-reverse", flexGrow: 1 }, contentContainerStyle]}
-      onContentSizeChange={() => ref.current?.scrollToEnd({ animated: false })}>
-      {children}
-    </ScrollView>
   );
 }
 
@@ -252,7 +242,7 @@ function ProductSheet({ p, qty, onAdd, onClose }: { p: Product; qty: number; onA
             {p.stock != null ? <Text style={[st.muted, p.stock <= 3 && { color: "#B42318", fontFamily: "Cairo_700Bold" }]}>{p.stock <= 3 ? `⚠️ تبقّى ${p.stock} فقط` : `متوفر: ${p.stock}`}</Text> : null}
             {p.description ? <Text style={st.desc}>{p.description}</Text> : null}
             <Pressable onPress={() => { onClose(); router.push({ pathname: "/stores", params: { open: String(p.store_id) } } as any); }} style={st.storeRow}>
-              <View style={st.storeLogoSm}>{p.store_logo ? <Image source={{ uri: p.store_logo }} style={{ width: 36, height: 36 }} /> : <Ionicons name="storefront" size={18} color={GREEN} />}</View>
+              <View style={st.storeLogoSm}>{p.store_logo ? <Image source={{ uri: p.store_logo }} style={{ width: 36, height: 36 }} /> : <Text style={[st.storeInit, { fontSize: 17 }]}>{p.store_name.trim().charAt(0)}</Text>}</View>
               <View style={{ flex: 1 }}>
                 <Text style={st.pName}>{p.store_name}</Text>
                 <Text style={st.muted}>{TYPE_AR[p.store_type] || "متجر"}{p.delivery_available ? ` · توصيل ${p.delivery_fee ? fmtSdg(p.delivery_fee) : "مجاني"}` : " · استلام من المتجر"}</Text>
@@ -303,6 +293,7 @@ const st = StyleSheet.create({
   store: { width: 92, alignItems: "center", gap: 3 },
   storeLogo: { width: 64, height: 64, borderRadius: 22, backgroundColor: Colors.cardBg, borderWidth: 2, borderColor: GOLD + "80", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   storeLogoImg: { width: 60, height: 60, borderRadius: 20 },
+  storeInit: { fontFamily: "Cairo_700Bold", fontSize: 24, color: GREEN },
   storeN: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textPrimary, textAlign: "center" },
   storeS: { fontFamily: "Cairo_600SemiBold", fontSize: 10.5, textAlign: "center" },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 12 },
