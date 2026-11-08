@@ -20,7 +20,7 @@ import { uploadFile } from "@/lib/firebase/storage";
 import { compressImage, uploadErrorMessage } from "@/lib/compress-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 
@@ -147,6 +147,9 @@ export default function StorePortalScreen() {
   const { user, token } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // مدير التطبيق يفتح لوحة أي متجر: /store-portal?store=ID
+  const { store: manageParam } = useLocalSearchParams<{ store?: string }>();
+  const manageId = user?.role === "admin" && manageParam && /^\d+$/.test(String(manageParam)) ? String(manageParam) : null;
 
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<MyStore | null>(null);
@@ -154,7 +157,9 @@ export default function StorePortalScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [refreshing, setRefreshing] = useState(false);
 
-  const authHeader = { Authorization: `Bearer ${token}` };
+  const authHeader: Record<string, string> = manageId
+    ? { Authorization: `Bearer ${token}`, "X-Manage-Store": manageId }
+    : { Authorization: `Bearer ${token}` };
   const apiBase = getApiUrl();
 
   const fetchStore = useCallback(async () => {
@@ -241,7 +246,7 @@ export default function StorePortalScreen() {
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <ModernHeader
         title={store?.name ?? "بوابة المتجر"}
-        subtitle="لوحة التحكم"
+        subtitle={manageId ? "لوحة التحكم · بصلاحية مدير التطبيق" : "لوحة التحكم"}
         showBack
         onBack={() => router.back()}
         gradient={Colors.gradients.brand}

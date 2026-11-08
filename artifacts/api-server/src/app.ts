@@ -60,7 +60,7 @@ app.use(
     const base = {
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "x-admin-pin", "x-user-token"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-admin-pin", "x-user-token", "x-manage-store"],
     };
     const origin = req.headers.origin;
     if (!origin || process.env.NODE_ENV !== "production" || isSameOrigin(req, origin) || allowedOrigins().includes(origin)) {

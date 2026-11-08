@@ -228,6 +228,7 @@ export default function AdminRequestsScreen() {
           </View>
           <View style={s.actions}>
             <Act label="اتصال" color="#00966A" icon="call-outline" onPress={() => Linking.openURL(`tel:${item.phone}`)} />
+            {user?.role === "admin" && <Act label="إدارة المتجر" color="#1D66D4" icon="construct-outline" onPress={() => router.push({ pathname: "/store-portal", params: { store: String(item.id) } } as any)} />}
             {item.status !== "active" && <Act label="اعتماد" color="#00966A" icon="checkmark-circle-outline" onPress={() => review("store", item.id, "active", "اعتماد المتجر")} />}
             {item.status === "pending" && <Act label="رفض" color="#D93636" icon="close-circle-outline" onPress={() => review("store", item.id, "rejected", "رفض الطلب")} />}
             {item.status === "active" && <Act label="إيقاف" color={Colors.textSecondary} icon="pause-circle-outline" onPress={() => review("store", item.id, "suspended", "إيقاف المتجر")} />}
