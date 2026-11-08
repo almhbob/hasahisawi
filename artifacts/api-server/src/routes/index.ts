@@ -53,6 +53,8 @@ import memorialsRouter, { ensureMemorialsDb, startMemorialScheduler } from "./me
 import sheinRouter, { ensureSheinDb } from "./shein";
 import marketPostsRouter, { ensureMarketPostsDb } from "./market-posts";
 import patientJourneyRouter, { ensurePatientJourneyDb } from "./patient-journey";
+import entityVolunteerRouter, { ensureEntityVolunteerDb } from "./entity-volunteer";
+import orgWorkspaceRouter, { ensureOrgWorkspaceDb } from "./org-workspace";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -95,6 +97,8 @@ router.use(memorialsRouter);
 router.use(sheinRouter);
 router.use(marketPostsRouter);
 router.use(patientJourneyRouter);
+router.use(entityVolunteerRouter);
+router.use(orgWorkspaceRouter);
 router.use(viewsRouter);
 router.use(eduInstRouter);
 router.use(demoCleanupRouter);
@@ -149,6 +153,8 @@ async function initializeDatabaseSchemas() {
   await ensureSheinDb().catch(() => {});
   await ensureMarketPostsDb().catch(() => {});
   await ensurePatientJourneyDb().catch(() => {});
+  await ensureEntityVolunteerDb().catch(() => {});
+  await ensureOrgWorkspaceDb().catch(() => {});
   startMemorialScheduler();
   await ensureContestsDb();
   // Keep this last: its table is the completion marker used by readiness checks.

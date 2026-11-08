@@ -65,7 +65,8 @@ const UPCOMING = `COALESCE(e.ends_at, e.starts_at + INTERVAL '1 day') >= NOW()`;
 async function canManage(u: SessionUser | null, orgId: number): Promise<boolean> {
   if (!u || u.is_banned) return false;
   if (isAdmin(u)) return true;
-  const r = await query(`SELECT 1 FROM org_managers WHERE org_id=$1 AND user_id=$2`, [orgId, u.id]);
+  // أعضاء الفريق (staff) لا ينشرون ولا يديرون — المالك والمدير فقط
+  const r = await query(`SELECT 1 FROM org_managers WHERE org_id=$1 AND user_id=$2 AND role IN ('owner','manager')`, [orgId, u.id]);
   return r.rows.length > 0;
 }
 
@@ -119,7 +120,7 @@ router.get("/organizations/managed", async (req: Request, res: Response) => {
     const r = isAdmin(u)
       ? await query(`SELECT id, name, type, is_verified FROM organizations WHERE is_active=TRUE ORDER BY name`)
       : await query(`SELECT o.id, o.name, o.type, o.is_verified FROM org_managers m JOIN organizations o ON o.id=m.org_id
-                     WHERE m.user_id=$1 AND o.is_active=TRUE ORDER BY o.name`, [u.id]);
+                     WHERE m.user_id=$1 AND m.role IN ('owner','manager') AND o.is_active=TRUE ORDER BY o.name`, [u.id]);
     return res.json({ organizations: r.rows, is_admin: isAdmin(u) });
   } catch (e) { return fail(res, e); }
 });

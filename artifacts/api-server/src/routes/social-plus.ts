@@ -93,6 +93,21 @@ router.post("/posts/:id/view", async (req: Request, res: Response) => {
 });
 
 // ── المتابعة ─────────────────────────────────────────────────────
+// مؤسس التطبيق (أول حساب مدير): بطاقة «تابِع المؤسس» بأرقام حقيقية من المنصة
+router.get("/users/founder", async (req: Request, res: Response) => {
+  try {
+    await ensureSocialPlus();
+    const me = await sessionUser(req);
+    const f = (await query(`SELECT id, name, avatar_url, headline, verified_label FROM users WHERE role='admin' AND COALESCE(is_banned,false)=false ORDER BY id LIMIT 1`)).rows[0];
+    if (!f) return res.json({ founder: null });
+    const [fol, iFollow] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS n FROM user_follows WHERE followee_id=$1`, [f.id]),
+      me ? query(`SELECT 1 FROM user_follows WHERE follower_id=$1 AND followee_id=$2`, [me.id, f.id]) : Promise.resolve({ rows: [] as any[] }),
+    ]);
+    return res.json({ founder: { ...f, title: "مؤسس ومدير تطبيق حصاحيصاوي" }, followers: fol.rows[0].n, i_follow: !!iFollow.rows[0], is_me: me?.id === f.id });
+  } catch (err) { logger.error({ err }, "[social+] founder"); return res.status(500).json({ error: "تعذّر التحميل" }); }
+});
+
 router.post("/users/:id/follow", async (req: Request, res: Response) => {
   try {
     const me = await sessionUser(req);

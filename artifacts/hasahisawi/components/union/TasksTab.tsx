@@ -52,7 +52,8 @@ const ago = (s: string) => {
 };
 const emptyTask = () => ({ title: "", description: "", assignee_staff_id: 0, priority: "normal" as Priority, due_date: "" });
 
-export function TasksTab({ token, onOpenCount }: { token: string; onOpenCount?: (n: number) => void }) {
+/** base: مسار المهام (اتحاد الطلاب افتراضياً، أو ‎/org-workspace/ID لمساحة منظمة) */
+export function TasksTab({ token, onOpenCount, base = "/union-manager" }: { token: string; onOpenCount?: (n: number) => void; base?: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [staff, setStaff] = useState<StaffLoad[]>([]);
   const [summary, setSummary] = useState({ open: 0, done: 0, overdue: 0, review: 0, due_today: 0 });
@@ -69,11 +70,11 @@ export function TasksTab({ token, onOpenCount }: { token: string; onOpenCount?: 
       const q = new URLSearchParams();
       if (filter !== "all") q.set("status", filter);
       if (staffFilter) q.set("staff", String(staffFilter));
-      const d = await api(token, `/union-manager/tasks?${q}`);
+      const d = await api(token, `${base}/tasks?${q}`);
       setTasks(d.tasks || []); setStaff(d.staff || []); setLead(!!d.lead);
       if (d.summary) { setSummary(d.summary); onOpenCount?.(d.summary.open); }
     } catch (e: any) { notify("تنبيه", e.message); } finally { setLoading(false); }
-  }, [token, filter, staffFilter]);
+  }, [token, filter, staffFilter, base]);
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
@@ -82,7 +83,7 @@ export function TasksTab({ token, onOpenCount }: { token: string; onOpenCount?: 
     if (!form.assignee_staff_id) return notify("الموظف", "اختر الموظف المسؤول عن المهمة.");
     setSaving(true);
     try {
-      await api(token, "/union-manager/tasks", { method: "POST", body: JSON.stringify({ ...form, due_date: form.due_date || null }) });
+      await api(token, `${base}/tasks`, { method: "POST", body: JSON.stringify({ ...form, due_date: form.due_date || null }) });
       setForm(null); load(); notify("تم الإسناد ✓", "وصل إشعار للموظف بالمهمة.");
     } catch (e: any) { notify("تنبيه", e.message); } finally { setSaving(false); }
   };
@@ -98,7 +99,7 @@ export function TasksTab({ token, onOpenCount }: { token: string; onOpenCount?: 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={UC} />}>
-        <Text style={t.h1}>{lead ? "مهام فريق الاتحاد" : "مهامي"}</Text>
+        <Text style={t.h1}>{lead ? (base.startsWith("/org-workspace") ? "مهام فريق المنظمة" : "مهام فريق الاتحاد") : "مهامي"}</Text>
         <View style={t.sumRow}>
           {cards.map((c) => (
             <TouchableOpacity key={c.l} style={t.sum} onPress={() => { setLoading(true); setFilter(c.f); }} accessibilityLabel={`${c.n} ${c.l}`}>
@@ -163,7 +164,7 @@ export function TasksTab({ token, onOpenCount }: { token: string; onOpenCount?: 
                     <Text style={[t.chipT, form.assignee_staff_id === s.id && { color: UC2 }]}>{s.full_name} · {s.role}</Text>
                   </TouchableOpacity>
                 ))}
-                {staff.length === 0 && <Text style={t.meta}>أضف موظفين من تبويب «الموظفون» أولاً.</Text>}
+                {staff.length === 0 && <Text style={t.meta}>{base.startsWith("/org-workspace") ? "أضف أعضاء من تبويب «الفريق» أولاً." : "أضف موظفين من تبويب «الموظفون» أولاً."}</Text>}
               </View>
               <Text style={t.label}>الأولوية</Text>
               <View style={t.wrap}>
@@ -185,7 +186,7 @@ export function TasksTab({ token, onOpenCount }: { token: string; onOpenCount?: 
         </KeyboardAvoidingView>
       </Modal>
 
-      {openId != null && <TaskDetail token={token} id={openId} staff={staff} onClose={() => setOpenId(null)} onChanged={load} />}
+      {openId != null && <TaskDetail token={token} base={base} id={openId} staff={staff} onClose={() => setOpenId(null)} onChanged={load} />}
     </View>
   );
 }
@@ -219,7 +220,7 @@ function TaskCard({ task: x, lead, onPress }: { task: Task; lead: boolean; onPre
   );
 }
 
-function TaskDetail({ token, id, staff, onClose, onChanged }: { token: string; id: number; staff: StaffLoad[]; onClose: () => void; onChanged: () => void }) {
+function TaskDetail({ token, base, id, staff, onClose, onChanged }: { token: string; base: string; id: number; staff: StaffLoad[]; onClose: () => void; onChanged: () => void }) {
   const [task, setTask] = useState<Task | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [lead, setLead] = useState(false);
@@ -227,25 +228,25 @@ function TaskDetail({ token, id, staff, onClose, onChanged }: { token: string; i
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    try { const d = await api(token, `/union-manager/tasks/${id}`); setTask(d.task); setComments(d.comments || []); setLead(!!d.lead); }
+    try { const d = await api(token, `${base}/tasks/${id}`); setTask(d.task); setComments(d.comments || []); setLead(!!d.lead); }
     catch (e: any) { notify("تنبيه", e.message); onClose(); }
-  }, [token, id]);
+  }, [token, id, base]);
   useEffect(() => { load(); }, [load]);
 
   const patch = async (body: object) => {
     setBusy(true);
-    try { const d = await api(token, `/union-manager/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }); setTask(d.task); await load(); onChanged(); }
+    try { const d = await api(token, `${base}/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }); setTask(d.task); await load(); onChanged(); }
     catch (e: any) { notify("تنبيه", e.message); } finally { setBusy(false); }
   };
   const send = async () => {
     if (!text.trim()) return;
     setBusy(true);
-    try { await api(token, `/union-manager/tasks/${id}/comments`, { method: "POST", body: JSON.stringify({ body: text.trim() }) }); setText(""); await load(); onChanged(); }
+    try { await api(token, `${base}/tasks/${id}/comments`, { method: "POST", body: JSON.stringify({ body: text.trim() }) }); setText(""); await load(); onChanged(); }
     catch (e: any) { notify("تنبيه", e.message); } finally { setBusy(false); }
   };
   const remove = async () => {
     if (!task || !(await confirmAction("حذف المهمة", `حذف «${task.title}» وسجلها نهائياً؟`, "حذف", true))) return;
-    try { await api(token, `/union-manager/tasks/${id}`, { method: "DELETE" }); onChanged(); onClose(); } catch (e: any) { notify("تنبيه", e.message); }
+    try { await api(token, `${base}/tasks/${id}`, { method: "DELETE" }); onChanged(); onClose(); } catch (e: any) { notify("تنبيه", e.message); }
   };
 
   const statuses: TStatus[] = useMemo(() => (lead ? ["todo", "in_progress", "review", "done", "blocked"] : ["in_progress", "blocked", "done"]), [lead]);

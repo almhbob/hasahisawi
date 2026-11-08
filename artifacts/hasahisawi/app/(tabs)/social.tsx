@@ -19,6 +19,7 @@ import {
   Dimensions,
   Share,
 } from "react-native";
+import FounderFollowCard from "@/components/FounderFollowCard";
 import GuestGate from "@/components/GuestGate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -1586,6 +1587,7 @@ export default function SocialScreen() {
           }
           ListHeaderComponent={
             <>
+              <FounderFollowCard />
               {fromCache && (
                 <View style={cs.cacheBanner}>
                   <Ionicons name="cloud-offline-outline" size={14} color={Colors.textMuted} />

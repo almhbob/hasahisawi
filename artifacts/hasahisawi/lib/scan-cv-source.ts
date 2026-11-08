@@ -186,10 +186,67 @@ export const SCAN_CV_SOURCE = String.raw`
     }
     return bg;
   }
+
+  // ── تنقية الصورة ──
+  // تنعيم يحفظ الحواف: يُستبدل البكسل بمتوسط جواره فقط حين يكون الفرق صغيراً (حبيبات/ضوضاء)،
+  // أما حواف الكتابة (فرق كبير) فتبقى حادة.
+  function denoise(d, w, h) {
+    var n = w * h, c, i, j;
+    // تقدير مستوى الضوضاء من الصورة نفسها (وسيط الفروق عن المتوسط المحلي) → عتبة تكيفية
+    var L = lum(d, n), Lb = blur(L, w, h, 1), samp = [], step = Math.max(1, Math.floor(n / 40000));
+    for (i = 0; i < n; i += step) samp.push(Math.abs(L[i] - Lb[i]));
+    samp.sort(function (x, y) { return x - y; });
+    var sigma = samp.length ? samp[Math.floor(samp.length / 2)] * 1.48 : 4;
+    var thr = Math.max(8, Math.min(55, sigma * 2.6));
+    for (c = 0; c < 3; c++) {
+      var ch = new Float32Array(n);
+      for (i = 0, j = c; i < n; i++, j += 4) ch[i] = d[j];
+      var b1 = blur(ch, w, h, 1), b2 = blur(ch, w, h, 2);
+      for (i = 0, j = c; i < n; i++, j += 4) {
+        var v = ch[i];
+        // نقطة غبار معزولة: أغمق كثيراً من محيطها بينما محيطها القريب فاتح (ليست جزءاً من خط كتابة)
+        if (v < b2[i] - 60 && b1[i] > b2[i] - 22) { d[j] = b2[i]; continue; }
+        var e = Math.abs(v - b2[i]);
+        if (e < thr) d[j] = b2[i];
+        else if (Math.abs(v - b1[i]) < thr * 1.3) d[j] = (v + b1[i]) / 2;
+      }
+    }
+  }
+  // إزالة النقاط الشاردة في الأبيض والأسود: بكسل معزول عن جيرانه يأخذ لون محيطه
+  function despeckle(d, w, h) {
+    var n = w * h, m = new Uint8Array(n), i, j, x, y;
+    for (i = 0, j = 0; i < n; i++, j += 4) m[i] = d[j] < 128 ? 1 : 0;
+    for (y = 1; y < h - 1; y++) for (x = 1; x < w - 1; x++) {
+      var k = y * w + x, s = m[k - w - 1] + m[k - w] + m[k - w + 1] + m[k - 1] + m[k + 1] + m[k + w - 1] + m[k + w] + m[k + w + 1];
+      if (m[k] && s <= 1) { j = k * 4; d[j] = d[j + 1] = d[j + 2] = 255; }
+      else if (!m[k] && s >= 7) { j = k * 4; d[j] = d[j + 1] = d[j + 2] = 0; }
+    }
+  }
+  // توضيح الكتابة (Unsharp mask خفيف على الإضاءة) دون تضخيم الضوضاء
+  function sharpen(d, w, h, amount) {
+    var n = w * h, L = lum(d, n), B = blur(L, w, h, 1), i, j;
+    for (i = 0, j = 0; i < n; i++, j += 4) {
+      var diff = L[i] - B[i];
+      if (Math.abs(diff) < 12) continue; // لا نُبرز الحبيبات — الحواف الواضحة فقط
+      var add = diff * amount;
+      d[j] = Math.max(0, Math.min(255, d[j] + add));
+      d[j + 1] = Math.max(0, Math.min(255, d[j + 1] + add));
+      d[j + 2] = Math.max(0, Math.min(255, d[j + 2] + add));
+    }
+  }
+  // تبييض الورقة: الدرجات القريبة جداً من الأبيض تصبح بيضاء نقية (يزيل البقع الباهتة والظلال المتبقية)
+  function whitenPaper(d, n, cut) {
+    for (var i = 0, j = 0; i < n; i++, j += 4) {
+      var y = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+      if (y >= cut) { d[j] = d[j + 1] = d[j + 2] = 255; }
+      else if (y >= cut - 18) { var t = (y - (cut - 18)) / 18; d[j] += (255 - d[j]) * t; d[j + 1] += (255 - d[j + 1]) * t; d[j + 2] += (255 - d[j + 2]) * t; }
+    }
+  }
   function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function enhance(img, mode) {
     if (mode === "original") return img;
     var w = img.width, h = img.height, d = img.data, n = w * h, i, j;
+    denoise(d, w, h);
     var L = lum(d, n), bg = background(L, w, h);
     var lo = 0.38, hi = 0.93;
     for (i = 0, j = 0; i < n; i++, j += 4) {
@@ -208,6 +265,12 @@ export const SCAN_CV_SOURCE = String.raw`
         }
         d[j] = r * 255; d[j + 1] = g * 255; d[j + 2] = b * 255;
       }
+    }
+    // تنقية نهائية حسب الوضع
+    if (mode === "bw") despeckle(d, w, h);
+    else {
+      sharpen(d, w, h, mode === "vivid" ? 0.25 : 0.35);
+      if (mode !== "vivid") whitenPaper(d, n, mode === "gray" ? 236 : 240);
     }
     return img;
   }

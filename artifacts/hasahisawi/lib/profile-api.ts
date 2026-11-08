@@ -11,6 +11,8 @@ export type CertKind = "degree" | "course" | "license" | "award" | "experience" 
 export type SkillItem = { name: string; count: number; mine: boolean };
 
 export type FullProfile = {
+  /** ملف المؤسس (مدير التطبيق) */
+  founder?: { title: string; volunteer: string; stats: { label: string; value: number }[] };
   id: number; name: string; role: string; avatar_url: string | null; created_at: string;
   bio: string | null; neighborhood: string | null; headline: string | null; profession: string | null;
   skills: SkillItem[]; social_links: Partial<Record<SocialKey, string>>;
