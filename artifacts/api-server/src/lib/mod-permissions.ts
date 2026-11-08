@@ -20,10 +20,10 @@ export const MOD_PERMISSIONS: ModPermission[] = [
   { key: "communities", label: "المؤسسات والمنظمات", group: "المؤسسات والطلبات", paths: ["communities", "organizations", "gov-entities", "external-partnerships"] },
   { key: "join_requests", label: "طلبات الانضمام", group: "المؤسسات والطلبات", paths: ["join-requests", "join-application-archives", "institution-applications"] },
   { key: "student_union", label: "اتحاد الطلاب والنقابات", group: "المؤسسات والطلبات", paths: ["student-union", "union-manager-apps", "union-members", "union-programs", "union-laws", "union-announcements", "union-partnership", "unions"] },
-  { key: "education", label: "التعليم والمكتبات", group: "المؤسسات والطلبات", paths: ["education", "edu", "educational-institutions", "student-libraries"] },
+  { key: "education", label: "التعليم والمدارس والمكتبات (مدير قسم المدارس)", group: "المؤسسات والطلبات", paths: ["education", "edu", "educational-institutions", "student-libraries"] },
   { key: "volunteer", label: "التطوع", group: "المؤسسات والطلبات", paths: ["volunteer"] },
   // التجارة والخدمات
-  { key: "merchants_admin", label: "التجار والمتاجر", group: "التجارة والخدمات", paths: ["merchants", "merchant-items", "stores", "marketplace-orders", "listings"] },
+  { key: "merchants_admin", label: "السوق والتجار والمتاجر (حذف المنتجات والمنشورات)", group: "التجارة والخدمات", paths: ["merchants", "merchant-items", "stores", "marketplace-orders", "listings", "market-posts"] },
   { key: "phone_shops", label: "الاتصالات ومحلات الهواتف", group: "التجارة والخدمات", paths: ["phone-shops", "telecom"] },
   { key: "women_stores_admin", label: "ركن المرأة ومتاجره", group: "التجارة والخدمات", paths: ["women", "women-services"] },
   { key: "farmers_admin", label: "السوق الزراعي", group: "التجارة والخدمات", paths: ["farmers"] },

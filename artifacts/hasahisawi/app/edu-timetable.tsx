@@ -2,6 +2,7 @@
 // المعلم في فصلين بالوقت نفسه، القاعة المحجوزة، وتجاوز النصاب الأسبوعي. تعبئة تلقائية، نسخ يوم، مسح، ومشاركة.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, Pressable, Modal, TextInput, ActivityIndicator, StyleSheet, Share } from "react-native";
+import { usePullRefresh } from "@/lib/use-pull-refresh";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -51,6 +52,7 @@ export default function EduTimetable() {
   }, [token, wsId, mode, classId, teacherId]);
   useFocusEffect(useCallback(() => { loadOv(); }, [loadOv]));
   useEffect(() => { load(); }, [load]);
+  const refresh = usePullRefresh(async () => { await Promise.all([loadOv(), load()]); });
 
   const klass = ov?.classes.find((c) => c.id === classId);
   const teacher = ov?.staff.find((t) => t.id === teacherId);
@@ -85,7 +87,7 @@ export default function EduTimetable() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <ScrollView refreshControl={refresh} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         <Hero insetTop={insets.top} kicker={ov.institution.name} title="جدول الحصص" sub={settings ? `${settings.academic_year} · ${settings.current_term} · ${settings.days.length} أيام × ${settings.periods} حصص` : undefined}
           right={<Pressable onPress={share} style={st.heroBtn} accessibilityLabel="مشاركة الجدول"><Ionicons name="share-social" size={18} color="#fff" /></Pressable>} />
 

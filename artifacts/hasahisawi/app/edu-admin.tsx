@@ -2,6 +2,7 @@
 // الدرجات والحضور، المدراء والصلاحيات، والإعدادات (الأيام، الحصص، الأوقات، الفصول الدراسية).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, TextInput } from "react-native";
+import { usePullRefresh } from "@/lib/use-pull-refresh";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -41,6 +42,7 @@ export default function EduAdmin() {
     try { setOv(await eduApi.overview(token, wsId)); } catch (x: any) { setErr(x?.message || "تعذّر التحميل"); }
   }, [token, wsId]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  const refresh = usePullRefresh(load);
 
   if (err && !ov) return <View style={st.center}><Empty icon="lock-closed-outline" title={err} /></View>;
   if (!ov || !token) return <View style={st.center}><ActivityIndicator color={EDU} /></View>;
@@ -51,7 +53,7 @@ export default function EduAdmin() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+      <ScrollView refreshControl={refresh} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
         <Hero insetTop={insets.top} kicker={`${KIND_AR[w.kind] ?? ""} · ${ROLE_AR[ov.me.role ?? ""] ?? "معلم"}`} title={w.name} sub={`${w.settings.academic_year} · ${w.settings.current_term}`}
           right={<Pressable accessibilityRole="button" hitSlop={8} onPress={() => router.push({ pathname: "/edu-institution", params: { id: String(wsId) } } as any)} style={st.heroBtn} accessibilityLabel="الصفحة العامة"><Ionicons name="eye-outline" size={18} color="#fff" /></Pressable>} />
         <View style={{ paddingHorizontal: 16 }}>

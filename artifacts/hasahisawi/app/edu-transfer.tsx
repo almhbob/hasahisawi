@@ -4,6 +4,7 @@
 //  • ?ws=       وارد/صادر لإدارة مؤسسة
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { usePullRefresh } from "@/lib/use-pull-refresh";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -35,6 +36,7 @@ export default function EduTransfer() {
     if (!ws) eduApi.me(token).then((m) => { setMine(m); if (!studentId && m.students[0]) setStudentId(m.students[0].id); }).catch(() => {});
   }, [token, ws, studentId]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  const refresh = usePullRefresh(load);
   useEffect(() => { if (ws && token) eduApi.overview(token, ws).then((o) => setClasses(o.classes)).catch(() => {}); }, [ws, token]);
 
   if (!token) return <View style={st.center}><Empty icon="lock-closed-outline" title="سجّل الدخول" /></View>;
@@ -44,7 +46,7 @@ export default function EduTransfer() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <ScrollView refreshControl={refresh} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         <Hero insetTop={insets.top} kicker="بين المدارس المنضمة" title={ws ? "طلبات النقل" : "نقل طالب"}
           sub={ws ? "أخلِ طرف المغادرين واقبل القادمين — ينتقل السجل والدرجات تلقائياً." : "قدّم الطلب مرة واحدة وتابِع كل خطوة حتى يُسكَّن ابنك في فصله الجديد."} />
         <View style={{ paddingHorizontal: 16 }}>

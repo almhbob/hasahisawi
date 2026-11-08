@@ -8,7 +8,7 @@
 // ════════════════════════════════════════════════════════════════
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
-import { query, sessionUser, isStaff, type SessionUser } from "../lib/shared-db";
+import { query, sessionUser, type SessionUser } from "../lib/shared-db";
 import { writeLimiter } from "../lib/rate-limiters";
 
 const router = Router();
@@ -227,11 +227,27 @@ async function wsAdminIds(wsId: number, perm?: Perm): Promise<number[]> {
 function settingsOf(ws: any) { return { ...DEFAULT_SETTINGS, ...(ws?.settings || {}) }; }
 
 type Access = { ws: any; role: Role | "app" | null; perms: Perm[]; staff: any | null; isAdmin: boolean };
+
+/** مدير قسم المدارس: إدارة التطبيق، أو مشرف مُنح صلاحية «التعليم والمدارس» تحديداً */
+export async function isEduManager(u: SessionUser | null): Promise<boolean> {
+  if (!u) return false;
+  if (u.role === "admin") return true;
+  if (u.role !== "moderator") return false;
+  const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section='education' LIMIT 1`, [u.id]).catch(() => ({ rows: [] as any[] }));
+  return r.rows.length > 0;
+}
+/** هل كل المعرّفات تتبع المؤسسة نفسها؟ (يمنع ربط بيانات مؤسسة بأخرى) */
+async function ownedIds(table: "edu_classes" | "edu_subjects" | "edu_staff" | "edu_students", ids: (number | null | undefined)[], wsId: number): Promise<boolean> {
+  const list = [...new Set(ids.filter((x): x is number => Number.isInteger(x) && (x as number) > 0))];
+  if (!list.length) return true;
+  const r = await query(`SELECT COUNT(*)::int AS n FROM ${table} WHERE ws_id=$1 AND id = ANY($2::int[])`, [wsId, list]);
+  return r.rows[0].n === list.length;
+}
 async function access(u: SessionUser | null, wsId: number): Promise<Access | null> {
   const ws = (await query(`SELECT * FROM edu_ws WHERE id=$1`, [wsId])).rows[0];
   if (!ws) return null;
   if (!u) return { ws, role: null, perms: [], staff: null, isAdmin: false };
-  if (isStaff(u)) return { ws, role: "app", perms: [...PERMS], staff: null, isAdmin: true };
+  if (await isEduManager(u)) return { ws, role: "app", perms: [...PERMS], staff: null, isAdmin: true };
   const a = (await query(`SELECT role, perms FROM edu_admins WHERE ws_id=$1 AND user_id=$2`, [wsId, u.id])).rows[0];
   const staff = (await query(`SELECT * FROM edu_staff WHERE ws_id=$1 AND user_id=$2 AND active`, [wsId, u.id])).rows[0] || null;
   const perms: Perm[] = a ? (a.perms?.length ? a.perms : ROLE_PERMS[a.role as Role] ?? []) : [];
@@ -316,7 +332,7 @@ router.get("/admin/edu/institutions", async (req: Request, res: Response) => {
   try {
     await ensureEduInstDb();
     const u = await sessionUser(req);
-    if (!isStaff(u)) return res.status(403).json({ error: "للإدارة فقط" });
+    if (!(await isEduManager(u))) return res.status(403).json({ error: "لإدارة التطبيق ومدير قسم المدارس فقط" });
     const st = ["pending", "active", "rejected", "suspended"].includes(String(req.query.status)) ? String(req.query.status) : "pending";
     const { rows } = await query(`SELECT w.*, u.name AS owner_name, u.phone AS owner_phone FROM edu_ws w LEFT JOIN users u ON u.id=w.owner_id WHERE w.status=$1 ORDER BY w.created_at DESC LIMIT 200`, [st]);
     return res.json({ institutions: rows.map((r: any) => ({ ...wsRow(r), owner_name: r.owner_name, owner_phone: r.owner_phone })) });
@@ -326,7 +342,7 @@ router.patch("/admin/edu/institutions/:id", writeLimiter, async (req: Request, r
   try {
     await ensureEduInstDb();
     const u = await sessionUser(req);
-    if (!isStaff(u)) return res.status(403).json({ error: "للإدارة فقط" });
+    if (!(await isEduManager(u))) return res.status(403).json({ error: "لإدارة التطبيق ومدير قسم المدارس فقط" });
     const st = String(req.body?.status);
     if (!["active", "rejected", "suspended", "pending"].includes(st)) return res.status(400).json({ error: "حالة غير صالحة" });
     const note = clean(req.body?.note, 300) || null;
@@ -527,6 +543,7 @@ router.patch("/edu/ws/:id/classes/:cid", writeLimiter, async (req: Request, res:
   try {
     const g = await need(req, res, "timetable"); if (!g) return;
     const b = req.body || {};
+    if (!(await ownedIds("edu_staff", [Number(b.homeroom_teacher_id) || null], g.a.ws.id))) return res.status(400).json({ error: "المعلم ليس من طاقم هذه المؤسسة" });
     const { rows } = await query(`UPDATE edu_classes SET name=COALESCE($1,name), level=$2, section=$3, room=$4, homeroom_teacher_id=$5 WHERE id=$6 AND ws_id=$7 RETURNING *`,
       [clean(b.name, 80) || null, clean(b.level, 60) || null, clean(b.section, 20) || null, clean(b.room, 40) || null, Number(b.homeroom_teacher_id) || null, Number(req.params.cid), g.a.ws.id]);
     return rows[0] ? res.json({ class: rows[0] }) : res.status(404).json({ error: "غير موجود" });
@@ -577,6 +594,8 @@ router.put("/edu/ws/:id/classes/:cid/plan", writeLimiter, async (req: Request, r
     const st = settingsOf(g.a.ws);
     const items = (Array.isArray(req.body?.plan) ? req.body.plan : []).map((p: any) => ({ subject_id: Number(p.subject_id), teacher_id: Number(p.teacher_id) || null, weekly: Math.max(0, Math.min(20, intOr(p.weekly, 0))) }))
       .filter((p: any) => p.subject_id > 0);
+    if (!(await ownedIds("edu_subjects", items.map((p: any) => p.subject_id), g.a.ws.id))) return res.status(400).json({ error: "مادة لا تتبع هذه المؤسسة" });
+    if (!(await ownedIds("edu_staff", items.map((p: any) => p.teacher_id), g.a.ws.id))) return res.status(400).json({ error: "معلم ليس من طاقم هذه المؤسسة" });
     const total = items.reduce((a: number, p: any) => a + p.weekly, 0);
     const capacity = st.days.length * st.periods;
     if (total > capacity) return res.status(400).json({ error: `مجموع الحصص الأسبوعية (${total}) أكبر من سعة الأسبوع (${capacity} حصة)` });
@@ -786,6 +805,7 @@ router.post("/edu/ws/:id/students", writeLimiter, async (req: Request, res: Resp
     const items: any[] = typeof b.lines === "string"
       ? b.lines.split("\n").map((l: string) => l.split(/[,،\t|]/).map((x) => x.trim())).filter((p: string[]) => p[0]).map((p: string[]) => ({ name: p[0], guardian_phone: p[1], student_no: p[2] }))
       : Array.isArray(b.items) ? b.items : [b];
+    if (!(await ownedIds("edu_classes", items.map((it: any) => Number(it?.class_id) || null), g.a.ws.id))) return res.status(400).json({ error: "فصل لا يتبع هذه المؤسسة" });
     const year = new Date().getFullYear();
     let added = 0; const skipped: string[] = [];
     for (const it of items.slice(0, 500)) {
@@ -809,6 +829,7 @@ router.patch("/edu/ws/:id/students/:sid", writeLimiter, async (req: Request, res
     const cur = (await query(`SELECT * FROM edu_students WHERE id=$1 AND ws_id=$2`, [Number(req.params.sid), g.a.ws.id])).rows[0];
     if (!cur) return res.status(404).json({ error: "غير موجود" });
     const b = req.body || {};
+    if (b.class_id !== undefined && !(await ownedIds("edu_classes", [Number(b.class_id) || null], g.a.ws.id))) return res.status(400).json({ error: "الفصل لا يتبع هذه المؤسسة" });
     const { rows } = await query(`UPDATE edu_students SET name=$1, class_id=$2, program=$3, guardian_name=$4, guardian_phone=$5, student_no=$6, user_id=$7, status=$8 WHERE id=$9 RETURNING *`,
       [clean(b.name, 140) || cur.name, b.class_id !== undefined ? Number(b.class_id) || null : cur.class_id, b.program !== undefined ? clean(b.program, 120) || null : cur.program,
        b.guardian_name !== undefined ? clean(b.guardian_name, 120) || null : cur.guardian_name, b.guardian_phone !== undefined ? clean(b.guardian_phone, 40) || null : cur.guardian_phone,
@@ -822,10 +843,28 @@ router.patch("/edu/ws/:id/students/:sid", writeLimiter, async (req: Request, res
 router.get("/edu/ws/:id/announcements", async (req: Request, res: Response) => {
   try {
     await ensureEduInstDb();
-    const { rows } = await query(`SELECT * FROM edu_announcements WHERE ws_id=$1 ORDER BY pinned DESC, created_at DESC LIMIT 100`, [Number(req.params.id)]);
+    const wsId = Number(req.params.id);
+    if (!Number.isInteger(wsId)) return res.status(404).json({ error: "غير موجود" });
+    const { rows } = await query(`SELECT * FROM edu_announcements WHERE ws_id=$1 ORDER BY pinned DESC, created_at DESC LIMIT 100`, [wsId]);
     const u = await sessionUser(req);
-    const a = u ? await access(u, Number(req.params.id)) : null;
-    const visible = a?.isAdmin ? rows : a?.staff ? rows.filter((r: any) => r.audience !== "parents") : rows.filter((r: any) => ["all", "students", "parents"].includes(r.audience));
+    const a = u ? await access(u, wsId) : null;
+    if (a?.isAdmin) return res.json({ announcements: rows });
+    if (a?.staff) return res.json({ announcements: rows.filter((r: any) => r.audience !== "parents") });
+    // الطالب/ولي الأمر: فصوله في هذه المؤسسة تحديداً
+    let mine: { classes: Set<number>; self: boolean; guardian: boolean } = { classes: new Set(), self: false, guardian: false };
+    if (u) {
+      const key = last9(u.phone);
+      const st = (await query(`SELECT class_id, user_id FROM edu_students WHERE ws_id=$1 AND status='active' AND (user_id=$2 OR ($3::text IS NOT NULL AND RIGHT(regexp_replace(COALESCE(guardian_phone,''),'\\D','','g'),9)=$3))`,
+        [wsId, u.id, key])).rows;
+      mine = { classes: new Set(st.map((x: any) => x.class_id).filter(Boolean)), self: st.some((x: any) => x.user_id === u.id), guardian: st.some((x: any) => x.user_id !== u.id) };
+    }
+    const visible = rows.filter((r: any) => {
+      if (r.class_id && !mine.classes.has(r.class_id)) return false;
+      if (r.audience === "all") return true;
+      if (r.audience === "students") return mine.self || mine.guardian;
+      if (r.audience === "parents") return mine.guardian;
+      return false;
+    });
     return res.json({ announcements: visible });
   } catch (err) { return fail(res, err, "ann"); }
 });
@@ -837,6 +876,7 @@ router.post("/edu/ws/:id/announcements", writeLimiter, async (req: Request, res:
     if (title.length < 3 || body.length < 5) return res.status(400).json({ error: "اكتب العنوان والنص" });
     const audience = ["all", "students", "parents", "teachers"].includes(b.audience) ? b.audience : "all";
     const classId = Number(b.class_id) || null;
+    if (!(await ownedIds("edu_classes", [classId], g.a.ws.id))) return res.status(400).json({ error: "الفصل لا يتبع هذه المؤسسة" });
     const { rows } = await query(`INSERT INTO edu_announcements (ws_id, audience, class_id, title, body, pinned, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [g.a.ws.id, audience, classId, title, body, !!b.pinned, g.u.id]);
     // إشعار المعنيين المرتبطين بحسابات
@@ -864,6 +904,8 @@ router.delete("/edu/ws/:id/announcements/:aid", writeLimiter, async (req: Reques
 
 // ─── الدرجات والحضور (المعلم لفصوله، أو من لديه صلاحية grades) ─────
 async function canTeachClass(a: Access, classId: number, subjectId?: number): Promise<boolean> {
+  if (!Number.isInteger(classId) || !(await ownedIds("edu_classes", [classId], a.ws.id))) return false;
+  if (subjectId !== undefined && (!Number.isInteger(subjectId) || !(await ownedIds("edu_subjects", [subjectId], a.ws.id)))) return false;
   if (a.perms.includes("grades")) return true;
   if (!a.staff) return false;
   const r = await query(`SELECT 1 FROM edu_slots WHERE class_id=$1 AND teacher_id=$2 ${subjectId ? "AND subject_id=$3" : ""} LIMIT 1`, subjectId ? [classId, a.staff.id, subjectId] : [classId, a.staff.id]);
@@ -877,7 +919,7 @@ router.get("/edu/ws/:id/grades", async (req: Request, res: Response) => {
     const term = clean(req.query.term, 40) || settingsOf(g.a.ws).current_term;
     if (!(await canTeachClass(g.a, cid, sid))) return res.status(403).json({ error: "لست معلّم هذه المادة لهذا الفصل" });
     const { rows } = await query(`SELECT s.id AS student_id, s.name, s.student_no, gr.score, gr.max_score, gr.note FROM edu_students s
-      LEFT JOIN edu_grades gr ON gr.student_id=s.id AND gr.subject_id=$2 AND gr.term=$3 WHERE s.class_id=$1 AND s.status='active' ORDER BY s.name`, [cid, sid, term]);
+      LEFT JOIN edu_grades gr ON gr.student_id=s.id AND gr.subject_id=$2 AND gr.term=$3 WHERE s.class_id=$1 AND s.ws_id=$4 AND s.status='active' ORDER BY s.name`, [cid, sid, term, g.a.ws.id]);
     return res.json({ term, rows });
   } catch (err) { return fail(res, err, "grades"); }
 });
@@ -894,7 +936,7 @@ router.put("/edu/ws/:id/grades", writeLimiter, async (req: Request, res: Respons
     for (const r of (Array.isArray(b.rows) ? b.rows : []).slice(0, 300)) {
       const score = r.score === null || r.score === "" ? null : Number(r.score);
       if (score !== null && (!Number.isFinite(score) || score < 0 || score > max)) return res.status(400).json({ error: `الدرجة يجب أن تكون بين 0 و${max}` });
-      const ok = (await query(`SELECT 1 FROM edu_students WHERE id=$1 AND class_id=$2`, [Number(r.student_id), cid])).rows.length;
+      const ok = (await query(`SELECT 1 FROM edu_students WHERE id=$1 AND class_id=$2 AND ws_id=$3`, [Number(r.student_id), cid, g.a.ws.id])).rows.length;
       if (!ok) continue;
       await query(`INSERT INTO edu_grades (ws_id, student_id, subject_id, term, score, max_score, note, entered_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         ON CONFLICT (student_id, subject_id, term) DO UPDATE SET score=$5, max_score=$6, note=$7, entered_by=$8, updated_at=NOW()`,
@@ -914,7 +956,7 @@ router.put("/edu/ws/:id/attendance", writeLimiter, async (req: Request, res: Res
     let n = 0;
     for (const r of (Array.isArray(b.records) ? b.records : []).slice(0, 300)) {
       const status = ["present", "absent", "late", "excused"].includes(r.status) ? r.status : "present";
-      const ok = (await query(`SELECT 1 FROM edu_students WHERE id=$1 AND class_id=$2`, [Number(r.student_id), cid])).rows.length;
+      const ok = (await query(`SELECT 1 FROM edu_students WHERE id=$1 AND class_id=$2 AND ws_id=$3`, [Number(r.student_id), cid, g.a.ws.id])).rows.length;
       if (!ok) continue;
       await query(`INSERT INTO edu_attendance (ws_id, student_id, day, status) VALUES ($1,$2,$3,$4) ON CONFLICT (student_id, day) DO UPDATE SET status=$4`, [g.a.ws.id, Number(r.student_id), day, status]);
       n++;
