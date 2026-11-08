@@ -235,6 +235,10 @@ function AuthGate() {
         }
         if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
+        if (type === "medical_consultation") {
+          router.push({ pathname: "/(tabs)/medical", params: { tab: "consultations", ...(data?.consultation_id ? { consult: String(data.consultation_id) } : {}) } } as any);
+          return;
+        }
         if (screen === "organization" && data?.org_id) { router.push({ pathname: "/organization", params: { id: String(data.org_id) } } as any); return; }
         if (type === "volunteer") { router.push("/volunteer" as any); return; }
         if (type === "contest" && data?.contest_id) { router.push({ pathname: "/contest", params: { id: String(data.contest_id) } } as any); return; }

@@ -7926,66 +7926,156 @@ router.patch("/appointments/:id/cancel", async (req: Request, res: Response) => 
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/medical-consultations
-router.get("/medical-consultations", async (req: Request, res: Response) => {
+// ─── الاستشارات الطبية ─────────────────────────────────────────
+// الكوادر المعتمدة (medical_staff_profiles.status='approved') تظهر في قسم الاستشارات،
+// وصفة «متخصص» في الردود يحددها الخادم وحده من اعتماد الكادر (لا يُوثق بما يرسله العميل).
+let consultExtrasReady: Promise<void> | null = null;
+function ensureConsultExtras(): Promise<void> {
+  return (consultExtrasReady ??= (async () => {
+    await ensureStaffReview();
+    await query(`ALTER TABLE medical_consultations ADD COLUMN IF NOT EXISTS target_user_id INTEGER`);
+  })().catch((e) => { consultExtrasReady = null; throw e; }));
+}
+
+/** ملف الكادر المعتمد النشط لمستخدم (أو null) */
+async function approvedStaffOf(userId: number): Promise<any | null> {
+  if (!Number.isFinite(userId)) return null;
+  const r = await query(
+    `SELECT * FROM medical_staff_profiles WHERE user_id=$1 AND status='approved' AND is_active=TRUE`, [userId]).catch(() => ({ rows: [] as any[] }));
+  return r.rows[0] || null;
+}
+function staffTitle(p: any): string {
+  const t = STAFF_TYPE_LABEL[p.staff_type] || "كادر طبي";
+  return `${t}${p.specialty ? ` · ${p.specialty}` : ""}`.slice(0, 200);
+}
+function staffDisplayName(p: any, userName?: string): string {
+  const base = String(p.display_name || userName || "كادر طبي").replace(/^د\.?\s*/, "");
+  return `${p.staff_type === "doctor" ? "د. " : ""}${base}`.slice(0, 200);
+}
+const CONSULT_STAFF_TYPES = `('doctor','pharmacist','nurse','lab_technician')`;
+
+// GET /api/medical-consultations/doctors — الكوادر المعتمدة المتاحة للاستشارة
+router.get("/medical-consultations/doctors", async (_req: Request, res: Response) => {
   try {
-    const { specialty } = req.query as { specialty?: string };
-    let sql = `SELECT * FROM medical_consultations`;
-    const params: unknown[] = [];
-    if (specialty) { sql += ` WHERE specialty=$1`; params.push(specialty); }
-    sql += ` ORDER BY created_at DESC LIMIT 50`;
-    const result = await query(sql, params);
-    return res.json({ consultations: result.rows });
+    await ensureConsultExtras();
+    const r = await query(
+      `SELECT p.user_id, p.staff_type, p.specialty, p.facility_name, p.display_name, p.bio, p.reviewed_at,
+              u.name AS user_name, u.avatar_url,
+              (SELECT COUNT(*)::int FROM consultation_replies cr WHERE cr.user_id=p.user_id AND cr.is_specialist) AS answers_count
+         FROM medical_staff_profiles p JOIN users u ON u.id=p.user_id
+        WHERE p.status='approved' AND p.is_active=TRUE AND p.staff_type IN ${CONSULT_STAFF_TYPES}
+        ORDER BY (p.staff_type='doctor') DESC, answers_count DESC, p.reviewed_at DESC NULLS LAST
+        LIMIT 60`);
+    return res.json({
+      doctors: r.rows.map((d: any) => ({
+        user_id: d.user_id, name: staffDisplayName(d, d.user_name), staff_type: d.staff_type,
+        type_label: STAFF_TYPE_LABEL[d.staff_type] || "كادر طبي", specialty: d.specialty || null,
+        facility_name: d.facility_name || null, avatar_url: d.avatar_url || null, bio: d.bio || null,
+        answers_count: d.answers_count || 0,
+      })),
+    });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// POST /api/medical-consultations
+// GET /api/medical-consultations?specialty=&doctor=
+router.get("/medical-consultations", async (req: Request, res: Response) => {
+  try {
+    await ensureConsultExtras().catch(() => {});
+    const { specialty, doctor } = req.query as { specialty?: string; doctor?: string };
+    const where: string[] = []; const params: unknown[] = [];
+    if (specialty) { params.push(specialty); where.push(`c.specialty=$${params.length}`); }
+    if (doctor && /^\d+$/.test(doctor)) { params.push(Number(doctor)); where.push(`c.target_user_id=$${params.length}`); }
+    const result = await query(
+      `SELECT c.*,
+              EXISTS (SELECT 1 FROM consultation_replies r WHERE r.consultation_id=c.id AND r.is_specialist) AS answered_by_specialist,
+              tp.staff_type AS target_type, COALESCE(tp.display_name, tu.name) AS target_raw_name
+         FROM medical_consultations c
+         LEFT JOIN medical_staff_profiles tp ON tp.user_id=c.target_user_id
+         LEFT JOIN users tu ON tu.id=c.target_user_id
+        ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+        ORDER BY c.created_at DESC LIMIT 50`, params);
+    return res.json({
+      consultations: result.rows.map(({ target_raw_name, target_type, ...c }: any) => ({
+        ...c, target_name: target_raw_name ? staffDisplayName({ display_name: target_raw_name, staff_type: target_type }) : null,
+      })),
+    });
+  } catch { return res.status(500).json({ error: "Server error" }); }
+});
+
+// POST /api/medical-consultations  { question, specialty?, is_anonymous?, target_user_id? }
 router.post("/medical-consultations", async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
     if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
-    const { specialty, question, is_anonymous } = req.body;
-    if (!question?.trim()) return res.status(400).json({ error: "السؤال مطلوب" });
+    await ensureConsultExtras().catch(() => {});
+    const { specialty, question, is_anonymous, target_user_id } = (req.body || {}) as Record<string, any>;
+    if (!String(question || "").trim()) return res.status(400).json({ error: "السؤال مطلوب" });
+    let target: any = null;
+    if (target_user_id) {
+      target = await approvedStaffOf(Number(target_user_id));
+      if (!target) return res.status(400).json({ error: "الطبيب المختار غير متاح للاستشارة حالياً" });
+      if (target.user_id === user.id) return res.status(400).json({ error: "لا يمكنك توجيه استشارة لنفسك" });
+    }
+    const spec = String(specialty || target?.specialty || "").trim().slice(0, 100) || null;
     const result = await query(
-      `INSERT INTO medical_consultations (user_id, user_name, specialty, question, is_anonymous)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [user.id, is_anonymous ? "مجهول" : user.name, specialty||null, question.trim(), !!is_anonymous]
+      `INSERT INTO medical_consultations (user_id, user_name, specialty, question, is_anonymous, target_user_id)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [user.id, is_anonymous ? "مجهول" : user.name, spec, String(question).trim().slice(0, 4000), !!is_anonymous, target?.user_id ?? null]
     );
-    return res.json({ consultation: result.rows[0] });
+    const c = result.rows[0];
+    // إشعار الطبيب المعني، أو الكوادر المعتمدة في التخصص نفسه
+    (async () => {
+      const preview = c.question.length > 90 ? c.question.slice(0, 90) + "…" : c.question;
+      const ids: number[] = target ? [target.user_id] : (await query(
+        `SELECT user_id FROM medical_staff_profiles
+          WHERE status='approved' AND is_active=TRUE AND user_id<>$1 AND staff_type IN ${CONSULT_STAFF_TYPES}
+            AND ($2::text IS NULL OR specialty=$2::text) LIMIT 40`, [user.id, spec])).rows.map((x: any) => x.user_id);
+      for (const id of ids) {
+        await sendPushToUser(id, target ? "استشارة موجّهة إليك 🩺" : `استشارة جديدة${spec ? ` في ${spec}` : ""}`, preview,
+          { type: "medical_consultation", screen: "medical", tab: "consultations", consultation_id: c.id });
+      }
+    })().catch(() => {});
+    return res.json({ consultation: c });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// GET /api/medical-consultations/:id/replies
+// GET /api/medical-consultations/:id/replies — ردود الكوادر المعتمدة أولاً
 router.get("/medical-consultations/:id/replies", async (req: Request, res: Response) => {
   try {
     const result = await query(
-      `SELECT * FROM consultation_replies WHERE consultation_id=$1 ORDER BY created_at ASC`,
+      `SELECT * FROM consultation_replies WHERE consultation_id=$1 ORDER BY is_specialist DESC, created_at ASC`,
       [req.params.id]
     );
     return res.json({ replies: result.rows });
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-// POST /api/medical-consultations/:id/reply
+// POST /api/medical-consultations/:id/reply  { body }
 router.post("/medical-consultations/:id/reply", async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
     if (!user) return res.status(401).json({ error: "يجب تسجيل الدخول" });
-    const { body, is_specialist, specialist_title } = req.body;
-    if (!body?.trim()) return res.status(400).json({ error: "الرد مطلوب" });
-    await query(`BEGIN`);
+    await ensureConsultExtras().catch(() => {});
+    const body = String(req.body?.body || "").trim();
+    if (!body) return res.status(400).json({ error: "الرد مطلوب" });
+    if (!/^\d+$/.test(String(req.params.id))) return res.status(404).json({ error: "الاستشارة غير موجودة" });
+    const c = (await query(`SELECT * FROM medical_consultations WHERE id=$1`, [req.params.id])).rows[0];
+    if (!c) return res.status(404).json({ error: "الاستشارة غير موجودة" });
+    const staff = await approvedStaffOf(Number(user.id));
+    const uname = String(user.name || "");
     const result = await query(
       `INSERT INTO consultation_replies (consultation_id, user_id, user_name, is_specialist, specialist_title, body)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [req.params.id, user.id, user.name, !!is_specialist, specialist_title||null, body.trim()]
+      [c.id, user.id, staff ? staffDisplayName(staff, uname) : uname, !!staff, staff ? staffTitle(staff) : null, body.slice(0, 4000)]
     );
-    await query(
-      `UPDATE medical_consultations SET replies_count=replies_count+1 WHERE id=$1`,
-      [req.params.id]
-    );
-    await query(`COMMIT`);
+    await query(`UPDATE medical_consultations SET replies_count=replies_count+1 WHERE id=$1`, [c.id]);
+    if (c.user_id && c.user_id !== user.id) {
+      sendPushToUser(c.user_id, staff ? "ردّ طبيب على استشارتك 🩺" : "رد جديد على استشارتك",
+        `${staff ? staffDisplayName(staff, uname) : uname}: ${body.slice(0, 90)}`,
+        { type: "medical_consultation", screen: "medical", tab: "consultations", consultation_id: c.id }).catch(() => {});
+    }
     return res.json({ reply: result.rows[0] });
-  } catch { await query(`ROLLBACK`); return res.status(500).json({ error: "Server error" }); }
+  } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
 // ══════════════════════════════════════════════════════

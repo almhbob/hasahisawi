@@ -10,7 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { fsGetCollection, COLLECTIONS, orderBy, isFirebaseAvailable } from "@/lib/firebase/firestore";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import AnimatedPress from "@/components/AnimatedPress";
@@ -56,7 +56,14 @@ type Appointment = {
 type Consultation = {
   id: number; user_name: string; specialty?: string; question: string;
   is_anonymous: boolean; replies_count: number; created_at: string;
+  target_user_id?: number | null; target_name?: string | null; answered_by_specialist?: boolean;
 };
+/** كادر طبي معتمد متاح للاستشارة (يظهر تلقائياً بعد قبول طلب انضمامه) */
+type ConsultDoctor = {
+  user_id: number; name: string; staff_type: string; type_label: string;
+  specialty?: string | null; facility_name?: string | null; avatar_url?: string | null; answers_count: number;
+};
+const GOLD = "#E8A900";
 type Reply = {
   id: number; user_name: string; is_specialist: boolean; specialist_title?: string;
   body: string; created_at: string;
@@ -640,7 +647,7 @@ function AppointmentsTab({ auth }: { auth: any }) {
 // ══════════════════════════════════════════════════════
 // قسم الاستشارات الطبية
 // ══════════════════════════════════════════════════════
-function ConsultationsTab({ auth }: { auth: any }) {
+function ConsultationsTab({ auth, openId }: { auth: any; openId?: number }) {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -656,8 +663,27 @@ function ConsultationsTab({ auth }: { auth: any }) {
   const [replies, setReplies]     = useState<Reply[]>([]);
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying]   = useState(false);
+  // الأطباء المعتمدون
+  const [doctors, setDoctors]     = useState<ConsultDoctor[]>([]);
+  const [targetDoc, setTargetDoc] = useState<ConsultDoctor | null>(null);
 
   const base = getApiUrl();
+  const meDoctor = doctors.find(d => auth.user && Number(auth.user.id) === d.user_id);
+
+  const loadDoctors = async () => {
+    if (!base) return;
+    try {
+      const res = await fetchWithTimeout(`${base}/api/medical-consultations/doctors`);
+      if (res.ok) { const d = await res.json() as any; setDoctors(d.doctors || []); }
+    } catch {}
+  };
+  useEffect(() => { loadDoctors(); }, []);
+
+  const askDoctor = (d: ConsultDoctor) => {
+    setTargetDoc(d);
+    setSpecialty(d.specialty && SPECIALTIES.includes(d.specialty) ? d.specialty : "");
+    setShowAsk(true);
+  };
 
   const loadConsultations = async () => {
     if (!base) { setLoading(false); return; }
@@ -671,6 +697,13 @@ function ConsultationsTab({ auth }: { auth: any }) {
   };
 
   useEffect(() => { setLoading(true); loadConsultations(); }, [filterSpec]);
+  // فتح الاستشارة القادمة من الإشعار بعد التحميل
+  const openedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!openId || openedRef.current === openId) return;
+    const c = consultations.find(x => x.id === openId);
+    if (c) { openedRef.current = openId; openConsult(c); }
+  }, [openId, consultations]);
 
   const loadReplies = async (consultId: number) => {
     if (!base) return;
@@ -688,11 +721,11 @@ function ConsultationsTab({ auth }: { auth: any }) {
       const res = await fetchWithTimeout(`${base}/api/medical-consultations`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
-        body: JSON.stringify({ question: question.trim(), specialty: specialty || null, is_anonymous: isAnon }),
+        body: JSON.stringify({ question: question.trim(), specialty: specialty || null, is_anonymous: isAnon, target_user_id: targetDoc?.user_id ?? null }),
       });
       if (res.ok) {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setShowAsk(false); setQuestion(""); setSpecialty(""); setIsAnon(false);
+        setShowAsk(false); setQuestion(""); setSpecialty(""); setIsAnon(false); setTargetDoc(null);
         loadConsultations();
       } else { const err = await res.json() as any; Alert.alert("خطأ", err.error || "تعذّر الإرسال"); }
     } catch { Alert.alert("خطأ", "تعذّر الاتصال بالخادم"); }
@@ -746,6 +779,43 @@ function ConsultationsTab({ auth }: { auth: any }) {
           </LinearGradient>
         </TouchableOpacity>
 
+        {meDoctor && (
+          <View style={cSty.meDocBanner}>
+            <MaterialCommunityIcons name="shield-check" size={20} color={GOLD} />
+            <Text style={cSty.meDocText}>أنت {meDoctor.type_label} معتمد — ردودك تظهر بشارة «{meDoctor.type_label}» ويُشعَر السائل بها.</Text>
+          </View>
+        )}
+
+        {doctors.length > 0 && (
+          <View style={{ gap: 8 }}>
+            <View style={cSty.docHead}>
+              <Text style={cSty.docTitle}>أطباء متاحون للاستشارة</Text>
+              <View style={cSty.docCount}><Text style={cSty.docCountText}>{doctors.length}</Text></View>
+            </View>
+            <RtlScrollRow contentContainerStyle={{ gap: 10, paddingVertical: 2 }}>
+              {doctors.map(d => (
+                <View key={d.user_id} style={cSty.docCard}>
+                  <View style={cSty.docAvatar}>
+                    {d.avatar_url
+                      ? <Image source={{ uri: d.avatar_url }} style={{ width: 52, height: 52, borderRadius: 26 }} />
+                      : <MaterialCommunityIcons name={d.staff_type === "doctor" ? "doctor" : d.staff_type === "pharmacist" ? "pill" : d.staff_type === "nurse" ? "account-heart" : "flask-outline"} size={28} color="#006B4A" />}
+                    <View style={cSty.docVerified}><Ionicons name="checkmark" size={10} color="#fff" /></View>
+                  </View>
+                  <Text style={cSty.docName} numberOfLines={1}>{d.name}</Text>
+                  <Text style={cSty.docSpec} numberOfLines={1}>{d.specialty || d.type_label}</Text>
+                  {d.facility_name ? <Text style={cSty.docFac} numberOfLines={1}>{d.facility_name}</Text> : null}
+                  <Text style={cSty.docAnswers}>{d.answers_count > 0 ? `${d.answers_count} إجابة` : "جديد"}</Text>
+                  {!(meDoctor && meDoctor.user_id === d.user_id) && (
+                    <TouchableOpacity onPress={() => askDoctor(d)} style={cSty.docAskBtn} accessibilityRole="button" accessibilityLabel={`اسأل ${d.name}`}>
+                      <Text style={cSty.docAskText}>اسأل</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </RtlScrollRow>
+          </View>
+        )}
+
         {loading ? (
           <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
         ) : consultations.length === 0 && loadFailed ? (
@@ -766,11 +836,25 @@ function ConsultationsTab({ auth }: { auth: any }) {
                     <Text style={cSty.replyCountLabel}>رد</Text>
                   </View>
                   <View style={{ flex: 1, alignItems: "flex-end", gap: 4 }}>
-                    {c.specialty && (
-                      <View style={cSty.specBadge}>
-                        <Text style={cSty.specBadgeText}>{c.specialty}</Text>
-                      </View>
-                    )}
+                    <View style={cSty.badgeRow}>
+                      {c.specialty ? (
+                        <View style={cSty.specBadge}>
+                          <Text style={cSty.specBadgeText}>{c.specialty}</Text>
+                        </View>
+                      ) : null}
+                      {c.answered_by_specialist ? (
+                        <View style={cSty.answeredBadge}>
+                          <MaterialCommunityIcons name="stethoscope" size={11} color="#7A5900" />
+                          <Text style={cSty.answeredText}>أجاب طبيب</Text>
+                        </View>
+                      ) : null}
+                      {c.target_name ? (
+                        <View style={cSty.targetBadge}>
+                          <Ionicons name="person" size={10} color="#006B4A" />
+                          <Text style={cSty.targetText}>إلى {c.target_name}</Text>
+                        </View>
+                      ) : null}
+                    </View>
                     <Text style={cSty.question} numberOfLines={3}>{c.question}</Text>
                     <Text style={cSty.meta}>{c.is_anonymous ? "مجهول" : c.user_name} · {new Date(c.created_at).toLocaleDateString("ar-SA")}</Text>
                   </View>
@@ -782,14 +866,26 @@ function ConsultationsTab({ auth }: { auth: any }) {
       </ScrollView>
 
       {/* نافذة طرح السؤال */}
-      <Modal visible={showAsk} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAsk(false)}>
+      <Modal visible={showAsk} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setShowAsk(false); setTargetDoc(null); }}>
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={aptSty.sheetHeader}>
-            <TouchableOpacity onPress={() => setShowAsk(false)}><Ionicons name="close" size={24} color={Colors.textSecondary} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => { setShowAsk(false); setTargetDoc(null); }}><Ionicons name="close" size={24} color={Colors.textSecondary} /></TouchableOpacity>
             <Text style={aptSty.sheetTitle}>استشارة طبية</Text>
             <MaterialCommunityIcons name="comment-question-outline" size={22} color="#006B4A" />
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
+            {targetDoc && (
+              <View style={cSty.targetBox}>
+                <TouchableOpacity onPress={() => setTargetDoc(null)} accessibilityLabel="إلغاء توجيه السؤال" hitSlop={10}>
+                  <Ionicons name="close-circle" size={20} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={cSty.targetBoxTitle}>سؤال موجّه إلى {targetDoc.name}</Text>
+                  <Text style={cSty.targetBoxSub}>{targetDoc.specialty || targetDoc.type_label}{targetDoc.facility_name ? ` · ${targetDoc.facility_name}` : ""} — سيصله إشعار بسؤالك</Text>
+                </View>
+                <MaterialCommunityIcons name="doctor" size={24} color="#006B4A" />
+              </View>
+            )}
             <View style={aptSty.field}>
               <Text style={aptSty.fieldLabel}>التخصص المطلوب (اختياري)</Text>
               <RtlScrollRow contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
@@ -854,6 +950,7 @@ function ConsultationsTab({ auth }: { auth: any }) {
                     <View style={cSty.specRibbon}>
                       <MaterialCommunityIcons name="stethoscope" size={12} color="#fff" />
                       <Text style={cSty.specRibbonText}>{r.specialist_title || "متخصص"}</Text>
+                      <MaterialCommunityIcons name="check-decagram" size={12} color={GOLD} />
                     </View>
                   )}
                   <Text style={cSty.replyBody}>{r.body}</Text>
@@ -1099,6 +1196,9 @@ export default function MedicalScreen() {
   const [filter, setFilter] = useState("all");
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [activeTab, setActiveTab] = useState<MedTab>("directory");
+  // فتح تبويب/استشارة محددة من الإشعار: /medical?tab=consultations&consult=ID
+  const navParams = useLocalSearchParams<{ tab?: string; consult?: string }>();
+  useEffect(() => { if (navParams.tab === "consultations") setActiveTab("consultations" as MedTab); }, [navParams.tab, navParams.consult]);
 
   const FILTER_OPTIONS = [
     { key: "all",      label: t("medical", "allTypes") },
@@ -1193,7 +1293,7 @@ export default function MedicalScreen() {
         {activeTab === "directory"     && <DirectoryTab search={search} filter={filter} facilities={facilities} t={t} isRTL={isRTL} tr={tr} />}
         {activeTab === "specialists"   && <SpecialistsTab />}
         {activeTab === "appointments"  && <AppointmentsTab auth={auth} />}
-        {activeTab === "consultations" && <ConsultationsTab auth={auth} />}
+        {activeTab === "consultations" && <ConsultationsTab auth={auth} openId={navParams.consult ? Number(navParams.consult) : undefined} />}
       </GuestGate>
       <OrgInviteCard />
     </View>
@@ -1393,6 +1493,29 @@ const cSty = StyleSheet.create({
   replyBar: { flexDirection: "row-reverse", alignItems: "flex-end", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.cardBg },
   replyInput: { flex: 1, backgroundColor: Colors.bg, borderRadius: Colors.radius.md, borderWidth: 1, borderColor: Colors.divider, paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, maxHeight: 100 },
   sendBtn: { width: 42, height: 42, borderRadius: Colors.radius.md, backgroundColor: "#006B4A", justifyContent: "center", alignItems: "center" },
+  badgeRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, justifyContent: "flex-start" },
+  answeredBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: GOLD + "26", paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: GOLD + "66" },
+  answeredText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#7A5900" },
+  targetBadge: { flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: Colors.cardBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Colors.radius.sm, borderWidth: 1, borderColor: "#006B4A30" },
+  targetText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#006B4A" },
+  meDocBanner: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12, borderRadius: Colors.radius.md, backgroundColor: "#006B4A10", borderWidth: 1, borderColor: "#006B4A30" },
+  meDocText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 12.5, color: "#004D36", textAlign: "right", lineHeight: 20 },
+  docHead: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  docTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "right" },
+  docCount: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
+  docCountText: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#3D2C00" },
+  docCard: { width: 142, alignItems: "center", gap: 2, padding: 12, borderRadius: Colors.radius.lg, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider, ...Colors.shadow.card },
+  docAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#006B4A14", borderWidth: 2, borderColor: "#006B4A40", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  docVerified: { position: "absolute", bottom: -2, left: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: GOLD, borderWidth: 2, borderColor: Colors.cardBg, alignItems: "center", justifyContent: "center" },
+  docName: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: Colors.textPrimary, textAlign: "center" },
+  docSpec: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#006B4A", textAlign: "center" },
+  docFac: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
+  docAnswers: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "#7A5900", textAlign: "center" },
+  docAskBtn: { marginTop: 6, alignSelf: "stretch", paddingVertical: 6, borderRadius: Colors.radius.sm, backgroundColor: "#006B4A", alignItems: "center" },
+  docAskText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  targetBox: { flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12, borderRadius: Colors.radius.md, backgroundColor: "#006B4A10", borderWidth: 1, borderColor: "#006B4A40" },
+  targetBoxTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#004D36", textAlign: "right" },
+  targetBoxSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "right" },
 });
 
 const spSty = StyleSheet.create({
