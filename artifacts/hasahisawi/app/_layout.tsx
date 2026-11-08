@@ -236,6 +236,8 @@ function AuthGate() {
         }
         if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
+        if (screen === "org-workspace" && data?.id) { router.push({ pathname: "/org-workspace", params: { id: String(data.id), ...(data?.tab ? { tab: String(data.tab) } : {}) } } as any); return; }
+        if (screen === "volunteer-admin") { router.push("/volunteer-admin" as any); return; }
         if (screen === "staff-portal") { router.push({ pathname: "/staff-portal", params: data?.tab ? { tab: String(data.tab) } : {} } as any); return; }
         if (screen === "medical-patient-hub") { router.push("/medical-patient-hub" as any); return; }
         if (screen === "invitation" && data?.t) { router.push({ pathname: "/invitation", params: { t: String(data.t) } } as any); return; }
@@ -465,6 +467,7 @@ function RootLayoutNav() {
         <Stack.Screen name="client-case-chat"     options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="medical-patient-hub"  options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="cart" options={{ headerShown: false, animation: "slide_from_bottom" }} />
+        <Stack.Screen name="org-workspace" options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="sick-leave"           options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="hospital-admission"   options={{ headerShown: false, animation: "slide_from_right" }} />
         <Stack.Screen name="student-union-join"   options={{ headerShown: false, animation: "slide_from_right" }} />

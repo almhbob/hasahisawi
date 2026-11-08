@@ -92,7 +92,7 @@ export default function VolunteerScreen() {
             <Text style={s.levelName}>{me.level.name} · {me.points} نقطة</Text>
             <View style={s.track}><View style={[s.fill, { width: `${Math.round(me.level.progress * 100)}%` }]} /></View>
             <Text style={s.levelNext}>
-              {me.level.next ? `باقي ${me.level.next.remaining} نقطة لتصبح «${me.level.next.name}»` : "بلغت أعلى مستوى — شكراً لعطائك"}
+              {(me.level as any).founder ? `💎 ${(me.level as any).title}` : me.level.next ? `باقي ${me.level.next.remaining} نقطة لتصبح «${me.level.next.name}»` : "بلغت أعلى مستوى — شكراً لعطائك"}
             </Text>
           </View>
         </View>
@@ -290,7 +290,7 @@ function CardTab({ me, name, token, onChanged }: { me: VolunteerMe; name: string
           ref={ref}
           name={name}
           cardNo={c?.card_no ?? "HSV-••-••••••"}
-          levelName={me.level.name}
+          levelName={(me.level as any).founder ? `${me.level.name} · المؤسس` : me.level.name}
           tier={me.level.tier}
           points={me.points}
           hours={me.hours}

@@ -21,6 +21,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ImageUploadField, ImagesUploadField } from "@/components/union/ImageUploadField";
 import { ArchiveTab, ElectionsTab } from "@/components/union/PortalArchiveElections";
 import { TasksTab } from "@/components/union/TasksTab";
+import EntityVolunteerPanel from "@/components/volunteer/EntityVolunteerPanel";
 
 const UC  = "#1F5C8A";
 const UC2 = "#9DBBD6";
@@ -1457,7 +1458,7 @@ export default function UnionManagerPortalScreen() {
   const [token, setToken]     = useState<string | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab]     = useState<"tasks" | "staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "archive" | "elections" | "account">("requests");
+  const [tab, setTab]     = useState<"volunteer" | "tasks" | "staff" | "meetings" | "messages" | "requests" | "inbox" | "news" | "members" | "archive" | "elections" | "account">("requests");
   const [taskBadge, setTaskBadge] = useState(0);
   // فتح تبويب محدد من الإشعار (مثل: مهمة جديدة ← «المهام»)
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -1514,6 +1515,7 @@ export default function UnionManagerPortalScreen() {
 
   const TABS = ([
     { key: "tasks",    icon: "checkbox-outline",     label: manager.staff_id ? "مهامي" : "المهام", badge: taskBadge, show: true },
+    { key: "volunteer", icon: "hand-left-outline",   label: "التطوع",     badge: 0, show: !manager.staff_id || can("can_manage_staff") },
     { key: "requests", icon: "mail-unread-outline",  label: "الطلبات",    badge: reqBadge,   show: can("can_manage_requests") },
     { key: "members",  icon: "id-card-outline",      label: "الأعضاء",    badge: stats.expiring_cards || 0, show: true },
     { key: "inbox",    icon: "file-tray-full-outline", label: "الرسائل",  badge: inboxBadge, show: can("can_manage_requests") },
@@ -1562,6 +1564,7 @@ export default function UnionManagerPortalScreen() {
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
         {activeTab === "tasks"    && <TasksTab token={token} onOpenCount={setTaskBadge} />}
+        {activeTab === "volunteer" && <EntityVolunteerPanel token={token} base="/union-manager/volunteer" color={UC} title="مهام ومشاريع التطوع" />}
         {activeTab === "members"  && <MembersTab token={token} can={can} />}
         {activeTab === "archive"  && <ArchiveTab token={token} canEdit={can("can_post_announcements")} />}
         {activeTab === "elections" && <ElectionsTab token={token} canManage={!manager.staff_id} />}

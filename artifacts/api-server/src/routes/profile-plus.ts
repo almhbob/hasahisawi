@@ -6,7 +6,7 @@ import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { query, sessionUser, isStaff, dbEnabled } from "../lib/shared-db";
 import { recordAdminAlert } from "./admin-alerts";
-import { ensureVolunteerDb, levelFor } from "./volunteer";
+import { ensureVolunteerDb, levelForUser } from "./volunteer";
 
 const router = Router();
 const ONLINE_SEC = 120;
@@ -217,6 +217,26 @@ async function loadFull(id: number, viewerId: number | null, viewerStaff = false
     posts_count: counts.rows[0]?.posts ?? 0, reports_count: counts.rows[0]?.reports ?? 0,
     endorsers_count: counts.rows[0]?.endorsers ?? 0,
   };
+  // ملف المؤسس (مدير التطبيق): صفة المؤسس وأرقام حقيقية من المنصة التي أسسها
+  if (u.role === "admin") {
+    const safe = (sql: string) => query(sql).then((r) => r.rows[0]?.n ?? 0).catch(() => 0);
+    const [users, orgs, stores, followers] = await Promise.all([
+      safe(`SELECT COUNT(*)::int AS n FROM users WHERE COALESCE(is_banned,false)=false`),
+      safe(`SELECT COUNT(*)::int AS n FROM organizations WHERE is_active=TRUE`),
+      safe(`SELECT COUNT(*)::int AS n FROM stores WHERE status='active'`),
+      query(`SELECT COUNT(*)::int AS n FROM user_follows WHERE followee_id=$1`, [u.id]).then((r) => r.rows[0]?.n ?? 0).catch(() => 0),
+    ]);
+    out.founder = {
+      title: "مؤسس ومدير تطبيق حصاحيصاوي",
+      volunteer: "سفير التطوع · راعي العمل التطوعي",
+      stats: [
+        { label: "مستخدم في المنصة", value: users }, { label: "منظمة ومبادرة", value: orgs },
+        { label: "متجر نشط", value: stores }, { label: "متابِع", value: followers },
+      ],
+    };
+    if (!out.is_verified) { out.is_verified = true; out.verified_label = "المؤسس"; }
+    if (!out.headline) out.headline = "مؤسس ومدير تطبيق حصاحيصاوي — خدمات مدينة الحصاحيصا في مكان واحد";
+  }
   // عرض الإدارة: بيانات التواصل الخاصة
   if (viewerStaff && !own) out.admin_contact = { phone: u.phone || null, email: u.email || null, neighborhood: u.neighborhood || null };
   if (own) {
@@ -581,7 +601,7 @@ ${p.open_to_work ? `<div class="otw">متاح للعمل</div>` : ""}
 ${p.bio ? `<div class="bio">${esc(p.bio)}</div>` : ""}
 </div></div>
 ${skills ? `<div class="sec"><h2>المهارات${p.endorsers_count ? ` <span class="mu">· زكّاه ${p.endorsers_count} شخص</span>` : ""}</h2>${skills}</div>` : ""}
-${vol && vol.points > 0 ? `<div class="sec"><h2>العمل التطوعي</h2><div>${esc(levelFor(vol.points).name)} · ${vol.points} نقطة تطوعية · ${vol.tasks} مهمة منجزة${vol.hours ? ` · ${vol.hours} ساعة` : ""}</div></div>` : ""}
+${vol && (vol.points > 0 || (p as any).role === "admin") ? `<div class="sec"><h2>العمل التطوعي</h2><div>${esc(levelForUser(vol.points, (p as any).role).name)}${(p as any).role === "admin" ? " · مؤسس حصاحيصاوي وراعي العمل التطوعي" : ""} · ${vol.points} نقطة تطوعية · ${vol.tasks} مهمة منجزة${vol.hours ? ` · ${vol.hours} ساعة` : ""}</div></div>` : ""}
 ${certs ? `<div class="sec"><h2>الشهادات والخبرات</h2>${certs}</div>` : ""}
 ${links ? `<div class="sec"><h2>للتواصل</h2>${links}</div>` : ""}
 <div class="foot">الملف المهني على تطبيق حصاحيصاوي</div>

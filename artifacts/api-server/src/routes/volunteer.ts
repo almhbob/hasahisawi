@@ -22,6 +22,19 @@ export const VOLUNTEER_LEVELS = [
   { key: "ambassador", name: "سفير التطوع", min: 1500, tier: "diamond" },
 ] as const;
 
+/** مستوى المستخدم: مدير التطبيق في أعلى فئة دائماً (المؤسس وراعي العمل التطوعي) */
+export function levelForUser(points: number, role?: string | null) {
+  if (role === "admin") {
+    const top = VOLUNTEER_LEVELS[VOLUNTEER_LEVELS.length - 1];
+    return { ...top, index: VOLUNTEER_LEVELS.length - 1, next: null, progress: 1, founder: true, title: "مؤسس حصاحيصاوي وراعي العمل التطوعي" };
+  }
+  return { ...levelFor(points), founder: false, title: null as string | null };
+}
+async function roleOf(userId: number): Promise<string | null> {
+  const r = await query(`SELECT role FROM users WHERE id=$1`, [userId]).catch(() => ({ rows: [] as any[] }));
+  return r.rows[0]?.role ?? null;
+}
+
 export function levelFor(points: number) {
   let idx = 0;
   VOLUNTEER_LEVELS.forEach((l, i) => { if (points >= l.min) idx = i; });
@@ -54,6 +67,11 @@ export function ensureVolunteerDb(): Promise<void> {
         created_by INTEGER,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
+      await query(`ALTER TABLE volunteer_tasks ADD COLUMN IF NOT EXISTS owner_kind VARCHAR(10) NOT NULL DEFAULT 'platform'`);
+      await query(`ALTER TABLE volunteer_tasks ADD COLUMN IF NOT EXISTS owner_id INTEGER`);
+      await query(`ALTER TABLE volunteer_tasks ADD COLUMN IF NOT EXISTS size VARCHAR(10)`);
+      await query(`ALTER TABLE volunteer_tasks ADD COLUMN IF NOT EXISTS approval VARCHAR(10) NOT NULL DEFAULT 'approved'`);
+      await query(`ALTER TABLE volunteer_tasks ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`);
       await query(`CREATE TABLE IF NOT EXISTS volunteer_signups (
         id SERIAL PRIMARY KEY,
         task_id INTEGER NOT NULL REFERENCES volunteer_tasks(id) ON DELETE CASCADE,
@@ -190,7 +208,7 @@ router.get("/volunteer/tasks", async (req: Request, res: Response) => {
               (SELECT COUNT(*)::int FROM volunteer_signups s WHERE s.task_id=t.id AND s.status IN ('joined','completed')) AS joined_count,
               (SELECT s.status FROM volunteer_signups s WHERE s.task_id=t.id AND s.user_id=$2) AS my_status
          FROM volunteer_tasks t
-        WHERE ($1='all' OR t.status=$1)
+        WHERE ($1='all' OR t.status=$1) AND t.approval='approved' AND t.archived_at IS NULL
         ORDER BY (t.status='open') DESC, COALESCE(t.starts_at, t.created_at) DESC
         LIMIT 200`, [status, me ? me.id : 0]);
     return res.json(r.rows);
@@ -360,7 +378,7 @@ router.get("/volunteer/me", async (req: Request, res: Response) => {
     const card = await cardFor(me.id);
     const cfg = await settings();
     return res.json({
-      ...sum, level: levelFor(sum.points), history, myTasks, card,
+      ...sum, level: levelForUser(sum.points, me.role), history, myTasks, card,
       cardConfig: { feeRequired: cfg.feeRequired, price: cfg.feeRequired ? cfg.price : null, currency: cfg.currency, months: cfg.months, paymentInfo: cfg.feeRequired ? cfg.paymentInfo : "" },
       canManage: await canManageSection(me, "volunteer"),
     });
@@ -375,7 +393,7 @@ router.get("/volunteer/users/:id/summary", async (req: Request, res: Response) =
     const sum = await pointsOf(id);
     const c = await cardFor(id);
     return res.json({
-      ...sum, level: levelFor(sum.points),
+      ...sum, level: levelForUser(sum.points, await roleOf(id)),
       card: c && c.status === "active" ? { card_no: c.card_no, expires_at: c.expires_at } : null,
     });
   } catch (err) { return fail(res, err, "summary", "تعذّر التحميل"); }
@@ -385,12 +403,12 @@ router.get("/volunteer/leaderboard", async (_req: Request, res: Response) => {
   try {
     await ensureVolunteerDb();
     const r = await query(
-      `SELECT u.id, u.name, u.avatar_url, COALESCE(u.is_verified,false) AS is_verified, SUM(p.points)::int AS points
+      `SELECT u.id, u.name, u.avatar_url, u.role, COALESCE(u.is_verified,false) AS is_verified, SUM(p.points)::int AS points
          FROM volunteer_points p JOIN users u ON u.id=p.user_id
         WHERE COALESCE(u.is_banned,false)=false
         GROUP BY u.id HAVING SUM(p.points) > 0
         ORDER BY points DESC LIMIT 50`);
-    return res.json(r.rows.map((x: any) => ({ ...x, level: levelFor(x.points) })));
+    return res.json(r.rows.map(({ role, ...x }: any) => ({ ...x, level: levelForUser(x.points, role) })));
   } catch (err) { return fail(res, err, "leaderboard", "تعذّر التحميل"); }
 });
 
@@ -410,7 +428,7 @@ router.post("/volunteer/card/request", async (req: Request, res: Response) => {
     if (cur?.status === "active" && cur.expires_at && new Date(cur.expires_at).getTime() - Date.now() > 30 * 86400_000) {
       return res.status(400).json({ error: "يمكنك التجديد خلال آخر 30 يوماً من صلاحية البطاقة" });
     }
-    const level = levelFor(sum.points).key;
+    const level = levelForUser(sum.points, me.role).key;
     const cardNo = renewing ? cur!.card_no : newCardNo();
     const paymentRef = String(req.body?.payment_ref || "").trim().slice(0, 120) || null;
 
@@ -459,7 +477,8 @@ router.get("/public/volunteer-card/:no", async (req: Request, res: Response) => 
       [String(req.params.no).slice(0, 20)]);
     const c = r.rows[0];
     const valid = c && c.status === "active" && c.expires_at && new Date(c.expires_at) > new Date();
-    const lv = c ? VOLUNTEER_LEVELS.find((l) => l.key === c.level_key)?.name : "";
+    const founder = c ? (await query(`SELECT role FROM users WHERE id=$1`, [c.user_id])).rows[0]?.role === "admin" : false;
+    const lv = c ? (founder ? "سفير التطوع · مؤسس حصاحيصاوي وراعي العمل التطوعي" : VOLUNTEER_LEVELS.find((l) => l.key === c.level_key)?.name) : "";
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.send(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>التحقق من بطاقة متطوع</title>

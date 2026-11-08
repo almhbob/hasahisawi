@@ -351,6 +351,26 @@ export default function ProfileScreen() {
             </View>
           )}
 
+          {profile.founder ? (
+            <View style={{ marginTop: 12, borderRadius: 20, overflow: "hidden", backgroundColor: "#004D36" }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: "#E8A900", alignItems: "center", justifyContent: "center" }}><Ionicons name="ribbon" size={20} color="#3D2C00" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: "#fff", textAlign: "right" }}>{profile.founder.title}</Text>
+                  <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#E8A900", textAlign: "right" }}>💎 {profile.founder.volunteer}</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row-reverse", backgroundColor: "rgba(255,255,255,0.08)" }}>
+                {profile.founder.stats.map((x, i) => (
+                  <View key={x.label} style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRightWidth: i ? 1 : 0, borderColor: "rgba(255,255,255,0.12)" }}>
+                    <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>{x.value.toLocaleString("ar-EG")}</Text>
+                    <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_500Medium", fontSize: 10.5, color: "rgba(255,255,255,0.8)", textAlign: "center" }}>{x.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           {!lockedView && <View style={styles.stats}>
             <Stat value={profile.posts_count} label="منشور" />
             {follow && (<>

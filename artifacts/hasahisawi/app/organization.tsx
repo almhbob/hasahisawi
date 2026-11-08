@@ -3,12 +3,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, RefreshControl } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
 import ViewCount from "@/components/ViewCount";
 import { LoadError, LoadingBlock } from "@/components/ui/LoadState";
 import { useAuth } from "@/lib/auth-context";
+import { getApiUrl } from "@/lib/query-client";
 import { trackOpen } from "@/lib/views";
 import {
   orgsApi, callPhone, openWhatsApp, arNum,
@@ -38,6 +39,13 @@ export default function OrganizationScreen() {
   }, [id, token]);
 
   useEffect(() => { load(); }, [load]);
+  // عضوية الفريق (مالك/مدير/موظف) تفتح «مساحة المنظمة»
+  const [member, setMember] = useState<string | null>(null);
+  useEffect(() => {
+    if (!token || !id) return;
+    fetch(`${getApiUrl()}/api/org-workspace/mine`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json()).then((j) => setMember(j.organizations?.find((o: any) => String(o.id) === String(id))?.role_label ?? null)).catch(() => {});
+  }, [token, id]);
   useEffect(() => { if (id) trackOpen("organization", `o-${id}`, token); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   // فتح النموذج مباشرة عند القدوم من «أضف فعالية لمنظمتك»
   useEffect(() => {
@@ -112,6 +120,19 @@ export default function OrganizationScreen() {
             {!!org.founded && <Fact icon="flag-outline" text={`تأسست عام ${arNum(org.founded)}`} />}
           </View>
         </View>
+
+        {/* ── مساحة المنظمة لفريقها ── */}
+        {(member || canManage || isAdmin) ? (
+          <TouchableOpacity onPress={() => router.push({ pathname: "/org-workspace", params: { id: String(org.id) } } as any)} activeOpacity={0.88}
+            style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 20, backgroundColor: "#004D36" }} accessibilityRole="button">
+            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: "#E8A900", alignItems: "center", justifyContent: "center" }}><Ionicons name="briefcase" size={21} color="#3D2C00" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff", textAlign: "right" }}>مساحة المنظمة</Text>
+              <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)", textAlign: "right" }}>{member ? `${member} · ` : ""}لوحة الإدارة، الفريق، المهام، التطوع والأرشيف</Text>
+            </View>
+            <Ionicons name="chevron-back" size={20} color="#fff" />
+          </TouchableOpacity>
+        ) : null}
 
         {/* ── التواصل ── */}
         {!!org.contact && (

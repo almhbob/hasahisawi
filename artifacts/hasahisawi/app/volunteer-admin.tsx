@@ -13,8 +13,9 @@ import { volunteerApi, TASK_CATEGORIES, fmtDate, type VolunteerTask } from "@/li
 import { confirmAction, notify } from "@/lib/xplatform";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 import DateTimeField from "@/components/ui/DateTimeField";
+import EntityTasksReview from "@/components/volunteer/EntityTasksReview";
 
-type Tab = "tasks" | "cards" | "settings";
+type Tab = "tasks" | "entities" | "cards" | "settings";
 type Signup = Awaited<ReturnType<typeof volunteerApi.signups>>[number];
 type CardReq = Awaited<ReturnType<typeof volunteerApi.cards>>[number];
 
@@ -34,6 +35,7 @@ export default function VolunteerAdmin() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [forbidden, setForbidden] = useState(false);
+  const [entityPending, setEntityPending] = useState(0);
 
   const load = useCallback(async () => {
     // ننتظر جلسة الدخول؛ الطلب بدون رمز يُرفض فيظهر «غير مصرح» خطأً
@@ -130,7 +132,7 @@ export default function VolunteerAdmin() {
       ) : loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} /> : (
         <>
           <View style={s.tabs}>
-            {([["tasks", "المهام"], ["cards", `طلبات البطاقة${cards.length ? ` (${cards.length})` : ""}`], ["settings", "الإعدادات"]] as const).map(([k, l]) => (
+            {([["tasks", "المهام"], ["entities", `مهام الجهات${entityPending ? ` (${entityPending})` : ""}`], ["cards", `طلبات البطاقة${cards.length ? ` (${cards.length})` : ""}`], ["settings", "الإعدادات"]] as const).map(([k, l]) => (
               <TouchableOpacity key={k} style={[s.tab, tab === k && s.tabOn]} onPress={() => setTab(k)}>
                 <Text style={[s.tabText, tab === k && { color: Colors.onColor }]}>{l}</Text>
               </TouchableOpacity>
@@ -221,6 +223,8 @@ export default function VolunteerAdmin() {
                 ))}
               </>
             )}
+
+            {tab === "entities" && token ? <EntityTasksReview token={token} isAdmin={isAdmin} onCount={setEntityPending} /> : null}
 
             {tab === "cards" && (cards.length === 0 ? <Text style={[s.muted, { textAlign: "center", marginTop: 30 }]}>لا توجد طلبات بانتظار المراجعة.</Text> : cards.map((c) => (
               <View key={c.id} style={s.card}>
