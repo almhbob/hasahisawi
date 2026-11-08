@@ -85,6 +85,7 @@
     "expo-file-system": "~19.0.19",
     "expo-firebase-core": "^6.0.0",
     "expo-firebase-recaptcha": "^2.3.1",
+    "expo-image-manipulator": "~14.0.8",
     "expo-linking": "~8.0.11",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.13",

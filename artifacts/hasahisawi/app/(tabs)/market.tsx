@@ -18,6 +18,7 @@ import {
   RefreshControl,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { compressImage } from "@/lib/compress-image";
 import { uploadMarketImage } from "@/lib/firebase/storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -845,7 +846,7 @@ function AddFamilyModal({
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== "granted") { Alert.alert(tr("إذن مطلوب", "Permission required"), tr("يجب السماح بالوصول للكاميرا", "Allow camera access")); return; }
           const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.85 });
-          if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+          if (!r.canceled && r.assets[0]) setImageUri(await compressImage(r.assets[0]));
         },
       },
       {
@@ -853,7 +854,7 @@ function AddFamilyModal({
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== "granted") { Alert.alert(tr("إذن مطلوب", "Permission required"), tr("يجب السماح بالوصول للصور", "Allow photo access")); return; }
           const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.85 });
-          if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+          if (!r.canceled && r.assets[0]) setImageUri(await compressImage(r.assets[0]));
         },
       },
       { text: tr("إلغاء", "Cancel"), style: "cancel" },
@@ -1072,13 +1073,13 @@ function AddAuctionModal({
                       const { status } = await ImagePicker.requestCameraPermissionsAsync();
                       if (status !== "granted") return;
                       const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4,3], quality: 0.85 });
-                      if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+                      if (!r.canceled && r.assets[0]) setImageUri(await compressImage(r.assets[0]));
                     }},
                     { text: tr("معرض الصور 🖼️", "Gallery 🖼️"), onPress: async () => {
                       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                       if (status !== "granted") return;
                       const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4,3], quality: 0.85 });
-                      if (!r.canceled && r.assets[0]) setImageUri(r.assets[0].uri);
+                      if (!r.canceled && r.assets[0]) setImageUri(await compressImage(r.assets[0]));
                     }},
                     { text: tr("إلغاء", "Cancel"), style: "cancel" },
                   ]);
