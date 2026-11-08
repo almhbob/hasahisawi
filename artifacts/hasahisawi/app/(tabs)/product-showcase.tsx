@@ -1,7 +1,7 @@
 // 🛍️ سوق المتاجر: معرض منتجات كل المتاجر المعتمدة (بوتيكات، عطور، أحذية، إلكترونيات…)
 // مرتبط بالسلة الموحّدة، ولوحة إدارة لكل صاحب متجر (منتجات بمعرض صور، خصومات، مخزون، طلبات).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Image, ActivityIndicator, Modal, RefreshControl, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Image, ActivityIndicator, Modal, RefreshControl, useWindowDimensions, Linking, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,6 +26,11 @@ type Product = {
 type StoreLite = { id: number; name: string; type: string; logo_url?: string | null; cover_url?: string | null; is_open?: boolean; product_count: number; delivery_available?: boolean };
 const TYPES: [string, string, string][] = [["", "الكل", "apps"], ["boutique", "أزياء وبوتيك", "shirt-outline"], ["general", "عطور ومتنوع", "sparkles-outline"], ["electronics", "إلكترونيات", "phone-portrait-outline"], ["sweets", "حلويات", "ice-cream-outline"], ["grocery", "بقالة", "basket-outline"], ["pharmacy", "صيدلية", "medkit-outline"]];
 const SORTS: [string, string][] = [["", "الأحدث"], ["deals", "العروض"], ["price_asc", "الأقل سعراً"], ["price_desc", "الأعلى سعراً"]];
+// دليل المحلات (المحلات المسجّلة بالاسم والتواصل فقط، بلا منتجات)
+type Shop = { id: number; shop_name: string; owner_name?: string; category?: string; description?: string; address?: string; phone?: string; whatsapp?: string; working_hours?: string; logo_emoji?: string; is_verified?: boolean };
+const SHOP_CAT_AR: Record<string, string> = { grocery: "بقالة", restaurant: "مطاعم", pharmacy: "صيدلية", clothing: "ملابس", electronics: "إلكترونيات", services: "خدمات", crafts: "حرف", other: "أخرى" };
+type View3 = "products" | "stores" | "shops";
+const VIEWS: [View3, string, string][] = [["products", "المنتجات", "pricetags-outline"], ["stores", "المتاجر", "storefront-outline"], ["shops", "دليل المحلات", "call-outline"]];
 const TYPE_AR: Record<string, string> = { boutique: "بوتيك", general: "متجر", electronics: "إلكترونيات", sweets: "حلويات", grocery: "بقالة", pharmacy: "صيدلية", restaurant: "مطعم", cafe: "كافتيريا" };
 
 export default function ProductShowcase() {
@@ -44,6 +49,8 @@ export default function ProductShowcase() {
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState<Product | null>(null);
   const [hasStore, setHasStore] = useState(false);
+  const [view, setView] = useState<View3>("products");
+  const [shops, setShops] = useState<Shop[] | null>(null);
 
   useEffect(() => { const t = setTimeout(() => setQD(q.trim()), 350); return () => clearTimeout(t); }, [q]);
   const load = useCallback(async () => {
@@ -61,6 +68,16 @@ export default function ProductShowcase() {
     finally { setRefreshing(false); }
   }, [type, sort, qDebounced]);
   useEffect(() => { load(); }, [load]);
+  const loadShops = useCallback(async () => {
+    try {
+      const p = new URLSearchParams(); if (qDebounced) p.set("q", qDebounced);
+      const r = await fetch(`${getApiUrl()}/api/merchants?${p}`);
+      const j = await r.json().catch(() => ({}));
+      setShops(Array.isArray(j?.merchants) ? j.merchants : []);
+    } catch { setShops([]); } finally { setRefreshing(false); }
+  }, [qDebounced]);
+  useEffect(() => { if (view === "shops") loadShops(); }, [view, loadShops]);
+  const storesShown = useMemo(() => (data?.stores ?? []).filter((s) => (!type || s.type === type) && (!qDebounced || s.name.includes(qDebounced))), [data, type, qDebounced]);
   useEffect(() => {
     if (!token) return;
     fetch(`${getApiUrl()}/api/store/my`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => setHasStore(r.ok)).catch(() => {});
@@ -75,7 +92,7 @@ export default function ProductShowcase() {
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 190 }} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[1]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={GREEN} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); view === "shops" ? loadShops() : load(); }} tintColor={GREEN} />}>
         <LinearGradient colors={[GREEN, DEEP]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[st.hero, { paddingTop: insets.top + 8 }]}>
           <View style={st.heroOrb} />
           <View style={st.headRow}>
@@ -84,11 +101,16 @@ export default function ProductShowcase() {
               <Text style={st.heroT}>سوق المتاجر</Text>
               <Text style={st.heroS}>أزياء · عطور · أحذية · إلكترونيات — من متاجر الحصاحيصا المعتمدة</Text>
             </View>
+            {token ? (
+              <Pressable onPress={() => router.push({ pathname: "/stores", params: { tab: "myorders" } } as any)} style={st.round} accessibilityLabel="طلباتي">
+                <Ionicons name="receipt-outline" size={20} color="#fff" />
+              </Pressable>
+            ) : null}
             <CartButton />
           </View>
           <View style={st.search}>
             <Ionicons name="search" size={18} color={Colors.textMuted} />
-            <TextInput value={q} onChangeText={setQ} placeholder="ابحث عن منتج أو متجر…" placeholderTextColor={Colors.textMuted} style={st.searchIn} returnKeyType="search" />
+            <TextInput value={q} onChangeText={setQ} placeholder={view === "shops" ? "ابحث عن محل…" : view === "stores" ? "ابحث عن متجر…" : "ابحث عن منتج أو متجر…"} placeholderTextColor={Colors.textMuted} style={st.searchIn} returnKeyType="search" />
             {q ? <Pressable onPress={() => setQ("")} hitSlop={8}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></Pressable> : null}
           </View>
           {isAdmin ? (
@@ -107,24 +129,35 @@ export default function ProductShowcase() {
 
         {/* الفلاتر (ثابتة أثناء التمرير) */}
         <View style={st.filters}>
-          <RtlScrollRow contentContainerStyle={st.chips}>
+          <View style={st.seg} accessibilityRole="tablist">
+            {VIEWS.map(([k, l, ic]) => (
+              <Pressable key={k} onPress={() => setView(k)} style={[st.segBtn, view === k && st.segOn]} accessibilityRole="tab" accessibilityState={{ selected: view === k }}>
+                <Ionicons name={ic as any} size={15} color={view === k ? "#fff" : DEEP} />
+                <Text style={[st.segT, view === k && { color: "#fff" }]}>{l}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {view !== "shops" ? <RtlScrollRow contentContainerStyle={st.chips}>
             {TYPES.map(([k, l, ic]) => (
               <Pressable key={k || "all"} onPress={() => setType(k)} style={[st.chip, type === k && st.chipOn]} accessibilityRole="tab" accessibilityState={{ selected: type === k }}>
                 <Ionicons name={ic as any} size={14} color={type === k ? "#fff" : DEEP} /><Text style={[st.chipT, type === k && { color: "#fff" }]}>{l}</Text>
               </Pressable>
             ))}
-          </RtlScrollRow>
-          <RtlScrollRow contentContainerStyle={[st.chips, { paddingTop: 0 }]}>
+          </RtlScrollRow> : null}
+          {view === "products" ? <RtlScrollRow contentContainerStyle={[st.chips, { paddingTop: 0 }]}>
             {SORTS.map(([k, l]) => (
               <Pressable key={k || "new"} onPress={() => setSort(k)} style={[st.sort, sort === k && st.sortOn]}>
                 {k === "deals" ? <Ionicons name="pricetag" size={12} color={sort === k ? "#3D2C00" : "#B42318"} /> : null}
                 <Text style={[st.sortT, sort === k && { color: "#3D2C00" }]}>{l}</Text>
               </Pressable>
             ))}
-          </RtlScrollRow>
+          </RtlScrollRow> : null}
         </View>
 
         <View style={{ paddingHorizontal: 16, gap: 14, width: "100%", maxWidth: 1100, alignSelf: "center" }}>
+          {view === "stores" ? <StoresGrid stores={storesShown} loading={!data} w={cardW} /> : null}
+          {view === "shops" ? <ShopsList shops={shops} /> : null}
+          {view !== "products" ? null : <>
           {/* المتاجر */}
           {data?.stores.length && !qDebounced ? (
             <View style={{ gap: 8, marginTop: 6 }}>
@@ -167,6 +200,7 @@ export default function ProductShowcase() {
               ))}
             </View>
           )}
+          </>}
         </View>
       </ScrollView>
 
@@ -182,6 +216,65 @@ export default function ProductShowcase() {
 
       {adminOpen ? <AdminStoresSheet token={token} onClose={() => setAdminOpen(false)} /> : null}
       {open ? <ProductSheet p={open} qty={cart.qty("store", open.store_id, open.id)} onAdd={(d) => add(open, d)} onClose={() => setOpen(null)} /> : null}
+    </View>
+  );
+}
+
+function StoresGrid({ stores, loading, w }: { stores: StoreLite[]; loading: boolean; w: number }) {
+  if (loading) return <ActivityIndicator color={GREEN} style={{ marginTop: 30 }} />;
+  if (!stores.length) return (
+    <View style={[st.empty, { marginTop: 8 }]}>
+      <MaterialCommunityIcons name="storefront-outline" size={44} color={GREEN} />
+      <Text style={st.emptyT}>لا توجد متاجر مطابقة</Text>
+    </View>
+  );
+  return (
+    <View style={[st.grid, { marginTop: 8 }]}>
+      {stores.map((s) => (
+        <Pressable key={s.id} onPress={() => router.push({ pathname: "/stores", params: { open: String(s.id) } } as any)} style={[st.card, { width: w }]} accessibilityRole="button" accessibilityLabel={s.name}>
+          <View style={{ height: w * 0.5, backgroundColor: DEEP }}>
+            {s.cover_url ? <Image source={{ uri: s.cover_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+          </View>
+          <View style={{ alignItems: "center", marginTop: -28, paddingHorizontal: 8, paddingBottom: 12, gap: 2 }}>
+            <View style={[st.storeLogo, { borderColor: "#fff" }]}>{s.logo_url ? <Image source={{ uri: s.logo_url }} style={st.storeLogoImg} /> : <Text style={st.storeInit}>{s.name.trim().charAt(0)}</Text>}</View>
+            <Text style={[st.pName, { textAlign: "center" }]} numberOfLines={1}>{s.name}</Text>
+            <Text style={[st.pStore, { textAlign: "center" }]}>{TYPE_AR[s.type] || "متجر"} · {s.product_count} منتج</Text>
+            <Text style={[st.storeS, { color: s.is_open === false ? "#B42318" : GREEN }]}>{s.is_open === false ? "مغلق الآن" : s.delivery_available ? "مفتوح · توصيل" : "مفتوح"}</Text>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function ShopsList({ shops }: { shops: Shop[] | null }) {
+  const digits = (v?: string) => String(v || "").replace(/[^\d+]/g, "");
+  return (
+    <View style={{ gap: 10, marginTop: 8 }}>
+      <Pressable onPress={() => router.push("/store-portal" as any)} style={[st.storeRow, { borderColor: GOLD, borderStyle: "dashed" }]}>
+        <View style={[st.storeLogoSm, { backgroundColor: GOLD + "30" }]}><MaterialCommunityIcons name="storefront-plus-outline" size={20} color="#3D2C00" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={st.pName}>هل تملك محلاً؟</Text>
+          <Text style={st.muted}>افتح متجراً بمنتجات وصور وسلة وطلبات — بدل الاكتفاء برقم التواصل</Text>
+        </View>
+        <Ionicons name="chevron-back" size={18} color={DEEP} />
+      </Pressable>
+      {!shops ? <ActivityIndicator color={GREEN} style={{ marginTop: 20 }} /> : !shops.length ? (
+        <Text style={[st.muted, { textAlign: "center", marginTop: 10 }]}>لا توجد محلات مطابقة</Text>
+      ) : shops.map((m) => (
+        <View key={m.id} style={st.storeRow}>
+          <View style={st.storeLogoSm}><Text style={{ fontSize: 20 }}>{m.logo_emoji || "🏪"}</Text></View>
+          <View style={{ flex: 1, gap: 1 }}>
+            <Text style={st.pName} numberOfLines={1}>{m.shop_name}{m.is_verified ? "  ✓" : ""}</Text>
+            <Text style={st.muted} numberOfLines={1}>{[SHOP_CAT_AR[m.category || ""] || "", m.address, m.working_hours].filter(Boolean).join(" · ")}</Text>
+            {m.description ? <Text style={st.muted} numberOfLines={2}>{m.description}</Text> : null}
+          </View>
+          <View style={{ gap: 6 }}>
+            {m.phone ? <Pressable onPress={() => Linking.openURL(`tel:${digits(m.phone)}`)} style={st.iconBtn} accessibilityLabel={`اتصال بـ ${m.shop_name}`}><Ionicons name="call" size={16} color="#fff" /></Pressable> : null}
+            {m.whatsapp ? <Pressable onPress={() => Linking.openURL(`https://wa.me/${digits(m.whatsapp).replace(/^0/, "249")}`)} style={[st.iconBtn, { backgroundColor: GREEN }]} accessibilityLabel={`واتساب ${m.shop_name}`}><Ionicons name="logo-whatsapp" size={16} color="#fff" /></Pressable> : null}
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -346,6 +439,11 @@ const st = StyleSheet.create({
   searchIn: { flex: 1, fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textPrimary, textAlign: "right", paddingVertical: 11 },
   ownerCta: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: GOLD, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9, alignSelf: "flex-end" },
   ownerCtaT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#3D2C00" },
+  seg: { flexDirection: "row-reverse", gap: 6, marginHorizontal: 16, marginTop: 10, padding: 4, backgroundColor: Colors.cardBg, borderRadius: 14, borderWidth: 1, borderColor: Colors.divider },
+  segBtn: { flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 10 },
+  segOn: { backgroundColor: DEEP },
+  segT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: DEEP },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: DEEP, alignItems: "center", justifyContent: "center" },
   filters: { backgroundColor: Colors.bg, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   chips: { flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   chip: { flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
