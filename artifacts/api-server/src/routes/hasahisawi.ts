@@ -9501,12 +9501,23 @@ router.put("/phone-shops/:id/products/:pid", async (req: Request, res: Response)
   } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }
 });
 
+async function canModeratePhoneShops(req: Request): Promise<boolean> {
+  const u = await getSessionUser(req);
+  if (!u) return false;
+  if (u.role === "admin") return true;
+  if (u.role !== "moderator") return false;
+  const r = await query(`SELECT 1 FROM moderator_permissions WHERE user_id=$1 AND section IN ('merchants_admin','phone_shops') LIMIT 1`, [u.id]).catch(() => ({ rows: [] as any[] }));
+  return r.rows.length > 0;
+}
+
 // ── DELETE /api/phone-shops/:id/products/:pid ────────────────────
 router.delete("/phone-shops/:id/products/:pid", async (req: Request, res: Response) => {
   try {
     const shopId = Number(req.params.id);
-    if (!await isShopOwner(req, shopId)) return res.status(403).json({ error: "غير مصرح" });
-    await query(`DELETE FROM phone_products WHERE id=$1 AND shop_id=$2`, [req.params.pid, shopId]);
+    // صاحب المحل، أو إدارة التطبيق/مشرف السوق أو محلات الهواتف (حذف منتج مخالف)
+    if (!await isShopOwner(req, shopId) && !await canModeratePhoneShops(req)) return res.status(403).json({ error: "غير مصرح" });
+    const del = await query(`DELETE FROM phone_products WHERE id=$1 AND shop_id=$2`, [req.params.pid, shopId]);
+    if (!del.rowCount) return res.status(404).json({ error: "المنتج غير موجود" });
     await query(`UPDATE phone_shops SET products_count=GREATEST(products_count-1,0) WHERE id=$1`, [shopId]);
     return res.json({ ok: true });
   } catch (e) { logger.error({ err: e }, "Server error"); return res.status(500).json({ error: "Server error" }); }

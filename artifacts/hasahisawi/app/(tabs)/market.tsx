@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import ViewCount from "@/components/ViewCount";
-import { fetchWithTimeout } from "@/lib/query-client";
+import { fetchWithTimeout, getApiUrl } from "@/lib/query-client";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   Pressable,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { uploadMarketImage } from "@/lib/firebase/storage";
@@ -45,6 +46,7 @@ export type FamilyItem = {
   contactPhone: string;
   status: "available" | "sold";
   createdAt: string;
+  canEdit?: boolean; canDelete?: boolean;
 };
 
 export type AuctionItem = {
@@ -59,6 +61,7 @@ export type AuctionItem = {
   status: "available" | "sold";
   createdAt: string;
   interestedCount?: number;
+  canEdit?: boolean; canDelete?: boolean;
 };
 
 export type CarpentryItem = {
@@ -75,6 +78,7 @@ export type CarpentryItem = {
   status: "available" | "unavailable";
   createdAt: string;
   rating?: number;
+  canEdit?: boolean; canDelete?: boolean;
 };
 
 const FAMILY_KEY = "family_market_v1";
@@ -567,13 +571,13 @@ function FamilyCard({
       <View style={styles.cardDivider} />
       <View style={[styles.cardFooter, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.footerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          {!isSample && item.status === "available" && (
+          {!isSample && item.canEdit && item.status === "available" && (
             <TouchableOpacity onPress={() => onSold(item.id)} style={styles.soldBtn}>
               <Text style={styles.soldBtnText}>{tr("نفذ", "Sold")}</Text>
             </TouchableOpacity>
           )}
-          {!isSample && (
-            <TouchableOpacity onPress={() => onDelete(item.id)}>
+          {!isSample && item.canDelete && (
+            <TouchableOpacity onPress={() => onDelete(item.id)} accessibilityLabel="حذف المنشور" hitSlop={8}>
               <Ionicons name="trash-outline" size={16} color={Colors.danger} />
             </TouchableOpacity>
           )}
@@ -667,13 +671,13 @@ function AuctionCard({
       <View style={styles.cardDivider} />
       <View style={[styles.cardFooter, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.footerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          {!isSample && item.status === "available" && (
+          {!isSample && item.canEdit && item.status === "available" && (
             <TouchableOpacity onPress={() => onSold(item.id)} style={styles.soldBtn}>
               <Text style={styles.soldBtnText}>{tr("بيع", "Sold")}</Text>
             </TouchableOpacity>
           )}
-          {!isSample && (
-            <TouchableOpacity onPress={() => onDelete(item.id)}>
+          {!isSample && item.canDelete && (
+            <TouchableOpacity onPress={() => onDelete(item.id)} accessibilityLabel="حذف المنشور" hitSlop={8}>
               <Ionicons name="trash-outline" size={16} color={Colors.danger} />
             </TouchableOpacity>
           )}
@@ -779,8 +783,8 @@ function CarpentryCard({
       {/* Footer */}
       <View style={[styles.carpFooter, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View style={[styles.footerLeft, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-          {!isSample && (
-            <TouchableOpacity onPress={() => onDelete(item.id)}>
+          {!isSample && item.canDelete && (
+            <TouchableOpacity onPress={() => onDelete(item.id)} accessibilityLabel="حذف المنشور" hitSlop={8}>
               <Ionicons name="trash-outline" size={16} color={Colors.danger} />
             </TouchableOpacity>
           )}
@@ -1331,7 +1335,7 @@ export default function MarketScreen() {
   });
   const [merchantSubmitting, setMerchantSubmitting] = useState(false);
 
-  const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+  const BASE_URL = getApiUrl();
 
   const loadMerchants = async () => {
     setMerchantLoading(true);
@@ -1547,109 +1551,128 @@ export default function MarketScreen() {
     { key: "other", label: tr("أخرى", "Other") },
   ], [tr]);
 
-  const load = async () => {
-    const rawF = await AsyncStorage.getItem(FAMILY_KEY);
-    const savedF: FamilyItem[] = rawF ? JSON.parse(rawF) : [];
-    setFamilyItems([...savedF, ...FAMILY_SAMPLES]);
+  // منشورات السوق مشتركة على الخادم (كانت محفوظة على جهاز الناشر فقط)
+  const [marketMod, setMarketMod] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const authHeaders = (json = false): Record<string, string> => ({
+    ...(json ? { "Content-Type": "application/json" } : {}),
+    ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+  });
 
-    const rawA = await AsyncStorage.getItem(AUCTION_KEY);
-    const savedA: AuctionItem[] = rawA ? JSON.parse(rawA) : [];
-    setAuctionItems([...savedA, ...AUCTION_SAMPLES]);
-
-    const rawC = await AsyncStorage.getItem(CARPENTRY_KEY);
-    const savedC: CarpentryItem[] = rawC ? JSON.parse(rawC) : [];
-    setCarpentryItems([...savedC, ...CARPENTRY_SAMPLES]);
+  /** نقل المنشورات القديمة المحفوظة على هذا الجهاز إلى الخادم (مرة واحدة) */
+  const migrateLocal = async () => {
+    if (!auth.token || !BASE_URL) return;
+    for (const [kind, key] of [["family", FAMILY_KEY], ["auction", AUCTION_KEY], ["carpentry", CARPENTRY_KEY]] as const) {
+      const raw = await AsyncStorage.getItem(key);
+      if (!raw) continue;
+      let items: any[] = [];
+      try { items = JSON.parse(raw) || []; } catch {}
+      let networkFailed = false;
+      for (const it of items) {
+        try {
+          await fetchWithTimeout(`${BASE_URL}/api/market/posts`, {
+            method: "POST", headers: authHeaders(true),
+            body: JSON.stringify({ ...it, kind, legacy_id: String(it.id) }),
+          });
+        } catch { networkFailed = true; break; }
+      }
+      if (!networkFailed) await AsyncStorage.removeItem(key);
+    }
   };
 
-  useEffect(() => { load(); }, []);
-  useFocusEffect(useCallback(() => { load(); }, []));
+  const load = async () => {
+    if (!BASE_URL) return;
+    await migrateLocal().catch(() => {});
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/api/market/posts`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const d = await res.json() as any;
+      const posts: any[] = d.posts || [];
+      setFamilyItems(posts.filter(x => x.kind === "family"));
+      setAuctionItems(posts.filter(x => x.kind === "auction"));
+      setCarpentryItems(posts.filter(x => x.kind === "carpentry"));
+      setMarketMod(!!d.can_moderate);
+    } catch {}
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (tab === "merchants") await loadMerchants();
+      else if (tab === "phones") { await loadPhoneShops(); if (auth.token) await loadMyPhoneShop(); }
+      else await load();
+    } finally { setRefreshing(false); }
+  };
+  const refresher = (color: string) => (
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={color} colors={[color]} title="جارٍ التحديث…" titleColor={Colors.textMuted} />
+  );
+
+  useEffect(() => { load(); }, [auth.token]);
+  useFocusEffect(useCallback(() => { load(); }, [auth.token]));
   useEffect(() => { if (tab === "merchants") loadMerchants(); }, [tab, merchantCat, merchantSearch]);
   useEffect(() => { if (tab === "phones") { loadPhoneShops(); if (auth.token) loadMyPhoneShop(); } }, [tab, phoneBrand, phoneSearch]);
 
-  const saveFamily = async (data: Omit<FamilyItem, "id" | "createdAt" | "status">): Promise<void> => {
+  const createPost = async (kind: "family" | "auction" | "carpentry", data: Record<string, unknown>) => {
+    const res = await fetchWithTimeout(`${BASE_URL}/api/market/posts`, {
+      method: "POST", headers: authHeaders(true), body: JSON.stringify({ ...data, kind }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({})) as any;
+      Alert.alert(tr("تعذّر النشر", "Couldn't publish"), e.error || tr("حاول مرة أخرى", "Try again"));
+      throw new Error(e.error || "publish failed");
+    }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const newItem: FamilyItem = { ...data, id: Date.now().toString() + Math.random().toString(36).substr(2, 8), status: "available", createdAt: new Date().toISOString() };
-    const raw = await AsyncStorage.getItem(FAMILY_KEY);
-    const existing: FamilyItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(FAMILY_KEY, JSON.stringify([newItem, ...existing]));
     await load();
   };
-
-  const saveAuction = async (data: Omit<AuctionItem, "id" | "createdAt" | "status" | "interestedCount">): Promise<void> => {
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const newItem: AuctionItem = { ...data, id: Date.now().toString() + Math.random().toString(36).substr(2, 8), status: "available", createdAt: new Date().toISOString(), interestedCount: 0 };
-    const raw = await AsyncStorage.getItem(AUCTION_KEY);
-    const existing: AuctionItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify([newItem, ...existing]));
-    await load();
-  };
-
-  const markFamilySold = async (id: string) => {
-    const raw = await AsyncStorage.getItem(FAMILY_KEY);
-    const saved: FamilyItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(FAMILY_KEY, JSON.stringify(saved.map(i => i.id === id ? { ...i, status: "sold" as const } : i)));
+  const setPostStatus = async (id: string, status: string) => {
+    await fetchWithTimeout(`${BASE_URL}/api/market/posts/${id}`, {
+      method: "PATCH", headers: authHeaders(true), body: JSON.stringify({ status }),
+    }).catch(() => {});
     load();
   };
-
-  const deleteFamilyItem = (id: string) => {
-    Alert.alert(t("common", "confirm"), t("common", "deleteMessage"), [
+  const removePost = (id: string, msg?: string) => {
+    Alert.alert(t("common", "confirm"), msg || t("common", "deleteMessage"), [
       { text: t("common", "cancel"), style: "cancel" },
       { text: t("common", "delete"), style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(FAMILY_KEY);
-        const saved: FamilyItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(FAMILY_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-        load();
+        try {
+          const res = await fetchWithTimeout(`${BASE_URL}/api/market/posts/${id}`, { method: "DELETE", headers: authHeaders() });
+          if (!res.ok) { const e = await res.json().catch(() => ({})) as any; Alert.alert(tr("تعذّر الحذف", "Delete failed"), e.error || ""); return; }
+          setFamilyItems(p => p.filter(i => i.id !== id));
+          setAuctionItems(p => p.filter(i => i.id !== id));
+          setCarpentryItems(p => p.filter(i => i.id !== id));
+        } catch { Alert.alert(tr("تعذّر الحذف", "Delete failed"), tr("تحقق من الاتصال", "Check your connection")); }
       }},
     ]);
   };
 
-  const markAuctionSold = async (id: string) => {
-    const raw = await AsyncStorage.getItem(AUCTION_KEY);
-    const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(saved.map(i => i.id === id ? { ...i, status: "sold" as const } : i)));
-    load();
-  };
-
+  const saveFamily = (data: Omit<FamilyItem, "id" | "createdAt" | "status">): Promise<void> => createPost("family", data as any);
+  const saveAuction = (data: Omit<AuctionItem, "id" | "createdAt" | "status" | "interestedCount">): Promise<void> => createPost("auction", data as any);
+  const saveCarpentry = (data: Omit<CarpentryItem, "id" | "createdAt" | "status">): Promise<void> => createPost("carpentry", data as any);
+  const markFamilySold = (id: string) => setPostStatus(id, "sold");
+  const markAuctionSold = (id: string) => setPostStatus(id, "sold");
+  const deleteFamilyItem = (id: string) => removePost(id);
+  const deleteAuctionItem = (id: string) => removePost(id);
+  const deleteCarpentryItem = (id: string) => removePost(id, tr("هل تريد حذف هذا المحل؟", "Delete this shop?"));
   const markAuctionInterested = async (id: string) => {
+    if (!auth.token) { Alert.alert(tr("تسجيل مطلوب", "Login Required"), tr("سجّل الدخول لإبداء اهتمامك.", "Log in to show interest.")); return; }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const raw = await AsyncStorage.getItem(AUCTION_KEY);
-    const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
-    const updated = saved.map(i => i.id === id ? { ...i, interestedCount: (i.interestedCount ?? 0) + 1 } : i);
-    await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(updated));
-    setAuctionItems(prev =>
-      prev.map(i => i.id === id ? { ...i, interestedCount: (i.interestedCount ?? 0) + 1 } : i)
-    );
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/api/market/posts/${id}/interest`, { method: "POST", headers: authHeaders() });
+      if (res.ok) { const d = await res.json() as any; setAuctionItems(prev => prev.map(i => i.id === id ? { ...i, interestedCount: d.interestedCount } : i)); }
+    } catch {}
   };
 
-  const deleteAuctionItem = (id: string) => {
-    Alert.alert(t("common", "confirm"), t("common", "deleteMessage"), [
+  // ── حذف إداري: محلات التجار ومحلات الهواتف ومنتجاتها ──
+  const isAppAdmin = auth.user?.role === "admin";
+  const adminDelete = (title: string, url: string, after: () => void) => {
+    Alert.alert(tr("حذف", "Delete"), title, [
       { text: t("common", "cancel"), style: "cancel" },
       { text: t("common", "delete"), style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(AUCTION_KEY);
-        const saved: AuctionItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(AUCTION_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-        load();
-      }},
-    ]);
-  };
-
-  const saveCarpentry = async (data: Omit<CarpentryItem, "id" | "createdAt" | "status">): Promise<void> => {
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const newItem: CarpentryItem = { ...data, id: Date.now().toString() + Math.random().toString(36).substr(2, 8), status: "available", createdAt: new Date().toISOString() };
-    const raw = await AsyncStorage.getItem(CARPENTRY_KEY);
-    const existing: CarpentryItem[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(CARPENTRY_KEY, JSON.stringify([newItem, ...existing]));
-    await load();
-  };
-
-  const deleteCarpentryItem = (id: string) => {
-    Alert.alert(tr("تأكيد", "Confirm"), tr("هل تريد حذف هذا المحل؟", "Delete this shop?"), [
-      { text: tr("إلغاء", "Cancel"), style: "cancel" },
-      { text: tr("حذف", "Delete"), style: "destructive", onPress: async () => {
-        const raw = await AsyncStorage.getItem(CARPENTRY_KEY);
-        const saved: CarpentryItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(CARPENTRY_KEY, JSON.stringify(saved.filter(i => i.id !== id)));
-        load();
+        try {
+          const res = await fetchWithTimeout(url, { method: "DELETE", headers: authHeaders() });
+          if (!res.ok) { const e = await res.json().catch(() => ({})) as any; Alert.alert(tr("تعذّر الحذف", "Delete failed"), e.error || tr("غير مصرح", "Not allowed")); return; }
+          after();
+        } catch { Alert.alert(tr("تعذّر الحذف", "Delete failed"), tr("تحقق من الاتصال", "Check your connection")); }
       }},
     ]);
   };
@@ -1785,6 +1808,7 @@ export default function MarketScreen() {
           keyExtractor={i => i.id}
           contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === "web" ? 100 : 120 }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={refresher(Colors.primary)}
           ListEmptyComponent={<EmptyState icon="storefront-outline" text={t("market", "noItems")} />}
           ListFooterComponent={<OrgInviteCard />}
           renderItem={({ item, index }) => (
@@ -1793,7 +1817,7 @@ export default function MarketScreen() {
             </Animated.View>
           )}
         />
-      ) : (
+      ) : tab === "auction" ? (
         <FlatList
           key="auction"
           data={filteredAuction}
@@ -1817,6 +1841,7 @@ export default function MarketScreen() {
               </View>
             </View>
           }
+          refreshControl={refresher(Colors.violet)}
           ListEmptyComponent={<EmptyState icon="hammer-outline" text={t("market", "noItems")} />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
@@ -1829,7 +1854,7 @@ export default function MarketScreen() {
             </Animated.View>
           )}
         />
-      )}
+      ) : null}
 
       {tab === "carpentry" && (
         <FlatList
@@ -1855,6 +1880,7 @@ export default function MarketScreen() {
               </View>
             </View>
           }
+          refreshControl={refresher(CARPENTRY_ACCENT)}
           ListEmptyComponent={<EmptyState icon="toolbox-outline" text={tr("لا توجد محلات نجارة حالياً", "No carpentry shops yet")} />}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 60).springify().damping(18)}>
@@ -2025,8 +2051,8 @@ export default function MarketScreen() {
           </View>
 
           {/* Merchant list */}
-          <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:130, gap:12 }} showsVerticalScrollIndicator={false}>
-            {merchantLoading ? (
+          <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:130, gap:12 }} showsVerticalScrollIndicator={false} refreshControl={refresher("#1F5C8A")}>
+            {merchantLoading && !refreshing ? (
               <View style={{ alignItems:"center", paddingVertical:60 }}>
                 <MaterialCommunityIcons name="store-clock-outline" size={48} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:10 }} />
                 <Text style={{ fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted }}>جارٍ التحميل...</Text>
@@ -2128,6 +2154,14 @@ export default function MarketScreen() {
                             </TouchableOpacity>
                           ) : null}
                         </View>
+                        {marketMod && (
+                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`حذف ${m.shop_name}`}
+                            onPress={() => adminDelete(`حذف «${m.shop_name}» من مساحة التجار نهائياً؟`, `${BASE_URL}/api/admin/merchants/${m.id}`, () => setMerchants(p => p.filter(x => x.id !== m.id)))}
+                            style={styles.adminDelBtn}>
+                            <Ionicons name="trash-outline" size={15} color="#C62828" />
+                            <Text style={styles.adminDelText}>حذف المحل (إدارة)</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   </Animated.View>
@@ -2628,6 +2662,14 @@ export default function MarketScreen() {
                                         <Text style={{ fontFamily:"Cairo_500Medium", fontSize:13, color:Colors.textMuted }}>السعر عند التواصل</Text>
                                       )}
                                     </View>
+                                    {marketMod && (
+                                      <TouchableOpacity accessibilityRole="button" accessibilityLabel={`حذف ${p.name}`}
+                                        onPress={() => adminDelete(`حذف المنتج «${p.name}»؟`, `${BASE_URL}/api/phone-shops/${selectedShop.id}/products/${p.id}`, () => setShopProducts(list => list.filter(x => x.id !== p.id)))}
+                                        style={[styles.adminDelBtn, { marginTop: 8 }]}>
+                                        <Ionicons name="trash-outline" size={14} color="#C62828" />
+                                        <Text style={styles.adminDelText}>حذف المنتج</Text>
+                                      </TouchableOpacity>
+                                    )}
                                   </View>
                                 </Animated.View>
                               );
@@ -2682,8 +2724,8 @@ export default function MarketScreen() {
           </View>
 
           {/* ── قائمة المتاجر ── */}
-          <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:130, gap:14 }} showsVerticalScrollIndicator={false}>
-            {phoneLoading ? (
+          <ScrollView style={{ flex:1 }} contentContainerStyle={{ padding:16, paddingBottom:130, gap:14 }} showsVerticalScrollIndicator={false} refreshControl={refresher("#1F5C8A")}>
+            {phoneLoading && !refreshing ? (
               <View style={{ alignItems:"center", paddingVertical:60 }}>
                 <MaterialCommunityIcons name="cellphone-wireless" size={52} color={Colors.textMuted} style={{ opacity:0.3, marginBottom:12 }} />
                 <Text style={{ fontFamily:"Cairo_500Medium", fontSize:14, color:Colors.textMuted }}>جارٍ التحميل...</Text>
@@ -2727,6 +2769,12 @@ export default function MarketScreen() {
                             <View style={{ flexDirection:"row-reverse", alignItems:"center", gap:7 }}>
                               <Text style={{ fontFamily:"Cairo_700Bold", fontSize:16, color:Colors.textPrimary }}>{shop.shop_name}</Text>
                               {shop.is_verified && <MaterialCommunityIcons name="check-decagram" size={17} color="#1F5C8A" />}
+                              {isAppAdmin && (
+                                <TouchableOpacity hitSlop={10} accessibilityRole="button" accessibilityLabel={`حذف ${shop.shop_name}`} style={{ marginRight: "auto" }}
+                                  onPress={() => adminDelete(`حذف متجر «${shop.shop_name}» وكل منتجاته نهائياً؟`, `${BASE_URL}/api/admin/phone-shops/${shop.id}`, () => setPhoneShops(p => p.filter(x => x.id !== shop.id)))}>
+                                  <Ionicons name="trash-outline" size={18} color="#C62828" />
+                                </TouchableOpacity>
+                              )}
                             </View>
                             <Text style={{ fontFamily:"Cairo_400Regular", fontSize:13, color:Colors.textMuted, textAlign:"right", marginTop:2 }}>{shop.owner_name}</Text>
                             {/* Specialties */}
@@ -2806,6 +2854,8 @@ function EmptyState({ icon, text }: { icon: string; text: string }) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  adminDelBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "#C6282840", backgroundColor: "#C628280D" },
+  adminDelText: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#C62828" },
   container: { flex: 1, backgroundColor: Colors.bg },
   headerRightRow: { alignItems: "center", gap: 8 },
   headerCountBadge: {

@@ -50,7 +50,7 @@ type Stats = {
   };
 };
 
-type Tab = "overview" | "memorials" | "entities_moderation" | "portal_accounts" | "fuel_stations" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
+type Tab = "overview" | "edu_institutions" | "memorials" | "entities_moderation" | "portal_accounts" | "fuel_stations" | "members" | "admins" | "moderators" | "landmarks" | "ads" | "communities" | "service_links" | "neighborhoods" | "ai_settings" | "security" | "honored" | "transport" | "updates" | "libraries" | "merchants_admin" | "phone_shops" | "sections_config" | "legal_suggestions" | "sick_leaves" | "admissions" | "zawajil" | "student_union" | "partners" | "lawyers_admin" | "designers_admin" | "join_requests" | "reports_admin" | "missing_admin" | "numbers_admin" | "factories_admin" | "farmers_admin" | "rentals_admin" | "jobs_admin" | "ratings_admin" | "feedback_admin" | "women_stores_admin" | "social_reports" | "calls_diag" | "section_invites" | "cv_templates" | "legal_forms";
 
 type TransportDriver = {
   id: number; name: string; phone: string; vehicle_type: string;
@@ -4372,6 +4372,7 @@ export default function AdminDashboard() {
     { key: "fuel_stations",    label: "محطات الوقود",      icon: "speedometer",        color: "#CB9200",      modPerm: "fuel_stations" },
     { key: "transport",        label: "مشوارك علينا",      icon: "car",                color: "#CB9200",      modPerm: "transport" },
     { key: "updates",          label: "التحديثات",         icon: "cloud-upload",       color: Colors.primary, adminOnly: true               },
+    { key: "edu_institutions", label: "المدارس والمؤسسات التعليمية", icon: "school",   color: "#006B4A",      modPerm: "education"               },
     { key: "libraries",        label: "المكتبات الطلابية", icon: "library",            color: "#008259",      modPerm: "education"               },
     { key: "merchants_admin",  label: "مساحة التجار",      icon: "storefront",         color: "#004D36",      modPerm: "merchants_admin", badge: adminMerchants.filter(m=>m.status==="pending").length || undefined },
     { key: "phone_shops",      label: "محلات الهواتف",     icon: "phone-portrait",     color: "#004D36",      modPerm: "phone_shops", badge: adminPhoneShops.filter(s=>!s.is_approved).length || undefined },
@@ -4410,6 +4411,7 @@ export default function AdminDashboard() {
   // الأقسام التي لها شاشات مستقلة تُفتح كصفحة، والبقية تُعرض هنا
   const ROUTED_TABS: Partial<Record<Tab, string>> = {
     portal_accounts: "/admin-portal-accounts",
+    edu_institutions: "/edu-inst-admin",
     entities_moderation: "/admin-entities",
     memorials: "/admin-memorials",
     moderators: "/admin-permissions",
