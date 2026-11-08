@@ -65,6 +65,10 @@ export function ensureStoresDb(): Promise<void> {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
       await query(`CREATE INDEX IF NOT EXISTS idx_store_products_store ON store_products(store_id)`);
+      // معرض المنتج: صور إضافية، سعر قبل الخصم، مخزون، ومنتج مميّز
+      for (const col of ["gallery JSONB NOT NULL DEFAULT '[]'::jsonb", "old_price NUMERIC(12,2)", "stock INTEGER", "is_featured BOOLEAN NOT NULL DEFAULT FALSE"]) {
+        await query(`ALTER TABLE store_products ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+      }
       await query(`CREATE TABLE IF NOT EXISTS store_orders(
         id SERIAL PRIMARY KEY,
         store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -123,7 +127,24 @@ function storeRow(r: any) {
   if (!r) return r;
   return { ...r, min_order: Number(r.min_order), delivery_fee: Number(r.delivery_fee), product_count: r.product_count != null ? Number(r.product_count) : undefined };
 }
-const productRow = (r: any) => ({ ...r, price: Number(r.price) });
+const productRow = (r: any) => {
+  const gallery: string[] = Array.isArray(r.gallery) ? r.gallery : [];
+  const price = Number(r.price), old = r.old_price != null ? Number(r.old_price) : null;
+  return {
+    ...r, price, old_price: old && old > price ? old : null, gallery,
+    images: [r.image_url, ...gallery].filter(Boolean),
+    discount_pct: old && old > price ? Math.round((1 - price / old) * 100) : 0,
+    stock: r.stock == null ? null : Number(r.stock), is_featured: !!r.is_featured,
+  };
+};
+/** حقول المعرض من نموذج المنتج (روابط https مرفوعة مسبقاً) */
+function galleryOf(v: unknown): string[] | undefined {
+  if (v === undefined) return undefined;
+  let a: unknown = v;
+  if (typeof v === "string") { try { a = JSON.parse(v); } catch { a = []; } }
+  return (Array.isArray(a) ? a : []).filter((x) => typeof x === "string" && /^https:\/\/\S{8,600}$/.test(x)).slice(0, 6) as string[];
+}
+const optNum = (v: unknown): number | null => (v === undefined || v === null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 const orderRow = (r: any) => ({ ...r, subtotal: Number(r.subtotal), delivery_fee: Number(r.delivery_fee), total: Number(r.total) });
 
 async function pushToUser(userId: number, title: string, body: string, data: Record<string, unknown>) {
@@ -320,10 +341,12 @@ router.post("/store/my/products", wrap(async (req, res) => {
   const count = await query(`SELECT COUNT(*)::int AS n FROM store_products WHERE store_id=$1`, [s.id]);
   if (count.rows[0].n >= 500) return res.status(400).json({ error: "الحد الأقصى 500 منتج" });
   const image = await uploadImage(req, "image", `hasahisawi/stores/${u.id}/products`);
+  const old = optNum(b.old_price), stock = optNum(b.stock);
   const r = await query(
-    `INSERT INTO store_products(store_id,category_id,name,description,price,image_url,is_available)
-     VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-    [s.id, await validCategory(s.id, b.category_id), name, str(b.description, 600), price, image, b.is_available === undefined ? true : bool(b.is_available)]);
+    `INSERT INTO store_products(store_id,category_id,name,description,price,image_url,is_available,gallery,old_price,stock,is_featured)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11) RETURNING *`,
+    [s.id, await validCategory(s.id, b.category_id), name, str(b.description, 1200), price, image, b.is_available === undefined ? true : bool(b.is_available),
+     JSON.stringify(galleryOf(b.gallery) ?? []), old && old > price ? old : null, stock == null ? null : Math.max(0, Math.floor(stock)), bool(b.is_featured)]);
   return res.status(201).json(productRow(r.rows[0]));
 }));
 
@@ -337,12 +360,18 @@ router.put("/store/my/products/:id", wrap(async (req, res) => {
   const image = await uploadImage(req, "image", `hasahisawi/stores/${u.id}/products`);
   const price = b.price !== undefined ? num(b.price) : Number(p.price);
   if (price <= 0) return res.status(400).json({ error: "السعر غير صالح" });
+  const gal = galleryOf(b.gallery);
+  const old = b.old_price !== undefined ? optNum(b.old_price) : (p.old_price != null ? Number(p.old_price) : null);
+  const stock = b.stock !== undefined ? optNum(b.stock) : p.stock;
   const r = await query(
-    `UPDATE store_products SET name=$1,description=$2,price=$3,category_id=$4,is_available=$5,image_url=COALESCE($6,image_url)
+    `UPDATE store_products SET name=$1,description=$2,price=$3,category_id=$4,is_available=$5,image_url=COALESCE($6,image_url),
+       gallery=COALESCE($8::jsonb, gallery), old_price=$9, stock=$10, is_featured=$11
      WHERE id=$7 RETURNING *`,
-    [str(b.name, 120) || p.name, b.description !== undefined ? str(b.description, 600) : p.description, price,
+    [str(b.name, 120) || p.name, b.description !== undefined ? str(b.description, 1200) : p.description, price,
      b.category_id !== undefined ? await validCategory(s.id, b.category_id) : p.category_id,
-     b.is_available !== undefined ? bool(b.is_available) : p.is_available, image, p.id]);
+     b.is_available !== undefined ? bool(b.is_available) : p.is_available, image, p.id,
+     gal ? JSON.stringify(gal) : null, old && old > price ? old : null, stock == null ? null : Math.max(0, Math.floor(Number(stock))),
+     b.is_featured !== undefined ? bool(b.is_featured) : p.is_featured]);
   return res.json(productRow(r.rows[0]));
 }));
 
@@ -405,6 +434,33 @@ router.get("/stores", wrap(async (req, res) => {
   return res.json(r.rows.map(storeRow));
 }));
 
+// معرض المنتجات من كل المتاجر النشطة (للصفحة الرئيسية «سوق المتاجر»)
+router.get("/stores/feed", wrap(async (req, res) => {
+  const params: unknown[] = [];
+  let where = `s.status='active' AND s.women_only=FALSE AND ${notSuspended("store", "s.id")} AND p.is_available AND (p.stock IS NULL OR p.stock > 0)`;
+  const type = String(req.query.type || "");
+  if ((STORE_TYPES as readonly string[]).includes(type)) { params.push(type); where += ` AND s.type=$${params.length}`; }
+  const q = String(req.query.q || "").trim();
+  if (q) { params.push(`%${q.slice(0, 60)}%`); where += ` AND (p.name ILIKE $${params.length} OR p.description ILIKE $${params.length} OR s.name ILIKE $${params.length})`; }
+  if (String(req.query.deals || "") === "1") where += ` AND p.old_price IS NOT NULL AND p.old_price > p.price`;
+  const sort = String(req.query.sort || "");
+  const order = sort === "price_asc" ? "p.price ASC" : sort === "price_desc" ? "p.price DESC"
+    : sort === "discount" ? "(COALESCE(p.old_price,p.price)-p.price)/NULLIF(COALESCE(p.old_price,p.price),0) DESC NULLS LAST"
+    : "p.is_featured DESC, p.id DESC";
+  const r = await query(
+    `SELECT p.*, s.name AS store_name, s.logo_url AS store_logo, s.type AS store_type, s.is_open AS store_open, s.accepts_orders AS store_accepts,
+            s.delivery_available, s.delivery_fee, s.min_order
+       FROM store_products p JOIN stores s ON s.id=p.store_id WHERE ${where} ORDER BY ${order} LIMIT 300`, params);
+  const stores = await query(
+    `SELECT s.id, s.name, s.type, s.logo_url, s.cover_url, s.is_open, s.delivery_available,
+            (SELECT COUNT(*)::int FROM store_products p WHERE p.store_id=s.id AND p.is_available) AS product_count
+       FROM stores s WHERE s.status='active' AND s.women_only=FALSE AND ${notSuspended("store", "s.id")} ORDER BY product_count DESC, s.id DESC LIMIT 30`);
+  return res.json({
+    products: r.rows.map((x: any) => ({ ...productRow(x), delivery_fee: Number(x.delivery_fee || 0), min_order: Number(x.min_order || 0) })),
+    stores: stores.rows,
+  });
+}));
+
 router.get("/stores/:id", wrap(async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(404).json({ error: "المتجر غير موجود" });
@@ -434,10 +490,12 @@ router.post("/stores/:id/orders", wrap(async (req, res) => {
     .filter((i: any) => Number.isInteger(i.id) && i.qty > 0).slice(0, 60);
   if (!wanted.length) return res.status(400).json({ error: "السلة فارغة" });
   // Prices always come from the database, never from the client.
-  const pr = await query(`SELECT id,name,price FROM store_products WHERE store_id=$1 AND is_available AND id = ANY($2::int[])`, [id, wanted.map((w) => w.id)]);
+  const pr = await query(`SELECT id,name,price,stock FROM store_products WHERE store_id=$1 AND is_available AND id = ANY($2::int[])`, [id, wanted.map((w) => w.id)]);
   const byId = new Map(pr.rows.map((p: any) => [p.id, p]));
   const items = wanted.filter((w) => byId.has(w.id)).map((w) => { const p: any = byId.get(w.id); return { id: p.id, name: p.name, price: Number(p.price), qty: w.qty }; });
   if (!items.length) return res.status(400).json({ error: "المنتجات المطلوبة غير متاحة" });
+  const short = items.find((i) => { const st = (byId.get(i.id) as any)?.stock; return st != null && Number(st) < i.qty; });
+  if (short) { const st = Number((byId.get(short.id) as any).stock); return res.status(409).json({ error: st > 0 ? `المتوفر من «${short.name}» ${st} فقط` : `نفدت كمية «${short.name}»` }); }
   const subtotal = Math.round(items.reduce((t, i) => t + i.price * i.qty, 0) * 100) / 100;
   if (subtotal < Number(s.min_order)) return res.status(400).json({ error: `الحد الأدنى للطلب ${Number(s.min_order)} ج.س` });
   const address = str(b.customer_address, 240);
@@ -447,6 +505,7 @@ router.post("/stores/:id/orders", wrap(async (req, res) => {
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [id, u?.id ?? null, name, phone, address, str(b.customer_notes, 500), JSON.stringify(items), subtotal, fee, subtotal + fee]);
   const o = orderRow(r.rows[0]);
+  for (const i of items) await query(`UPDATE store_products SET stock=GREATEST(stock-$1,0) WHERE id=$2 AND stock IS NOT NULL`, [i.qty, i.id]).catch(() => {});
   if (s.notify_orders !== false) await pushToUser(s.owner_id, "🛒 طلب جديد في متجرك", `${name} — ${o.total} ج.س`, { type: "store_order", order_id: o.id });
   return res.status(201).json({ ok: true, order: o, id: o.id });
 }));
