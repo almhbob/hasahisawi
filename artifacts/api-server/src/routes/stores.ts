@@ -180,6 +180,7 @@ const wrap = (fn: (req: Request, res: Response) => Promise<any>) => async (req: 
   try { await ensureStoresDb(); await fn(req, res); return undefined; }
   catch (e: any) {
     if (e?.code === "LIMIT_FILE_SIZE") return res.status(413).json({ error: "حجم الصورة كبير (الحد 6 ميجا)" });
+    if (e?.status === 400 || e?.status === 413) return res.status(e.status).json({ error: e.message });
     logger.error({ err: e?.message }, "[stores]");
     if (!res.headersSent) res.status(500).json({ error: "حدث خطأ في الخادم" });
     return undefined;
@@ -189,8 +190,15 @@ const wrap = (fn: (req: Request, res: Response) => Promise<any>) => async (req: 
 const withFiles = (req: Request, res: Response) => new Promise<void>((resolve, reject) => {
   const ct = String(req.headers["content-type"] || "");
   if (!ct.includes("multipart/form-data")) return resolve();
-  storeFiles(req as any, res as any, (err: any) => (err ? reject(err) : resolve()));
+  storeFiles(req as any, res as any, (err: any) => {
+    if (!err) return resolve();
+    const e: any = new Error(err?.code === "LIMIT_FILE_SIZE" ? "الصورة كبيرة جداً (الحد 6 ميجابايت)" : "تعذّرت قراءة الصورة المرسلة");
+    e.status = err?.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    reject(e);
+  });
 });
+/** أُرسل ملف في هذا الحقل لكن رفعه فشل؟ */
+const uploadFailed = (req: Request, field: string, url: string | null) => !url && !!((req as any).files?.[field]?.[0]);
 
 // ── chat: image upload (participants only) → Cloudinary URL ──────────────────
 // The app then posts the URL as an image message. Replaces the old Firebase
@@ -247,8 +255,7 @@ router.put("/store/my", wrap(async (req, res) => {
   const b = req.body || {};
   const logo = await uploadImage(req, "logo", `hasahisawi/stores/${u.id}`);
   const cover = await uploadImage(req, "cover", `hasahisawi/stores/${u.id}`);
-  const sent = (f: string) => !!((req as any).files?.[f]?.[0]);
-  if ((sent("logo") && !logo) || (sent("cover") && !cover)) return res.status(502).json({ error: "تعذّر رفع الصورة، حاول مرة أخرى" });
+  if (uploadFailed(req, "logo", logo) || uploadFailed(req, "cover", cover)) return res.status(502).json({ error: "تعذّر رفع الصورة، حاول مرة أخرى" });
   const type = (STORE_TYPES as readonly string[]).includes(b.type) ? b.type : s.type;
   const name = str(b.name, 120) || s.name;
   // A rejected store goes back to review after the owner edits it.
@@ -346,6 +353,7 @@ router.post("/store/my/products", wrap(async (req, res) => {
   const count = await query(`SELECT COUNT(*)::int AS n FROM store_products WHERE store_id=$1`, [s.id]);
   if (count.rows[0].n >= 500) return res.status(400).json({ error: "الحد الأقصى 500 منتج" });
   const image = await uploadImage(req, "image", `hasahisawi/stores/${u.id}/products`);
+  if (uploadFailed(req, "image", image)) return res.status(502).json({ error: "تعذّر رفع صورة المنتج، حاول مرة أخرى" });
   const old = optNum(b.old_price), stock = optNum(b.stock);
   const r = await query(
     `INSERT INTO store_products(store_id,category_id,name,description,price,image_url,is_available,gallery,old_price,stock,is_featured)
@@ -363,6 +371,7 @@ router.put("/store/my/products/:id", wrap(async (req, res) => {
   const p = cur.rows[0]; if (!p) return res.status(404).json({ error: "المنتج غير موجود" });
   const b = req.body || {};
   const image = await uploadImage(req, "image", `hasahisawi/stores/${u.id}/products`);
+  if (uploadFailed(req, "image", image)) return res.status(502).json({ error: "تعذّر رفع صورة المنتج، حاول مرة أخرى" });
   const price = b.price !== undefined ? num(b.price) : Number(p.price);
   if (price <= 0) return res.status(400).json({ error: "السعر غير صالح" });
   const gal = galleryOf(b.gallery);

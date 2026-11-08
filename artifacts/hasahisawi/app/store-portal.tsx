@@ -17,6 +17,7 @@ import {
   Image,
 } from "react-native";
 import { uploadFile } from "@/lib/firebase/storage";
+import { compressImage, uploadErrorMessage } from "@/lib/compress-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -338,7 +339,7 @@ function RegisterStoreView({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setLogoUri(result.assets[0].uri);
+      setLogoUri(await compressImage(result.assets[0], 800));
     }
   };
 
@@ -696,14 +697,14 @@ function StoreBrandCard({ store, apiBase, authHeader, onChange }: { store: MySto
       else form.append(`remove_${kind}`, "true");
       const r = await fetch(`${apiBase}/api/store/my`, { method: "PUT", headers: { ...authHeader }, body: form });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j?.error || "تعذّر الحفظ");
+      if (!r.ok) throw new Error(r.status === 413 ? "الصورة كبيرة جداً، اختر صورة أصغر" : j?.error || "تعذّر الحفظ");
       onChange(j);
     } catch (e: any) { Alert.alert("تعذّر التحديث", e?.message || ""); }
     finally { setBusy(""); }
   };
   const pick = async (kind: "logo" | "cover") => {
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.85, allowsEditing: true, aspect: kind === "logo" ? [1, 1] : [16, 9] });
-    if (!r.canceled && r.assets[0]) send(kind, r.assets[0].uri);
+    if (!r.canceled && r.assets[0]) send(kind, await compressImage(r.assets[0], kind === "logo" ? 800 : 1600));
   };
   const logoMenu = () => {
     if (!store.logo_url) { pick("logo"); return; }
@@ -1089,7 +1090,7 @@ function ProductModal({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      setImageUri(await compressImage(result.assets[0]));
     }
   };
 
@@ -1100,7 +1101,7 @@ function ProductModal({
     setUploadingGal(true);
     try {
       const urls: string[] = [];
-      for (const a of r.assets.slice(0, 6 - gallery.length)) urls.push(await uploadFile(`stores/products/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`, a.uri));
+      for (const a of r.assets.slice(0, 6 - gallery.length)) urls.push(await uploadFile(`stores/products/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`, await compressImage(a), { mimeType: "image/jpeg" }));
       setGallery((g) => [...g, ...urls].slice(0, 6));
     } catch (e: any) { Alert.alert("تعذّر رفع الصور", e?.message || ""); }
     finally { setUploadingGal(false); }
@@ -1133,8 +1134,7 @@ function ProductModal({
       if (res.ok) {
         onSaved();
       } else {
-        const err = await res.json().catch(() => ({}));
-        Alert.alert("خطأ", err?.error || "تعذّر الحفظ");
+        Alert.alert("خطأ", await uploadErrorMessage(res));
       }
     } catch {
       Alert.alert("خطأ", "تعذّر الاتصال بالخادم");
@@ -1638,12 +1638,12 @@ function SettingsTab({
 
   const pickLogo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.85, allowsEditing: true, aspect: [1, 1] });
-    if (!result.canceled && result.assets[0]) setLogoUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) setLogoUri(await compressImage(result.assets[0], 800));
   };
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.85, allowsEditing: true, aspect: [16, 9] });
-    if (!result.canceled && result.assets[0]) setCoverUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) setCoverUri(await compressImage(result.assets[0]));
   };
 
   const save = async () => {
