@@ -54,6 +54,7 @@ export function ensureLeaguesDb(): Promise<void> {
       club_id INTEGER, name VARCHAR(120) NOT NULL, short_name VARCHAR(30), logo_url TEXT, color VARCHAR(9),
       group_name VARCHAR(10), coach VARCHAR(120), manager_name VARCHAR(120), manager_phone VARCHAR(30),
       status VARCHAR(10) NOT NULL DEFAULT 'approved', registered_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await query(`ALTER TABLE league_teams ADD COLUMN IF NOT EXISTS color2 VARCHAR(9)`);
     await query(`CREATE TABLE IF NOT EXISTS league_players (
       id SERIAL PRIMARY KEY, team_id INTEGER NOT NULL REFERENCES league_teams(id) ON DELETE CASCADE,
       name VARCHAR(120) NOT NULL, number INTEGER, position VARCHAR(30), photo_url TEXT)`);
@@ -111,9 +112,9 @@ async function deny(res: Response, msg = "هذا الإجراء للجنة ال�
 
 // ── جدول الترتيب والهدافون ─────────────────────────────────
 export function computeStandings(teams: any[], matches: any[], pts = { w: 3, d: 1, l: 0 }) {
-  type Row = { team_id: number; name: string; short_name: string | null; logo_url: string | null; color: string | null; group: string; p: number; w: number; d: number; l: number; gf: number; ga: number; gd: number; pts: number; form: string[] };
+  type Row = { team_id: number; name: string; short_name: string | null; logo_url: string | null; color: string | null; color2?: string | null; group: string; p: number; w: number; d: number; l: number; gf: number; ga: number; gd: number; pts: number; form: string[] };
   const rows = new Map<number, Row>();
-  for (const t of teams) if (t.status === "approved") rows.set(t.id, { team_id: t.id, name: t.name, short_name: t.short_name, logo_url: t.logo_url, color: t.color, group: t.group_name || "", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, form: [] });
+  for (const t of teams) if (t.status === "approved") rows.set(t.id, { team_id: t.id, name: t.name, short_name: t.short_name, logo_url: t.logo_url, color: t.color, color2: t.color2, group: t.group_name || "", p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, form: [] });
   const done = matches.filter(m => m.status === "finished" && m.home_score != null && m.away_score != null)
     .sort((a, b) => +new Date(a.kickoff || 0) - +new Date(b.kickoff || 0));
   for (const m of done) {
@@ -286,12 +287,12 @@ router.post("/leagues/:id/teams", writeLimiter, async (req: Request, res: Respon
   const dup = await query(`SELECT 1 FROM league_teams WHERE league_id=$1 AND LOWER(name)=LOWER($2)`, [id, name]);
   if (dup.rows.length) return res.status(409).json({ error: "يوجد فريق بهذا الاسم في الدوري" });
   const r = await query(
-    `INSERT INTO league_teams (league_id, club_id, name, short_name, logo_url, color, group_name, coach, manager_name, manager_phone, status, registered_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    `INSERT INTO league_teams (league_id, club_id, name, short_name, logo_url, color, group_name, coach, manager_name, manager_phone, status, registered_by, color2)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
     [id, req.body?.club_id ? int(req.body.club_id) : null, name, clip(req.body?.short_name, 30) || null, httpsUrl(req.body?.logo_url),
      /^#[0-9a-f]{6}$/i.test(req.body?.color) ? req.body.color : null, clip(req.body?.group_name, 10).toUpperCase() || null,
      clip(req.body?.coach, 120) || null, clip(req.body?.manager_name, 120) || null, clip(req.body?.manager_phone, 30) || null,
-     org ? "approved" : "pending", u.id]);
+     org ? "approved" : "pending", u.id, /^#[0-9a-f]{6}$/i.test(req.body?.color2) ? req.body.color2 : null]);
   return res.status(201).json({ team: r.rows[0], message: org ? "أُضيف الفريق" : "وصل طلب تسجيل فريقك إلى اللجنة المنظمة" });
 });
 router.patch("/leagues/:id/teams/:tid", writeLimiter, async (req: Request, res: Response) => {
@@ -303,6 +304,7 @@ router.patch("/leagues/:id/teams/:tid", writeLimiter, async (req: Request, res: 
   if (b.short_name !== undefined) put("short_name", clip(b.short_name, 30) || null);
   if (b.logo_url !== undefined) put("logo_url", httpsUrl(b.logo_url));
   if (b.color !== undefined) put("color", /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : null);
+  if (b.color2 !== undefined) put("color2", /^#[0-9a-f]{6}$/i.test(b.color2) ? b.color2 : null);
   if (b.group_name !== undefined) put("group_name", clip(b.group_name, 10).toUpperCase() || null);
   if (b.coach !== undefined) put("coach", clip(b.coach, 120) || null);
   if (b.status !== undefined && ["approved", "pending", "rejected"].includes(b.status)) put("status", b.status);
