@@ -235,6 +235,7 @@ function AuthGate() {
         }
         if (screen === "travel-offer" && data?.offer_id) { router.push({ pathname: "/travel-offer", params: { id: String(data.offer_id) } } as any); return; }
         if (screen === "admin-requests") { router.push("/admin-requests" as any); return; }
+        if (screen === "invitation" && data?.t) { router.push({ pathname: "/invitation", params: { t: String(data.t) } } as any); return; }
         if (type === "medical_consultation") {
           router.push({ pathname: "/(tabs)/medical", params: { tab: "consultations", ...(data?.consultation_id ? { consult: String(data.consultation_id) } : {}) } } as any);
           return;

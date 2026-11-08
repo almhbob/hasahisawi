@@ -237,6 +237,12 @@ export function ensureSectionInvitesDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
     await query(`CREATE INDEX IF NOT EXISTS idx_section_invite_events ON section_invite_events(invite_id, kind, created_at DESC)`);
+    // تمرير الدعوة: المستلم يدعو شخصاً آخر أو جهة باسمه
+    await query(`ALTER TABLE section_invites ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES section_invites(id) ON DELETE SET NULL`);
+    await query(`ALTER TABLE section_invites ADD COLUMN IF NOT EXISTS inviter_name VARCHAR(160)`);
+    await query(`ALTER TABLE section_invites ADD COLUMN IF NOT EXISTS depth SMALLINT NOT NULL DEFAULT 0`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_section_invites_parent ON section_invites(parent_id) WHERE parent_id IS NOT NULL`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_section_invites_creator ON section_invites(created_by, created_at DESC)`);
   })().catch((e) => { ready = null; throw e; }));
 }
 
@@ -272,7 +278,14 @@ type InviteRow = {
   id: number; token: string; section_key: string; invitee_name: string; invitee_kind: string; invitee_phone: string | null;
   message: string | null; max_uses: number | null; uses: number; opens: number; expires_at: string | null;
   created_by: number | null; revoked_at: string | null; created_at: string;
+  parent_id?: number | null; inviter_name?: string | null; depth?: number;
 };
+/** اسم الداعي: الإدارة للدعوات الأصلية، واسم المستخدم للدعوات المُمرَّرة */
+const inviterOf = (r: InviteRow) => (r.inviter_name && r.parent_id ? r.inviter_name : INVITER);
+/** حدود التمرير: عمق السلسلة، ودعوات كل مستخدم في اليوم ومن كل دعوة */
+const FORWARD_MAX_DEPTH = 3;
+const FORWARD_PER_DAY = 10;
+const FORWARD_PER_INVITE = 5;
 type Status = "active" | "expired" | "used" | "revoked";
 
 function statusOf(r: InviteRow): Status {
@@ -328,7 +341,7 @@ function fmtDate(d: string | Date) {
 function shareText(r: InviteRow) {
   const s = SECTIONS[r.section_key];
   const lines = [
-    `✉️ دعوة رسمية من ${INVITER}`,
+    r.parent_id ? `✉️ دعوة من ${inviterOf(r)} عبر حصاحيصاوي` : `✉️ دعوة رسمية من ${INVITER}`,
     `إلى: ${r.invitee_name}`,
     `القسم: ${s?.emoji ?? ""} ${s?.title ?? "حصاحيصاوي"}${s?.tagline ? ` — ${s.tagline}` : ""}`.replace(/^القسم:\s+/, "القسم: "),
   ];
@@ -466,7 +479,10 @@ function publicOut(inv: InviteRow | null) {
     message: inv.message,
     expires_at: inv.expires_at,
     created_at: inv.created_at,
-    inviter: INVITER,
+    inviter: inviterOf(inv),
+    relayed: !!inv.parent_id,
+    depth: inv.depth ?? 0,
+    can_forward: st === "active" || st === "used" ? (inv.depth ?? 0) < FORWARD_MAX_DEPTH : false,
     share_url: pageUrl(inv.token),
     app_url: appUrl(inv.token),
   };
@@ -477,7 +493,12 @@ router.get("/public/section-invites/:token", async (req, res) => {
   try {
     const inv = await loadInvite(String(req.params.token));
     if (inv) await recordOpen(req, inv);
-    const out = publicOut(inv);
+    const out: any = publicOut(inv);
+    const me = inv ? await sessionUser(req).catch(() => null) : null;
+    if (inv && me) {
+      out.accepted_by_me = !!(await query(`SELECT 1 FROM section_invite_events WHERE invite_id=$1 AND kind='accept' AND user_id=$2 LIMIT 1`, [inv.id, me.id])).rows[0];
+      out.my_forwards = (await query(`SELECT COUNT(*)::int AS n FROM section_invites WHERE parent_id=$1 AND created_by=$2`, [inv.id, me.id])).rows[0].n;
+    }
     return res.status(inv ? 200 : 404).json(out);
   } catch (err) { return fail(res, err, "public"); }
 });
@@ -504,10 +525,69 @@ router.post("/section-invites/:token/accept", writeLimiter, async (req, res) => 
     if (inv.created_by) {
       await query(`INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'general',$2,$3,$4)`,
         [inv.created_by, "✉️ قُبلت دعوة انضمام", `قبل ${me.name || "مستخدم"} دعوة «${inv.invitee_name}» للانضمام إلى ${s.title}.`,
-          JSON.stringify({ type: "general", screen: "admin-invites" })]).catch(() => {});
+          JSON.stringify(inv.parent_id ? { type: "general", screen: "invitation", t: inv.token } : { type: "general", screen: "admin-invites" })]).catch(() => {});
     }
     return res.json({ ok: true, already: false, ...nav });
   } catch (err) { return fail(res, err, "accept"); }
+});
+
+// ── تمرير الدعوة: المستلم يدعو شخصاً آخر أو جهة إلى القسم نفسه ──
+function forwardMessage(key: string, kind: string, from: string, note: string) {
+  const s = SECTIONS[key];
+  if (!s) return note;
+  const head = kind === "org"
+    ? [`السادة المحترمون،`, `يسرّني دعوتكم إلى ${s.orgPitch} عبر منصة حصاحيصاوي.`]
+    : [`السلام عليكم،`, `أدعوك للانضمام إلى «${s.title}» في حصاحيصاوي — ${s.pitch}.`];
+  return [...head, ...(note ? ["", note] : []), "", `— ${from}`].join("\n");
+}
+
+router.post("/section-invites/:token/forward", writeLimiter, async (req, res) => {
+  try {
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول لدعوة غيرك" });
+    if (me.is_banned) return res.status(403).json({ error: "الحساب موقوف" });
+    const parent = await loadInvite(String(req.params.token));
+    if (!parent || !SECTIONS[parent.section_key]) return res.status(404).json({ error: "الدعوة غير موجودة" });
+    const st = statusOf(parent);
+    const accepted = !!(await query(`SELECT 1 FROM section_invite_events WHERE invite_id=$1 AND kind='accept' AND user_id=$2 LIMIT 1`, [parent.id, me.id])).rows[0];
+    // المستلم: من يحمل دعوة سارية، أو من قبلها (ولو اكتمل عدد استخداماتها)
+    if (st === "revoked" || st === "expired" || (st === "used" && !accepted)) return res.status(410).json({ error: REASON[st as Exclude<Status, "active">] });
+    if ((parent.depth ?? 0) >= FORWARD_MAX_DEPTH) return res.status(409).json({ error: "وصلت هذه الدعوة إلى أقصى عدد من مرات التمرير" });
+    const b = req.body ?? {};
+    const name = clip(b.invitee_name, 160);
+    if (name.length < 2) return res.status(400).json({ error: "اكتب اسم الشخص أو الجهة" });
+    const kind = b.invitee_kind === "org" ? "org" : "person";
+    const phone = clip(b.invitee_phone, 40).replace(/[^\d+]/g, "") || null;
+    const day = (await query(`SELECT COUNT(*)::int AS n FROM section_invites WHERE created_by=$1 AND parent_id IS NOT NULL AND created_at > NOW() - INTERVAL '1 day'`, [me.id])).rows[0].n;
+    if (day >= FORWARD_PER_DAY) return res.status(429).json({ error: `يمكنك إرسال ${FORWARD_PER_DAY} دعوات يومياً — حاول غداً` });
+    const fromThis = (await query(`SELECT COUNT(*)::int AS n FROM section_invites WHERE created_by=$1 AND parent_id=$2`, [me.id, parent.id])).rows[0].n;
+    if (fromThis >= FORWARD_PER_INVITE) return res.status(429).json({ error: `أرسلت ${FORWARD_PER_INVITE} دعوات من هذه الدعوة` });
+    const from = clip(me.name, 160) || "مستخدم حصاحيصاوي";
+    const message = forwardMessage(parent.section_key, kind, from, clip(b.note, 500));
+    for (let i = 0; i < 6; i++) {
+      try {
+        const r = await query(`INSERT INTO section_invites (token, section_key, invitee_name, invitee_kind, invitee_phone, message, max_uses, expires_at, created_by, parent_id, inviter_name, depth)
+          VALUES ($1,$2,$3,$4,$5,$6,1, NOW() + INTERVAL '30 days', $7,$8,$9,$10) RETURNING *`,
+          [newToken(), parent.section_key, name, kind, phone, message, me.id, parent.id, from, (parent.depth ?? 0) + 1]);
+        return res.status(201).json({ invite: invOut(r.rows[0]) });
+      } catch (e: any) { if (e?.code !== "23505") throw e; }
+    }
+    return res.status(500).json({ error: "تعذّر توليد رمز فريد، حاول مجدداً" });
+  } catch (err) { return fail(res, err, "forward"); }
+});
+
+// ── الدعوات التي أرسلها المستخدم (من دعوة محددة أو كلها) ──
+router.get("/section-invites/mine", async (req, res) => {
+  try {
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const t = String(req.query.from || "");
+    let parentId: number | null = null;
+    if (t) { const p = /^[A-Za-z0-9]{6,16}$/.test(t) ? await loadInvite(t) : null; if (!p) return res.json({ invites: [] }); parentId = p.id; }
+    const r = await query(`SELECT * FROM section_invites WHERE created_by=$1 AND parent_id IS NOT NULL ${parentId ? "AND parent_id=$2" : ""} ORDER BY created_at DESC LIMIT 100`,
+      parentId ? [me.id, parentId] : [me.id]);
+    return res.json({ invites: r.rows.map(invOut) });
+  } catch (err) { return fail(res, err, "mine"); }
 });
 
 // ── صفحة الدعوة العامة (HTML + Open Graph) ──
@@ -539,7 +619,7 @@ function renderPage(token: string, p: ReturnType<typeof publicOut>) {
   const title = sec ? `دعوة رسمية للانضمام إلى ${sec.title}` : "دعوة حصاحيصاوي";
   const name = "invitee_name" in p ? p.invitee_name : "";
   const desc = sec
-    ? `${name ? `إلى ${name} — ` : ""}يسعد ${INVITER} دعوتكم للانضمام إلى «${sec.title}» في تطبيق حصاحيصاوي. ${sec.tagline}.`
+    ? `${name ? `إلى ${name} — ` : ""}يسعد ${("inviter" in p && p.inviter) || INVITER} دعوتكم للانضمام إلى «${sec.title}» في تطبيق حصاحيصاوي. ${sec.tagline}.`
     : "الدعوة غير موجودة أو الرابط غير صحيح.";
   const msg = "message" in p && p.message ? p.message : "";
   const exp = "expires_at" in p ? p.expires_at : null;
@@ -591,13 +671,13 @@ h1{position:relative;margin:14px 0 4px;font-size:27px;line-height:1.4;font-weigh
 <body><div class="wrap">
 <div class="card">
   <div class="top"><div class="logo"><img src="${esc(logo)}" alt="" onerror="this.parentNode.textContent='💚'"></div>
-  <div class="brand">حصاحيصاوي<small>خدمات مدينة الحصاحيصا</small></div><div class="seal">دعوة رسمية</div></div>
-  <div class="kicker">دعوة رسمية للانضمام</div>
+  <div class="brand">حصاحيصاوي<small>خدمات مدينة الحصاحيصا</small></div><div class="seal">${"relayed" in p && p.relayed ? "دعوة شخصية" : "دعوة رسمية"}</div></div>
+  <div class="kicker">${"relayed" in p && p.relayed ? "دعوة للانضمام" : "دعوة رسمية للانضمام"}</div>
   <div class="icon">${esc(sec?.emoji || "✉️")}</div>
   <h1>${esc(sec?.title || "دعوة غير متاحة")}</h1>
   <div class="tag">${esc(sec?.tagline || "")}</div>
   ${name ? `<div class="to"><small>${esc(kindLbl)} · إلى</small><b>${esc(name)}</b></div>` : ""}
-  <div class="sig">— ${esc(INVITER)}</div>
+  <div class="sig">— ${esc(("inviter" in p && p.inviter) || INVITER)}</div>
 </div>
 ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
 ${p.valid ? `<div class="meta"><span class="chip">⏳ ${esc(validity)}</span><span class="chip">🔒 دعوة خاصة</span></div>
@@ -605,7 +685,7 @@ ${p.valid ? `<div class="meta"><span class="chip">⏳ ${esc(validity)}</span><sp
 <a class="btn ghost" href="${esc(PLAY_URL)}">حمّل التطبيق من Google Play</a>`
   : `<div class="bad">${esc(p.reason || "الدعوة غير متاحة")}</div>
 <a class="btn ghost" href="${esc(PLAY_URL)}">حمّل تطبيق حصاحيصاوي</a>`}
-<div class="foot">افتح الدعوة ثم سجّل دخولك أو أنشئ حساباً — ستنتقل مباشرةً إلى نموذج الانضمام للقسم.<br>مستخدمو آيفون: يعمل التطبيق من المتصفح ويمكن إضافته للشاشة الرئيسية.</div>
+<div class="foot">افتح الدعوة ثم سجّل دخولك أو أنشئ حساباً — ستنتقل مباشرةً إلى نموذج الانضمام للقسم.<br>💌 بعد فتح الدعوة يمكنك أيضاً دعوة شخص آخر أو جهة تعرفها.<br>مستخدمو آيفون: يعمل التطبيق من المتصفح ويمكن إضافته للشاشة الرئيسية.</div>
 </div></body></html>`;
 }
 
