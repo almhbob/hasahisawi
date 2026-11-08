@@ -4,20 +4,26 @@ import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { NeuRaised } from "@/components/auth/neu";
 import { fmtKickoff, LEAGUE_ACCENT, STATUS_AR, type Match, type StandingRow, type Team } from "@/lib/leagues-api";
+import { isLight } from "@/components/leagues/KitColorPicker";
 
 // تدرجات شعار التطبيق: الأخضر والذهبي
 const PALETTE = ["#00966A", "#CB9200", "#006B4A", "#946B00", "#004D36", "#E8A900", "#008259", "#6B4D00"];
 export const teamColor = (t?: { id?: number; color?: string | null } | null) => t?.color || PALETTE[(t?.id ?? 0) % PALETTE.length];
 
-export function TeamBadge({ team, size = 40 }: { team?: Pick<Team, "id" | "name" | "logo_url" | "color" | "short_name"> | null; size?: number }) {
+export function TeamBadge({ team, size = 40 }: { team?: (Pick<Team, "id" | "name" | "logo_url" | "color" | "short_name"> & { color2?: string | null }) | null; size?: number }) {
   if (team?.logo_url) return <Image source={{ uri: team.logo_url }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#fff" }} />;
   const c = teamColor(team as any);
+  const c2 = team?.color2 || null;
   // نتجاوز «ال» التعريف حتى لا تتشابه الشارات (الأهلي، الهلال، النيل… كلها «ا»)
   const initials = (team?.short_name || team?.name || "؟").trim().split(/\s+/)
     .map(w => (w.startsWith("ال") && w.length > 2 ? w[2] : w[0])).slice(0, 2).join("");
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#ffffff90" }}>
-      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: size * 0.36, color: "#fff" }}>{initials}</Text>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, alignItems: "center", justifyContent: "center", overflow: "hidden",
+      borderWidth: 2, borderColor: isLight(c) && !c2 ? "#00000026" : "#ffffff90" }}>
+      {/* طقم بلونين: النصف الأيسر باللون الثاني */}
+      {c2 ? <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: size / 2, backgroundColor: c2 }} /> : null}
+      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: size * 0.36, color: isLight(c) && (!c2 || isLight(c2)) ? "#1A2C25" : "#fff",
+        textShadowColor: c2 ? "rgba(0,0,0,0.45)" : "transparent", textShadowRadius: c2 ? 3 : 0 }}>{initials}</Text>
     </View>
   );
 }

@@ -40,6 +40,7 @@ export function NeuRaised({ style, radius = 24, depth = 8, children }: { style?:
           shadowOpacity: isDarkTheme ? 0.7 : 0.55,
           shadowRadius: depth * 1.4,
           elevation: Math.round(depth * 0.9),
+          zIndex: 0,
         },
         webShadow(true, depth),
         style,
@@ -49,7 +50,7 @@ export function NeuRaised({ style, radius = 24, depth = 8, children }: { style?:
         colors={[neu.raisedTop, neu.raisedBottom]}
         start={{ x: 1, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={[StyleSheet.absoluteFill, { borderRadius: radius, borderWidth: 1, borderTopColor: neu.light, borderRightColor: neu.light, borderBottomColor: "transparent", borderLeftColor: "transparent" }]}
+        style={[StyleSheet.absoluteFill, { zIndex: -1, borderRadius: radius, borderWidth: 1, borderTopColor: neu.light, borderRightColor: neu.light, borderBottomColor: "transparent", borderLeftColor: "transparent" }]}
         pointerEvents="none"
       />
       {children}
@@ -60,7 +61,9 @@ export function NeuRaised({ style, radius = 24, depth = 8, children }: { style?:
 /** سطح غائر: حقول الإدخال وخانات الرمز */
 export function NeuInset({ style, radius = 16, children, tint }: { style?: StyleProp<ViewStyle>; radius?: number; children?: React.ReactNode; tint?: string }) {
   return (
-    <View style={[{ borderRadius: radius, backgroundColor: neu.base, overflow: "hidden" }, webShadow(false, 6), style]}>
+    // zIndex:0 يجعل الإطار سياق تكديس، وطبقات الخلفية بـ zIndex:-1 تُرسم تحت المحتوى دائماً.
+    // بدونها كان المتصفح يرسم التدرّج (position:absolute) فوق خانات الإدخال (position:static) فيخفي الكتابة.
+    <View style={[{ borderRadius: radius, backgroundColor: neu.base, overflow: "hidden", zIndex: 0 }, webShadow(false, 6), style]}>
       <LinearGradient
         colors={[neu.insetTop, neu.base, neu.insetBottom]}
         locations={[0, 0.35, 1]}
@@ -68,11 +71,11 @@ export function NeuInset({ style, radius = 16, children, tint }: { style?: Style
         end={{ x: 0, y: 1 }}
         style={[
           StyleSheet.absoluteFill,
-          { borderRadius: radius, borderWidth: 1.2, borderTopColor: neu.dark + "55", borderRightColor: neu.dark + "40", borderBottomColor: neu.light, borderLeftColor: neu.light },
+          { zIndex: -1, borderRadius: radius, borderWidth: 1.2, borderTopColor: neu.dark + "55", borderRightColor: neu.dark + "40", borderBottomColor: neu.light, borderLeftColor: neu.light },
         ]}
         pointerEvents="none"
       />
-      {!!tint && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, borderWidth: 1.5, borderColor: tint, backgroundColor: tint + "10" }]} />}
+      {!!tint && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: -1, borderRadius: radius, borderWidth: 1.5, borderColor: tint, backgroundColor: tint + "10" }]} />}
       {children}
     </View>
   );

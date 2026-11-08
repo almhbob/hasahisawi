@@ -18,6 +18,7 @@ import { confirmAction, notify } from "@/lib/xplatform";
 import { onlyDigits } from "@/lib/digits";
 import { neu, NeuButton, NeuInset, NeuRaised } from "@/components/auth/neu";
 import { ImageUploadField } from "@/components/union/ImageUploadField";
+import KitColorPicker from "@/components/leagues/KitColorPicker";
 import { MatchCard, StatusPill, TeamBadge } from "@/components/leagues/ui";
 import { fmtKickoff, LEAGUE_ACCENT, leaguesApi, money, ROLE_AR, type LeagueDetail, type Match, type Team, type Ticket, type TicketType } from "@/lib/leagues-api";
 
@@ -108,14 +109,19 @@ export default function LeagueManage() {
 
 // ── الفرق ─────────────────────────────────────────────────
 function TeamsSec({ d, token, reload }: { d: LeagueDetail; token: string; reload: () => void }) {
-  const [f, setF] = useState({ name: "", group_name: "", coach: "", logo_url: "" });
+  const [f, setF] = useState({ name: "", short_name: "", group_name: "", coach: "", logo_url: "", color: null as string | null, color2: null as string | null });
   const [busy, setBusy] = useState(false);
   const [squad, setSquad] = useState<Team | null>(null);
+  const [editTeam, setEditTeam] = useState<Team | null>(null);
+  const [showColors, setShowColors] = useState(false);
   const groups = d.league.format === "groups";
   const add = async () => {
     if (f.name.trim().length < 2) return notify("اكتب اسم الفريق");
     setBusy(true);
-    try { await leaguesApi.addTeam(token, d.league.id, { ...f, logo_url: f.logo_url || null } as any); setF({ name: "", group_name: f.group_name, coach: "", logo_url: "" }); reload(); }
+    try {
+      await leaguesApi.addTeam(token, d.league.id, { ...f, logo_url: f.logo_url || null, short_name: f.short_name || null } as any);
+      setF({ name: "", short_name: "", group_name: f.group_name, coach: "", logo_url: "", color: null, color2: null }); setShowColors(false); reload();
+    }
     catch (e: any) { notify("تعذّرت الإضافة", e?.message); }
     setBusy(false);
   };
@@ -138,23 +144,75 @@ function TeamsSec({ d, token, reload }: { d: LeagueDetail; token: string; reload
       <NeuRaised radius={18} depth={6} style={{ padding: 14, gap: 8 }}>
         <Text style={s.h}>إضافة فريق</Text>
         <ImageUploadField label="شعار الفريق (اختياري)" value={f.logo_url} onChange={u => setF({ ...f, logo_url: u })} folder="leagues" aspect={1} />
-        <Field value={f.name} onChange={v => setF({ ...f, name: v })} placeholder="اسم الفريق" />
+        <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+          <View style={{ flex: 2 }}><Field value={f.name} onChange={v => setF({ ...f, name: v })} placeholder="اسم الفريق" /></View>
+          <View style={{ flex: 1 }}><Field value={f.short_name} onChange={v => setF({ ...f, short_name: v.slice(0, 12) })} placeholder="اسم مختصر" /></View>
+        </View>
         <View style={{ flexDirection: "row-reverse", gap: 8 }}>
           {groups && <View style={{ width: 90 }}><Field value={f.group_name} onChange={v => setF({ ...f, group_name: v.toUpperCase().slice(0, 2) })} placeholder="المجموعة" /></View>}
           <View style={{ flex: 1 }}><Field value={f.coach} onChange={v => setF({ ...f, coach: v })} placeholder="المدرب (اختياري)" /></View>
         </View>
+        <TouchableOpacity onPress={() => setShowColors(x => !x)} style={s.colorToggle} accessibilityRole="button">
+          <TeamBadge team={{ id: 0, name: f.name || "فريق", short_name: f.short_name || null, logo_url: null, color: f.color, color2: f.color2 } as any} size={34} />
+          <Text style={[s.link, { flex: 1 }]}>{showColors ? "إخفاء الألوان" : "ألوان الفريق (الطقم)"}</Text>
+          <Ionicons name={showColors ? "chevron-up" : "chevron-down"} size={16} color={LEAGUE_ACCENT} />
+        </TouchableOpacity>
+        {showColors && <KitColorPicker color={f.color} color2={f.color2} onChange={c => setF({ ...f, ...c })} />}
         <NeuButton label="إضافة الفريق" icon="add" onPress={add} loading={busy} />
       </NeuRaised>
       {d.teams.filter(t => t.status === "approved").map(t => (
         <NeuRaised key={t.id} radius={16} depth={5} style={[s.rowItem, { padding: 12 }]}>
           <TeamBadge team={t} size={38} />
           <View style={{ flex: 1 }}><Text style={s.itemTitle}>{t.name}</Text><Text style={s.muted}>{t.group_name ? `المجموعة ${t.group_name} · ` : ""}{t.players_count || 0} لاعب{t.coach ? ` · ${t.coach}` : ""}</Text></View>
+          <TouchableOpacity onPress={() => setEditTeam(t)} style={[s.mini, { backgroundColor: "#946B00" }]}><Text style={s.miniText}>تعديل</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setSquad(t)} style={[s.mini, { backgroundColor: LEAGUE_ACCENT }]}><Text style={s.miniText}>اللاعبون</Text></TouchableOpacity>
           <TouchableOpacity onPress={async () => { if (await confirmAction("حذف الفريق", `حذف «${t.name}» ومبارياته؟`, "حذف", true)) { await leaguesApi.removeTeam(token, d.league.id, t.id); reload(); } }} accessibilityLabel="حذف"><Ionicons name="trash-outline" size={18} color="#D93636" /></TouchableOpacity>
         </NeuRaised>
       ))}
       <SquadSheet team={squad} d={d} token={token} onClose={() => { setSquad(null); reload(); }} />
+      {editTeam && <TeamEditSheet team={editTeam} d={d} token={token} groups={groups} onClose={(changed) => { setEditTeam(null); if (changed) reload(); }} />}
     </>
+  );
+}
+
+/** تعديل هوية الفريق: الاسم والاسم المختصر والشعار والألوان والمجموعة والمدرب */
+function TeamEditSheet({ team, d, token, groups, onClose }: { team: Team; d: LeagueDetail; token: string; groups: boolean; onClose: (changed: boolean) => void }) {
+  const [f, setF] = useState({ name: team.name, short_name: team.short_name || "", logo_url: team.logo_url || "", color: team.color || null, color2: (team as any).color2 || null, group_name: team.group_name || "", coach: team.coach || "" });
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (f.name.trim().length < 2) return notify("اكتب اسم الفريق");
+    setBusy(true);
+    try {
+      await leaguesApi.updateTeam(token, d.league.id, team.id, { ...f, short_name: f.short_name || null, logo_url: f.logo_url || null, color: f.color, color2: f.color2 } as any);
+      notify("تم حفظ الفريق"); onClose(true);
+    } catch (e: any) { notify("تعذّر الحفظ", e?.message); }
+    setBusy(false);
+  };
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={() => onClose(false)}>
+      <View style={s.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => onClose(false)} />
+        <View style={[s.sheet, { maxHeight: "92%" }]}>
+          <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 10 }} keyboardShouldPersistTaps="handled">
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+              <TeamBadge team={{ ...team, ...f, logo_url: f.logo_url || null } as any} size={52} />
+              <View style={{ flex: 1 }}><Text style={s.h}>تعديل الفريق</Text><Text style={s.muted}>الهوية والألوان تظهر في الجدول والمباريات والتذاكر</Text></View>
+            </View>
+            <ImageUploadField label="شعار الفريق" value={f.logo_url} onChange={u => setF({ ...f, logo_url: u })} folder="leagues" aspect={1} />
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+              <View style={{ flex: 2 }}><Text style={s.label}>الاسم</Text><Field value={f.name} onChange={v => setF({ ...f, name: v })} /></View>
+              <View style={{ flex: 1 }}><Text style={s.label}>المختصر</Text><Field value={f.short_name} onChange={v => setF({ ...f, short_name: v.slice(0, 12) })} /></View>
+            </View>
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+              {groups && <View style={{ width: 90 }}><Text style={s.label}>المجموعة</Text><Field value={f.group_name} onChange={v => setF({ ...f, group_name: v.toUpperCase().slice(0, 2) })} /></View>}
+              <View style={{ flex: 1 }}><Text style={s.label}>المدرب</Text><Field value={f.coach} onChange={v => setF({ ...f, coach: v })} /></View>
+            </View>
+            <KitColorPicker color={f.color} color2={f.color2} onChange={c => setF({ ...f, ...c })} />
+            <NeuButton label="حفظ الفريق" icon="checkmark-circle" onPress={save} loading={busy} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -532,7 +590,6 @@ function SettingsSec({ d, token, reload }: { d: LeagueDetail; token: string; rel
     } catch (e: any) { notify("خطأ", e?.message); }
     setBusy(false);
   };
-  const COLORS = ["#00301F", "#004D36", "#006B4A", "#00966A", "#4EC99D", "#6B4D00", "#946B00", "#E8A900"];
   return (
     <NeuRaised radius={18} depth={6} style={{ padding: 14, gap: 8 }}>
       <ImageUploadField label="شعار الدوري" value={f.logo_url || ""} onChange={u => setF({ ...f, logo_url: u })} folder="leagues" aspect={1} />
@@ -544,10 +601,7 @@ function SettingsSec({ d, token, reload }: { d: LeagueDetail; token: string; rel
         <View style={{ flex: 1 }}><Text style={s.label}>البداية</Text><Field value={(f.start_date || "").slice(0, 10)} onChange={v => setF({ ...f, start_date: v })} placeholder="YYYY-MM-DD" ltr /></View>
         <View style={{ flex: 1 }}><Text style={s.label}>النهاية</Text><Field value={(f.end_date || "").slice(0, 10)} onChange={v => setF({ ...f, end_date: v })} placeholder="YYYY-MM-DD" ltr /></View>
       </View>
-      <Text style={s.label}>اللون</Text>
-      <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
-        {COLORS.map(c => <TouchableOpacity key={c} onPress={() => setF({ ...f, primary_color: c })} style={[s.color, { backgroundColor: c }, f.primary_color === c && { borderWidth: 3, borderColor: "#F7D76A" }]} accessibilityLabel={c} />)}
-      </View>
+      <KitColorPicker single color={f.primary_color || null} onChange={c => setF({ ...f, primary_color: c.color })} />
       <Text style={s.label}>النقاط (فوز / تعادل / خسارة)</Text>
       <View style={{ flexDirection: "row-reverse", gap: 8 }}>
         {(["points_win", "points_draw", "points_loss"] as const).map(k => <View key={k} style={{ flex: 1 }}><Field value={String(f[k])} onChange={v => setF({ ...f, [k]: Number(onlyDigits(v, 2)) || 0 })} ltr /></View>)}
@@ -575,6 +629,7 @@ function Field({ value, onChange, placeholder, ltr, multiline }: { value: string
 }
 
 const s = StyleSheet.create({
+  colorToggle: { flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 6 },
   root: { flex: 1, backgroundColor: neu.base },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: neu.base },
   header: { flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10 },

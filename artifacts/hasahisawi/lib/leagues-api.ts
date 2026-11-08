@@ -9,7 +9,7 @@ export type League = {
   teams_count?: number; matches_count?: number; live_count?: number; is_staff?: boolean;
 };
 export type Team = {
-  id: number; league_id: number; name: string; short_name?: string | null; logo_url?: string | null; color?: string | null;
+  id: number; league_id: number; name: string; short_name?: string | null; logo_url?: string | null; color?: string | null; color2?: string | null;
   group_name?: string | null; coach?: string | null; manager_name?: string | null; manager_phone?: string | null;
   status: "approved" | "pending" | "rejected"; players_count?: number; players?: Player[];
 };
@@ -22,7 +22,7 @@ export type Match = {
   assistants?: string | null; referee_report?: string | null; tickets_enabled: boolean;
 };
 export type MatchEvent = { id: number; match_id: number; minute?: number | null; type: string; team_id: number; player_name?: string | null; note?: string | null };
-export type StandingRow = { team_id: number; name: string; short_name?: string | null; logo_url?: string | null; color?: string | null; group: string; p: number; w: number; d: number; l: number; gf: number; ga: number; gd: number; pts: number; form: string[] };
+export type StandingRow = { team_id: number; name: string; short_name?: string | null; logo_url?: string | null; color?: string | null; color2?: string | null; group: string; p: number; w: number; d: number; l: number; gf: number; ga: number; gd: number; pts: number; form: string[] };
 export type Scorer = { player_name: string; team_id: number; team_name: string; logo_url?: string | null; goals: number };
 export type Staff = { user_id: number; role: "organizer" | "referee" | "gate"; title?: string | null; name?: string | null };
 export type TicketType = { id: number; match_id: number; name: string; price: string | number; capacity: number; sold: number; note?: string | null };
