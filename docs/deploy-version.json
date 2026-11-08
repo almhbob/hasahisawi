@@ -1,10 +1,10 @@
 {
   "app": "hasahisawi",
-  "version": "6.10.5",
-  "androidVersionCode": 275,
-  "iosBuildNumber": "275",
-  "commit": "b84a9fd1ee409b52c13acc039abf23e01cd46525",
-  "deployedAt": "2026-11-08T18:05:21.130Z",
+  "version": "6.10.6",
+  "androidVersionCode": 276,
+  "iosBuildNumber": "276",
+  "commit": "511b1da62870634198f9404bf0c712d88e181c05",
+  "deployedAt": "2026-11-08T18:40:45.442Z",
   "target": "github-pages",
   "source": "deploy-web"
 }
