@@ -25,12 +25,21 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
 import PdfToImages from "@/components/scanner/PdfToImages";
-import { autoCropWeb, buildPdfWeb, canvasToBlob, pdfToImagesWeb, renderPageWeb, shareOrDownload } from "@/lib/scanner-tools";
+import { buildPdfWeb, canvasToBlob, pdfToImagesWeb, renderPageWeb, shareOrDownload } from "@/lib/scanner-tools";
+import ScanEngine from "@/components/scanner/ScanEngine";
+import CornerEditor from "@/components/scanner/CornerEditor";
+import { Corners, detectPage, processPage } from "@/lib/scan-engine";
 
 const WATERMARK = "مُمسوح بتطبيق حصاحيصاوي";
 
 type FilterKey = "original" | "document" | "bw" | "gray" | "vivid";
-type Page = { id: string; uri: string; b64?: string; mime: string; filter: FilterKey; rotate: 0 | 90 | 180 | 270 };
+/**
+ * src: الصورة الأصلية كما التُقطت · corners: حواف الورقة (مطبَّعة) · uri: الناتج بعد تصحيح المنظور والتحسين.
+ * baked=true يعني أن التحسين مطبوع في الصورة نفسها (فلا نطبق مرشّح CSS فوقه).
+ */
+type Page = { id: string; uri: string; b64?: string; mime: string; filter: FilterKey; rotate: 0 | 90 | 180 | 270; src?: string; corners?: Corners | null; baked?: boolean; busy?: boolean };
+const fcss = (p: Page) => (p.baked ? "none" : FILTERS[p.filter].css);
+const frn = (p: Page) => (p.baked ? [] : FILTERS[p.filter].rn);
 
 const FILTERS: Record<FilterKey, { label: string; icon: any; css: string; rn: any[] }> = {
   original: { label: "أصلي", icon: "image-outline", css: "none", rn: [] },
@@ -65,6 +74,23 @@ export default function DocScanner() {
 
   const current = pages.find(p => p.id === sel) || null;
   const update = (id: string, patch: Partial<Page>) => setPages(ps => ps.map(p => p.id === id ? { ...p, ...patch } : p));
+  const [editing, setEditing] = useState<string | null>(null);
+
+  /** المعالجة الكاملة: كشف الورقة (اختياري) ← تصحيح المنظور ← إزالة الظلال والتحسين */
+  const runPage = async (id: string, src: string, opts: { detect?: boolean; corners?: Corners | null; mode: FilterKey }) => {
+    update(id, { busy: true });
+    try {
+      const corners = opts.detect ? await detectPage(src).catch(() => null) : opts.corners ?? null;
+      const out = await processPage(src, corners, opts.mode);
+      update(id, { uri: out, b64: out.split(",")[1], mime: "image/jpeg", corners, baked: true, busy: false, filter: opts.mode });
+    } catch {
+      update(id, { busy: false }); // يبقى الأصل مع مرشّح العرض كحل احتياطي
+    }
+  };
+  const setFilter = (p: Page, f: FilterKey) => {
+    update(p.id, { filter: f });
+    if (p.src) runPage(p.id, p.src, { corners: p.corners ?? null, mode: f });
+  };
 
   const add = async (from: "camera" | "library") => {
     try {
@@ -75,15 +101,19 @@ export default function DocScanner() {
       }
       const opts: ImagePicker.ImagePickerOptions = {
         mediaTypes: ["images"] as any, quality: 0.85, base64: true, exif: false,
-        // أداة القص الحرة لضبط حواف الورقة بعد التصوير
-        allowsEditing: Platform.OS !== "web" && from === "camera",
+        // القص وتصحيح المنظور يتمّان بمحرّر الحواف الخاص بالتطبيق
+        allowsEditing: false,
         allowsMultipleSelection: from === "library", selectionLimit: 20,
       };
       const r = from === "camera" ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (r.canceled) return;
-      const added: Page[] = r.assets.map(a => ({ id: uid(), uri: a.uri, b64: a.base64 || undefined, mime: a.mimeType || "image/jpeg", filter: "document", rotate: 0 }));
+      const added: Page[] = r.assets.map(a => {
+        const src = a.base64 ? `data:${a.mimeType || "image/jpeg"};base64,${a.base64}` : a.uri;
+        return { id: uid(), uri: src, src, b64: a.base64 || undefined, mime: a.mimeType || "image/jpeg", filter: "document", rotate: 0 };
+      });
       setPages(ps => [...ps, ...added]);
       setSel(added[added.length - 1].id);
+      for (const pg of added) runPage(pg.id, pg.src!, { detect: true, mode: "document" });
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e: any) { notify("تعذّر التصوير", e?.message); }
     finally { setBusy(null); }
@@ -101,24 +131,19 @@ export default function DocScanner() {
       if (r?.status !== "success" || !r.scannedImages?.length) return;
       const added: Page[] = r.scannedImages.map((b64: string) => {
         const data = b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
-        return { id: uid(), uri: data, b64: data.split(",")[1], mime: "image/jpeg", filter: "document", rotate: 0 };
+        return { id: uid(), uri: data, src: data, b64: data.split(",")[1], mime: "image/jpeg", filter: "document", rotate: 0 };
       });
       setPages(ps => [...ps, ...added]);
       setSel(added[added.length - 1].id);
+      // ML Kit قصّ الورقة وصحّح منظورها؛ نكمل بإزالة الظلال والتحسين
+      for (const pg of added) runPage(pg.id, pg.src!, { corners: null, mode: "document" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch { await add("camera"); }
     finally { setBusy(null); }
   };
 
-  const autoCrop = async () => {
-    if (!current) return;
-    if (Platform.OS !== "web") { notify("القص التلقائي", "استخدم «مسح ذكي» لقص الورقة تلقائياً بالكاميرا."); return; }
-    try {
-      const r = await autoCropWeb(current.uri);
-      if (!r.cropped) { notify("لم تُكتشف حواف واضحة", "صوّر الورقة على خلفية داكنة لنتيجة أفضل."); return; }
-      update(current.id, { uri: r.uri, b64: r.uri.split(",")[1], mime: "image/jpeg" });
-    } catch (e: any) { notify("تعذّر القص", e?.message); }
-  };
+  /** القص والحواف: محرّر النقاط الأربع (مع كشف تلقائي) */
+  const autoCrop = () => { if (current) setEditing(current.id); };
 
   const importPdf = async () => {
     try {
@@ -137,7 +162,7 @@ export default function DocScanner() {
   const addImages = (imgs: string[]) => {
     setProgress(""); setPdfB64(null);
     if (!imgs.length) return notify("الملف فارغ");
-    const added: Page[] = imgs.map(u => ({ id: uid(), uri: u, b64: u.split(",")[1], mime: "image/jpeg", filter: "original", rotate: 0 }));
+    const added: Page[] = imgs.map(u => ({ id: uid(), uri: u, src: u, b64: u.split(",")[1], mime: "image/jpeg", filter: "original", rotate: 0 }));
     setPages(ps => [...ps, ...added]);
     setSel(added[0].id);
     notify("تم التحويل", `أُضيفت ${imgs.length} صفحة كصور — يمكنك تحسينها أو مشاركتها أو تصديرها PDF من جديد.`);
@@ -150,7 +175,7 @@ export default function DocScanner() {
       if (Platform.OS === "web") {
         const files: File[] = [];
         for (let i = 0; i < pages.length; i++) {
-          const c = await renderPageWeb({ uri: pages[i].uri, css: FILTERS[pages[i].filter].css, rotate: pages[i].rotate }, showWm ? WATERMARK : null);
+          const c = await renderPageWeb({ uri: pages[i].uri, css: fcss(pages[i]), rotate: pages[i].rotate }, showWm ? WATERMARK : null);
           files.push(new File([await canvasToBlob(c)], `${docTitle}-${i + 1}.jpg`, { type: "image/jpeg" }));
         }
         const nav: any = navigator;
@@ -171,7 +196,7 @@ export default function DocScanner() {
   });
   const remove = (id: string) => setPages(ps => { const n = ps.filter(p => p.id !== id); if (sel === id) setSel(n[n.length - 1]?.id ?? null); return n; });
 
-  const applyAll = (f: FilterKey) => setPages(ps => ps.map(p => ({ ...p, filter: f })));
+  const applyAll = (f: FilterKey) => pages.forEach(p => { if (p.filter !== f || !p.baked) setFilter(p, f); });
 
   const docTitle = (title.trim() || `${docType} — ${new Date().toLocaleDateString("ar-SD")}`);
 
@@ -183,7 +208,7 @@ export default function DocScanner() {
       const rot = p.rotate % 180 !== 0;
       return `<section class="page">
         ${header ? `<header><b>${esc(docTitle)}</b><span>${esc(name)}${name ? " · " : ""}${date}</span></header>` : ""}
-        <div class="img"><img src="${src}" style="filter:${FILTERS[p.filter].css};transform:rotate(${p.rotate}deg);${rot ? "max-width:24cm;max-height:17cm;" : ""}"/></div>
+        <div class="img"><img src="${src}" style="filter:${fcss(p)};transform:rotate(${p.rotate}deg);${rot ? "max-width:24cm;max-height:17cm;" : ""}"/></div>
         ${showWm ? `<div class="wm">${WATERMARK}</div>` : ""}
         <footer>صفحة ${i + 1} من ${pages.length}${showWm ? " · حصاحيصاوي" : ""}</footer>
       </section>`;
@@ -210,7 +235,7 @@ export default function DocScanner() {
     try {
       if (Platform.OS === "web") {
         // ملف PDF حقيقي بالمرشحات والعلامة المائية، يُشارك أو يُنزّل
-        const blob = await buildPdfWeb(pages.map(p => ({ uri: p.uri, css: FILTERS[p.filter].css, rotate: p.rotate })), showWm ? WATERMARK : null);
+        const blob = await buildPdfWeb(pages.map(p => ({ uri: p.uri, css: fcss(p), rotate: p.rotate })), showWm ? WATERMARK : null);
         const how = await shareOrDownload(blob, `${docTitle}.pdf`, docTitle);
         if (how === "downloaded") notify("تم حفظ الملف", "حُفظ ملف PDF في التنزيلات.");
       } else {
@@ -259,10 +284,16 @@ export default function DocScanner() {
                     <Image
                       source={{ uri: current.uri }}
                       resizeMode="contain"
-                      style={[s.previewImg, { transform: [{ rotate: `${current.rotate}deg` }] }, Platform.OS === "web" ? ({ filter: FILTERS[current.filter].css } as any) : ({ filter: FILTERS[current.filter].rn } as any)]}
+                      style={[s.previewImg, { transform: [{ rotate: `${current.rotate}deg` }] }, Platform.OS === "web" ? ({ filter: fcss(current) } as any) : ({ filter: frn(current) } as any)]}
                     />
                   </Pressable>
                   {showWm ? <View style={s.wm} pointerEvents="none"><Text style={s.wmText}>{WATERMARK}</Text></View> : null}
+                  {current.busy ? (
+                    <View style={s.busyOverlay} pointerEvents="none">
+                      <ActivityIndicator color="#fff" />
+                      <Text style={s.busyText}>جارٍ قص الورقة وتحسينها…</Text>
+                    </View>
+                  ) : null}
                   </View>
                   <View style={s.pageBadge}><Text style={s.pageBadgeText}>{pages.indexOf(current) + 1} / {pages.length}</Text></View>
                 </NeuInset>
@@ -280,7 +311,7 @@ export default function DocScanner() {
                   {(Object.keys(FILTERS) as FilterKey[]).map(k => {
                     const on = current.filter === k;
                     return (
-                      <Pressable key={k} onPress={() => update(current.id, { filter: k })} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+                      <Pressable key={k} onPress={() => setFilter(current, k)} disabled={!!current.busy} accessibilityRole="radio" accessibilityState={{ selected: on }}>
                         {on ? (
                           <NeuInset radius={14} tint={ACCENT} style={s.filter}><Ionicons name={FILTERS[k].icon} size={18} color={ACCENT} /><Text style={[s.filterText, { color: ACCENT }]}>{FILTERS[k].label}</Text></NeuInset>
                         ) : (
@@ -291,7 +322,7 @@ export default function DocScanner() {
                   })}
                 </ScrollView>
                 <View style={s.tools}>
-                  <Tool icon="crop" label="قص تلقائي" onPress={autoCrop} />
+                  <Tool icon="crop" label="الحواف" onPress={autoCrop} />
                   <Tool icon="refresh" label="تدوير" onPress={() => update(current.id, { rotate: (((current.rotate + 90) % 360) as Page["rotate"]) })} />
                   <Tool icon="arrow-forward" label="للأمام" onPress={() => move(current.id, -1)} />
                   <Tool icon="arrow-back" label="للخلف" onPress={() => move(current.id, 1)} />
@@ -305,7 +336,7 @@ export default function DocScanner() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 10, flexDirection: "row-reverse", paddingVertical: 4 }}>
               {pages.map((p, i) => (
                 <Pressable key={p.id} onPress={() => setSel(p.id)} style={[s.thumb, sel === p.id && { borderColor: ACCENT }]} accessibilityLabel={`الصفحة ${i + 1}`}>
-                  <Image source={{ uri: p.uri }} style={[s.thumbImg, { transform: [{ rotate: `${p.rotate}deg` }] }, Platform.OS === "web" ? ({ filter: FILTERS[p.filter].css } as any) : ({ filter: FILTERS[p.filter].rn } as any)]} />
+                  <Image source={{ uri: p.uri }} style={[s.thumbImg, { transform: [{ rotate: `${p.rotate}deg` }] }, Platform.OS === "web" ? ({ filter: fcss(p) } as any) : ({ filter: frn(p) } as any)]} />
                   <View style={s.thumbNum}><Text style={s.thumbNumText}>{i + 1}</Text></View>
                 </Pressable>
               ))}
@@ -365,6 +396,15 @@ export default function DocScanner() {
       </View>
 
       <ImageLightbox uri={zoom} onClose={() => setZoom(null)} title="معاينة الصفحة" />
+      <ScanEngine />
+      {(() => {
+        const pg = pages.find(p => p.id === editing);
+        if (!pg) return null;
+        return (
+          <CornerEditor src={pg.src || pg.uri} initial={pg.corners ?? null} onClose={() => setEditing(null)}
+            onApply={(c) => { setEditing(null); runPage(pg.id, pg.src || pg.uri, { corners: c, mode: pg.filter }); }} />
+        );
+      })()}
       {pdfB64 && Platform.OS !== "web" ? (
         <PdfToImages base64={pdfB64} onDone={addImages} onError={(m) => { setPdfB64(null); setProgress(""); notify("تعذّر التحويل", m); }}
           onProgress={(d, t) => setProgress(`جارٍ تحويل الصفحة ${d} من ${t}…`)} />
@@ -385,6 +425,8 @@ function Tool({ icon, label, onPress, color = Colors.textSecondary }: { icon: an
 }
 
 const s = StyleSheet.create({
+  busyOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "rgba(13,22,19,0.45)" },
+  busyText: { fontFamily: "Cairo_700Bold", fontSize: 13.5, color: "#fff" },
   wm: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(0,107,74,0.85)", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
   wmText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#fff" },
   lock: { fontFamily: "Cairo_500Medium", fontSize: 11, color: "#946B00", textAlign: "right" },
