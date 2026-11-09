@@ -134,7 +134,6 @@ async function main() {
 
   console.log("\n✅ اكتمل نقل البيانات!");
   console.log("\n📌 الخطوة التالية: ابنِ وانشر Firebase Functions:");
-  console.log("   cd artifacts/firebase-functions && npm install");
   console.log("   firebase login");
   console.log('   firebase functions:secrets:set DATABASE_URL');
   console.log("   firebase deploy --only functions");
