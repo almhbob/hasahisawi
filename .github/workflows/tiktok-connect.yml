@@ -1,0 +1,34 @@
+name: TikTok connect link
+# يولّد رابط ربط حساب تيك توك لمرة واحدة (صالح 15 دقيقة) ويعرضه في ملخص التشغيل.
+# افتح الملخص من جوالك واضغط الرابط وسجّل الدخول بحساب تيك توك.
+# بعد الربط يعرض «TikTok status» حالة الحساب المربوط.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create connect link
+        env:
+          API: https://api-server-gilt-ten.vercel.app
+        run: |
+          set -euo pipefail
+          T=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=hasahisawi-campaign" | jq -r .value)
+          echo "::add-mask::$T"
+          R=$(curl -sS -X POST -H "Authorization: Bearer $T" "$API/api/tiktok/connect-url")
+          U=$(echo "$R" | jq -r '.url // empty')
+          S=$(curl -sS -H "Authorization: Bearer $T" "$API/api/tiktok/status" || true)
+          {
+            echo "## ربط حساب تيك توك"
+            if [ -n "$U" ]; then
+              echo "### 👉 [اضغط هنا لربط حساب تيك توك]($U)"
+              echo "الرابط صالح لمدة 15 دقيقة ولمرة واحدة."
+            else
+              echo "❌ تعذّر إنشاء الرابط:"; echo '```json'; echo "$R"; echo '```'
+            fi
+            echo "### الحالة الحالية"; echo '```json'; echo "$S" | jq 'del(.creator)' 2>/dev/null || echo "$S"; echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          [ -n "$U" ]
