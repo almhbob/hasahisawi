@@ -148,13 +148,13 @@ export default function StorePortalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   // مدير التطبيق يفتح لوحة أي متجر: /store-portal?store=ID
-  const { store: manageParam } = useLocalSearchParams<{ store?: string }>();
+  const { store: manageParam, tab: tabParam } = useLocalSearchParams<{ store?: string; tab?: string }>();
   const manageId = user?.role === "admin" && manageParam && /^\d+$/.test(String(manageParam)) ? String(manageParam) : null;
 
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<MyStore | null>(null);
   const [noStore, setNoStore] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [activeTab, setActiveTab] = useState<TabKey>(["overview", "products", "orders", "settings"].includes(String(tabParam)) ? (tabParam as TabKey) : "overview");
   const [refreshing, setRefreshing] = useState(false);
 
   const authHeader: Record<string, string> = manageId

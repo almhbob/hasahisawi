@@ -13,6 +13,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { useCart, fmtSdg, type CartVendor } from "@/lib/cart";
 import CartButton from "@/components/CartButton";
 import ImageLightbox from "@/components/ImageLightbox";
+import { confirmAction } from "@/lib/xplatform";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
 const GREEN = "#00966A";
@@ -285,12 +286,33 @@ const STATUS_AR: Record<string, [string, string]> = { active: ["نشط", GREEN],
 function AdminStoresSheet({ token, onClose }: { token: string | null; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const [list, setList] = useState<any[] | null>(null);
+  const [legacy, setLegacy] = useState<any[]>([]);
   const [err, setErr] = useState("");
-  useEffect(() => {
-    fetch(`${getApiUrl()}/api/admin/stores`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(async (r) => { const j = await r.json().catch(() => []); if (!r.ok) throw new Error(j?.error || "تعذّر التحميل"); setList(j); })
-      .catch((e) => setErr(e?.message || "تعذّر التحميل"));
-  }, [token]);
+  const [busy, setBusy] = useState<string>("");
+  const [note, setNote] = useState("");
+  const api = (path: string, init: RequestInit = {}) => fetch(`${getApiUrl()}/api${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...(init.headers || {}) } })
+    .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j?.error || "تعذّر التنفيذ"); return j; });
+  const load = useCallback(() => {
+    api("/admin/stores").then(setList).catch((e) => setErr(e?.message || "تعذّر التحميل"));
+    api("/admin/merchants/unmoved").then((j) => setLegacy(j.merchants || [])).catch(() => setLegacy([]));
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [load]);
+  const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 4000); };
+  const move = async (id?: number) => {
+    setBusy(id ? `m${id}` : "all");
+    try {
+      const j = await api(id ? `/admin/merchants/${id}/to-store` : "/admin/merchants/to-store-all", { method: "POST" });
+      flash(id ? `نُقل «${j.store?.name}» إلى سوق المتاجر` : `نُقل ${j.moved} محل إلى سوق المتاجر`);
+      load();
+    } catch (e: any) { flash(e?.message || "تعذّر النقل"); } finally { setBusy(""); }
+  };
+  const remove = async (s0: any) => {
+    const ok = await confirmAction("حذف المتجر نهائياً", `«${s0.name}» — ستُحذف منتجاته (${Number(s0.product_count || 0)}) وطلباته ولا يمكن التراجع.`, "حذف", true);
+    if (!ok) return;
+    setBusy(`d${s0.id}`);
+    try { await api(`/admin/stores/${s0.id}`, { method: "DELETE" }); flash(`حُذف «${s0.name}»`); load(); }
+    catch (e: any) { flash(e?.message || "تعذّر الحذف"); } finally { setBusy(""); }
+  };
   const go = (path: string, params?: any) => { onClose(); router.push((params ? { pathname: path, params } : path) as any); };
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
@@ -300,11 +322,39 @@ function AdminStoresSheet({ token, onClose }: { token: string | null; onClose: (
           <View style={{ padding: 16, gap: 4, flexDirection: "row-reverse", alignItems: "center" }}>
             <View style={{ flex: 1 }}>
               <Text style={st.sName}>إدارة المتاجر</Text>
-              <Text style={st.muted}>اختر متجراً لرفع صور منتجاته وتعديلها بصلاحية مدير التطبيق</Text>
+              <Text style={st.muted}>إدارة وتعديل وحذف المتاجر، ونقل محلات «دليل المحلات» إلى السوق</Text>
             </View>
             <Pressable onPress={onClose} style={[st.close, { position: "relative", top: 0, left: 0 }]} accessibilityLabel="إغلاق"><Ionicons name="close" size={20} color="#fff" /></Pressable>
           </View>
           <ScrollView contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingBottom: 10 }}>
+            {note ? <Text style={[st.muted, { color: DEEP, fontFamily: "Cairo_700Bold", textAlign: "center" }]}>{note}</Text> : null}
+            {legacy.length ? (
+              <View style={st.legacyBox}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="swap-horizontal" size={18} color="#8A6A00" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.pName}>محلات تنتظر النقل إلى سوق المتاجر ({legacy.length.toLocaleString("ar-EG")})</Text>
+                    <Text style={st.muted}>مسجّلة في «دليل المحلات» القديم بلا منتجات ولا سلة. بعد النقل تصير متاجر كاملة، ويستلم صاحبها لوحته تلقائياً عند دخوله برقم هاتفه.</Text>
+                  </View>
+                </View>
+                {legacy.map((m) => (
+                  <View key={m.id} style={st.legacyRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={st.pName} numberOfLines={1}>{m.shop_name}</Text>
+                      <Text style={st.muted} numberOfLines={1}>{m.owner_name} · {m.phone || "—"} · سيكون: {TYPE_AR[m.suggested_type] || "متجر"}</Text>
+                    </View>
+                    <Pressable onPress={() => move(m.id)} disabled={!!busy} style={st.moveBtn} accessibilityRole="button" accessibilityLabel={`نقل ${m.shop_name}`}>
+                      {busy === `m${m.id}` ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.moveT}>نقل</Text>}
+                    </Pressable>
+                  </View>
+                ))}
+                {legacy.length > 1 ? (
+                  <Pressable onPress={() => move()} disabled={!!busy} style={[st.moveBtn, { alignSelf: "stretch", paddingVertical: 10 }]} accessibilityRole="button">
+                    {busy === "all" ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.moveT}>نقل الكل إلى سوق المتاجر</Text>}
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
             <Pressable onPress={() => go("/store-portal")} style={[st.storeRow, { borderColor: GOLD, borderStyle: "dashed" }]}>
               <View style={[st.storeLogoSm, { backgroundColor: GOLD + "30" }]}><Ionicons name="add" size={22} color="#3D2C00" /></View>
               <View style={{ flex: 1 }}>
@@ -318,14 +368,25 @@ function AdminStoresSheet({ token, onClose }: { token: string | null; onClose: (
             ) : list.map((s) => {
               const [lbl, col] = STATUS_AR[s.status] ?? [s.status, Colors.textMuted];
               return (
-                <Pressable key={s.id} onPress={() => go("/store-portal", { store: String(s.id) })} style={st.storeRow} accessibilityRole="button" accessibilityLabel={`إدارة ${s.name}`}>
+                <View key={s.id} style={[st.storeRow, { flexWrap: "wrap" }]}>
                   <View style={st.storeLogoSm}>{s.logo_url ? <Image source={{ uri: s.logo_url }} style={{ width: 40, height: 40 }} /> : <Text style={[st.storeInit, { fontSize: 17 }]}>{String(s.name || "م").trim().charAt(0)}</Text>}</View>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, minWidth: 150 }}>
                     <Text style={st.pName} numberOfLines={1}>{s.name}</Text>
                     <Text style={st.muted} numberOfLines={1}>{s.owner_name || "—"} · {Number(s.product_count || 0)} منتج · <Text style={{ color: col, fontFamily: "Cairo_700Bold" }}>{lbl}</Text></Text>
+                    {s.pending_owner_phone ? <Text style={[st.muted, { color: "#8A6A00" }]}>بانتظار استلام صاحبه برقم {s.pending_owner_phone}</Text> : null}
                   </View>
-                  <Text style={st.linkT}>إدارة</Text>
-                </Pressable>
+                  <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+                    <Pressable onPress={() => go("/store-portal", { store: String(s.id) })} style={st.actBtn} accessibilityRole="button" accessibilityLabel={`إدارة ${s.name}`}>
+                      <Ionicons name="grid-outline" size={14} color={DEEP} /><Text style={st.actT}>إدارة</Text>
+                    </Pressable>
+                    <Pressable onPress={() => go("/store-portal", { store: String(s.id), tab: "settings" })} style={st.actBtn} accessibilityRole="button" accessibilityLabel={`تعديل ${s.name}`}>
+                      <Ionicons name="create-outline" size={14} color={DEEP} /><Text style={st.actT}>تعديل</Text>
+                    </Pressable>
+                    <Pressable onPress={() => remove(s)} disabled={!!busy} style={[st.actBtn, { borderColor: "#B4231840" }]} accessibilityRole="button" accessibilityLabel={`حذف ${s.name}`}>
+                      {busy === `d${s.id}` ? <ActivityIndicator size="small" color="#B42318" /> : <Ionicons name="trash-outline" size={14} color="#B42318" />}
+                    </Pressable>
+                  </View>
+                </View>
               );
             })}
           </ScrollView>
@@ -499,5 +560,11 @@ const st = StyleSheet.create({
   desc: { fontFamily: "Cairo_500Medium", fontSize: 14, color: Colors.textSecondary, textAlign: "right", lineHeight: 24 },
   storeRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: Colors.cardBg, borderRadius: 16, padding: 10, borderWidth: 1, borderColor: Colors.divider, marginVertical: 4 },
   storeLogoSm: { width: 40, height: 40, borderRadius: 14, backgroundColor: GREEN + "12", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  legacyBox: { gap: 8, padding: 12, borderRadius: 16, backgroundColor: GOLD + "14", borderWidth: 1, borderColor: GOLD + "55" },
+  legacyRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: Colors.cardBg, borderRadius: 12, padding: 10 },
+  moveBtn: { alignItems: "center", justifyContent: "center", backgroundColor: DEEP, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7, minWidth: 56 },
+  moveT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#fff" },
+  actBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.bg },
+  actT: { fontFamily: "Cairo_700Bold", fontSize: 12, color: DEEP },
   linkT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: GREEN },
 });
