@@ -8,7 +8,9 @@ const quotes = JSON.parse(readFileSync("quotes.json", "utf8"));
 const screenshots = ["screen-services.png", "screen-home.png"];
 const from = Number(process.argv[2] ?? 1);
 const to = Number(process.argv[3] ?? quotes.length);
-mkdirSync("out", { recursive: true });
+const outDir = process.env.OUT_DIR || "out";
+mkdirSync(outDir, { recursive: true });
+const crf = process.env.CRF ? [`--crf=${process.env.CRF}`] : [];
 
 const browser = existsSync("/opt/pw-browsers/chromium") ? ["--browser-executable=/opt/pw-browsers/chromium"] : [];
 
@@ -24,11 +26,11 @@ for (let day = from; day <= to; day++) {
     cta: "حمّله مجاناً من Google Play",
     screenshot: screenshots[day % screenshots.length],
   };
-  const file = `out/day-${String(day).padStart(2, "0")}.mp4`;
+  const file = `${outDir}/${String(day).padStart(2, "0")}.mp4`;
   console.log(`▶ ${file}: ${q.quote}`);
   execFileSync(
     "npx",
-    ["remotion", "render", "QuoteVideo", file, `--props=${JSON.stringify(props)}`, ...browser],
+    ["remotion", "render", "QuoteVideo", file, `--props=${JSON.stringify(props)}`, ...browser, ...crf],
     { stdio: "inherit" },
   );
 }

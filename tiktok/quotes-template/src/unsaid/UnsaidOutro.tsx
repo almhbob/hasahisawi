@@ -13,7 +13,9 @@ export const UnsaidOutro: React.FC<{
   author: string;
   authorNote: string;
   cta: string;
-}> = ({ author, authorNote, cta }) => {
+  sponsorName?: string;
+  sponsorLogo?: string;
+}> = ({ author, authorNote, cta, sponsorName, sponsorLogo }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const a = spring({ frame, fps, config: { damping: 200 } });
@@ -58,6 +60,37 @@ export const UnsaidOutro: React.FC<{
         {cta}
       </div>
 
+      {sponsorName ? (
+        <div
+          style={{
+            marginTop: 50,
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+            opacity: b,
+            background: "rgba(217,196,154,0.12)",
+            border: `2px solid ${B.beige}`,
+            borderRadius: 24,
+            padding: "14px 30px",
+          }}
+        >
+          <div style={{ fontSize: 40, color: B.muted }}>برعاية</div>
+          {sponsorLogo ? (
+            <Img
+              src={staticFile(sponsorLogo)}
+              style={{
+                height: 80,
+                maxWidth: 200,
+                objectFit: "contain",
+                borderRadius: 12,
+              }}
+            />
+          ) : null}
+          <div style={{ fontSize: 50, fontWeight: 700, color: B.cream }}>
+            {sponsorName}
+          </div>
+        </div>
+      ) : null}
       <div
         style={{
           position: "absolute",

@@ -7,7 +7,7 @@
 // - GET  /api/campaign/status   آخر ما نُشر وحالة القنوات.
 // القنوات تُفعَّل بمتغيرات البيئة: FB_PAGE_ID + FB_PAGE_TOKEN، IG_USER_ID، TG_BOT_TOKEN + TG_CHAT_ID،
 //      TIKTOK_CLIENT_KEY + TIKTOK_CLIENT_SECRET (ثم ربط الحساب مرة عبر /api/tiktok/connect — انظر lib/tiktok.ts).
-// عدة تقويمات: body.calendar = "main" (الافتراضي) أو "unsaid" (سلسلة «أشياء لا تقال»).
+// عدة تقويمات: body.calendar = "main" (الافتراضي) أو "unsaid" («أشياء لا تقال») أو "quotes" («حكمة اليوم»).
 //      سجلات التقويمات الأخرى تُميَّز ببادئة في عمود channel (مثل "unsaid:tiktok").
 // - GET  /api/tiktok/connect?key=CAMPAIGN_PUSH_KEY   ربط حساب تيك توك (مرة واحدة)
 // - GET  /api/tiktok/callback                        يعود إليه تيك توك بعد الموافقة
@@ -24,6 +24,7 @@ const COOLDOWN_HOURS = 20;
 const CALENDARS: Record<string, string> = {
   main: process.env.CAMPAIGN_CALENDAR_URL || "https://hasahisawi.pages.dev/campaign/calendar.json",
   unsaid: process.env.CAMPAIGN_UNSAID_CALENDAR_URL || "https://hasahisawi.pages.dev/campaign/unsaid/calendar.json",
+  quotes: process.env.CAMPAIGN_QUOTES_CALENDAR_URL || "https://hasahisawi.pages.dev/campaign/quotes/calendar.json",
 };
 const GRAPH = "https://graph.facebook.com/v21.0";
 

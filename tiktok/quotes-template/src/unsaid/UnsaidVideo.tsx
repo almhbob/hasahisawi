@@ -14,6 +14,8 @@ export type UnsaidVideoProps = {
   author: string;
   authorNote: string;
   cta: string;
+  sponsorName?: string;
+  sponsorLogo?: string;
 };
 
 export const calculateUnsaidMetadata: CalculateMetadataFunction<
@@ -48,6 +50,8 @@ export const UnsaidVideo: React.FC<UnsaidVideoProps> = (p) => {
             author={p.author}
             authorNote={p.authorNote}
             cta={p.cta}
+            sponsorName={p.sponsorName}
+            sponsorLogo={p.sponsorLogo}
           />
         </TransitionSeries.Sequence>
       </TransitionSeries>
