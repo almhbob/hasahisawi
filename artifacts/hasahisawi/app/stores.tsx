@@ -25,6 +25,7 @@ import Animated, { FadeInDown, FadeIn, ZoomIn } from "react-native-reanimated";
 import Colors from "@/constants/colors";
 import ModernHeader from "@/components/ui/ModernHeader";
 import { useAuth } from "@/lib/auth-context";
+import ProductDetailSheet from "@/components/ProductDetailSheet";
 import { getApiUrl } from "@/lib/query-client";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
@@ -88,6 +89,10 @@ type Product = {
   image_url?: string;
   is_available: boolean;
   sort_order: number;
+  images?: string[];
+  old_price?: number | null;
+  discount_pct?: number;
+  stock?: number | null;
 };
 
 type CartItem = {
@@ -246,23 +251,36 @@ function ProductCard({
   qty,
   onAdd,
   onRemove,
+  onOpen,
 }: {
   product: Product;
   qty: number;
   onAdd: () => void;
   onRemove: () => void;
+  onOpen: () => void;
 }) {
+  const imgs = product.images?.length ? product.images : product.image_url ? [product.image_url] : [];
   return (
     <View style={styles.productCard}>
-      {product.image_url ? (
-        <Image source={{ uri: product.image_url }} style={styles.productImage} resizeMode="cover" />
-      ) : (
-        <View style={styles.productImagePlaceholder}>
-          <MaterialCommunityIcons name="food-outline" size={28} color={Colors.primary} />
-        </View>
-      )}
-      <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-      <Text style={styles.productPrice}>{formatPrice(product.price)}</Text>
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.productImageWrap} accessibilityRole="imagebutton" accessibilityLabel={`عرض ${product.name}`}>
+        {imgs[0] ? (
+          <Image source={{ uri: imgs[0] }} style={styles.productImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.productImagePlaceholder}>
+            <MaterialCommunityIcons name="package-variant" size={32} color={Colors.primary} />
+          </View>
+        )}
+        {product.discount_pct ? <View style={styles.discBadge}><Text style={styles.discBadgeT}>-{product.discount_pct}%</Text></View> : null}
+        {imgs.length > 1 ? <View style={styles.imgCountBadge}><Ionicons name="images" size={11} color="#fff" /><Text style={styles.imgCountT}>{imgs.length}</Text></View> : null}
+        {imgs[0] ? <View style={styles.zoomHint}><Ionicons name="expand" size={12} color="#fff" /></View> : null}
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.8} style={{ width: "100%" }}>
+        <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
+      </TouchableOpacity>
+      <View style={{ flexDirection: "row-reverse", alignItems: "baseline", gap: 6, width: "100%", marginBottom: 8 }}>
+        <Text style={[styles.productPrice, { width: "auto", marginBottom: 0 }]}>{formatPrice(product.price)}</Text>
+        {product.old_price ? <Text style={styles.oldPrice}>{formatPrice(product.old_price)}</Text> : null}
+      </View>
       {!product.is_available ? (
         <View style={styles.unavailableBadge}>
           <Text style={styles.unavailableText}>غير متوفر</Text>
@@ -616,6 +634,7 @@ function StoreDetailModal({
 }) {
   const insets = useSafeAreaInsets();
   const [activeCatId, setActiveCatId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<Product | null>(null);
   const { user: me } = useAuth();
   const router = useRouter();
 
@@ -772,12 +791,23 @@ function StoreDetailModal({
                     qty={cartQtyFor(item.id)}
                     onAdd={() => onAddToCart(item)}
                     onRemove={() => onRemoveFromCart(item.id)}
+                    onOpen={() => setDetail(item)}
                   />
                 )}
               />
             )}
           </>
         )}
+
+        {detail ? (
+          <ProductDetailSheet
+            p={{ ...detail, images: detail.images?.length ? detail.images : detail.image_url ? [detail.image_url] : [] }}
+            qty={cartQtyFor(detail.id)}
+            onAdd={(d) => (d > 0 ? onAddToCart(detail) : onRemoveFromCart(detail.id))}
+            onClose={() => setDetail(null)}
+            closed={store?.is_open === false || store?.accepts_orders === false}
+          />
+        ) : null}
 
         {/* Floating Cart Button */}
         {cartCount > 0 && (
@@ -1448,11 +1478,25 @@ const styles = StyleSheet.create({
   },
 
   // Product card
+  productImageWrap: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#F1F4F2",
+    marginBottom: 8,
+  },
+  discBadge: { position: "absolute", top: 7, right: 7, backgroundColor: "#C62828", borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  discBadgeT: { fontFamily: "Cairo_700Bold", fontSize: 11.5, color: "#fff" },
+  imgCountBadge: { position: "absolute", bottom: 7, right: 7, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  imgCountT: { fontFamily: "Cairo_700Bold", fontSize: 10.5, color: "#fff" },
+  zoomHint: { position: "absolute", bottom: 7, left: 7, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" },
+  oldPrice: { flexShrink: 0, fontFamily: "Cairo_500Medium", fontSize: 11.5, color: Colors.textMuted, textDecorationLine: "line-through" },
   productCard: {
     flex: 1,
     backgroundColor: Colors.cardBg,
-    borderRadius: 14,
-    padding: 10,
+    borderRadius: 16,
+    padding: 8,
     margin: 5,
     alignItems: "center",
     borderWidth: 1,
@@ -1463,19 +1507,13 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: "100%",
-    height: 100,
-    borderRadius: 10,
-    backgroundColor: Colors.primarySoft,
-    marginBottom: 8,
+    height: "100%",
   },
   productImagePlaceholder: {
-    width: "100%",
-    height: 100,
-    borderRadius: 10,
-    backgroundColor: Colors.primary + "15",
+    flex: 1,
+    backgroundColor: Colors.primary + "12",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
   },
   productName: {
     fontFamily: "Cairo_600SemiBold",
