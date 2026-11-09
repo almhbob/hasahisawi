@@ -368,6 +368,18 @@ export default function ProfileScreen() {
                   </View>
                 ))}
               </View>
+              {profile.founder.contribution ? (
+                <View style={{ padding: 12, gap: 4, borderTopWidth: 1, borderColor: "rgba(255,255,255,0.12)" }}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="construct" size={14} color="#E8A900" />
+                    <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_700Bold", fontSize: 12.5, color: "#E8A900", textAlign: "right" }}>مساهمة التأسيس (تقديرية)</Text>
+                  </View>
+                  <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff", textAlign: "right" }}>
+                    ≈ {profile.founder.contribution.hours.toLocaleString("ar-EG")} ساعة تطوع · ≈ {profile.founder.contribution.points.toLocaleString("ar-EG")} نقطة
+                  </Text>
+                  <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: "Cairo_500Medium", fontSize: 10.5, color: "rgba(255,255,255,0.75)", textAlign: "right" }}>{profile.founder.contribution.basis}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
 
@@ -535,6 +547,9 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text maxFontSizeMultiplier={1.15} style={[styles.cardTitleNoMb, { fontSize: 16 }]}>{vol.level.name}</Text>
                 <Text maxFontSizeMultiplier={1.15} style={styles.hint}>{vol.points} نقطة · {vol.tasks} مهمة · {vol.hours} ساعة تطوع</Text>
+                {profile.founder?.contribution ? (
+                  <Text maxFontSizeMultiplier={1.15} style={[styles.hint, { color: "#8A6A00" }]}>+ مساهمة التأسيس (تقديرية): ≈ {profile.founder.contribution.hours.toLocaleString("ar-EG")} ساعة · ≈ {profile.founder.contribution.points.toLocaleString("ar-EG")} نقطة</Text>
+                ) : null}
               </View>
               {vol.card && (
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 8, height: 26, borderRadius: 13, backgroundColor: "#0B1F3A" }}>
