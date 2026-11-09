@@ -160,8 +160,18 @@ jobs:
                   --passphrase-fd 3 -o "$OUT" 3<<<"$BACKUP_PASSPHRASE"
 
           # تحقق أن الملف المشفّر سليم ويُفك ويقرأه pg_restore
-          gpg --batch --pinentry-mode loopback --passphrase-fd 3 -d "$OUT" 3<<<"$BACKUP_PASSPHRASE" 2>/dev/null \
-            | /usr/lib/postgresql/18/bin/pg_restore --list >/dev/null
+          ls -l "$OUT"
+          set +e
+          gpg --batch --pinentry-mode loopback --passphrase-fd 3 -o restore-check.dump -d "$OUT" 3<<<"$BACKUP_PASSPHRASE" 2>gpg-check.log
+          G=$?
+          grep -v -i "passphrase" gpg-check.log || true
+          /usr/lib/postgresql/18/bin/pg_restore --list restore-check.dump > restore-list.txt 2>restore-check.err
+          R=$?
+          head -c 2000 restore-check.err
+          echo "objects in dump: $(grep -cv '^;' restore-list.txt || true)"
+          shred -u restore-check.dump 2>/dev/null || rm -f restore-check.dump
+          set -e
+          if [ "$G" -ne 0 ] || [ "$R" -ne 0 ]; then echo "::error::Backup verification failed (gpg=$G, pg_restore=$R)"; exit 1; fi
           ls -lh "$OUT"
           echo "BACKUP_FILE=$OUT" >> "$GITHUB_ENV"
           echo "### ✅ Backup OK — $OUT ($USERS users)" >> "$GITHUB_STEP_SUMMARY"
