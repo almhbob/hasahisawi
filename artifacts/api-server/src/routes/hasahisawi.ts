@@ -3886,15 +3886,17 @@ router.delete("/admin/ratings/:id", async (req: Request, res: Response) => {
   } catch (err) { return res.status(500).json({ error: "Server error" }); }
 });
 
-router.get("/stats", async (_req: Request, res: Response) => {
+router.get("/stats", async (req: Request, res: Response) => {
   try {
+    // العدد الحقيقي للمستخدمين يراه مدير التطبيق فقط
+    const admin = await isAdminRequest(req).catch(() => false);
     const [usersResult, postsResult, newsResult] = await Promise.all([
       query("SELECT COUNT(*)::int AS count FROM users"),
       query("SELECT COUNT(*)::int AS count FROM social_posts"),
       query("SELECT COUNT(*)::int AS count FROM city_news"),
     ]);
     return res.json({
-      users: usersResult.rows[0]?.count || 0,
+      ...(admin ? { users: usersResult.rows[0]?.count || 0 } : {}),
       posts: postsResult.rows[0]?.count || 0,
       news: newsResult.rows[0]?.count || 0,
     });

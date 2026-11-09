@@ -174,6 +174,19 @@ function completeness(u: any, certs: number, avatar: boolean) {
   return { percent: Math.round((done / items.length) * 100), missing: items.filter(([ok]) => !ok).map(([, l]) => l) };
 }
 
+/**
+ * مساهمة التأسيس — تقدير من سجل تطوير التطبيق (المستودع حتى 2026-11-09):
+ * 83 يوم عمل فعلي بين 2026-03-30 و2026-11-09، و1,934 تحديثاً.
+ * الساعات: 6 ساعات لكل يوم عمل. النقاط: سلّم التطوع في التطبيق يعدّ «يوماً كاملاً» مهمة كبيرة (50–100، الافتراضي 75).
+ * تُعرض منفصلة عن سجل نقاط التطوع فلا تؤثر في ترتيب المتطوعين.
+ */
+const FOUNDING_CONTRIBUTION = {
+  estimated: true,
+  days: 83, commits: 1934, since: "2026-03-30",
+  hours: 83 * 6, points: 83 * 75,
+  basis: "تقدير من 83 يوم عمل و1,934 تحديثاً في تطوير التطبيق منذ مارس 2026",
+};
+
 async function loadFull(id: number, viewerId: number | null, viewerStaff = false) {
   const u = (await query(
     `SELECT id, name, role, avatar_url, created_at, bio, neighborhood, headline, profession, skills, social_links, profile_locked, phone, email,
@@ -229,10 +242,13 @@ async function loadFull(id: number, viewerId: number | null, viewerStaff = false
     out.founder = {
       title: "مؤسس ومدير تطبيق حصاحيصاوي",
       volunteer: "سفير التطوع · راعي العمل التطوعي",
+      // العدد الحقيقي للمستخدمين يظهر للمؤسس وحده
       stats: [
-        { label: "مستخدم في المنصة", value: users }, { label: "منظمة ومبادرة", value: orgs },
+        ...(own ? [{ label: "مستخدم في المنصة (يظهر لك فقط)", value: users }] : []),
+        { label: "منظمة ومبادرة", value: orgs },
         { label: "متجر نشط", value: stores }, { label: "متابِع", value: followers },
       ],
+      contribution: FOUNDING_CONTRIBUTION,
     };
     if (!out.is_verified) { out.is_verified = true; out.verified_label = "المؤسس"; }
     if (!out.headline) out.headline = "مؤسس ومدير تطبيق حصاحيصاوي — خدمات مدينة الحصاحيصا في مكان واحد";
