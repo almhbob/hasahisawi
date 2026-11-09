@@ -15,6 +15,9 @@ name: Backup Hasahisawi Database (encrypted)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/backup-hasahisawi-db.yml']
   schedule:
     # يومياً 03:17 بتوقيت السعودية (00:17 UTC)
     - cron: '17 0 * * *'
@@ -42,9 +45,24 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VC_TEAM: team_RTCz9oaxsbHBdJHrSJNyJr5q
+          VC_PROJECT: prj_7NqIloolEKoPpF5JKr3KVWjapKVw   # api-server: نفس القاعدة التي يعمل بها التطبيق
         run: |
           set -euo pipefail
           URL="${DATABASE_URL:-}"
+          if [ -z "$URL" ] && [ -n "${VERCEL_TOKEN:-}" ]; then
+            URL=$(curl -sS "https://api.vercel.com/v10/projects/$VC_PROJECT/env?teamId=$VC_TEAM&decrypt=true" -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c '
+          import json, sys
+          try: d = json.load(sys.stdin)
+          except Exception: sys.exit(0)
+          if d.get("error"): print("::warning::Vercel env read failed: " + str(d["error"].get("message"))[:200], file=sys.stderr); sys.exit(0)
+          for e in d.get("envs") or []:
+              if e.get("key") == "DATABASE_URL" and "production" in (e.get("target") or []) and str(e.get("value","")).startswith("postgres"):
+                  print(e["value"]); break
+          ' || true)
+            [ -n "$URL" ] && echo "::notice title=backup source::Using the production API database URL from Vercel"
+          fi
           if [ -z "$URL" ] && [ -n "${RAILWAY_TOKEN:-}" ]; then
             Q=$(printf '{"query":"query { variables(projectId: \\"%s\\", environmentId: \\"%s\\", serviceId: \\"%s\\") }"}' "$RW_PROJECT" "$RW_ENV" "$RW_POSTGRES")
             fetch() { curl -sS -X POST https://backboard.railway.com/graphql/v2 -H "Content-Type: application/json" "$@" -d "$Q"; }
@@ -89,7 +107,7 @@ jobs:
           fi
           exit $missing
 
-      - name: Install PostgreSQL 17 client
+      - name: Install PostgreSQL 18 client (matches the server)
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
@@ -97,8 +115,8 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
-          /usr/lib/postgresql/17/bin/pg_dump --version
+          sudo apt-get install -y -qq postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Dump and encrypt
         env:
@@ -112,7 +130,7 @@ jobs:
           OUT="hasahisawi-${STAMP}.dump.gpg"
 
           # تأكيد أن القاعدة تعمل وتحتوي على المستخدمين قبل أخذ النسخة
-          USERS=$(/usr/lib/postgresql/17/bin/psql "$DATABASE_URL" -Atqc "SELECT count(*) FROM users" || echo "ERR")
+          USERS=$(/usr/lib/postgresql/18/bin/psql "$DATABASE_URL" -Atqc "SELECT count(*) FROM users" || echo "ERR")
           if [ "$USERS" = "ERR" ]; then
             echo "::error::Database is unreachable — nothing was backed up"
             exit 1
@@ -120,13 +138,13 @@ jobs:
           echo "users rows: $USERS"
 
           # الملف الخام لا يُكتب على القرص — يُشفَّر مباشرة من الـ pipe
-          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl \
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl \
             | gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
                   --passphrase-fd 3 -o "$OUT" 3<<<"$BACKUP_PASSPHRASE"
 
           # تحقق أن الملف المشفّر سليم ويُفك ويقرأه pg_restore
           gpg --batch --pinentry-mode loopback --passphrase-fd 3 -d "$OUT" 3<<<"$BACKUP_PASSPHRASE" 2>/dev/null \
-            | /usr/lib/postgresql/17/bin/pg_restore --list >/dev/null
+            | /usr/lib/postgresql/18/bin/pg_restore --list >/dev/null
           ls -lh "$OUT"
           echo "BACKUP_FILE=$OUT" >> "$GITHUB_ENV"
           echo "### ✅ Backup OK — $OUT ($USERS users)" >> "$GITHUB_STEP_SUMMARY"
