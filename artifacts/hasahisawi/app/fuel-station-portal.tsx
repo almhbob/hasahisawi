@@ -10,6 +10,7 @@ import {
   ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch,
   Text, TextInput, TouchableOpacity, View,
 } from "react-native";
+import HoursPicker from "@/components/HoursPicker";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -315,7 +316,7 @@ function ProfilePanel({ s, token, services, onSaved }: { s: FuelStation; token: 
         <View style={[st.check, f.is_24h && { backgroundColor: ACCENT, borderColor: ACCENT }]}>{f.is_24h && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
         <Text style={st.checkText}>تعمل 24 ساعة</Text>
       </TouchableOpacity>
-      {!f.is_24h && <Field label="مواعيد العمل" value={f.hours || ""} onChange={v => up({ hours: v })} placeholder="مثال: 6 صباحاً – 11 مساءً" />}
+      {!f.is_24h && <HoursPicker value={f.hours || ""} onChange={v => up({ hours: v })} label="مواعيد العمل" allow24={false} />}
 
       <Text style={st.section}>الخدمات المتوفرة</Text>
       <View style={st.svcGrid}>

@@ -2,6 +2,7 @@
 // الإعدادات، معرض المشاريع (قبل/بعد)، صندوق طلبات الأسعار، مولّد العقود، التوظيف وطلب العمال، إدارة الطاقم.
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable, TextInput, ActivityIndicator, StyleSheet, Image, Linking, Share, Modal, Switch } from "react-native";
+import HoursPicker from "@/components/HoursPicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -244,7 +245,7 @@ function Settings({ company: c, meta, onSaved }: { company: Company; meta: Meta;
           <View style={{ flex: 1 }}><Field label="عدد العاملين" value={f.team_size} onChange={set("team_size")} keyboard="numeric" /></View>
         </View>
         <Field label="رقم الترخيص / السجل التجاري" value={f.license_no} onChange={set("license_no")} />
-        <Field label="ساعات العمل" value={f.working_hours} onChange={set("working_hours")} placeholder="السبت–الخميس 8ص–5م" />
+        <HoursPicker value={f.working_hours || ""} onChange={set("working_hours")} label="ساعات العمل" />
       </View>
       <View style={[u.card, { marginTop: 12 }]}>
         <Text style={u.h}>التواصل</Text>

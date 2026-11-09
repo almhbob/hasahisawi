@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import HoursPicker from "@/components/HoursPicker";
 import * as ImagePicker from "expo-image-picker";
 import { compressImage } from "@/lib/compress-image";
 import { uploadMarketImage } from "@/lib/firebase/storage";
@@ -1871,7 +1872,6 @@ export default function MarketScreen() {
                           { label:"رقم الهاتف *",        key:"phone",         ph:"+249XXXXXXXXX" },
                           { label:"واتساب",              key:"whatsapp",      ph:"+249XXXXXXXXX" },
                           { label:"العنوان",             key:"address",       ph:"الحي / الشارع" },
-                          { label:"ساعات العمل",         key:"working_hours", ph:"مثال: ٨ص–١٢م، ٤م–١٢م" },
                           { label:"فيسبوك",             key:"facebook",      ph:"رابط صفحة الفيسبوك" },
                         ] as {label:string;key:keyof typeof phoneRegForm;ph:string}[]).map(f=>(
                           <View key={f.key} style={{ marginBottom:12 }}>
@@ -1881,6 +1881,7 @@ export default function MarketScreen() {
                               style={{ backgroundColor:Colors.bg, borderRadius:12, padding:12, fontFamily:"Cairo_400Regular", fontSize:14, color:Colors.textPrimary, borderWidth:1, borderColor:Colors.divider, textAlign:"right" }} />
                           </View>
                         ))}
+                        <View style={{ marginBottom: 12 }}><HoursPicker value={(phoneRegForm as any).working_hours || ""} onChange={v=>setPhoneRegForm(pf=>({...pf, working_hours: v} as any))} label="ساعات العمل" /></View>
                         {/* Specialties */}
                         <Text style={{ fontFamily:"Cairo_600SemiBold", fontSize:13, color:Colors.textSecondary, textAlign:"right", marginBottom:8 }}>تخصصات المتجر</Text>
                         <View style={{ flexDirection:"row-reverse", flexWrap:"wrap", gap:8, marginBottom:16 }}>
