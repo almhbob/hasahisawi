@@ -15,7 +15,8 @@
         "maxDuration": 60,
         "maxLambdaSize": "50mb",
         "includeFiles": [
-          "dist/**"
+          "dist/**",
+          "public/member-card/**"
         ]
       }
     }

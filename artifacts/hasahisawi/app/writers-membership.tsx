@@ -10,7 +10,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { notify } from "@/lib/xplatform";
-import { membersApi, REF_KEY, type MembershipMe, type MemberCategory, type Badge } from "@/lib/lit-members";
+import { membersApi, REF_KEY, type MembershipMe, type MemberCategory, type Badge, type EditRequest, type PrintMeta, type PrintOrder } from "@/lib/lit-members";
+import { EditDataSheet, CardViewer, PrintOrderSheet } from "@/components/lit/MemberTools";
 import { WINE, GOLD, INK } from "@/lib/lit";
 import MemberCard from "@/components/lit/MemberCard";
 import IntlMemberCard from "@/components/lit/IntlMemberCard";
@@ -28,6 +29,12 @@ export default function MembershipScreen() {
   const [meta, setMeta] = useState<{ categories: MemberCategory[]; badges: Badge[]; rules: { inactive_days: number } } | null>(null);
   const [loading, setLoading] = useState(true);
   const [face, setFace] = useState<"local" | "intl" | null>(null);
+  const [viewer, setViewer] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [edit, setEdit] = useState<EditRequest | null>(null);
+  const [printMeta, setPrintMeta] = useState<PrintMeta | null>(null);
+  const [orders, setOrders] = useState<PrintOrder[]>([]);
 
   useEffect(() => { if (params.ref) AsyncStorage.setItem(REF_KEY, String(params.ref)).catch(() => {}); }, [params.ref]);
   const load = useCallback(async () => {
@@ -35,6 +42,12 @@ export default function MembershipScreen() {
     try {
       const [m, x] = await Promise.all([membersApi.meta().catch(() => null), signedIn ? membersApi.me(token!).catch(() => null) : Promise.resolve(null)]);
       setMeta(m); setMe(x);
+      if (x?.member && token) {
+        const [e, pm, po] = await Promise.all([
+          membersApi.myEdit(token).catch(() => null), membersApi.printMeta().catch(() => null), membersApi.printMine(token).catch(() => null),
+        ]);
+        setEdit(e?.request ?? null); setPrintMeta(pm); setOrders(po?.orders ?? []);
+      }
     } finally { setLoading(false); }
   }, [signedIn, token]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -44,6 +57,12 @@ export default function MembershipScreen() {
   const cardW = Math.min(width - 32, 380);
   const apply = () => (signedIn ? router.push("/writers-apply" as any) : notify("سجّل الدخول", "سجّل الدخول لتقديم استمارة العضوية."));
   const renew = async () => { try { const r = await membersApi.renew(token!); notify("تم", r.message); load(); } catch (e: any) { notify("تعذّر", e?.message); } };
+  const curFace: "local" | "intl" = face ?? (m?.international ? "intl" : "local");
+  const canIntl = !!m && (m.international || !!m.name_en);
+  const hasCard = !!m && ["active", "suspended", "expired"].includes(m.status);
+  const canPrint = !!m && m.status === "active" && !!printMeta?.enabled;
+  const renderCard = (w: number) => (curFace === "intl" && canIntl ? <IntlMemberCard m={m!} width={w} /> : <MemberCard m={m!} badges={me!.badges} width={w} />);
+  const cancelOrder = async (id: number) => { try { await membersApi.printCancel(token!, id); load(); } catch (e: any) { notify("تعذّر", e?.message); } };
   const daysToExpiry = m?.valid_until ? Math.ceil((new Date(m.valid_until).getTime() - Date.now()) / 86400000) : null;
 
   return (
@@ -82,9 +101,14 @@ export default function MembershipScreen() {
                         ))}
                       </View>
                     )}
-                    <View style={{ marginTop: canIntl ? 10 : 18 }}>
+                    <Pressable onPress={() => hasCard && setViewer(true)} style={{ marginTop: canIntl ? 10 : 18 }} accessibilityRole="imagebutton" accessibilityLabel="تكبير البطاقة">
                       {f === "intl" && canIntl ? <IntlMemberCard m={m} width={cardW} /> : <MemberCard m={m} badges={me!.badges} width={cardW} />}
-                    </View>
+                    </Pressable>
+                    {hasCard ? (
+                      <Pressable onPress={() => setViewer(true)} style={st.zoomTag} accessibilityRole="button">
+                        <Ionicons name="expand" size={14} color={m.color} /><Text style={[st.zoomT, { color: m.color }]}>تكبير البطاقة وحفظها</Text>
+                      </Pressable>
+                    ) : null}
                     {m.international && <Text style={st.faceNote}>منتسب دولي · {countryOf(m.country).ar} — بطاقتك ثنائية اللغة وقابلة للتحقق برمز QR من أي دولة.</Text>}
                     {!canIntl && <Text style={st.faceNote}>أضف اسمك بالإنجليزية من «تعديل الاستمارة» لتحصل على الوجه الدولي للبطاقة.</Text>}
                   </>
@@ -109,6 +133,47 @@ export default function MembershipScreen() {
               )}
               {m.status === "active" && daysToExpiry != null && daysToExpiry <= 45 && (
                 <Notice c="#2B6CB0" i="refresh-circle" t={`تنتهي العضوية خلال ${daysToExpiry} يوماً`} d={m.renewal_requested_at ? "طلب التجديد قيد المراجعة." : "اطلب التجديد الآن لتستمر بطاقتك دون انقطاع."} action={m.renewal_requested_at ? undefined : "طلب التجديد"} onAction={renew} />
+              )}
+
+              {hasCard && (
+                <View style={[u.card, { marginTop: 14, gap: 8 }]}>
+                  <View style={[u.rowR, { justifyContent: "space-between" }]}>
+                    <View style={[u.rowR, { gap: 6 }]}><Ionicons name="person-circle" size={18} color={WINE} /><Text style={st.h}>بياناتي على البطاقة</Text></View>
+                    {edit?.status !== "pending" && <Pressable onPress={() => setEditOpen(true)} style={st.linkBtn} accessibilityRole="button"><Ionicons name="create-outline" size={14} color={WINE} /><Text style={st.linkT}>طلب تعديل</Text></Pressable>}
+                  </View>
+                  {edit?.status === "pending" && <Text style={[u.hint, { color: "#B7791F" }]}>⏳ طلب التعديل قيد مراجعة الإدارة — أُرسل {new Date(edit.created_at).toLocaleDateString("ar-EG")}</Text>}
+                  {edit?.status === "rejected" && <Text style={[u.hint, { color: "#C0392B" }]}>لم يُعتمد آخر طلب تعديل: {edit.admin_note}</Text>}
+                  {edit?.status === "applied" && <Text style={[u.hint, { color: "#0E8A5F" }]}>✓ اعتُمد آخر تعديل في {new Date(edit.created_at).toLocaleDateString("ar-EG")}</Text>}
+                  {!edit && <Text style={u.hint}>غيّر اسمك أو اسمك الأدبي أو هاتفك أو نبذتك — تراجعها الإدارة ثم تظهر على بطاقتك.</Text>}
+                </View>
+              )}
+
+              {canPrint && (
+                <Pressable onPress={() => setPrintOpen(true)} style={st.printCard} accessibilityRole="button">
+                  <View style={st.printIcon}><Ionicons name="print" size={22} color="#2E2200" /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.printT}>اطلب بطاقتك مطبوعة</Text>
+                    <Text style={st.printS}>نسخة ورقية فاخرة تُسلَّم لك · تبدأ من {printMeta!.price_standard.toLocaleString("ar-EG")} {printMeta!.currency}</Text>
+                  </View>
+                  <Ionicons name="chevron-back" size={18} color="#2E2200" />
+                </Pressable>
+              )}
+              {orders.length > 0 && (
+                <View style={[u.card, { marginTop: 10, gap: 8 }]}>
+                  <Text style={st.h}>طلبات الطباعة</Text>
+                  {orders.map((o) => (
+                    <View key={o.id} style={st.orderRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.orderT}>{o.qty.toLocaleString("ar-EG")} × {o.size_label}</Text>
+                        <Text style={u.hint}>{o.delivery === "delivery" ? "توصيل" : "استلام شخصي"} · {o.total.toLocaleString("ar-EG")} {o.currency}{o.admin_note ? ` · ${o.admin_note}` : ""}</Text>
+                      </View>
+                      <View style={{ alignItems: "flex-start", gap: 4 }}>
+                        <Text style={[st.orderSt, { color: o.status === "cancelled" ? "#7A8794" : o.status === "ready" || o.status === "delivered" ? "#0E8A5F" : "#B7791F" }]}>{o.status_label}</Text>
+                        {o.status === "pending" && <Pressable onPress={() => cancelOrder(o.id)}><Text style={[st.linkT, { color: "#C0392B" }]}>إلغاء</Text></Pressable>}
+                      </View>
+                    </View>
+                  ))}
+                </View>
               )}
 
               <View style={[u.rowR, { gap: 8, marginTop: 14 }]}>
@@ -177,6 +242,14 @@ export default function MembershipScreen() {
           )}
         </View>
       </ScrollView>
+      {m && hasCard && (
+        <>
+          <CardViewer visible={viewer} onClose={() => setViewer(false)} render={renderCard} name={m.member_no || "member"}
+            onPrint={canPrint ? () => { setViewer(false); setPrintOpen(true); } : undefined} />
+          <EditDataSheet visible={editOpen} onClose={() => setEditOpen(false)} member={m} mode="request" token={token!} onDone={load} />
+          {printMeta && <PrintOrderSheet visible={printOpen} onClose={() => setPrintOpen(false)} token={token!} member={m} meta={printMeta} face={curFace} onDone={load} />}
+        </>
+      )}
     </View>
   );
 }
@@ -215,6 +288,17 @@ function BadgesGrid({ all, earned }: { all: Badge[]; earned: string[] }) {
 }
 
 const st = StyleSheet.create({
+  zoomTag: { flexDirection: "row-reverse", alignItems: "center", alignSelf: "center", gap: 5, marginTop: 8, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.divider },
+  zoomT: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+  linkBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: WINE + "12" },
+  linkT: { fontFamily: "Cairo_700Bold", fontSize: 12.5, color: WINE },
+  printCard: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 12, padding: 14, borderRadius: 18, backgroundColor: GOLD + "26", borderWidth: 1, borderColor: GOLD + "70" },
+  printIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
+  printT: { fontFamily: "Cairo_700Bold", fontSize: 15, color: INK, textAlign: "right" },
+  printS: { fontFamily: "Cairo_500Medium", fontSize: 12, color: "#5C4600", textAlign: "right" },
+  orderRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: Colors.divider },
+  orderT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "right" },
+  orderSt: { fontFamily: "Cairo_700Bold", fontSize: 12 },
   faceRow: { flexDirection: "row-reverse", gap: 8, marginTop: 18, justifyContent: "center" },
   faceBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, borderWidth: 1, borderColor: Colors.divider, backgroundColor: Colors.cardBg },
   faceT: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary },

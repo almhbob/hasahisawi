@@ -12,8 +12,10 @@ import { membersApi, MEMBER_STATUS, type Member } from "@/lib/lit-members";
 import { WINE, GOLD, INK } from "@/lib/lit";
 import { Pill, Empty, ithraaStyles as u } from "@/components/ithraa/ui";
 import { flagOf, countryOf } from "@/lib/countries";
+import { AdminEdits, AdminPrint } from "@/components/lit/MemberAdminTools";
+import { EditDataSheet } from "@/components/lit/MemberTools";
 
-const TABS: [string, string][] = [["pending", "طلبات جديدة"], ["renewals", "طلبات التجديد"], ["active", "سارية"], ["suspended", "معلّقة"], ["expired", "منتهية"], ["rejected", "مرفوضة"]];
+const TABS: [string, string][] = [["pending", "طلبات جديدة"], ["edits", "طلبات تعديل البيانات"], ["print", "طباعة البطاقات"], ["renewals", "طلبات التجديد"], ["active", "سارية"], ["suspended", "معلّقة"], ["expired", "منتهية"], ["rejected", "مرفوضة"]];
 const AWARD_ICONS = ["ribbon", "medal", "trophy", "star", "diamond", "flame", "sparkles"];
 
 export default function MembersAdmin() {
@@ -23,13 +25,15 @@ export default function MembersAdmin() {
   const [data, setData] = useState<{ members: Member[]; counts: Record<string, number> } | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editsPending, setEditsPending] = useState(0);
+  const special = tab === "edits" || tab === "print";
 
   const load = useCallback(async () => {
-    if (!token) return;
+    if (!token || tab === "edits" || tab === "print") { setLoading(false); return; }
     setLoading(true);
     try { setData(await membersApi.list(token, tab)); } catch (e: any) { notify("تعذّر التحميل", e?.message); } finally { setLoading(false); }
   }, [token, tab]);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); if (token) membersApi.edits(token).then((r) => setEditsPending(r.pending)).catch(() => {}); }, [load, token]));
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
@@ -40,12 +44,14 @@ export default function MembersAdmin() {
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={WINE} />} keyboardShouldPersistTaps="handled">
         <View style={u.wrap}>
-          {TABS.map(([k, l]) => <Pill key={k} label={`${l}${data?.counts[k] ? ` (${data.counts[k]})` : ""}`} on={tab === k} onPress={() => { setTab(k); setOpen(null); }} color={k === "pending" || k === "renewals" ? "#B7791F" : WINE} />)}
+          {TABS.map(([k, l]) => <Pill key={k} label={`${l}${k === "edits" ? (editsPending ? ` (${editsPending})` : "") : data?.counts[k] ? ` (${data.counts[k]})` : ""}`} on={tab === k} onPress={() => { setTab(k); setOpen(null); }} color={k === "pending" || k === "renewals" || k === "edits" ? "#B7791F" : WINE} />)}
         </View>
-        <Text style={[u.hint, { marginTop: 8 }]}>التعليق التلقائي يعمل كل ساعة: عضو لم ينشر 30 يوماً تُعلّق عضويته ويُنبَّه قبلها بأسبوع، وتعود فور نشره نصاً معتمداً.</Text>
-        {loading && <ActivityIndicator color={WINE} style={{ marginTop: 24 }} />}
-        {!loading && data?.members.map((m) => <MemberRow key={m.id} m={m} token={token!} open={open === m.id} onToggle={() => setOpen(open === m.id ? null : m.id)} onDone={load} />)}
-        {!loading && !data?.members.length && <Empty icon="id-card-outline" title="لا شيء هنا" />}
+        {tab === "edits" && token ? <View style={{ marginTop: 12 }}><AdminEdits token={token} onCount={setEditsPending} /></View> : null}
+        {tab === "print" && token ? <View style={{ marginTop: 12 }}><AdminPrint token={token} /></View> : null}
+        {!special && <Text style={[u.hint, { marginTop: 8 }]}>التعليق التلقائي يعمل كل ساعة: عضو لم ينشر 30 يوماً تُعلّق عضويته ويُنبَّه قبلها بأسبوع، وتعود فور نشره نصاً معتمداً.</Text>}
+        {!special && loading && <ActivityIndicator color={WINE} style={{ marginTop: 24 }} />}
+        {!special && !loading && data?.members.map((m) => <MemberRow key={m.id} m={m} token={token!} open={open === m.id} onToggle={() => setOpen(open === m.id ? null : m.id)} onDone={load} />)}
+        {!special && !loading && !data?.members.length && <Empty icon="id-card-outline" title="لا شيء هنا" />}
       </ScrollView>
     </View>
   );
@@ -55,6 +61,7 @@ function MemberRow({ m, token, open, onToggle, onDone }: { m: Member; token: str
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [award, setAward] = useState({ title: "", description: "", icon: "ribbon" });
+  const [editOpen, setEditOpen] = useState(false);
   const st0 = MEMBER_STATUS[m.status];
   const inactiveDays = m.last_activity_at ? Math.floor((Date.now() - new Date(m.last_activity_at).getTime()) / 86400000) : null;
   const act = async (action: string, confirm?: string) => {
@@ -113,7 +120,9 @@ function MemberRow({ m, token, open, onToggle, onDone }: { m: Member; token: str
             {["active", "expired", "suspended"].includes(m.status) && <Btn l="تجديد لعام" c="#2B6CB0" i="refresh-circle" on={() => act("renew", "تجديد العضوية لعام")} busy={busy} />}
             {m.status === "active" && <Btn l="تعليق" c="#C2580A" i="pause-circle" on={() => act("suspend", "تعليق العضوية")} busy={busy} />}
             {m.status === "suspended" && <Btn l="إعادة تفعيل" c="#0E8A5F" i="play-circle" on={() => act("reactivate")} busy={busy} />}
+            {m.status !== "pending" && m.status !== "rejected" && <Btn l="تعديل البيانات" c={INK} i="create" on={() => setEditOpen(true)} busy={busy} />}
           </View>
+          <EditDataSheet visible={editOpen} onClose={() => setEditOpen(false)} member={m} mode="admin" token={token} onDone={onDone} />
 
           {m.status !== "pending" && m.status !== "rejected" && (
             <View style={st.awardBox}>
