@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Colors from "@/constants/colors";
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Platform,
+  ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,8 +12,12 @@ import { router } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, fetchWithTimeout } from "@/lib/query-client";
 
-const MED = "#10B981";
-const MED2 = "#6EE7B7";
+const MED = "#00966A";   // أخضر الهوية
+const DEEP = "#004D36";
+const GOLD = "#E8A900";
+
+/** أرقام عربية/فارسية ← لاتينية، وفاصلة عشرية عربية ← نقطة */
+const toLatin = (v: string) => v.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0)).replace(/[٫،,]/g, ".");
 
 const BLOOD_TYPES = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−", "غير معروف"];
 
@@ -26,11 +30,13 @@ function ChipSelect({ options, selected, onSelect }: { options: string[]; select
           onPress={() => onSelect(opt)}
           style={{
             paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20,
-            backgroundColor: selected === opt ? MED : "#FFFFFF0D",
-            borderWidth: 1, borderColor: selected === opt ? MED : "#FFFFFF15",
+            backgroundColor: selected === opt ? MED : Colors.bg,
+            borderWidth: 1, borderColor: selected === opt ? MED : Colors.divider,
           }}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: selected === opt }}
         >
-          <Text style={{ fontFamily: "Cairo_600SemiBold", fontSize: 13, color: selected === opt ? "#fff" : "#94A3B8" }}>{opt}</Text>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: selected === opt ? "#fff" : Colors.textPrimary }}>{opt}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -81,6 +87,12 @@ export default function MedicalRecordSetupScreen() {
 
   async function save() {
     if (!token) return Alert.alert("خطأ", "يجب تسجيل الدخول أولاً");
+    const h = height.trim() ? Number(toLatin(height.trim())) : null;
+    const w = weight.trim() ? Number(toLatin(weight.trim())) : null;
+    if (h !== null && (!Number.isFinite(h) || h < 40 || h > 250)) return Alert.alert("الطول", "أدخل الطول بالسنتيمتر بين 40 و250");
+    if (w !== null && (!Number.isFinite(w) || w < 2 || w > 300)) return Alert.alert("الوزن", "أدخل الوزن بالكيلوجرام بين 2 و300");
+    const phone = toLatin(emergencyPhone).replace(/[^\d+]/g, "");
+    if (phone && phone.replace(/\D/g, "").length < 9) return Alert.alert("رقم الطوارئ", "رقم الهاتف غير مكتمل");
     setLoading(true);
     try {
       const res = await fetchWithTimeout(`${getApiUrl()}/api/medical/my-record`, {
@@ -92,14 +104,14 @@ export default function MedicalRecordSetupScreen() {
           chronic_conditions: chronicConditions.trim() || null,
           current_medications: currentMeds.trim() || null,
           emergency_contact_name: emergencyName.trim() || null,
-          emergency_contact_phone: emergencyPhone.trim() || null,
+          emergency_contact_phone: phone || null,
           emergency_contact_relation: emergencyRelation.trim() || null,
-          height_cm: height ? Number(height) : null,
-          weight_kg: weight ? Number(weight) : null,
+          height_cm: h,
+          weight_kg: w,
           notes: notes.trim() || null,
         }),
       });
-      const d = await res.json();
+      const d = await res.json().catch(() => ({}));
       if (res.ok) {
         Alert.alert("✅ تم الحفظ", "تم تحديث ملفك الطبي بنجاح", [
           { text: "رجوع", onPress: () => router.back() },
@@ -115,25 +127,27 @@ export default function MedicalRecordSetupScreen() {
 
   if (fetching) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#060D1F", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color={MED} size="large" />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#060D1F" }}>
-      <LinearGradient colors={["#064E3B", "#065F46"]} style={{ paddingTop: insets.top + 8, paddingBottom: 14 }}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <LinearGradient colors={[MED, DEEP]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={{ paddingTop: insets.top + 8, paddingBottom: 14 }}>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 16, gap: 10 }}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF18", alignItems: "center", justifyContent: "center" }}
+            style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" }}
+            accessibilityRole="button"
+            accessibilityLabel="رجوع"
           >
-            <Ionicons name="arrow-back" size={22} color={MED2} />
+            <Ionicons name="chevron-forward" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 18, color: "#fff" }}>الملف الطبي</Text>
-            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: MED2, marginTop: 1 }}>معلوماتك الصحية وجهة الاتصال الطارئ</Text>
+            <Text style={{ fontFamily: "Cairo_500Medium", fontSize: 12, color: "rgba(255,255,255,0.88)", marginTop: 1 }}>معلوماتك الصحية وجهة الاتصال الطارئ</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -146,7 +160,7 @@ export default function MedicalRecordSetupScreen() {
       >
         {/* فصيلة الدم */}
         <Animated.View entering={FadeInDown.delay(50)} style={sectionStyle}>
-          <SectionHeader icon="water-outline" label="فصيلة الدم" color="#EF4444" />
+          <SectionHeader icon="water-outline" label="فصيلة الدم" color={MED} />
           <ChipSelect options={BLOOD_TYPES} selected={bloodType} onSelect={setBloodType} />
         </Animated.View>
 
@@ -161,7 +175,8 @@ export default function MedicalRecordSetupScreen() {
                 onChangeText={setHeight}
                 placeholder="مثال: 175"
                 placeholderTextColor={Colors.textMuted}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
+                maxLength={5}
                 style={inputStyle}
               />
             </View>
@@ -172,7 +187,8 @@ export default function MedicalRecordSetupScreen() {
                 onChangeText={setWeight}
                 placeholder="مثال: 70"
                 placeholderTextColor={Colors.textMuted}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
+                maxLength={5}
                 style={inputStyle}
               />
             </View>
@@ -181,7 +197,7 @@ export default function MedicalRecordSetupScreen() {
 
         {/* الحساسية */}
         <Animated.View entering={FadeInDown.delay(150)} style={sectionStyle}>
-          <SectionHeader icon="alert-circle-outline" label="الحساسية" color="#F59E0B" />
+          <SectionHeader icon="alert-circle-outline" label="الحساسية" color={GOLD} />
           <TextInput
             value={allergies}
             onChangeText={setAllergies}
@@ -195,7 +211,7 @@ export default function MedicalRecordSetupScreen() {
 
         {/* الأمراض المزمنة */}
         <Animated.View entering={FadeInDown.delay(200)} style={sectionStyle}>
-          <SectionHeader icon="fitness-outline" label="الأمراض المزمنة" color="#1F5C8A" />
+          <SectionHeader icon="fitness-outline" label="الأمراض المزمنة" color={DEEP} />
           <TextInput
             value={chronicConditions}
             onChangeText={setChronicConditions}
@@ -209,7 +225,7 @@ export default function MedicalRecordSetupScreen() {
 
         {/* الأدوية الحالية */}
         <Animated.View entering={FadeInDown.delay(250)} style={sectionStyle}>
-          <SectionHeader icon="medical-outline" label="الأدوية الحالية" color="#3B82F6" />
+          <SectionHeader icon="medical-outline" label="الأدوية الحالية" color={MED} />
           <TextInput
             value={currentMeds}
             onChangeText={setCurrentMeds}
@@ -223,7 +239,7 @@ export default function MedicalRecordSetupScreen() {
 
         {/* جهة الاتصال الطارئ */}
         <Animated.View entering={FadeInDown.delay(300)} style={sectionStyle}>
-          <SectionHeader icon="call-outline" label="جهة الاتصال في حالات الطوارئ" color="#EF4444" />
+          <SectionHeader icon="call-outline" label="جهة الاتصال في حالات الطوارئ" color={GOLD} />
           <View style={{ gap: 10, marginTop: 8 }}>
             <View>
               <Text style={labelStyle}>الاسم</Text>
@@ -240,7 +256,7 @@ export default function MedicalRecordSetupScreen() {
               <TextInput
                 value={emergencyPhone}
                 onChangeText={setEmergencyPhone}
-                placeholder="05XXXXXXXX"
+                placeholder="مثال: 0912345678"
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="phone-pad"
                 style={inputStyle}
@@ -261,7 +277,7 @@ export default function MedicalRecordSetupScreen() {
 
         {/* ملاحظات إضافية */}
         <Animated.View entering={FadeInDown.delay(350)} style={sectionStyle}>
-          <SectionHeader icon="document-text-outline" label="ملاحظات طبية إضافية" color={Colors.textMuted} />
+          <SectionHeader icon="document-text-outline" label="ملاحظات طبية إضافية" color={DEEP} />
           <TextInput
             value={notes}
             onChangeText={setNotes}
@@ -276,7 +292,7 @@ export default function MedicalRecordSetupScreen() {
         {/* زر الحفظ */}
         <Animated.View entering={FadeInDown.delay(400)}>
           <TouchableOpacity onPress={save} disabled={loading} style={{ borderRadius: 16, overflow: "hidden", marginTop: 8 }}>
-            <LinearGradient colors={["#059669", "#10B981"]} style={{ paddingVertical: 16, alignItems: "center", justifyContent: "center", flexDirection: "row-reverse", gap: 8 }}>
+            <LinearGradient colors={[MED, DEEP]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 0 }} style={{ paddingVertical: 16, alignItems: "center", justifyContent: "center", flexDirection: "row-reverse", gap: 8 }}>
               {loading
                 ? <ActivityIndicator color="#fff" />
                 : <>
@@ -288,7 +304,7 @@ export default function MedicalRecordSetupScreen() {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -298,28 +314,28 @@ function SectionHeader({ icon, label, color }: { icon: any; label: string; color
       <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: color + "20", alignItems: "center", justifyContent: "center" }}>
         <Ionicons name={icon} size={18} color={color} />
       </View>
-      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" }}>{label}</Text>
+      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 14.5, color: Colors.textPrimary }}>{label}</Text>
     </View>
   );
 }
 
 const sectionStyle: any = {
-  backgroundColor: "#0A1627",
+  backgroundColor: Colors.cardBg,
   borderRadius: 18,
   borderWidth: 1,
-  borderColor: "#1E293B",
+  borderColor: Colors.divider,
   padding: 14,
   marginBottom: 14,
 };
 
 const inputStyle: any = {
-  backgroundColor: "#FFFFFF0D",
+  backgroundColor: Colors.bg,
   borderRadius: 12,
   borderWidth: 1,
-  borderColor: "#FFFFFF18",
+  borderColor: Colors.divider,
   padding: 12,
-  color: "#fff",
-  fontFamily: "Cairo_400Regular",
+  color: Colors.textPrimary,
+  fontFamily: "Cairo_500Medium",
   fontSize: 14,
   textAlign: "right",
 };
@@ -327,7 +343,7 @@ const inputStyle: any = {
 const labelStyle: any = {
   fontFamily: "Cairo_600SemiBold",
   fontSize: 13,
-  color: Colors.textMuted,
+  color: Colors.textSecondary,
   textAlign: "right",
   marginBottom: 6,
 };
