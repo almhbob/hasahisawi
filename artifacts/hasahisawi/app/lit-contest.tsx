@@ -79,7 +79,7 @@ export default function LitContestScreen() {
             <View style={[u.rowR, { gap: 8 }]}>
               {d.me.judge && <Pressable onPress={() => router.push({ pathname: "/lit-contest-judge", params: { id: String(c.id) } } as any)} style={st.mgrBtn}><Ionicons name="star-half" size={15} color={INK} /><Text style={st.mgrT}>التحكيم</Text></Pressable>}
               {d.me.supervisor && <Pressable onPress={() => router.push({ pathname: "/lit-contest-manage", params: { id: String(c.id) } } as any)} style={st.mgrBtn}><Ionicons name="settings" size={15} color={INK} /><Text style={st.mgrT}>الإدارة</Text></Pressable>}
-              <Pressable onPress={() => Share.share({ message: `🏆 ${c.title}${c.edition ? ` — ${c.edition}` : ""}\n${c.slogan || ""}\nشارك بنصك عبر تطبيق حصاحيصاوي: https://hasahisawi.pages.dev/lit-contest?id=${c.id}` }).catch(() => {})} style={st.iconBtn} accessibilityLabel="مشاركة"><Ionicons name="share-social" size={18} color="#fff" /></Pressable>
+              <Pressable onPress={() => Share.share({ message: `🏆 ${c.title}${c.edition ? ` — ${c.edition}` : ""}\n${c.slogan || ""}\nشارك بنصك عبر تطبيق حصاحيصاوي: https://almhbob.github.io/hasahisawi/lit-contest?id=${c.id}` }).catch(() => {})} style={st.iconBtn} accessibilityLabel="مشاركة"><Ionicons name="share-social" size={18} color="#fff" /></Pressable>
             </View>
           </View>
           <View style={{ alignItems: "center", marginTop: 8 }}>

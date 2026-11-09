@@ -18,7 +18,7 @@ import { ensureWritersDb, isWritersReviewer, notifyLit } from "./ithraa-writers"
 
 const router = Router();
 const API_BASE = (process.env.PUBLIC_API_BASE || "https://api-server-gilt-ten.vercel.app").replace(/\/$/, "");
-const WEB = "https://hasahisawi.pages.dev";
+const WEB = "https://almhbob.github.io/hasahisawi";
 const INACTIVE_DAYS = 30;
 const WARN_DAYS = 23;
 

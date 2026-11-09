@@ -10,7 +10,7 @@ export type InviteMe = {
 export type InviteLeader = { id: number; name: string; avatar_url: string | null; count: number; points: number };
 
 export const PLAY_URL = "https://play.google.com/store/apps/details?id=com.almhbob.hasahisawi";
-export const WEB_APP_URL = "https://hasahisawi.pages.dev";
+export const WEB_APP_URL = "https://almhbob.github.io/hasahisawi";
 const PENDING_KEY = "pending_invite_ref_v1";
 
 async function call<T>(path: string, token?: string | null, init: RequestInit = {}): Promise<T> {

@@ -16403,7 +16403,7 @@ router.post("/admin/travel-agencies/invitations", async (req: Request, res: Resp
        agency_type||"local", note?.trim()||"", expiryDays]
     );
     const inv = r.rows[0];
-    const appUrl = process.env.APP_URL || "https://hasahisawi.pages.dev";
+    const appUrl = process.env.APP_URL || "https://almhbob.github.io/hasahisawi";
     return res.status(201).json({ ...inv, link: `${appUrl}/travel-agencies?invite=${token}` });
   } catch (e: any) { logger.error({ err: e?.message }, "[invitations/create]"); return res.status(500).json({ error: "Server error" }); }
 });
@@ -16419,7 +16419,7 @@ router.get("/admin/travel-agencies/invitations", async (req: Request, res: Respo
        LEFT JOIN travel_agency_applications a ON a.id=i.application_id
        ORDER BY i.created_at DESC`
     );
-    const appUrl = process.env.APP_URL || "https://hasahisawi.pages.dev";
+    const appUrl = process.env.APP_URL || "https://almhbob.github.io/hasahisawi";
     const rows = r.rows.map(inv => ({
       ...inv,
       is_expired: new Date(inv.expires_at) < new Date(),

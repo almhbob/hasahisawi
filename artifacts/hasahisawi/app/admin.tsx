@@ -1843,7 +1843,7 @@ function AdminJoinRequestsTab({ token, apiBase }: { token: string; apiBase: stri
   }
 
   function copyInviteLink(inv: { invite_link?: string; token?: string }) {
-    const link = inv.invite_link || (inv.token ? `https://hasahisawi.pages.dev/travel-agencies?invite=${inv.token}` : "");
+    const link = inv.invite_link || (inv.token ? `https://almhbob.github.io/hasahisawi/travel-agencies?invite=${inv.token}` : "");
     if (!link) return;
     if (Platform.OS === "web") {
       (globalThis as any).navigator?.clipboard?.writeText(link)

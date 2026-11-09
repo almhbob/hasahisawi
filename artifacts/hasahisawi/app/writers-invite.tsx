@@ -14,7 +14,7 @@ import { membersApi } from "@/lib/lit-members";
 import { WINE, GOLD, INK } from "@/lib/lit";
 import { ithraaStyles as u } from "@/components/ithraa/ui";
 
-const WEB = "https://hasahisawi.pages.dev";
+const WEB = "https://almhbob.github.io/hasahisawi";
 type Aud = "individual" | "institution" | "union" | "media";
 const AUD: { key: Aud; label: string; sub: string; icon: string; color: string }[] = [
   { key: "individual", label: "الأفراد", sub: "كاتب، شاعر، قاص، صديق مبدع", icon: "person", color: "#7A2E3A" },

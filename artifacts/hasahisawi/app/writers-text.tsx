@@ -15,7 +15,7 @@ import { ithraaStyles as u } from "@/components/ithraa/ui";
 import { AttachmentsCard, LayoutControls, RatioImage, emptyAttach, type AttachState } from "@/components/lit/editor";
 import { isLtrText, langMeta, type LitLayout } from "@/lib/lit-markup";
 
-const WEB = "https://hasahisawi.pages.dev";
+const WEB = "https://almhbob.github.io/hasahisawi";
 
 export default function WritersText() {
   const insets = useSafeAreaInsets();
