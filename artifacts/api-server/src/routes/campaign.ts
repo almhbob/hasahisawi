@@ -5,17 +5,26 @@
 //      phase=publish ينشر حاويات إنستغرام المعلّقة (الفيديو يحتاج دقائق للمعالجة).
 // - POST /api/campaign/push     إشعار جماعي (n8n أو يدوياً) — مرة كل 20 ساعة كحد أقصى.
 // - GET  /api/campaign/status   آخر ما نُشر وحالة القنوات.
-// القنوات تُفعَّل بمتغيرات البيئة: FB_PAGE_ID + FB_PAGE_TOKEN، IG_USER_ID، TG_BOT_TOKEN + TG_CHAT_ID.
+// القنوات تُفعَّل بمتغيرات البيئة: FB_PAGE_ID + FB_PAGE_TOKEN، IG_USER_ID، TG_BOT_TOKEN + TG_CHAT_ID،
+//      TIKTOK_CLIENT_KEY + TIKTOK_CLIENT_SECRET (ثم ربط الحساب مرة عبر /api/tiktok/connect — انظر lib/tiktok.ts).
+// عدة تقويمات: body.calendar = "main" (الافتراضي) أو "unsaid" (سلسلة «أشياء لا تقال»).
+//      سجلات التقويمات الأخرى تُميَّز ببادئة في عمود channel (مثل "unsaid:tiktok").
+// - GET  /api/tiktok/connect?key=CAMPAIGN_PUSH_KEY   ربط حساب تيك توك (مرة واحدة)
+// - GET  /api/tiktok/callback                        يعود إليه تيك توك بعد الموافقة
 import { Router, type Request, type Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { logger } from "../lib/logger";
 import { query, dbEnabled } from "../lib/shared-db";
 import { sendExpoPushBroadcast } from "./hasahisawi";
 import { verifyGithubOidc } from "./ci-play-token";
+import { tiktokConfigured, tiktokAuthUrl, tiktokHandleCallback, tiktokStatus, tiktokPostVideo, tiktokPublishStatus } from "../lib/tiktok";
 
 const router = Router();
 const COOLDOWN_HOURS = 20;
-const CALENDAR_URL = process.env.CAMPAIGN_CALENDAR_URL || "https://hasahisawi.pages.dev/campaign/calendar.json";
+const CALENDARS: Record<string, string> = {
+  main: process.env.CAMPAIGN_CALENDAR_URL || "https://hasahisawi.pages.dev/campaign/calendar.json",
+  unsaid: process.env.CAMPAIGN_UNSAID_CALENDAR_URL || "https://hasahisawi.pages.dev/campaign/unsaid/calendar.json",
+};
 const GRAPH = "https://graph.facebook.com/v21.0";
 
 function keyOk(req: Request): boolean {
@@ -45,10 +54,10 @@ const ensure = () => (ready ??= (async () => {
 })());
 
 type Item = { day: number; type: "video" | "image"; file: string; ig_file: string | null; caption: string; caption_short?: string; push: { title: string; body: string } | null };
-type Calendar = { base_url: string; start_date: string; timezone?: string; items: Item[] };
+type Calendar = { base_url: string; start_date: string; timezone?: string; channels?: string[]; items: Item[] };
 
-async function loadCalendar(): Promise<Calendar> {
-  const r = await fetch(`${CALENDAR_URL}?t=${Date.now()}`, { signal: AbortSignal.timeout(8000) });
+async function loadCalendar(name: string): Promise<Calendar> {
+  const r = await fetch(`${CALENDARS[name]}?t=${Date.now()}`, { signal: AbortSignal.timeout(8000) });
   if (!r.ok) throw new Error(`calendar ${r.status}`);
   return (await r.json()) as Calendar;
 }
@@ -96,6 +105,7 @@ const channels = () => ({
   facebook: !!(process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN),
   instagram: !!(process.env.IG_USER_ID && process.env.FB_PAGE_TOKEN),
   telegram: !!(process.env.TG_BOT_TOKEN && process.env.TG_CHAT_ID),
+  tiktok: tiktokConfigured(),
   push: true,
 });
 
@@ -116,52 +126,74 @@ router.post("/campaign/run", async (req: Request, res: Response) => {
     const phase = String(req.query.phase || req.body?.phase || "post");
     const force = req.body?.force === true;
     const only: string[] | null = Array.isArray(req.body?.only) ? req.body.only : null;
-    const want = (ch: string) => !only || only.includes(ch);
-    const cal = await loadCalendar();
+    const calName = String(req.body?.calendar || req.query.calendar || "main");
+    if (!CALENDARS[calName]) return res.status(400).json({ error: "unknown calendar" });
+    const cal = await loadCalendar(calName);
+    const want = (ch: string) => (!only || only.includes(ch)) && (!cal.channels || cal.channels.includes(ch));
+    // مفتاح السجل لكل قناة: التقويم الرئيسي بدون بادئة (توافق مع السجلات القديمة)
+    const K = (ch: string) => (calName === "main" ? ch : `${calName}:${ch}`);
+    const claimK = (d: number, ch: string, f: boolean) => claim(d, K(ch), f);
+    const doneK = (d: number, ch: string, st: string, ref?: string | null, err?: string | null) => done(d, K(ch), st, ref, err);
     const day = Number.isInteger(Number(req.body?.day)) && Number(req.body.day) > 0 ? Number(req.body.day) : todayIndex(cal);
     const item = cal.items.find((x) => x.day === day);
-    const out: Record<string, any> = { day, phase, by: who, enabled: channels() };
+    const out: Record<string, any> = { calendar: calName, day, phase, by: who, enabled: channels() };
     if (!item) return res.json({ ...out, skipped: "no post for this day" });
     const url = cal.base_url + item.file;
     const en = channels();
 
     if (phase === "publish") {
       // إنستغرام: نشر الحاوية المعلّقة
-      const p = (await query(`SELECT ref FROM campaign_runs WHERE day=$1 AND channel='instagram' AND status='container'`, [day])).rows[0];
+      const p = (await query(`SELECT ref FROM campaign_runs WHERE day=$1 AND channel=$2 AND status='container'`, [day, K("instagram")])).rows[0];
       if (p?.ref && en.instagram) {
         try {
           const st: any = await (await fetch(`${GRAPH}/${p.ref}?fields=status_code&access_token=${process.env.FB_PAGE_TOKEN}`)).json();
           if (st.status_code && st.status_code !== "FINISHED") { out.instagram = { waiting: st.status_code }; }
-          else { const j = await graphPost(`${process.env.IG_USER_ID}/media_publish`, { creation_id: p.ref }); await done(day, "instagram", "posted", j.id); out.instagram = { posted: j.id }; }
-        } catch (e: any) { await done(day, "instagram", "error", p.ref, e.message); out.instagram = { error: e.message }; }
+          else { const j = await graphPost(`${process.env.IG_USER_ID}/media_publish`, { creation_id: p.ref }); await doneK(day, "instagram", "posted", j.id); out.instagram = { posted: j.id }; }
+        } catch (e: any) { await doneK(day, "instagram", "error", p.ref, e.message); out.instagram = { error: e.message }; }
+      }
+      // تيك توك: متابعة حالة المعالجة
+      const t = (await query(`SELECT ref FROM campaign_runs WHERE day=$1 AND channel=$2 AND status='processing'`, [day, K("tiktok")])).rows[0];
+      if (t?.ref) {
+        try {
+          const st = await tiktokPublishStatus(t.ref);
+          if (st.status === "FAILED") { await doneK(day, "tiktok", "error", t.ref, st.fail_reason || "failed"); out.tiktok = { error: st.fail_reason }; }
+          else if (st.status === "PUBLISH_COMPLETE" || st.status === "SEND_TO_USER_INBOX") { await doneK(day, "tiktok", "posted", t.ref); out.tiktok = { posted: t.ref, status: st.status }; }
+          else out.tiktok = { waiting: st.status };
+        } catch (e: any) { out.tiktok = { error: e.message }; }
       }
       return res.json(out);
     }
 
-    if (en.facebook && want("facebook") && await claim(day, "facebook", force)) {
+    if (en.facebook && want("facebook") && await claimK(day, "facebook", force)) {
       try {
         const j = item.type === "video"
           ? await graphPost(`${process.env.FB_PAGE_ID}/videos`, { file_url: url, description: item.caption })
           : await graphPost(`${process.env.FB_PAGE_ID}/photos`, { url, caption: item.caption });
-        await done(day, "facebook", "posted", j.post_id || j.id); out.facebook = { posted: j.post_id || j.id };
-      } catch (e: any) { await done(day, "facebook", "error", null, e.message); out.facebook = { error: e.message }; }
+        await doneK(day, "facebook", "posted", j.post_id || j.id); out.facebook = { posted: j.post_id || j.id };
+      } catch (e: any) { await doneK(day, "facebook", "error", null, e.message); out.facebook = { error: e.message }; }
     }
-    if (en.instagram && want("instagram") && item.ig_file && await claim(day, "instagram", force)) {
+    if (en.instagram && want("instagram") && item.ig_file && await claimK(day, "instagram", force)) {
       try {
         const igUrl = cal.base_url + item.ig_file;
         const j = item.type === "video"
           ? await graphPost(`${process.env.IG_USER_ID}/media`, { media_type: "REELS", video_url: igUrl, caption: item.caption, share_to_feed: "true" })
           : await graphPost(`${process.env.IG_USER_ID}/media`, { image_url: igUrl, caption: item.caption });
-        await done(day, "instagram", "container", j.id); out.instagram = { container: j.id, note: "publish phase posts it" };
-      } catch (e: any) { await done(day, "instagram", "error", null, e.message); out.instagram = { error: e.message }; }
+        await doneK(day, "instagram", "container", j.id); out.instagram = { container: j.id, note: "publish phase posts it" };
+      } catch (e: any) { await doneK(day, "instagram", "error", null, e.message); out.instagram = { error: e.message }; }
     }
-    if (en.telegram && want("telegram") && await claim(day, "telegram", force)) {
-      try { const id = await tgSend(item, url); await done(day, "telegram", "posted", id); out.telegram = { posted: id }; }
-      catch (e: any) { await done(day, "telegram", "error", null, e.message); out.telegram = { error: e.message }; }
+    if (en.telegram && want("telegram") && await claimK(day, "telegram", force)) {
+      try { const id = await tgSend(item, url); await doneK(day, "telegram", "posted", id); out.telegram = { posted: id }; }
+      catch (e: any) { await doneK(day, "telegram", "error", null, e.message); out.telegram = { error: e.message }; }
     }
-    if (item.push && want("push") && await claim(day, "push", force)) {
-      try { const r = await doPush(item.push.title, item.push.body, day); await done(day, "push", r.ok ? "posted" : "skipped", null, r.ok ? null : r.error); out.push = r; }
-      catch (e: any) { await done(day, "push", "error", null, e.message); out.push = { error: e.message }; }
+    if (item.push && want("push") && await claimK(day, "push", force)) {
+      try { const r = await doPush(item.push.title, item.push.body, day); await doneK(day, "push", r.ok ? "posted" : "skipped", null, r.ok ? null : r.error); out.push = r; }
+      catch (e: any) { await doneK(day, "push", "error", null, e.message); out.push = { error: e.message }; }
+    }
+    if (en.tiktok && want("tiktok") && item.type === "video" && await claimK(day, "tiktok", force)) {
+      try {
+        const r = await tiktokPostVideo(url, item.caption);
+        await doneK(day, "tiktok", "processing", r.publish_id); out.tiktok = { publish_id: r.publish_id, note: r.note };
+      } catch (e: any) { await doneK(day, "tiktok", "error", null, e.message); out.tiktok = { error: e.message }; }
     }
     logger.info(out, "[campaign] run");
     return res.json(out);
@@ -197,6 +229,37 @@ router.get("/campaign/status", async (req: Request, res: Response) => {
     const pushes = await query(`SELECT title, day, created_at FROM campaign_push_log ORDER BY id DESC LIMIT 10`);
     return res.json({ enabled: channels(), runs: runs.rows, pushes: pushes.rows, cooldown_hours: COOLDOWN_HOURS });
   } catch { return res.status(500).json({ error: "status failed" }); }
+});
+
+// ── ربط حساب تيك توك ───────────────────────────────────────────
+router.get("/tiktok/connect", async (req: Request, res: Response) => {
+  const want = process.env.CAMPAIGN_PUSH_KEY || "";
+  const got = String(req.query.key || "");
+  const a = Buffer.from(got), b = Buffer.from(want);
+  if (want.length < 24 || a.length !== b.length || !timingSafeEqual(a, b)) return res.status(401).send("unauthorized");
+  if (!tiktokConfigured()) return res.status(503).send("TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET not set");
+  if (!dbEnabled) return res.status(503).send("db");
+  try { return res.redirect(await tiktokAuthUrl()); }
+  catch (e: any) { return res.status(500).send(e?.message || "error"); }
+});
+
+router.get("/tiktok/callback", async (req: Request, res: Response) => {
+  const page = (msg: string) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;direction:rtl;padding:24px">${msg}</body>`;
+  if (req.query.error) return res.status(400).send(page(`❌ رفض تيك توك الطلب: ${String(req.query.error_description || req.query.error).replace(/[<>&]/g, "")}`));
+  try {
+    const r = await tiktokHandleCallback(String(req.query.code || ""), String(req.query.state || ""));
+    logger.info({ open_id: r.open_id, scope: r.scope }, "[tiktok] connected");
+    return res.send(page(`✅ تم ربط حساب تيك توك بنجاح. سينشر الخادم فيديوهات الحملة تلقائياً.<br><small>الصلاحيات: ${String(r.scope).replace(/[<>&]/g, "")}</small>`));
+  } catch (e: any) {
+    logger.warn({ err: e?.message }, "[tiktok] callback");
+    return res.status(400).send(page(`❌ فشل الربط: ${String(e?.message || "").replace(/[<>&]/g, "")}`));
+  }
+});
+
+router.get("/tiktok/status", async (req: Request, res: Response) => {
+  if (!(await authOk(req))) return res.status(401).json({ error: "unauthorized" });
+  try { return res.json(await tiktokStatus()); }
+  catch (e: any) { return res.status(500).json({ error: e?.message }); }
 });
 
 export default router;
