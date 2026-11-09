@@ -42,7 +42,9 @@ export function ensureStoresDb(): Promise<void> {
       // إعدادات صاحب المتجر: الفتح/الإغلاق، استقبال الطلبات، وسائل الدفع، أيام العمل، إعلان المتجر
       for (const col of ["is_open BOOLEAN NOT NULL DEFAULT TRUE", "accepts_orders BOOLEAN NOT NULL DEFAULT TRUE", "pickup_available BOOLEAN NOT NULL DEFAULT TRUE",
         "whatsapp VARCHAR(40)", "payment_methods TEXT[] NOT NULL DEFAULT '{cash}'", "bank_account VARCHAR(160)", "working_days VARCHAR(80)",
-        "announcement VARCHAR(200)", "prep_minutes INTEGER", "notify_orders BOOLEAN NOT NULL DEFAULT TRUE"]) {
+        "announcement VARCHAR(200)", "prep_minutes INTEGER", "notify_orders BOOLEAN NOT NULL DEFAULT TRUE",
+        // متجر نُقل من «دليل المحلات» القديم: ينتظر صاحبه (برقم هاتفه) ليستلمه عند دخوله «لوحة متجري»
+        "pending_owner_phone VARCHAR(30)", "pending_owner_name VARCHAR(200)", "source_merchant_id INTEGER"]) {
         await query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
       }
       await query(`CREATE INDEX IF NOT EXISTS idx_stores_status ON stores(status,type)`);
@@ -166,9 +168,20 @@ async function requireUser(req: Request, res: Response): Promise<SessionUser | n
   return u;
 }
 
+const last9 = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-9);
+
 async function myStore(userId: number) {
   const r = await query(`SELECT * FROM stores WHERE owner_id=$1 LIMIT 1`, [userId]);
-  return r.rows[0] ?? null;
+  if (r.rows[0]) return r.rows[0];
+  // استلام متجر منقول بانتظار صاحبه: يطابق رقم هاتف الحساب رقم المتجر
+  const u = (await query(`SELECT phone FROM users WHERE id=$1`, [userId])).rows[0];
+  const ph = last9(u?.phone);
+  if (ph.length < 9) return null;
+  const c = await query(
+    `UPDATE stores SET owner_id=$1, pending_owner_phone=NULL, updated_at=NOW()
+      WHERE id=(SELECT id FROM stores WHERE pending_owner_phone IS NOT NULL AND RIGHT(regexp_replace(pending_owner_phone,'\\D','','g'),9)=$2 ORDER BY id LIMIT 1)
+      RETURNING *`, [userId, ph]).catch(() => ({ rows: [] as any[] }));
+  return c.rows[0] ?? null;
 }
 
 /** متجر لوحة الإدارة: متجر المستخدم، أو — لمدير التطبيق فقط — أي متجر يحدده بالترويسة X-Manage-Store */
@@ -542,11 +555,83 @@ router.get("/admin/stores", wrap(async (req, res) => {
   if (!isStaff(u)) return res.status(403).json({ error: "غير مصرح" });
   const status = String(req.query.status || "");
   const r = await query(
-    `SELECT s.*, u.name AS owner_name, u.phone AS owner_phone,
+    `SELECT s.*, COALESCE(u.name, s.pending_owner_name) AS owner_name, COALESCE(u.phone, s.pending_owner_phone) AS owner_phone,
             (SELECT COUNT(*) FROM store_products p WHERE p.store_id=s.id) AS product_count
      FROM stores s LEFT JOIN users u ON u.id=s.owner_id
      WHERE ($1='' OR s.status=$1) ORDER BY (s.status='pending') DESC, s.id DESC LIMIT 300`, [status]);
   return res.json(r.rows.map(storeRow));
+}));
+
+// ── نقل محلات «دليل المحلات» القديم إلى سوق المتاجر (مدير التطبيق) ──────────────
+const MERCHANT_TO_TYPE: Record<string, string> = {
+  grocery: "grocery", restaurant: "restaurant", cafe: "cafe", pharmacy: "pharmacy", clothing: "boutique", boutique: "boutique", fashion: "boutique",
+  electronics: "electronics", phones: "electronics", sweets: "sweets", bakery: "sweets",
+};
+function typeForMerchant(m: any): string {
+  const name = String(m.shop_name || "");
+  if (/عطار|عطور|بخور/.test(name)) return "general";
+  if (/صيدلي/.test(name)) return "pharmacy";
+  if (/حلوي|مخبز/.test(name)) return "sweets";
+  if (/بقال|سوبر ?ماركت/.test(name)) return "grocery";
+  return MERCHANT_TO_TYPE[String(m.category || "")] || "general";
+}
+async function moveMerchant(id: number, adminId: number) {
+  const m = (await query(`SELECT * FROM merchant_spaces WHERE id=$1`, [id])).rows[0];
+  if (!m) return { error: "المحل غير موجود", status: 404 } as const;
+  if (m.status === "moved") return { error: "نُقل هذا المحل سابقاً", status: 409 } as const;
+  const dup = (await query(`SELECT id FROM stores WHERE source_merchant_id=$1`, [id])).rows[0];
+  if (dup) return { error: "نُقل هذا المحل سابقاً", status: 409 } as const;
+  const desc = /قيد الاعتماد/.test(String(m.description || "")) ? null : m.description;
+  const st = await query(
+    `INSERT INTO stores(owner_id,name,type,description,phone,address,working_hours,whatsapp,status,pending_owner_phone,pending_owner_name,source_merchant_id,reviewed_by,reviewed_at)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active',$9,$10,$11,$12,NOW()) RETURNING *`,
+    [-id, String(m.shop_name).slice(0, 120), typeForMerchant(m), desc ?? "", m.phone || m.whatsapp || "", m.address ?? "", m.working_hours ?? "", m.whatsapp, m.phone || m.whatsapp || null, m.owner_name, id, adminId]);
+  const store = st.rows[0];
+  // المنتجات القديمة (إن وُجدت) تنتقل معه
+  const items = (await query(`SELECT * FROM merchant_items WHERE shop_id=$1`, [id]).catch(() => ({ rows: [] as any[] }))).rows;
+  for (const it of items) {
+    const price = Number(it.price) || 0;
+    if (price <= 0) continue;
+    await query(`INSERT INTO store_products(store_id,name,description,price,is_available) VALUES($1,$2,$3,$4,$5)`,
+      [store.id, String(it.name).slice(0, 120), it.description ? String(it.description).slice(0, 1200) : "", price, it.is_available !== false]).catch((e: unknown) => logger.warn({ err: (e as Error)?.message }, "[stores] product move"));
+  }
+  await query(`UPDATE merchant_spaces SET status='moved', updated_at=NOW() WHERE id=$1`, [id]);
+  return { store: storeRow(store), products: items.length } as const;
+}
+
+router.get("/admin/merchants/unmoved", wrap(async (req, res) => {
+  const u = await sessionUser(req);
+  if (u?.role !== "admin") return res.status(403).json({ error: "لمدير التطبيق فقط" });
+  const r = await query(`SELECT id, shop_name, owner_name, category, phone, address, status, created_at FROM merchant_spaces WHERE status IN ('approved','pending') ORDER BY created_at DESC LIMIT 200`)
+    .catch(() => ({ rows: [] as any[] }));
+  return res.json({ merchants: r.rows.map((m: any) => ({ ...m, suggested_type: typeForMerchant(m) })) });
+}));
+
+router.post("/admin/merchants/:id/to-store", wrap(async (req, res) => {
+  const u = await sessionUser(req);
+  if (u?.role !== "admin") return res.status(403).json({ error: "لمدير التطبيق فقط" });
+  const r = await moveMerchant(Number(req.params.id), u!.id);
+  if ("error" in r) return res.status((r as { status: number }).status).json({ error: r.error });
+  return res.status(201).json(r);
+}));
+
+router.post("/admin/merchants/to-store-all", wrap(async (req, res) => {
+  const u = await sessionUser(req);
+  if (u?.role !== "admin") return res.status(403).json({ error: "لمدير التطبيق فقط" });
+  const ids = (await query(`SELECT id FROM merchant_spaces WHERE status IN ('approved','pending') ORDER BY id`).catch(() => ({ rows: [] as any[] }))).rows.map((x: any) => x.id);
+  const moved: any[] = [];
+  for (const id of ids) { const r = await moveMerchant(id, u!.id); if (!("error" in r)) moved.push(r.store); }
+  return res.json({ moved: moved.length, stores: moved });
+}));
+
+// حذف متجر نهائياً (مدير التطبيق فقط) — تُحذف منتجاته وطلباته معه
+router.delete("/admin/stores/:id", wrap(async (req, res) => {
+  const u = await sessionUser(req);
+  if (u?.role !== "admin") return res.status(403).json({ error: "لمدير التطبيق فقط" });
+  const r = await query(`DELETE FROM stores WHERE id=$1 RETURNING id, name, owner_id`, [Number(req.params.id)]);
+  if (!r.rows[0]) return res.status(404).json({ error: "المتجر غير موجود" });
+  logger.info({ store: r.rows[0], by: u!.id }, "[stores] deleted by admin");
+  return res.json({ ok: true, deleted: r.rows[0].name });
 }));
 
 router.patch("/admin/stores/:id", wrap(async (req, res) => {
