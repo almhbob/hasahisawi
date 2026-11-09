@@ -99,6 +99,44 @@ export function ensureMembersDb(): Promise<void> {
     await query(`ALTER TABLE lit_members ADD COLUMN IF NOT EXISTS name_en VARCHAR(120)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_lit_members_status ON lit_members (status)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_lit_members_country ON lit_members (country)`);
+    // طلبات تعديل بيانات العضو (يراجعها المشرف ويعتمدها أو يرفضها)
+    await query(`CREATE TABLE IF NOT EXISTS lit_member_edits (
+      id SERIAL PRIMARY KEY,
+      member_id INTEGER NOT NULL REFERENCES lit_members(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL,
+      changes JSONB NOT NULL,
+      note VARCHAR(400),
+      status VARCHAR(10) NOT NULL DEFAULT 'pending',
+      admin_note VARCHAR(400),
+      reviewed_by INTEGER,
+      reviewed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lit_member_edits_status ON lit_member_edits (status)`);
+    // طباعة البطاقة الورقية — خدمة مادية تُسلَّم باليد أو بالتوصيل، والسعر تحدده الإدارة
+    await query(`CREATE TABLE IF NOT EXISTS lit_settings (key VARCHAR(40) PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await query(`CREATE TABLE IF NOT EXISTS lit_print_orders (
+      id SERIAL PRIMARY KEY,
+      member_id INTEGER NOT NULL REFERENCES lit_members(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL,
+      face VARCHAR(6) NOT NULL DEFAULT 'local',
+      size VARCHAR(10) NOT NULL DEFAULT 'standard',
+      qty SMALLINT NOT NULL DEFAULT 1,
+      delivery VARCHAR(10) NOT NULL DEFAULT 'pickup',
+      address VARCHAR(300),
+      phone VARCHAR(30) NOT NULL,
+      note VARCHAR(300),
+      unit_price NUMERIC(12,2) NOT NULL,
+      delivery_fee NUMERIC(12,2) NOT NULL DEFAULT 0,
+      total NUMERIC(12,2) NOT NULL,
+      currency VARCHAR(12) NOT NULL DEFAULT 'جنيه',
+      status VARCHAR(12) NOT NULL DEFAULT 'pending',
+      payment_ref VARCHAR(80),
+      admin_note VARCHAR(300),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_lit_print_status ON lit_print_orders (status)`);
     await query(`CREATE TABLE IF NOT EXISTS lit_member_awards (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -507,6 +545,282 @@ router.post("/lit/cron/members", async (req: Request, res: Response) => {
 
 // ─── التحقق العلني من البطاقة ─────────────────────────────────
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+// ═══ تعديل بيانات العضو ═════════════════════════════════════════
+// الحقول القابلة للتعديل: يطلبها العضو، أو يعدّلها المشرف مباشرة
+const EDITABLE: Record<string, (v: unknown) => string | number | string[] | null | { error: string }> = {
+  full_name: (v) => { const x = clean(v, 120); return x.split(/\s+/).length >= 2 ? x : { error: "الاسم الكامل ثنائي على الأقل" }; },
+  pen_name: (v) => clean(v, 80) || null,
+  name_en: (v) => latinName(v) || null,
+  city: (v) => clean(v, 80) || null,
+  country: (v) => countryCode(v),
+  phone: (v) => { const x = clean(v, 30); return x.replace(/\D/g, "").length >= 9 ? x : { error: "رقم الهاتف غير مكتمل" }; },
+  email: (v) => { const x = clean(v, 120); return !x || /^\S+@\S+\.\S+$/.test(x) ? x || null : { error: "البريد الإلكتروني غير صالح" }; },
+  bio: (v) => { const x = clean(v, 1500); return x.length >= 40 ? x : { error: "النبذة لا تقل عن 40 حرفاً" }; },
+  genres: (v) => (Array.isArray(v) ? v : String(v ?? "").split(/[،,]/)).map((g) => clean(g, 40)).filter(Boolean).slice(0, 10),
+  publications: (v) => clean(v, 2000) || null,
+  press_org: (v) => clean(v, 160) || null,
+  press_role: (v) => clean(v, 80) || null,
+  press_card_no: (v) => clean(v, 60) || null,
+  birth_year: (v) => { const n = Number(v); return !v ? null : n > 1900 && n < new Date().getFullYear() - 8 ? n : { error: "سنة الميلاد غير صالحة" }; },
+};
+export const EDIT_LABELS: Record<string, string> = {
+  full_name: "الاسم الكامل", pen_name: "الاسم الأدبي", name_en: "الاسم بالإنجليزية", city: "المدينة", country: "الدولة", phone: "الهاتف", email: "البريد",
+  bio: "النبذة", genres: "الأجناس الأدبية", publications: "المؤلفات", press_org: "المؤسسة الإعلامية", press_role: "الصفة المهنية", press_card_no: "رقم البطاقة الصحفية", birth_year: "سنة الميلاد",
+};
+function validateChanges(raw: unknown, cur: any): { changes?: Record<string, unknown>; error?: string } {
+  const out: Record<string, unknown> = {};
+  if (!raw || typeof raw !== "object") return { error: "لا توجد تعديلات" };
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const fn = EDITABLE[k]; if (!fn) continue;
+    const val = fn(v);
+    if (val && typeof val === "object" && !Array.isArray(val) && "error" in val) return { error: `${EDIT_LABELS[k]}: ${val.error}` };
+    const before = cur?.[k] ?? null;
+    if (JSON.stringify(before ?? null) !== JSON.stringify(val ?? null)) out[k] = val;
+  }
+  return Object.keys(out).length ? { changes: out } : { error: "لم يتغيّر شيء عن البيانات الحالية" };
+}
+async function applyChanges(memberId: number, changes: Record<string, unknown>) {
+  const keys = Object.keys(changes).filter((k) => EDITABLE[k]);
+  if (!keys.length) return;
+  const sets = keys.map((k, i) => `${k}=$${i + 2}`).join(", ");
+  await query(`UPDATE lit_members SET ${sets}, updated_at=NOW() WHERE id=$1`, [memberId, ...keys.map((k) => changes[k])]);
+}
+
+router.get("/lit/membership/edit-request", async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const r = (await query(`SELECT e.* FROM lit_member_edits e WHERE e.user_id=$1 ORDER BY e.created_at DESC LIMIT 1`, [me.id])).rows[0] || null;
+    return res.json({ request: r, labels: EDIT_LABELS });
+  } catch (err) { return fail(res, err, "edit-get"); }
+});
+
+router.post("/lit/membership/edit-request", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const m = (await query(`SELECT * FROM lit_members WHERE user_id=$1`, [me.id])).rows[0];
+    if (!m || !["active", "suspended", "expired"].includes(m.status)) return res.status(409).json({ error: m?.status === "pending" || m?.status === "rejected" ? "عدّل الاستمارة نفسها قبل اعتمادها" : "لا توجد عضوية" });
+    const open = (await query(`SELECT id FROM lit_member_edits WHERE member_id=$1 AND status='pending'`, [m.id])).rows[0];
+    if (open) return res.status(409).json({ error: "لديك طلب تعديل قيد المراجعة" });
+    const v = validateChanges(req.body?.changes, m);
+    if (v.error) return res.status(400).json({ error: v.error });
+    const { rows } = await query(`INSERT INTO lit_member_edits (member_id, user_id, changes, note) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [m.id, me.id, JSON.stringify(v.changes), clean(req.body?.note, 400) || null]);
+    const admins = (await query(`SELECT user_id AS id FROM ithraa_moderators WHERE categories IS NULL OR cardinality(categories)=0 OR 'writers' = ANY(categories)
+      UNION SELECT id FROM users WHERE role='admin'`).catch(() => ({ rows: [] as any[] }))).rows.map((r: any) => r.id);
+    void notifyLit(admins, "طلب تعديل بيانات عضو ✏️", `${m.pen_name || m.full_name} — ${Object.keys(v.changes!).map((k) => EDIT_LABELS[k]).join("، ")}`, { screen: "writers-members-admin" });
+    return res.status(201).json({ request: rows[0], message: "أُرسل طلب التعديل — تراجعه الإدارة ويصلك إشعار" });
+  } catch (err) { return fail(res, err, "edit-post"); }
+});
+
+router.get("/lit/member-edits", async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!(await canAdmin(me))) return res.status(403).json({ error: "للإدارة فقط" });
+    const st = ["pending", "applied", "rejected"].includes(String(req.query.status)) ? String(req.query.status) : "pending";
+    const { rows } = await query(
+      `SELECT e.*, m.full_name, m.pen_name, m.member_no, m.category, ${Object.keys(EDITABLE).map((k) => `m.${k} AS cur_${k}`).join(", ")}
+         FROM lit_member_edits e JOIN lit_members m ON m.id=e.member_id WHERE e.status=$1 ORDER BY e.created_at DESC LIMIT 100`, [st]);
+    const pending = (await query(`SELECT COUNT(*)::int AS n FROM lit_member_edits WHERE status='pending'`)).rows[0].n;
+    return res.json({
+      labels: EDIT_LABELS, pending,
+      edits: rows.map((r: any) => ({
+        id: r.id, member_id: r.member_id, user_id: r.user_id, status: r.status, note: r.note, admin_note: r.admin_note, created_at: r.created_at,
+        name: r.pen_name || r.full_name, member_no: r.member_no, category: CAT.get(r.category)?.label ?? r.category,
+        changes: Object.entries(r.changes || {}).map(([k, v]) => ({ key: k, label: EDIT_LABELS[k] ?? k, before: r[`cur_${k}`] ?? null, after: v })),
+      })),
+    });
+  } catch (err) { return fail(res, err, "edits-list"); }
+});
+
+router.post("/lit/member-edits/:id/action", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!(await canAdmin(me))) return res.status(403).json({ error: "للإدارة فقط" });
+    const e = (await query(`SELECT * FROM lit_member_edits WHERE id=$1`, [Number(req.params.id)])).rows[0];
+    if (!e) return res.status(404).json({ error: "غير موجود" });
+    if (e.status !== "pending") return res.status(409).json({ error: "عولج الطلب مسبقاً" });
+    const action = String(req.body?.action || "");
+    const note = clean(req.body?.note, 400) || null;
+    if (action === "apply") {
+      // للمشرف أن يصحح قيمة قبل الاعتماد
+      let changes = e.changes as Record<string, unknown>;
+      if (req.body?.changes && typeof req.body.changes === "object") {
+        const m = (await query(`SELECT * FROM lit_members WHERE id=$1`, [e.member_id])).rows[0];
+        const v = validateChanges({ ...changes, ...req.body.changes }, m);
+        if (v.error && v.error !== "لم يتغيّر شيء عن البيانات الحالية") return res.status(400).json({ error: v.error });
+        changes = v.changes || {};
+      } else {
+        for (const [k, v] of Object.entries(changes)) {
+          const val = EDITABLE[k]?.(v);
+          if (val && typeof val === "object" && !Array.isArray(val) && "error" in val) return res.status(400).json({ error: `${EDIT_LABELS[k]}: ${val.error}` });
+        }
+      }
+      await applyChanges(e.member_id, changes);
+      await query(`UPDATE lit_member_edits SET status='applied', changes=$2, admin_note=$3, reviewed_by=$4, reviewed_at=NOW() WHERE id=$1`, [e.id, JSON.stringify(changes), note, me!.id]);
+      void notifyLit([e.user_id], "اعتُمد تعديل بياناتك ✓", "بطاقتك وملفك محدّثان بالبيانات الجديدة", { screen: "writers-membership" });
+    } else if (action === "reject") {
+      if (!note) return res.status(400).json({ error: "اكتب سبب الرفض" });
+      await query(`UPDATE lit_member_edits SET status='rejected', admin_note=$2, reviewed_by=$3, reviewed_at=NOW() WHERE id=$1`, [e.id, note, me!.id]);
+      void notifyLit([e.user_id], "بخصوص طلب تعديل بياناتك", note, { screen: "writers-membership" });
+    } else return res.status(400).json({ error: "إجراء غير معروف" });
+    return res.json({ ok: true });
+  } catch (err) { return fail(res, err, "edits-action"); }
+});
+
+// تعديل مباشر من المشرف (تصحيح بيانات عضو دون طلب)
+router.post("/lit/members/:id/edit", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!(await canAdmin(me))) return res.status(403).json({ error: "للإدارة فقط" });
+    const m = (await query(`SELECT * FROM lit_members WHERE id=$1`, [Number(req.params.id)])).rows[0];
+    if (!m) return res.status(404).json({ error: "غير موجود" });
+    const v = validateChanges(req.body?.changes, m);
+    if (v.error) return res.status(400).json({ error: v.error });
+    await applyChanges(m.id, v.changes!);
+    await query(`INSERT INTO lit_member_edits (member_id, user_id, changes, note, status, reviewed_by, reviewed_at) VALUES ($1,$2,$3,'تعديل مباشر من الإدارة','applied',$4,NOW())`,
+      [m.id, m.user_id, JSON.stringify(v.changes), me!.id]);
+    if (req.body?.notify !== false) void notifyLit([m.user_id], "حُدّثت بيانات عضويتك", `عدّلت الإدارة: ${Object.keys(v.changes!).map((k) => EDIT_LABELS[k]).join("، ")}`, { screen: "writers-membership" });
+    const r = (await query(`SELECT m.*, u.avatar_url FROM lit_members m JOIN users u ON u.id=m.user_id WHERE m.id=$1`, [m.id])).rows[0];
+    return res.json({ member: memberRow(r, { full: true }) });
+  } catch (err) { return fail(res, err, "edit-direct"); }
+});
+
+// ═══ طباعة البطاقة الورقية ═════════════════════════════════════
+// خدمة مادية (بطاقة مطبوعة تُسلَّم باليد أو بالتوصيل) — تُدفع نقداً أو بتحويل، خارج متاجر التطبيقات.
+const PRINT_DEFAULTS = { enabled: false, price_standard: 0, price_large: 0, delivery_fee: 0, currency: "جنيه", payment_note: "الدفع عند الاستلام", pickup_note: "", max_qty: 10 };
+async function printSettings() {
+  const r = (await query(`SELECT value FROM lit_settings WHERE key='print'`)).rows[0];
+  return { ...PRINT_DEFAULTS, ...(r?.value || {}) } as typeof PRINT_DEFAULTS;
+}
+const PRINT_SIZES: Record<string, string> = { standard: "مقاس البطاقة (8.5×5.4 سم)", large: "مقاس كبير للعرض (A6)" };
+const PRINT_STATUS = ["pending", "confirmed", "printing", "ready", "delivered", "cancelled"];
+const PRINT_STATUS_AR: Record<string, string> = { pending: "بانتظار التأكيد", confirmed: "مؤكد", printing: "قيد الطباعة", ready: "جاهزة للاستلام", delivered: "سُلّمت", cancelled: "ملغاة" };
+
+router.get("/lit/print/meta", async (_req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const s = await printSettings();
+    return res.json({ ...s, sizes: PRINT_SIZES, statuses: PRINT_STATUS_AR });
+  } catch (err) { return fail(res, err, "print-meta"); }
+});
+
+router.put("/lit/print/settings", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!(await canAdmin(me))) return res.status(403).json({ error: "للإدارة فقط" });
+    const b = req.body || {}, cur = await printSettings();
+    const money = (v: unknown, d: number) => (v === undefined ? d : Math.max(0, Math.min(10_000_000, Math.round(Number(v) || 0))));
+    const next = {
+      enabled: b.enabled === undefined ? cur.enabled : !!b.enabled,
+      price_standard: money(b.price_standard, cur.price_standard), price_large: money(b.price_large, cur.price_large),
+      delivery_fee: money(b.delivery_fee, cur.delivery_fee), currency: clean(b.currency, 12) || cur.currency,
+      payment_note: b.payment_note === undefined ? cur.payment_note : clean(b.payment_note, 300),
+      pickup_note: b.pickup_note === undefined ? cur.pickup_note : clean(b.pickup_note, 300),
+      max_qty: b.max_qty === undefined ? cur.max_qty : Math.max(1, Math.min(50, Number(b.max_qty) || 10)),
+    };
+    if (next.enabled && next.price_standard <= 0) return res.status(400).json({ error: "حدّد سعر الطباعة قبل تفعيل الخدمة" });
+    await query(`INSERT INTO lit_settings (key, value) VALUES ('print',$1) ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [JSON.stringify(next)]);
+    return res.json(next);
+  } catch (err) { return fail(res, err, "print-settings"); }
+});
+
+router.post("/lit/print/orders", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const s = await printSettings();
+    if (!s.enabled) return res.status(409).json({ error: "خدمة الطباعة غير متاحة حالياً" });
+    const m = (await query(`SELECT * FROM lit_members WHERE user_id=$1`, [me.id])).rows[0];
+    if (!m || m.status !== "active") return res.status(409).json({ error: "تُطبع البطاقة للعضويات السارية فقط" });
+    const open = (await query(`SELECT COUNT(*)::int AS n FROM lit_print_orders WHERE user_id=$1 AND status IN ('pending','confirmed','printing')`, [me.id])).rows[0].n;
+    if (open >= 2) return res.status(409).json({ error: "لديك طلبات طباعة قيد التنفيذ" });
+    const b = req.body || {};
+    const size = b.size === "large" && s.price_large > 0 ? "large" : "standard";
+    const qty = Math.max(1, Math.min(s.max_qty, Math.floor(Number(b.qty) || 1)));
+    const delivery = b.delivery === "delivery" ? "delivery" : "pickup";
+    const phone = clean(b.phone, 30) || m.phone;
+    if (String(phone || "").replace(/\D/g, "").length < 9) return res.status(400).json({ error: "رقم هاتف للتواصل مطلوب" });
+    const address = clean(b.address, 300);
+    if (delivery === "delivery" && address.length < 6) return res.status(400).json({ error: "اكتب عنوان التوصيل" });
+    const unit = size === "large" ? s.price_large : s.price_standard;
+    const fee = delivery === "delivery" ? s.delivery_fee : 0;
+    const face = b.face === "intl" && (m.name_en || (m.country || "SD") !== "SD") ? "intl" : "local";
+    const { rows } = await query(
+      `INSERT INTO lit_print_orders (member_id, user_id, face, size, qty, delivery, address, phone, note, unit_price, delivery_fee, total, currency)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [m.id, me.id, face, size, qty, delivery, delivery === "delivery" ? address : null, phone, clean(b.note, 300) || null, unit, fee, unit * qty + fee, s.currency]);
+    const admins = (await query(`SELECT user_id AS id FROM ithraa_moderators WHERE categories IS NULL OR cardinality(categories)=0 OR 'writers' = ANY(categories)
+      UNION SELECT id FROM users WHERE role='admin'`).catch(() => ({ rows: [] as any[] }))).rows.map((r: any) => r.id);
+    void notifyLit(admins, "طلب طباعة بطاقة 🖨️", `${m.pen_name || m.full_name} — ${qty} × ${PRINT_SIZES[size]}`, { screen: "writers-members-admin" });
+    return res.status(201).json({ order: printRow(rows[0]), message: "استلمنا طلب الطباعة — ستتواصل معك الإدارة لتأكيده" });
+  } catch (err) { return fail(res, err, "print-order"); }
+});
+
+function printRow(o: any) {
+  return { ...o, unit_price: Number(o.unit_price), delivery_fee: Number(o.delivery_fee), total: Number(o.total), size_label: PRINT_SIZES[o.size] ?? o.size, status_label: PRINT_STATUS_AR[o.status] ?? o.status };
+}
+
+router.get("/lit/print/mine", async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const { rows } = await query(`SELECT * FROM lit_print_orders WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20`, [me.id]);
+    return res.json({ orders: rows.map(printRow) });
+  } catch (err) { return fail(res, err, "print-mine"); }
+});
+
+router.post("/lit/print/orders/:id/cancel", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!me) return res.status(401).json({ error: "سجّل الدخول" });
+    const r = await query(`UPDATE lit_print_orders SET status='cancelled', updated_at=NOW() WHERE id=$1 AND user_id=$2 AND status='pending' RETURNING *`, [Number(req.params.id), me.id]);
+    if (!r.rows[0]) return res.status(409).json({ error: "لا يمكن إلغاء الطلب بعد تأكيده" });
+    return res.json({ order: printRow(r.rows[0]) });
+  } catch (err) { return fail(res, err, "print-cancel"); }
+});
+
+router.get("/lit/print/orders", async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!(await canAdmin(me))) return res.status(403).json({ error: "للإدارة فقط" });
+    const st = String(req.query.status || "open");
+    const where = st === "open" ? `o.status IN ('pending','confirmed','printing','ready')` : PRINT_STATUS.includes(st) ? `o.status='${st}'` : "TRUE";
+    const { rows } = await query(
+      `SELECT o.*, m.full_name, m.pen_name, m.member_no, m.category FROM lit_print_orders o JOIN lit_members m ON m.id=o.member_id WHERE ${where} ORDER BY o.created_at DESC LIMIT 200`);
+    const counts = (await query(`SELECT status, COUNT(*)::int AS n FROM lit_print_orders GROUP BY status`)).rows;
+    return res.json({ orders: rows.map((r: any) => ({ ...printRow(r), name: r.pen_name || r.full_name, category: CAT.get(r.category)?.label ?? r.category })), counts: Object.fromEntries(counts.map((c: any) => [c.status, c.n])) });
+  } catch (err) { return fail(res, err, "print-list"); }
+});
+
+router.post("/lit/print/orders/:id/status", writeLimiter, async (req: Request, res: Response) => {
+  try {
+    await ensureMembersDb();
+    const me = await sessionUser(req);
+    if (!(await canAdmin(me))) return res.status(403).json({ error: "للإدارة فقط" });
+    const status = String(req.body?.status || "");
+    if (!PRINT_STATUS.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+    const r = await query(`UPDATE lit_print_orders SET status=$2, payment_ref=COALESCE($3, payment_ref), admin_note=COALESCE($4, admin_note), updated_at=NOW() WHERE id=$1 RETURNING *`,
+      [Number(req.params.id), status, clean(req.body?.payment_ref, 80) || null, clean(req.body?.note, 300) || null]);
+    const o = r.rows[0];
+    if (!o) return res.status(404).json({ error: "غير موجود" });
+    const msg: Record<string, string> = { confirmed: "أُكّد طلب طباعة بطاقتك", printing: "بطاقتك قيد الطباعة الآن 🖨️", ready: "بطاقتك المطبوعة جاهزة للاستلام 🎉", delivered: "سُلّمت بطاقتك المطبوعة — مبروك!", cancelled: "أُلغي طلب طباعة البطاقة" };
+    if (msg[status]) void notifyLit([o.user_id], msg[status], clean(req.body?.note, 300) || PRINT_STATUS_AR[status], { screen: "writers-membership" });
+    return res.json({ order: printRow(o) });
+  } catch (err) { return fail(res, err, "print-status"); }
+});
+
 router.get("/public/lit/member/:token", async (req: Request, res: Response) => {
   try {
     await ensureMembersDb();
@@ -519,7 +833,12 @@ router.get("/public/lit/member/:token", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
     return res.status(m ? 200 : 404).send(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>التحقق من عضوية — ديوان الكُتّاب</title><style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#F4F1EA;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+<title>${m ? `${esc(m.pen_name || m.full_name)} — ${esc(c?.title)} · ديوان الكُتّاب` : "التحقق من عضوية — ديوان الكُتّاب"}</title>
+<meta property="og:type" content="profile"><meta property="og:site_name" content="حصاحيصاوي">
+<meta property="og:title" content="${m ? `${esc(m.pen_name || m.full_name)} — ${esc(c?.title)}` : "التحقق من عضوية — ديوان الكُتّاب"}">
+<meta property="og:description" content="${m ? `بطاقة عضوية موثّقة في ديوان الكُتّاب · ${esc(m.member_no)}` : "تحقق من بطاقات عضوية ديوان الكُتّاب على منصة حصاحيصاوي"}">
+<meta property="og:image" content="${WEB}/og/hasahisawi.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${WEB}/og/hasahisawi.png"><style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#F4F1EA;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
 .c{max-width:420px;width:100%;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 12px 32px rgba(0,0,0,.12)}
 .h{background:${c?.color ?? "#3A1E1A"};color:#fff;padding:22px;text-align:center}.h small{opacity:.8}.h b{display:block;font-size:22px;margin-top:6px}
 .s{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:20px;font-weight:700;background:${valid ? "#E7F6EE;color:#0E7C4A" : "#FDECEC;color:#B42318"}}
