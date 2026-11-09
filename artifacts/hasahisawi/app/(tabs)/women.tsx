@@ -6,6 +6,7 @@ import {
   TextInput, Linking, Platform, Alert,
   Modal, ActivityIndicator, KeyboardAvoidingView, Keyboard, Image,
 } from "react-native";
+import HoursPicker from "@/components/HoursPicker";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
@@ -1549,13 +1550,14 @@ function WomenScreen() {
                     { label: "اسمك الكامل *", val: applyOwner, set: setApplyOwner, ph: "فاطمة محمد" },
                     { label: "رقم الهاتف *", val: applyPhone, set: setApplyPhone, ph: "0912345678", kb: "phone-pad" as const },
                     { label: "العنوان / الحي", val: applyAddress, set: setApplyAddress, ph: "الحصاحيصا — الحي الشرقي" },
-                    { label: "ساعات العمل", val: applyHours, set: setApplyHours, ph: "9:00 - 21:00" },
                   ].map(f => (
                     <View key={f.label}>
                       <Text style={sp.fieldLabel}>{f.label}</Text>
                       <TextInput style={sp.input} value={f.val} onChangeText={f.set} placeholder={f.ph} placeholderTextColor={Colors.textMuted} keyboardType={(f as any).kb ?? "default"} textAlign="right" />
                     </View>
                   ))}
+
+                  <HoursPicker value={applyHours} onChange={setApplyHours} label="ساعات العمل" />
 
                   <Text style={sp.fieldLabel}>وصف المتجر</Text>
                   <TextInput style={[sp.input, { minHeight: 75, textAlignVertical: "top" }]} value={applyDesc} onChangeText={setApplyDesc} placeholder="اكتبي وصفاً مختصراً لمنتجاتك..." placeholderTextColor={Colors.textMuted} multiline textAlign="right" />

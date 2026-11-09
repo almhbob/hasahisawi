@@ -17,6 +17,7 @@ import {
   Image,
 } from "react-native";
 import { uploadFile } from "@/lib/firebase/storage";
+import HoursPicker from "@/components/HoursPicker";
 import ImageLightbox from "@/components/ImageLightbox";
 import { compressImage, uploadErrorMessage } from "@/lib/compress-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -506,15 +507,7 @@ function RegisterStoreView({
           </>
         )}
 
-        <Text style={styles.fieldLabel}>ساعات العمل</Text>
-        <TextInput
-          style={styles.input}
-          value={workingHours}
-          onChangeText={setWorkingHours}
-          placeholder="مثال: 8ص - 10م"
-          placeholderTextColor={Colors.textMuted}
-          textAlign="right"
-        />
+        <HoursPicker value={workingHours} onChange={setWorkingHours} label="ساعات العمل" />
 
         <View style={[styles.switchRow, { marginTop: 8, borderRadius: Colors.radius.md, backgroundColor: "#3B78A610", padding: 12, borderWidth: 1, borderColor: "#3B78A630" }]}>
           <Switch
@@ -1797,11 +1790,7 @@ function SettingsTab({
           <Text style={styles.switchLabel}>الاستلام من المتجر</Text>
         </View>
 
-        <Text style={styles.fieldLabel}>أيام العمل</Text>
-        <TextInput style={styles.input} value={workingDays} onChangeText={setWorkingDays} placeholder="السبت - الخميس" placeholderTextColor={Colors.textMuted} textAlign="right" />
-
-        <Text style={styles.fieldLabel}>ساعات العمل</Text>
-        <TextInput style={styles.input} value={workingHours} onChangeText={setWorkingHours} placeholder="مثال: 8ص - 10م" placeholderTextColor={Colors.textMuted} textAlign="right" />
+        <HoursPicker value={workingHours} onChange={setWorkingHours} days={workingDays} onDaysChange={setWorkingDays} label="أيام وساعات العمل" />
 
         <Text style={styles.fieldLabel}>متوسط وقت التجهيز (دقيقة)</Text>
         <TextInput style={styles.input} value={prepMinutes} onChangeText={(t) => setPrepMinutes(t.replace(/\D/g, ""))} placeholder="مثال: 20" placeholderTextColor={Colors.textMuted} keyboardType="numeric" textAlign="right" />

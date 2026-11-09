@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView, ActivityIndicator,
   Switch,
 } from "react-native";
+import HoursPicker from "@/components/HoursPicker";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -203,7 +204,7 @@ function AddFacilityModal({ visible, onClose, onSave }: {
               <FieldInput label={t("common", "name") + " *"} value={name} onChange={setName} placeholder={t("auth", "namePlaceholder")} />
               <FieldInput label={t("common", "address") + " *"} value={address} onChange={setAddress} placeholder={t("common", "address")} />
               <FieldInput label={t("common", "phone") + " *"} value={phone} onChange={setPhone} placeholder="+249..." numeric />
-              <FieldInput label={t("common", "hours") + " *"} value={hours} onChange={setHours} placeholder="مثال: 8ص - 10م أو 24 ساعة" />
+              <HoursPicker value={hours} onChange={setHours} label={t("common", "hours") + " *"} />
               <FieldInput label={t("medical", "specialties") + " (افصل بـ ،)"} value={specialties} onChange={setSpecialties} placeholder="مثال: طوارئ، أطفال، جراحة" />
               <FieldRow label={t("medical", "onCall")}>
                 <TouchableOpacity style={[ms.toggle, isOnCall && ms.toggleOn]} onPress={() => setIsOnCall(v => !v)}>
@@ -604,7 +605,7 @@ function AddCulturalCenterModal({ visible, onClose, onSave }: {
               <FieldInput label={t("common", "name") + " *"} value={name} onChange={setName} placeholder={t("auth", "namePlaceholder")} />
               <FieldInput label={t("common", "address") + " *"} value={address} onChange={setAddress} placeholder={t("common", "address")} />
               <FieldInput label={t("common", "phone") + " *"} value={phone} onChange={setPhone} placeholder="+249..." numeric />
-              <FieldInput label={t("common", "hours")} value={hours} onChange={setHours} placeholder="مثال: 8 صباحاً - 8 مساءً" />
+              <HoursPicker value={hours} onChange={setHours} label={t("common", "hours")} />
               <FieldInput label={t("common", "description")} value={description} onChange={setDescription} placeholder={t("common", "description")} multi />
               <SaveBtn label={t("common", "save")} onPress={handleSave} color="#1F5C8A" />
             </View>

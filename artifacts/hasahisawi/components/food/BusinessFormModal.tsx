@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Pressable, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Switch, Alert } from "react-native";
+import HoursPicker from "@/components/HoursPicker";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
@@ -110,10 +111,8 @@ export default function BusinessFormModal({ visible, initial, token, onClose, on
                 <Field half label="الهاتف" value={f.phone} onChange={(t) => set("phone", t)} placeholder="09xxxxxxxx" keyboard="phone-pad" />
                 <Field half label="واتساب" value={f.whatsapp} onChange={(t) => set("whatsapp", t)} placeholder="09xxxxxxxx" keyboard="phone-pad" />
               </View>
-              <View style={st.row}>
-                <Field half label="الحي" value={f.district} onChange={(t) => set("district", t)} placeholder="السوق الكبير" />
-                <Field half label="مواعيد العمل" value={f.opening_hours} onChange={(t) => set("opening_hours", t)} placeholder="8 ص — 11 م" />
-              </View>
+              <Field label="الحي" value={f.district} onChange={(t) => set("district", t)} placeholder="السوق الكبير" />
+              <HoursPicker value={f.opening_hours || ""} onChange={(t) => set("opening_hours", t)} label="مواعيد العمل" />
               <Field label="العنوان التفصيلي" value={f.address} onChange={(t) => set("address", t)} placeholder="الشارع / بجوار…" />
               <Field label="نبذة عن المطعم" value={f.description} onChange={(t) => set("description", t)} placeholder="أشهر الأطباق، الجلسات العائلية…" multiline />
 
