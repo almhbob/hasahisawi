@@ -35,7 +35,7 @@ export async function tiktokAuthUrl(): Promise<string> {
   await query(`DELETE FROM tiktok_oauth_state WHERE created_at < NOW() - INTERVAL '15 minutes'`);
   await query(`INSERT INTO tiktok_oauth_state (state) VALUES ($1)`, [state]);
   const p = new URLSearchParams({
-    client_key: process.env.TIKTOK_CLIENT_KEY || "",
+    client_key: (process.env.TIKTOK_CLIENT_KEY || "").trim(),
     scope: SCOPES,
     response_type: "code",
     redirect_uri: TIKTOK_REDIRECT,
@@ -49,8 +49,8 @@ async function tokenRequest(params: Record<string, string>) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_key: process.env.TIKTOK_CLIENT_KEY || "",
-      client_secret: process.env.TIKTOK_CLIENT_SECRET || "",
+      client_key: (process.env.TIKTOK_CLIENT_KEY || "").trim(),
+      client_secret: (process.env.TIKTOK_CLIENT_SECRET || "").trim(),
       ...params,
     }),
     signal: AbortSignal.timeout(15000),
@@ -121,7 +121,7 @@ export async function tiktokPostVideo(videoUrl: string, caption: string) {
   if (size > 60 * 1024 * 1024) throw new Error("video too large for single-chunk upload");
   const source_info = { source: "FILE_UPLOAD", video_size: size, chunk_size: size, total_chunk_count: 1 };
 
-  const mode = (process.env.TIKTOK_MODE || "direct").toLowerCase();
+  const mode = (process.env.TIKTOK_MODE || "direct").trim().toLowerCase();
   let note: string | undefined;
   let init: any;
   if (mode === "inbox") {
