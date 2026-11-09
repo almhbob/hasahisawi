@@ -462,6 +462,18 @@ export default function DrawerMenu() {
               {user?.role === "admin" && (
                 <Pressable
                   style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+                  onPress={() => navigate("/promo-studio")}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: "#00966A1A" }]}>
+                    <Ionicons name="color-palette" size={20} color="#00966A" />
+                  </View>
+                  <Text style={[styles.itemLabel, { color: "#004D36" }]}>استوديو الترويج</Text>
+                  <Ionicons name="chevron-back" size={16} color="#00966A88" style={styles.chevron} />
+                </Pressable>
+              )}
+              {user?.role === "admin" && (
+                <Pressable
+                  style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
                   onPress={() => navigate("/admin-invites")}
                 >
                   <View style={[styles.iconBox, { backgroundColor: "#00966A1F" }]}>
