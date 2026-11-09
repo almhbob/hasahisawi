@@ -7,7 +7,8 @@ import { readFileSync, mkdirSync, existsSync } from "node:fs";
 const texts = JSON.parse(readFileSync("texts-unsaid.json", "utf8"));
 const from = Number(process.argv[2] ?? 1);
 const to = Number(process.argv[3] ?? texts.length);
-mkdirSync("out/unsaid", { recursive: true });
+const outDir = process.env.OUT_DIR || "out/unsaid";
+mkdirSync(outDir, { recursive: true });
 const browser = existsSync("/opt/pw-browsers/chromium") ? ["--browser-executable=/opt/pw-browsers/chromium"] : [];
 
 for (const t of texts.filter((x) => x.n >= from && x.n <= to)) {
@@ -19,7 +20,7 @@ for (const t of texts.filter((x) => x.n >= from && x.n <= to)) {
     authorNote: "كاتب سوداني من الحصاحيصا",
     cta: "تابع السلسلة… 50 نصاً لا تقال",
   };
-  const file = `out/unsaid/${String(t.n).padStart(2, "0")}-${t.title.replace(/\s+/g, "_")}.mp4`;
+  const file = `${outDir}/${String(t.n).padStart(2, "0")}.mp4`;
   console.log(`▶ ${file}`);
   execFileSync("npx", ["remotion", "render", "UnsaidVideo", file, `--props=${JSON.stringify(props)}`, ...browser], {
     stdio: "inherit",
