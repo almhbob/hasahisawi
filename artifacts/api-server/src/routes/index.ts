@@ -9,6 +9,7 @@ import extraRouter, { initExtraDb } from "./extra";
 import lawyersAdminRouter, { ensureLawyersDb } from "./lawyers-admin";
 import transportLiveRouter, { initTransportLiveDb } from "./transport-live";
 import hasahisawiRouter, { initHasahisawiDb } from "./hasahisawi";
+import zawajilRouter from "./zawajil";
 import uploadRouter from "./upload";
 import adminAlertsRouter, { captureAdminAlerts, ensureAdminAlertsDb } from "./admin-alerts";
 import accessGuardsRouter, { womenCornerGuard, genderLockGuard } from "./access-guards";
@@ -118,6 +119,7 @@ router.use(extraRouter);
 router.use(lawyersAdminRouter);
 // النقل الحي قبل الراوتر العام حتى تكون طلبات السائقين وقبول الرحلات ذرّية وواضحة.
 router.use(transportLiveRouter);
+router.use(zawajilRouter); // كان جزءاً من hasahisawiRouter بنفس الترتيب
 router.use(hasahisawiRouter);
 
 async function initializeDatabaseSchemas() {
