@@ -200,6 +200,8 @@ jobs:
           cp artifacts/hasahisawi/public/manifest.json cf-dist/manifest.json 2>/dev/null || true
           cp artifacts/hasahisawi/public/icon.png cf-dist/icon.png 2>/dev/null || true
           cp artifacts/hasahisawi/public/favicon.png cf-dist/favicon.png 2>/dev/null || true
+          # مواد الحملة (فيديوهات + calendar.json) يقرؤها خادم الحملة من https://hasahisawi.pages.dev/campaign/...
+          if [ -d campaign ]; then mkdir -p cf-dist/campaign && cp -r campaign/. cf-dist/campaign/; fi
           cp cf-dist/index.html cf-dist/404.html
           echo '/hasahisawi/* /:splat 302' > cf-dist/_redirects
           echo '/hasahisawi / 302' >> cf-dist/_redirects
