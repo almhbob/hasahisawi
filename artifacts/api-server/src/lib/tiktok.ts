@@ -6,7 +6,8 @@
 //                        لا تسمح إلا بـ SELF_ONLY، فنستخدمه تلقائياً ونذكر ذلك في النتيجة.
 //   TIKTOK_MODE          (اختياري) direct (نشر مباشر، افتراضي) أو inbox (يصل كمسودة في تطبيق تيك توك
 //                        لتضيف الموسيقى وتنشر بلمسة).
-// الربط مرة واحدة: افتح /api/tiktok/connect?key=CAMPAIGN_PUSH_KEY وسجّل الدخول بحساب تيك توك.
+// الربط مرة واحدة: شغّل workflow «TikTok connect link» (أو /api/tiktok/connect?key=CAMPAIGN_PUSH_KEY)
+// وسجّل الدخول بحساب تيك توك. في وضع Sandbox استخدم مفاتيح Sandbox وأضف الحساب في Target users.
 // يُحفظ refresh_token (صالح سنة) في قاعدة البيانات ويُجدَّد access_token تلقائياً.
 import { randomBytes } from "node:crypto";
 import { query } from "./shared-db";
