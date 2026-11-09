@@ -4,6 +4,7 @@ const UNION_LOGO = require("@/assets/images/student-union-logo.png");
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, TextInput } from "react-native";
 import SectionGlyph, { hasSectionGlyph } from "@/components/SectionGlyph";
+import SectionTile from "@/components/SectionTile";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -110,9 +111,9 @@ function norm(s: string) {
     .trim();
 }
 
-const FEATURED: { route: string; title: string; sub: string; icon: any; grad: [string, string] }[] = [
-  { route: "/volunteer", title: "بوابة المتطوعين", sub: "مهام، نقاط، مستويات وبطاقة متطوع", icon: "heart-circle", grad: ["#0E8A5F", "#064E3B"] },
-  { route: "/contests", title: "المسابقات", sub: "جوائز ومسابقات موسمية", icon: "trophy", grad: ["#B7791F", "#7C2D12"] },
+const FEATURED: { route: string; title: string; sub: string; icon: any; glyph: string; grad: [string, string] }[] = [
+  { route: "/volunteer", title: "بوابة المتطوعين", sub: "مهام، نقاط، مستويات وبطاقة متطوع", icon: "heart-circle", glyph: "volunteer", grad: ["#0E8A5F", "#064E3B"] },
+  { route: "/contests", title: "المسابقات", sub: "جوائز ومسابقات موسمية", icon: "trophy", glyph: "contests", grad: ["#D99A00", "#7A5600"] },
 ];
 
 async function toggleTheme() {
@@ -154,7 +155,9 @@ function ServiceRow({ item, onOpen }: { item: Service; onOpen: (s: Service) => v
     <View style={styles.cardWrap}>
     <AnimatedPress onPress={() => onOpen(item)}>
       <View style={styles.card} accessible accessibilityRole="button" accessibilityLabel={item.label}>
-        <View style={styles.cardIcon}><SvcIcon item={item} size={21} color={G_DEEP} /></View>
+        {hasSectionGlyph(item.id) && item.iconType !== "srcs" && item.iconType !== "union"
+          ? <SectionTile id={item.id} size={44} />
+          : <View style={styles.cardIcon}><SvcIcon item={item} size={21} color={G_DEEP} /></View>}
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
@@ -355,7 +358,7 @@ export default function HomeScreen() {
                     <AnimatedPress onPress={() => router.push(f.route as any)}>
                       <LinearGradient colors={f.grad} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={styles.feature}>
                         <View style={styles.featureTop}>
-                          <View style={styles.featureIcon}><Ionicons name={f.icon} size={20} color="#fff" /></View>
+                          <View style={styles.featureIcon}>{hasSectionGlyph(f.glyph) ? <SectionGlyph id={f.glyph} size={24} color="#fff" accent="#FFE08A" strokeWidth={2.1} /> : <Ionicons name={f.icon} size={20} color="#fff" />}</View>
                           <View style={styles.featureNew}><Text style={styles.featureNewText}>جديد</Text></View>
                         </View>
                         <Text style={styles.featureTitle} numberOfLines={1}>{f.title}</Text>
@@ -376,7 +379,9 @@ export default function HomeScreen() {
                   {top.map(s => (
                     <View key={s.id} style={{ flex: 1 }}><AnimatedPress onPress={() => open(s)}>
                       <View style={styles.quick} accessible accessibilityRole="button" accessibilityLabel={s.label}>
-                        <View style={styles.quickIcon}><SvcIcon item={s} size={24} color="#fff" /></View>
+                        {hasSectionGlyph(s.id) && s.iconType !== "srcs" && s.iconType !== "union"
+                          ? <SectionTile id={s.id} size={52} />
+                          : <View style={styles.quickIcon}><SvcIcon item={s} size={24} color="#fff" /></View>}
                         <Text style={styles.quickText} numberOfLines={1}>{s.short}</Text>
                       </View>
                     </AnimatedPress></View>
@@ -445,13 +450,13 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   cardWrap: { width: "48.4%" },
   card: { flexDirection: "row-reverse", alignItems: "center", gap: 10, minHeight: 66, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)" },
-  cardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: G_TINT, alignItems: "center", justifyContent: "center" },
+  cardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: Colors.divider, alignItems: "center", justifyContent: "center" },
   cardTitle: { flexShrink: 1, fontFamily: "Cairo_700Bold", color: Colors.textPrimary, fontSize: 13, textAlign: "right" },
   cardSub: { fontFamily: "Cairo_400Regular", color: Colors.textMuted, fontSize: 10.5, textAlign: "right", marginTop: -1 },
   featureRow: { flexDirection: "row-reverse", gap: 10, marginBottom: 22 },
   feature: { borderRadius: 18, padding: 14, minHeight: 112, gap: 4 },
   featureTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
-  featureIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  featureIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   featureNew: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 8, paddingHorizontal: 7 },
   featureNewText: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 10, lineHeight: 18 },
   featureTitle: { fontFamily: "Cairo_700Bold", color: "#fff", fontSize: 15, textAlign: "right" },
