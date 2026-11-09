@@ -1,14 +1,17 @@
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
-import type { Request, RequestHandler } from "express";
+import type { RequestHandler } from "express";
+
+// أنواع Express تختلف إصداراتها بين البيئات، فنكتفي بالحقول التي نحتاجها
+type ReqLike = { ip?: string; method?: string; socket?: { remoteAddress?: string }; headers: Record<string, unknown> };
 import { createHash } from "node:crypto";
 
 // في السودان تشارك شركات الاتصال عنوان IP واحداً بين مئات المشتركين (CGNAT)،
 // لذلك يُحسب حد العمليات لكل حساب (رمز الجلسة) لا لكل عنوان، ويبقى للعنوان سقف أعلى
 // يمنع التحايل بتبديل الرموز.
-function clientIp(req: Request): string {
+function clientIp(req: ReqLike): string {
   return ipKeyGenerator(req.ip || req.socket?.remoteAddress || "0.0.0.0");
 }
-function sessionKey(req: Request): string {
+function sessionKey(req: any): string {
   const auth = String(req.headers.authorization || "");
   const tok = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (tok.length >= 16) return "u:" + createHash("sha256").update(tok).digest("base64url").slice(0, 32);
@@ -59,7 +62,7 @@ export const pinLimiter = limiter({
   skipSuccessfulRequests: true,
 });
 
-const isRead = (req: Request) => req.method === "GET" || req.method === "OPTIONS";
+const isRead = (req: any) => req.method === "GET" || req.method === "OPTIONS";
 export const writeLimiter = chain(
   limiter({
     windowMs: 5 * 60 * 1000,
@@ -76,7 +79,7 @@ export const writeLimiter = chain(
     max: 1500,
     standardHeaders: false,
     legacyHeaders: false,
-    keyGenerator: (req) => "ipw:" + clientIp(req),
+    keyGenerator: (req: any) => "ipw:" + clientIp(req),
     message: { error: "عمليات كتابة كثيرة من هذه الشبكة، يرجى الانتظار قليلاً" },
     skip: isRead,
   }),
@@ -105,7 +108,7 @@ export const globalLimiter = chain(
     max: 12000,
     standardHeaders: false,
     legacyHeaders: false,
-    keyGenerator: (req) => "ipg:" + clientIp(req),
+    keyGenerator: (req: any) => "ipg:" + clientIp(req),
     message: { error: "طلبات كثيرة جداً من هذه الشبكة، يرجى المحاولة لاحقاً" },
     skip: (req) => req.method === "OPTIONS",
   }),
