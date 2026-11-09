@@ -57,6 +57,18 @@ jobs:
           if host and port and pw:
               print("postgresql://%s:%s@%s:%s/%s?sslmode=require" % (u.quote(v.get("POSTGRES_USER") or v.get("PGUSER") or "postgres", safe=""), u.quote(pw, safe=""), host, port, v.get("POSTGRES_DB") or v.get("PGDATABASE") or "railway"))
           ' || true)
+            if [ -z "$URL" ]; then
+              # تشخيص آمن: رسائل الخطأ وأسماء المتغيرات فقط، دون أي قيمة سرية
+              printf '%s' "$RAW" | python3 -c '
+          import json, sys
+          try: d = json.load(sys.stdin)
+          except Exception: print("::warning::Railway API returned a non-JSON response (network or token problem)"); sys.exit(0)
+          for e in (d.get("errors") or []): print("::warning::Railway API error: " + str(e.get("message"))[:200])
+          v = ((d.get("data") or {}).get("variables") or {})
+          if v: print("::warning::Token works; variable names present: " + ", ".join(sorted(k for k in v if k.startswith(("RAILWAY_TCP","POSTGRES","PG","DATABASE")))))
+          if v and not v.get("RAILWAY_TCP_PROXY_DOMAIN"): print("::warning::No public TCP proxy on the Postgres service — enable it in Railway (Postgres > Settings > Networking > TCP Proxy) or set the DATABASE_URL secret")
+          ' || true
+            fi
           fi
           [ -n "$URL" ] && echo "::add-mask::$URL"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
