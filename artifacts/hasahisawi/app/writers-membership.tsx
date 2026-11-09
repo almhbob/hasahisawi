@@ -179,7 +179,7 @@ export default function MembershipScreen() {
               <View style={[u.rowR, { gap: 8, marginTop: 14 }]}>
                 <Stat n={me!.stats.texts} l="نص منشور" /><Stat n={me!.stats.likes} l="إعجاب" /><Stat n={me!.badges.length + me!.awards.length} l="وساماً" />
               </View>
-              <ShareBar url={`https://hasahisawi.pages.dev/writers?author=${m.user_id}`} text={`${m.pen_name || m.full_name} — ${m.category_title} في ديوان الكُتّاب على حصاحيصاوي. اقرأ نصوصي:`} title="شارك ملفك ونصوصك على مواقع التواصل" />
+              <ShareBar url={`https://almhbob.github.io/hasahisawi/writers?author=${m.user_id}`} text={`${m.pen_name || m.full_name} — ${m.category_title} في ديوان الكُتّاب على حصاحيصاوي. اقرأ نصوصي:`} title="شارك ملفك ونصوصك على مواقع التواصل" />
               {!!m.card_url && <ShareBar url={m.card_url} text={`بطاقة عضويتي في ديوان الكُتّاب — ${m.category_title} · ${m.member_no}`} title="شارك بطاقة العضوية (رابط تحقق)" />}
               {!!m.card_url && (
                 <Pressable onPress={() => Share.share({ message: `بطاقة عضويتي في ديوان الكُتّاب — ${m.category_title}\n${m.member_no}\nتحقق: ${m.card_url}` }).catch(() => {})} style={[u.primaryBtn, { backgroundColor: m.color, marginTop: 12 }]}>

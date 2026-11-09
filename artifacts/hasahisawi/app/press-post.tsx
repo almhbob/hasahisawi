@@ -10,7 +10,7 @@ import { openExternal } from "@/lib/xplatform";
 import { pressApi, PRESS_INK, PRESS_RED, PRESS_PAPER, PARTNER_STATUS, fmtDay, type PressPost, type PressSettings } from "@/lib/press";
 import { ithraaStyles as u } from "@/components/ithraa/ui";
 
-const WEB = "https://hasahisawi.pages.dev";
+const WEB = "https://almhbob.github.io/hasahisawi";
 
 export default function PressPostScreen() {
   const insets = useSafeAreaInsets();

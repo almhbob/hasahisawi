@@ -14,7 +14,7 @@ import { writeLimiter } from "../lib/rate-limiters";
 const router = Router();
 
 const API_BASE = (process.env.PUBLIC_API_BASE || "https://api-server-gilt-ten.vercel.app").replace(/\/$/, "");
-const WEB_APP = (process.env.APP_URL || "https://hasahisawi.pages.dev").replace(/\/$/, "");
+const WEB_APP = (process.env.APP_URL || "https://almhbob.github.io/hasahisawi").replace(/\/$/, "");
 const PLAY_URL = "https://play.google.com/store/apps/details?id=com.almhbob.hasahisawi";
 const INVITER = "إدارة حصاحيصاوي";
 const TOKEN_ALPHABET = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";

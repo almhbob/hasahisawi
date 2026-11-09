@@ -245,7 +245,7 @@ function PromoCard({ id, p, tpl, ratio, link, W }: { id: string; p: Promo; tpl: 
           <Ionicons name="download-outline" size={14} color={tpl === "emerald" ? "#fff" : "#2E2200"} />
           <Text style={[c.ctaT, { color: tpl === "emerald" ? "#fff" : "#2E2200" }]}>حمّل حصاحيصاوي الآن</Text>
         </View>
-        <Text style={[c.store, { color: tpl === "emerald" ? "#5B6B60" : "rgba(255,255,255,0.8)" }]}>{link.includes("play.google") ? "متاح على Google Play" : "hasahisawi.pages.dev"}</Text>
+        <Text style={[c.store, { color: tpl === "emerald" ? "#5B6B60" : "rgba(255,255,255,0.8)" }]}>{link.includes("play.google") ? "متاح على Google Play" : "almhbob.github.io/hasahisawi"}</Text>
       </View>
       <View style={c.qr}><QRCode value={link} size={compact ? 44 : 60} color={DEEP} backgroundColor="#fff" /></View>
     </View>

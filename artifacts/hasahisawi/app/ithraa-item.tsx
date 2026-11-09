@@ -11,7 +11,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { ithraaApi, ITHRAA, ITHRAA_GOLD, LANG_LABEL, RIGHTS_OPTIONS, fmtSize, fmtDate, type IthraaItem } from "@/lib/ithraa";
 import { BookCover, BookTile, StatusChip, Meta, SectionTitle, ithraaStyles as u } from "@/components/ithraa/ui";
 
-const WEB_BASE = "https://hasahisawi.pages.dev";
+const WEB_BASE = "https://almhbob.github.io/hasahisawi";
 
 export default function IthraaItemScreen() {
   const insets = useSafeAreaInsets();

@@ -13,7 +13,7 @@ import { conApi, CON, CON_DEEP, money, fmtD, type Company, type Project, type Re
 import { Stars, Badge, Pill, BeforeAfter, ImagesField, conStyles as u } from "@/components/contractors/ui";
 
 type Data = Awaited<ReturnType<typeof conApi.company>>;
-const WEB = "https://hasahisawi.pages.dev";
+const WEB = "https://almhbob.github.io/hasahisawi";
 
 export default function ContractorScreen() {
   const insets = useSafeAreaInsets();

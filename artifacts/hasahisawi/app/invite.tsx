@@ -65,7 +65,7 @@ export default function InviteScreen() {
           <Text style={s.heroSub}>يعمل مع أندرويد وآيفون — يفتح Google Play على أندرويد، ويرشد مستخدم الآيفون لتثبيت التطبيق على شاشته الرئيسية</Text>
           <View style={s.qrBox}>
             {me ? <QRCode value={me.link} size={196} color="#063B2A" backgroundColor="#FFFFFF" /> :
-              !token || isGuest ? <QRCode value="https://hasahisawi.pages.dev/get" size={196} color="#063B2A" backgroundColor="#FFFFFF" /> :
+              !token || isGuest ? <QRCode value="https://almhbob.github.io/hasahisawi/get" size={196} color="#063B2A" backgroundColor="#FFFFFF" /> :
               <ActivityIndicator color="#0B6B49" style={{ margin: 80 }} />}
           </View>
           {me ? (

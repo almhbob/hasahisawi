@@ -17,7 +17,7 @@ export const INVITE_POINTS = Math.max(1, Number(process.env.INVITE_POINTS ?? 10)
 const DAILY_CAP = Math.max(1, Number(process.env.INVITE_DAILY_CAP ?? 20));
 const NEW_ACCOUNT_DAYS = 7;
 // رابط التثبيت الذكي (أندرويد → Google Play، آيفون → تثبيت تطبيق الويب)
-const INSTALL_BASE = (process.env.INSTALL_LINK_BASE || "https://hasahisawi.pages.dev/get").replace(/\/$/, "");
+const INSTALL_BASE = (process.env.INSTALL_LINK_BASE || "https://almhbob.github.io/hasahisawi/get").replace(/\/$/, "");
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // بلا 0/O و1/I لتجنب الالتباس
 
 const claimLimiter = limiter({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: "محاولات كثيرة، انتظر قليلاً" } });
