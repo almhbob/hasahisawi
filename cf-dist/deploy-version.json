@@ -1,10 +1,10 @@
 {
   "app": "hasahisawi",
-  "version": "6.12.0",
-  "androidVersionCode": 284,
-  "iosBuildNumber": "284",
-  "commit": "dc7589a0a312fc3c17c80e45adab1986ed0a6dd8",
-  "deployedAt": "2026-11-09T01:22:51.232Z",
+  "version": "6.12.1",
+  "androidVersionCode": 285,
+  "iosBuildNumber": "285",
+  "commit": "425aba48f830c94646581309d6aa2ec1f6630b32",
+  "deployedAt": "2026-11-09T01:33:35.663Z",
   "target": "cloudflare-pages",
   "source": "cloudflare-pages-sync"
 }
