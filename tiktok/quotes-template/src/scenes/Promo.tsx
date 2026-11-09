@@ -1,7 +1,19 @@
-import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  Img,
+  interpolate,
+  spring,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { C, cairo } from "../theme";
 
-export const Promo: React.FC<{ tagline: string; cta: string; screenshot: string }> = ({ tagline, cta, screenshot }) => {
+export const Promo: React.FC<{
+  tagline: string;
+  cta: string;
+  screenshot: string;
+}> = ({ tagline, cta, screenshot }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const phone = spring({ frame, fps, config: { damping: 14 } });
@@ -12,10 +24,26 @@ export const Promo: React.FC<{ tagline: string; cta: string; screenshot: string 
   const arrow = interpolate(Math.sin(frame / 6), [-1, 1], [0, 18]);
 
   return (
-    <AbsoluteFill dir="rtl" lang="ar" style={{ alignItems: "center", fontFamily: cairo, paddingTop: 130 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 28, transform: `scale(${logo})` }}>
-        <Img src={staticFile("logo.png")} style={{ width: 130, height: 130, borderRadius: 32 }} />
-        <div style={{ fontSize: 96, fontWeight: 900, color: C.ink }}>حصاحيصاوي</div>
+    <AbsoluteFill
+      dir="rtl"
+      lang="ar"
+      style={{ alignItems: "center", fontFamily: cairo, paddingTop: 130 }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 28,
+          transform: `scale(${logo})`,
+        }}
+      >
+        <Img
+          src={staticFile("logo.png")}
+          style={{ width: 130, height: 130, borderRadius: 32 }}
+        />
+        <div style={{ fontSize: 96, fontWeight: 900, color: C.ink }}>
+          حصاحيصاوي
+        </div>
       </div>
       <div
         style={{
@@ -43,7 +71,10 @@ export const Promo: React.FC<{ tagline: string; cta: string; screenshot: string 
           transform: `translateY(${(1 - phone) * 900}px) rotate(${(1 - phone) * -8}deg)`,
         }}
       >
-        <Img src={staticFile(screenshot)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <Img
+          src={staticFile(screenshot)}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
       </div>
       <div
         style={{
@@ -62,7 +93,16 @@ export const Promo: React.FC<{ tagline: string; cta: string; screenshot: string 
       >
         {cta}
       </div>
-      <div style={{ position: "absolute", bottom: 95, fontSize: 44, color: C.ink, opacity: btn, transform: `translateY(${arrow}px)` }}>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 95,
+          fontSize: 44,
+          color: C.ink,
+          opacity: btn,
+          transform: `translateY(${arrow}px)`,
+        }}
+      >
         الرابط في البايو ⬇
       </div>
     </AbsoluteFill>

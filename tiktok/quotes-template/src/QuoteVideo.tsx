@@ -6,7 +6,12 @@ import { Background } from "./Background";
 import { Hook } from "./scenes/Hook";
 import { Quote } from "./scenes/Quote";
 import { Promo } from "./scenes/Promo";
-import { HOOK_FRAMES, PROMO_FRAMES, TRANSITION_FRAMES, quoteFrames } from "./theme";
+import {
+  HOOK_FRAMES,
+  PROMO_FRAMES,
+  TRANSITION_FRAMES,
+  quoteFrames,
+} from "./theme";
 
 export type QuoteVideoProps = {
   day: number;
@@ -18,8 +23,14 @@ export type QuoteVideoProps = {
   screenshot: string;
 };
 
-export const calculateQuoteMetadata: CalculateMetadataFunction<QuoteVideoProps> = ({ props }) => ({
-  durationInFrames: HOOK_FRAMES + quoteFrames(props.quote) + PROMO_FRAMES - 2 * TRANSITION_FRAMES,
+export const calculateQuoteMetadata: CalculateMetadataFunction<
+  QuoteVideoProps
+> = ({ props }) => ({
+  durationInFrames:
+    HOOK_FRAMES +
+    quoteFrames(props.quote) +
+    PROMO_FRAMES -
+    2 * TRANSITION_FRAMES,
 });
 
 export const QuoteVideo: React.FC<QuoteVideoProps> = (p) => {
@@ -27,18 +38,30 @@ export const QuoteVideo: React.FC<QuoteVideoProps> = (p) => {
     <AbsoluteFill>
       <Background />
       <TransitionSeries>
-        <TransitionSeries.Sequence name="الافتتاحية" durationInFrames={HOOK_FRAMES}>
+        <TransitionSeries.Sequence
+          name="الافتتاحية"
+          durationInFrames={HOOK_FRAMES}
+        >
           <Hook label={p.label} day={p.day} />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })} />
-        <TransitionSeries.Sequence name="الحكمة" durationInFrames={quoteFrames(p.quote)}>
+        <TransitionSeries.Transition
+          presentation={fade()}
+          timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
+        />
+        <TransitionSeries.Sequence
+          name="الحكمة"
+          durationInFrames={quoteFrames(p.quote)}
+        >
           <Quote quote={p.quote} author={p.author} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-bottom" })}
           timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
         />
-        <TransitionSeries.Sequence name="ترويج التطبيق" durationInFrames={PROMO_FRAMES}>
+        <TransitionSeries.Sequence
+          name="ترويج التطبيق"
+          durationInFrames={PROMO_FRAMES}
+        >
           <Promo tagline={p.tagline} cta={p.cta} screenshot={p.screenshot} />
         </TransitionSeries.Sequence>
       </TransitionSeries>

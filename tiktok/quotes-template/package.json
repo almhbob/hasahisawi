@@ -30,7 +30,8 @@
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
     "render": "remotion render QuoteVideo out/day-01.mp4",
-    "render:all": "node render-all.mjs"
+    "render:all": "node render-all.mjs",
+    "render:unsaid": "node render-unsaid.mjs"
   },
   "allowScripts": {
     "esbuild": false

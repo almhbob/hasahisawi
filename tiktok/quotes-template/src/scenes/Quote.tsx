@@ -1,7 +1,16 @@
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  interpolate,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { C, amiri, cairo } from "../theme";
 
-export const Quote: React.FC<{ quote: string; author: string }> = ({ quote, author }) => {
+export const Quote: React.FC<{ quote: string; author: string }> = ({
+  quote,
+  author,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const words = quote.trim().split(/\s+/);
@@ -9,14 +18,22 @@ export const Quote: React.FC<{ quote: string; author: string }> = ({ quote, auth
   const fontSize = words.length > 22 ? 78 : words.length > 14 ? 92 : 108;
 
   return (
-    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "140px 90px" }}>
+    <AbsoluteFill
+      style={{
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "140px 90px",
+      }}
+    >
       <div
         style={{
           fontFamily: amiri,
           fontSize: 260,
           lineHeight: 1,
           color: C.gold,
-          opacity: interpolate(frame, [0, 15], [0, 0.9], { extrapolateRight: "clamp" }),
+          opacity: interpolate(frame, [0, 15], [0, 0.9], {
+            extrapolateRight: "clamp",
+          }),
           marginBottom: -40,
         }}
       >
@@ -25,10 +42,21 @@ export const Quote: React.FC<{ quote: string; author: string }> = ({ quote, auth
       <div
         dir="rtl"
         lang="ar"
-        style={{ fontFamily: amiri, fontSize, lineHeight: 1.6, color: C.ink, textAlign: "center", fontWeight: 700 }}
+        style={{
+          fontFamily: amiri,
+          fontSize,
+          lineHeight: 1.6,
+          color: C.ink,
+          textAlign: "center",
+          fontWeight: 700,
+        }}
       >
         {words.map((w, i) => {
-          const s = spring({ frame: frame - 20 - i * 6, fps, config: { damping: 200 } });
+          const s = spring({
+            frame: frame - 20 - i * 6,
+            fps,
+            config: { damping: 200 },
+          });
           return (
             <span
               key={i}
@@ -53,7 +81,10 @@ export const Quote: React.FC<{ quote: string; author: string }> = ({ quote, auth
             fontSize: 52,
             color: C.goldLight,
             marginTop: 60,
-            opacity: interpolate(frame - authorStart, [0, 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+            opacity: interpolate(frame - authorStart, [0, 15], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
           }}
         >
           — {author}

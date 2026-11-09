@@ -2,7 +2,7 @@ import { loadFont } from "@remotion/google-fonts/Cairo";
 import { loadFont as loadAmiri } from "@remotion/google-fonts/Amiri";
 
 export const { fontFamily: cairo } = loadFont("normal", {
-  weights: ["400", "700", "900"],
+  weights: ["400", "600", "700", "900"],
   subsets: ["arabic", "latin"],
 });
 export const { fontFamily: amiri } = loadAmiri("normal", {

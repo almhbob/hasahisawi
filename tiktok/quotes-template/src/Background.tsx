@@ -1,4 +1,11 @@
-import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  Img,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { C } from "./theme";
 
 // خلفية ثابتة لكل الفيديو: صورة المدينة مكبّرة ببطء تحت طبقة خضراء داكنة
