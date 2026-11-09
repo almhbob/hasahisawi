@@ -3,6 +3,7 @@
  "base_url": "https://hasahisawi.pages.dev/campaign/media/",
  "start_date": "2026-11-03",
  "timezone": "Asia/Riyadh",
+ "channels": ["facebook", "instagram", "telegram", "push"],
  "items": [
   {
    "day": 1,
