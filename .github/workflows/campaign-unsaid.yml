@@ -1,4 +1,4 @@
-name: "Things Unsaid" series (daily)
+name: Things Unsaid series (daily)
 # ينشر نص اليوم من campaign/unsaid/calendar.json (سلسلة «أشياء لا تقال» — ٥٠ يوماً)
 # على تيك توك وفيسبوك وإنستغرام وتيليجرام عبر خادم التطبيق. كل قناة مرة واحدة يومياً (الخادم يمنع التكرار).
 on:
