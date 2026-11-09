@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl } from "@/lib/query-client";
 import { useCart, fmtSdg, type CartVendor } from "@/lib/cart";
 import CartButton from "@/components/CartButton";
-import ImageLightbox from "@/components/ImageLightbox";
+import ProductDetailSheet from "@/components/ProductDetailSheet";
 import { confirmAction } from "@/lib/xplatform";
 import RtlScrollRow from "@/components/ui/RtlScrollRow";
 
@@ -216,7 +216,9 @@ export default function ProductShowcase() {
       ) : null}
 
       {adminOpen ? <AdminStoresSheet token={token} onClose={() => setAdminOpen(false)} /> : null}
-      {open ? <ProductSheet p={open} qty={cart.qty("store", open.store_id, open.id)} onAdd={(d) => add(open, d)} onClose={() => setOpen(null)} /> : null}
+      {open ? <ProductDetailSheet p={open} qty={cart.qty("store", open.store_id, open.id)} onAdd={(d) => add(open, d)} onClose={() => setOpen(null)}
+        closed={open.store_open === false || open.store_accepts === false}
+        store={{ id: open.store_id, name: open.store_name, logo: open.store_logo, subtitle: `${TYPE_AR[open.store_type] || "متجر"}${open.delivery_available ? ` · توصيل ${open.delivery_fee ? fmtSdg(open.delivery_fee) : "مجاني"}` : " · استلام من المتجر"}` }} /> : null}
     </View>
   );
 }
@@ -428,66 +430,6 @@ function ProductCard({ p, w, qty, onOpen, onAdd }: { p: Product; w: number; qty:
   );
 }
 
-function ProductSheet({ p, qty, onAdd, onClose }: { p: Product; qty: number; onAdd: (d: number) => void; onClose: () => void }) {
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const W = Math.min(width, 560);
-  const [idx, setIdx] = useState(0);
-  const [zoom, setZoom] = useState<string | null>(null);
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => setIdx(Math.round(e.nativeEvent.contentOffset.x / W));
-  return (
-    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <View style={st.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[st.sheet, { width: W, paddingBottom: insets.bottom + 14 }]}>
-          <View style={{ height: W * 0.9, backgroundColor: Colors.bg }}>
-            {p.images.length ? (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={onScroll} onScroll={onScroll} scrollEventThrottle={64}>
-                {p.images.map((u) => (
-                  <Pressable key={u} onPress={() => setZoom(u)} accessibilityLabel="تكبير الصورة"><Image source={{ uri: u }} style={{ width: W, height: W * 0.9 }} resizeMode="cover" /></Pressable>
-                ))}
-              </ScrollView>
-            ) : <View style={[StyleSheet.absoluteFill, st.noImg]}><Ionicons name="image-outline" size={44} color={GREEN} /></View>}
-            <Pressable onPress={onClose} style={st.close} accessibilityLabel="إغلاق"><Ionicons name="close" size={20} color="#fff" /></Pressable>
-            {p.images.length > 1 ? <View style={st.dots}>{p.images.map((_, i) => <View key={i} style={[st.dot, i === idx && st.dotOn]} />)}</View> : null}
-            {p.discount_pct ? <View style={[st.disc, { top: 14, right: 14 }]}><Text style={st.discT}>خصم {p.discount_pct}%</Text></View> : null}
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-            <Text style={st.sName}>{p.name}</Text>
-            <View style={st.priceRow}>
-              <Text style={[st.price, { fontSize: 22 }]}>{fmtSdg(p.price)}</Text>
-              {p.old_price ? <Text style={[st.old, { fontSize: 14 }]}>{fmtSdg(p.old_price)}</Text> : null}
-              {p.old_price ? <Text style={st.save}>وفّر {fmtSdg(p.old_price - p.price)}</Text> : null}
-            </View>
-            {p.stock != null ? <Text style={[st.muted, p.stock <= 3 && { color: "#B42318", fontFamily: "Cairo_700Bold" }]}>{p.stock <= 3 ? `⚠️ تبقّى ${p.stock} فقط` : `متوفر: ${p.stock}`}</Text> : null}
-            {p.description ? <Text style={st.desc}>{p.description}</Text> : null}
-            <Pressable onPress={() => { onClose(); router.push({ pathname: "/stores", params: { open: String(p.store_id) } } as any); }} style={st.storeRow}>
-              <View style={st.storeLogoSm}>{p.store_logo ? <Image source={{ uri: p.store_logo }} style={{ width: 36, height: 36 }} /> : <Text style={[st.storeInit, { fontSize: 17 }]}>{p.store_name.trim().charAt(0)}</Text>}</View>
-              <View style={{ flex: 1 }}>
-                <Text style={st.pName}>{p.store_name}</Text>
-                <Text style={st.muted}>{TYPE_AR[p.store_type] || "متجر"}{p.delivery_available ? ` · توصيل ${p.delivery_fee ? fmtSdg(p.delivery_fee) : "مجاني"}` : " · استلام من المتجر"}</Text>
-              </View>
-              <Text style={st.linkT}>زيارة المتجر</Text>
-            </Pressable>
-            {qty ? (
-              <View style={{ flexDirection: "row-reverse", gap: 10 }}>
-                <View style={[st.stepper, { flex: 1 }]}>
-                  <Pressable onPress={() => onAdd(1)} style={st.stepBtn}><Ionicons name="add" size={18} color="#fff" /></Pressable>
-                  <Text style={[st.stepN, { fontSize: 16 }]}>{qty}</Text>
-                  <Pressable onPress={() => onAdd(-1)} style={[st.stepBtn, { backgroundColor: Colors.bg }]}><Ionicons name="remove" size={18} color={DEEP} /></Pressable>
-                </View>
-                <Pressable onPress={() => { onClose(); router.push("/cart" as any); }} style={[st.addBtn, { flex: 1.3, paddingVertical: 13 }]}><Text style={st.addT}>إتمام الطلب</Text></Pressable>
-              </View>
-            ) : (
-              <Pressable onPress={() => onAdd(1)} style={[st.addBtn, { paddingVertical: 14 }]}><Ionicons name="cart" size={18} color="#fff" /><Text style={[st.addT, { fontSize: 15 }]}>أضف للسلة · {fmtSdg(p.price)}</Text></Pressable>
-            )}
-          </ScrollView>
-        </View>
-      </View>
-      <ImageLightbox uri={zoom} title={p.name} onClose={() => setZoom(null)} />
-    </Modal>
-  );
-}
 
 const st = StyleSheet.create({
   hero: { paddingHorizontal: 16, paddingBottom: 16, gap: 12, overflow: "hidden" },

@@ -17,6 +17,7 @@ import {
   Image,
 } from "react-native";
 import { uploadFile } from "@/lib/firebase/storage";
+import ImageLightbox from "@/components/ImageLightbox";
 import { compressImage, uploadErrorMessage } from "@/lib/compress-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1006,10 +1007,15 @@ function ProductCard({
   onDelete: () => void;
   onToggle: () => void;
 }) {
+  const [zoom, setZoom] = useState<string | null>(null);
   return (
     <View style={[styles.productCard, CARD_SHADOW, { flexDirection: "row-reverse" }]}>
+      <ImageLightbox uri={zoom} title={product.name} onClose={() => setZoom(null)} />
       {product.image_url ? (
-        <Image source={{ uri: product.image_url }} style={styles.productThumb} resizeMode="cover" />
+        <TouchableOpacity onPress={() => setZoom(product.image_url!)} activeOpacity={0.85} accessibilityRole="imagebutton" accessibilityLabel="تكبير صورة المنتج">
+          <Image source={{ uri: product.image_url }} style={styles.productThumb} resizeMode="cover" />
+          <View style={{ position: "absolute", bottom: 4, left: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" }}><Ionicons name="expand" size={11} color="#fff" /></View>
+        </TouchableOpacity>
       ) : (
         <View style={[styles.productThumb, styles.productThumbPlaceholder]}>
           <Ionicons name="image-outline" size={24} color={Colors.textMuted} />
@@ -2335,9 +2341,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   productThumb: {
-    width: 54,
-    height: 54,
-    borderRadius: 10,
+    width: 92,
+    height: 92,
+    borderRadius: 14,
     marginLeft: 10,
   },
   productThumbPlaceholder: {
