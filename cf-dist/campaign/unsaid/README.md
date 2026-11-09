@@ -30,7 +30,7 @@
 3. افتح هذا الرابط من جوالك وسجّل الدخول بحساب تيك توك الذي تريد النشر عليه، ثم وافق:
    `https://api-server-gilt-ten.vercel.app/api/tiktok/connect?key=<CAMPAIGN_PUSH_KEY>`
    (`CAMPAIGN_PUSH_KEY` محفوظ في متغيرات Vercel). ستظهر لك رسالة «✅ تم ربط حساب تيك توك».
-4. للتجربة: من **GitHub → Actions → "Things Unsaid" series → Run workflow** اكتب `day = 1` و`only = tiktok`.
+4. للتجربة: من **GitHub → Actions → Things Unsaid series (daily) → Run workflow** اكتب `day = 1` و`only = tiktok`.
 
 ### ملاحظة مهمة: مراجعة TikTok
 
