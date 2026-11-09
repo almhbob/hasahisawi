@@ -243,6 +243,15 @@ router.get("/tiktok/connect", async (req: Request, res: Response) => {
   catch (e: any) { return res.status(500).send(e?.message || "error"); }
 });
 
+// رابط ربط لمرة واحدة يُطلب من GitHub Actions (OIDC) دون الحاجة لمعرفة CAMPAIGN_PUSH_KEY
+router.post("/tiktok/connect-url", async (req: Request, res: Response) => {
+  if (!(await authOk(req))) return res.status(401).json({ error: "unauthorized" });
+  if (!tiktokConfigured()) return res.status(503).json({ error: "TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET not set" });
+  if (!dbEnabled) return res.status(503).json({ error: "db" });
+  try { return res.json({ url: await tiktokAuthUrl(), expires_in_minutes: 15 }); }
+  catch (e: any) { return res.status(500).json({ error: e?.message || "error" }); }
+});
+
 router.get("/tiktok/callback", async (req: Request, res: Response) => {
   const page = (msg: string) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;direction:rtl;padding:24px">${msg}</body>`;
   if (req.query.error) return res.status(400).send(page(`❌ رفض تيك توك الطلب: ${String(req.query.error_description || req.query.error).replace(/[<>&]/g, "")}`));
