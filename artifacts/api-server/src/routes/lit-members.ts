@@ -837,8 +837,8 @@ router.get("/public/lit/member/:token", async (req: Request, res: Response) => {
 <meta property="og:type" content="profile"><meta property="og:site_name" content="حصاحيصاوي">
 <meta property="og:title" content="${m ? `${esc(m.pen_name || m.full_name)} — ${esc(c?.title)}` : "التحقق من عضوية — ديوان الكُتّاب"}">
 <meta property="og:description" content="${m ? `بطاقة عضوية موثّقة في ديوان الكُتّاب · ${esc(m.member_no)}` : "تحقق من بطاقات عضوية ديوان الكُتّاب على منصة حصاحيصاوي"}">
-<meta property="og:image" content="${WEB}/og/hasahisawi.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${WEB}/og/hasahisawi.png"><style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#F4F1EA;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+<meta property="og:image" content="${WEB}/og/hasahisawi-promo.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${WEB}/og/hasahisawi-promo.jpg"><style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#F4F1EA;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
 .c{max-width:420px;width:100%;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 12px 32px rgba(0,0,0,.12)}
 .h{background:${c?.color ?? "#3A1E1A"};color:#fff;padding:22px;text-align:center}.h small{opacity:.8}.h b{display:block;font-size:22px;margin-top:6px}
 .s{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:20px;font-weight:700;background:${valid ? "#E7F6EE;color:#0E7C4A" : "#FDECEC;color:#B42318"}}

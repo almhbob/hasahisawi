@@ -26,16 +26,16 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:title" content="حصاحيصاوي — لخدمة مواطن المنطقة وضواحيها" />
         <meta property="og:description" content="خدمات الحصاحيصا وضواحيها في تطبيق واحد: مشاوير، متاجر، صحة، وظائف وأكثر من 30 خدمة. حمّل التطبيق مجاناً." />
         <meta property="og:url" content="https://hasahisawi.pages.dev/" />
-        <meta property="og:image" content="https://hasahisawi.pages.dev/og/hasahisawi.png" />
-        <meta property="og:image:secure_url" content="https://hasahisawi.pages.dev/og/hasahisawi.png" />
-        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image" content="https://hasahisawi.pages.dev/og/hasahisawi-promo.jpg" />
+        <meta property="og:image:secure_url" content="https://hasahisawi.pages.dev/og/hasahisawi-promo.jpg" />
+        <meta property="og:image:type" content="image/jpeg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="حصاحيصاوي — خدمات المنطقة في تطبيق واحد" />
+        <meta property="og:image:alt" content="حصاحيصاوي — مدينتك كلها في جيبك" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="حصاحيصاوي — لخدمة مواطن المنطقة وضواحيها" />
         <meta name="twitter:description" content="خدمات الحصاحيصا وضواحيها في تطبيق واحد. حمّل التطبيق مجاناً." />
-        <meta name="twitter:image" content="https://hasahisawi.pages.dev/og/hasahisawi.png" />
+        <meta name="twitter:image" content="https://hasahisawi.pages.dev/og/hasahisawi-promo.jpg" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0B6B49" />
 

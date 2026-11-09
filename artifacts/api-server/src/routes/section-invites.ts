@@ -638,7 +638,7 @@ function renderPage(token: string, p: ReturnType<typeof publicOut>) {
 <meta property="og:title" content="✉️ ${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:url" content="${esc(self)}">
-<meta property="og:image" content="${esc(`${WEB_APP}/og/hasahisawi.png`)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(`${WEB_APP}/og/hasahisawi.png`)}">
+<meta property="og:image" content="${esc(`${WEB_APP}/og/hasahisawi-promo.jpg`)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(`${WEB_APP}/og/hasahisawi-promo.jpg`)}">
 <meta name="twitter:card" content="summary"><meta name="twitter:title" content="✉️ ${esc(title)}"><meta name="twitter:description" content="${esc(desc)}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
